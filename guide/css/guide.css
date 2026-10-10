@@ -387,3 +387,20 @@ mark.hl { background: linear-gradient(90deg, rgba(212, 166, 74, .38), rgba(243, 
 .a-quote p { color: var(--ivory) !important; font-size: 16px !important; }
 .a-quote cite { display: block; margin-top: 10px; font-style: normal; font-family: var(--f-m); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
 @media (max-width: 520px) { .pays-2 { grid-template-columns: 1fr; } }
+
+/* видео от Петра в финале */
+.vid { margin: 34px auto 0; max-width: 640px; display: grid; gap: 12px; }
+.vid-box { position: relative; overflow: hidden; aspect-ratio: 16 / 9; border: 1px solid rgba(212, 166, 74, .55); background: #000; box-shadow: 0 30px 70px -30px rgba(0, 0, 0, .9); }
+.vid-box video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.vid-play { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 14px; border: 0; cursor: pointer; background: linear-gradient(180deg, rgba(4, 6, 20, .05), rgba(4, 6, 20, .55)); color: var(--ivory); -webkit-tap-highlight-color: transparent; }
+.vid-play i { width: 74px; height: 74px; border-radius: 50%; background: linear-gradient(135deg, #f6dc95, var(--gold) 60%, #b4852f); box-shadow: 0 0 0 10px rgba(212, 166, 74, .18), 0 14px 40px -8px rgba(0, 0, 0, .8); position: relative; transition: transform .3s; }
+.vid-play i::after { content: ''; position: absolute; left: 29px; top: 23px; border-style: solid; border-width: 14px 0 14px 22px; border-color: transparent transparent transparent #120d03; }
+.vid-play:hover i { transform: scale(1.06); }
+.vid-play span { font-family: var(--f-m); font-size: 11px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; text-shadow: 0 2px 10px rgba(0, 0, 0, .8); }
+.vid.playing .vid-play { display: none; }
+.vid figcaption { font-size: 15px; color: var(--mute); }
+.q-1 .vid-play i, .q-0 .vid-play i { box-shadow: none; }
+/* кнопка в углу, чтобы не закрывать лицо */
+.vid-play { place-content: end start; justify-items: start; padding: 0 0 16px 16px; grid-auto-flow: column; align-items: center; gap: 12px; background: linear-gradient(180deg, transparent 55%, rgba(4, 6, 20, .7)); }
+.vid-play i { width: 56px; height: 56px; box-shadow: 0 0 0 7px rgba(212, 166, 74, .2), 0 10px 30px -8px rgba(0, 0, 0, .8); }
+.vid-play i::after { left: 22px; top: 17px; border-width: 11px 0 11px 17px; }

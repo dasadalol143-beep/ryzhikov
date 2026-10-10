@@ -101,7 +101,7 @@
     side:  function () { return isMobile() ? { tx: .97, ty: .52, scale: .6, alpha: .2, wander: .25, k: 1.7 } : { tx: .95, ty: .5, scale: .9, alpha: window.innerWidth < 1300 ? .32 : .55, wander: .35, k: 1.7 }; },
     show:  function () { return isMobile() ? { tx: .9, ty: .16, scale: .62, alpha: .55, wander: .3, k: 1.7 } : { tx: .9, ty: .3, scale: 1, alpha: .85, wander: .5, k: 1.7 }; },
     gate:  function () { return { tx: .5, ty: .3, scale: isMobile() ? 1 : 1.25, alpha: 1, wander: .3, k: 5 }; },
-    final: function () { return isMobile() ? { tx: .5, ty: .14, scale: .9, alpha: 1, wander: .3, k: 1.7 } : { tx: .84, ty: .3, scale: 1.1, alpha: 1, wander: .35, k: 1.7 }; }
+    final: function () { return isMobile() ? { tx: .9, ty: .13, scale: .7, alpha: .9, wander: .25, k: 1.7 } : { tx: .84, ty: .3, scale: 1.1, alpha: 1, wander: .35, k: 1.7 }; }
   };
   function plan(name) { Dragon.setPlan(PLANS[name]()); }
   plan('hero');
@@ -455,6 +455,20 @@
     var on = after && !nearEnd && !(currentPlan === 'gate');
     if (on !== stickyOn) { stickyOn = on; sticky.classList.toggle('on', on); }
   }
+
+  /* ---------- видео от Петра: грузится только по нажатию ---------- */
+  (function () {
+    var box = document.getElementById('petrVideo');
+    if (!box) return;
+    var v = box.querySelector('video'), btn = box.querySelector('.vid-play');
+    btn.addEventListener('click', function () {
+      box.classList.add('playing');
+      v.controls = true;
+      var pr = v.play(); if (pr && pr.catch) pr.catch(function () {});
+      goal('video_play', true);
+    });
+    v.addEventListener('ended', function () { goal('video_end', true); });
+  })();
 
   /* ---------- цели метрики: кнопки и дочитывание ---------- */
   document.addEventListener('click', function (e) {
