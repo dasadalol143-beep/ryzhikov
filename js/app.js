@@ -9,7 +9,7 @@
      Её открывает кнопка «Забрать место за 99 900 ₽» в финале.
      Все остальные золотые кнопки ведут к финалу с ценой. */
   var CONFIG = {
-    pay: ''
+    pay: 'https://link.tbank-online.com/8Wc6E4OkwHn'
   };
 
   var root = document.documentElement;
