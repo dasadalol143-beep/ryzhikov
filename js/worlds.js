@@ -123,7 +123,8 @@
   var scenes = SCN.map(function (sc) {
     var d = document.createElement('div');
     d.className = 'world-scene';
-    d.innerHTML = '<div class="ws-fly"><div class="ws-par"><div class="ws-box"><div class="ws-img"></div></div></div></div>';
+    d.innerHTML = '<div class="ws-fly"><div class="ws-par"><div class="ws-box"><div class="ws-img"></div></div></div></div><div class="ws-blur"></div>';
+    d._blur = d.querySelector('.ws-blur');
     var box = d.querySelector('.ws-box');
     box.style.setProperty('--fx', sc.fx);
     box.style.setProperty('--fy', sc.fy);
@@ -143,6 +144,7 @@
     im.decoding = 'async';
     im.onload = function () { d._img.style.backgroundImage = 'url("' + src + '")'; d.classList.add('ready'); };
     im.src = src;
+    d._blur.style.backgroundImage = 'url("assets/worlds/' + d._name + '-blur.jpg")';
     addVideo(d);
   }
   function addVideo(d) {
@@ -168,10 +170,13 @@
     v.remove();
   }
   function dropVideos() { scenes.forEach(dropVideo); }
+  // режим чтения: пока на экране текст, видео стоит, вместо него размытый кадр
+  var reading = false;
   function playOnly(n) {
     scenes.forEach(function (d, i) {
       if (!d._vid) return;
-      if (i === n) { var pr = d._vid.play(); if (pr && pr.catch) pr.catch(function () {}); }
+      if (i === n && !reading) { var pr = d._vid.play(); if (pr && pr.catch) pr.catch(function () {}); }
+      else if (i === n && reading) { var vv = d._vid; setTimeout(function () { if (reading && vv && !vv.paused) vv.pause(); }, 900); }
       else if (!d._vid.paused) {
         var v = d._vid;
         setTimeout(function () { if (i !== current && v && !v.paused) v.pause(); }, 1800);
@@ -225,7 +230,8 @@
 
   function resize() {
     vw = window.innerWidth; vh = window.innerHeight;
-    dpr = 1;
+    // на больших мониторах частицы рисуем в пониженном разрешении: они мягкие, разницы не видно
+    dpr = Math.min(1, Math.sqrt(1.5e6 / (vw * vh)));
     mobile = vw < 760;
     cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
     cv.style.width = vw + 'px'; cv.style.height = vh + 'px';
@@ -324,7 +330,8 @@
     var y = window.scrollY || 0, dS = y - lastY; lastY = y;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, vw, vh);
-    for (var i = 0; i < parts.length; i++) {
+    var pLimit = reading ? Math.ceil(parts.length * .5) : parts.length;
+    for (var i = 0; i < pLimit; i++) {
       var p = parts[i];
       if (p.fade) { p.life -= dt * 1.4; if (p.life <= 0) { spawn(p, false); continue; } }
       p.x += (p.vx + Math.sin(t * 1.3 + p.ph) * (p.t === 'petal' ? 34 : p.t === 'firefly' ? 14 : 6)) * dt;
@@ -419,6 +426,13 @@
       return th;
     },
     flame: addFlameHost,
+    setReading: function (on) {
+      on = !!on;
+      if (on === reading) return;
+      reading = on;
+      layer.classList.toggle('is-reading', on);
+      if (current >= 0) playOnly(current);
+    },
     current: function () { return current; }
   };
 })();

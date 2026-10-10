@@ -63,6 +63,9 @@
     vw = window.innerWidth;
     vh = window.innerHeight;
     dpr = Math.min(mobileGuess() ? 1.25 : 1.5, window.devicePixelRatio || 1) * RES[tier];
+    // потолок по пикселям: Retina-мониторы и iPad Pro не должны гонять холст на 8 млн точек
+    var cap = (('ontouchstart' in window) ? 1.6e6 : 2.2e6) * (tier >= 3 ? 1 : 0.8);
+    dpr = Math.min(dpr, Math.sqrt(cap / (vw * vh)));
     mobile = vw < 760;
     canvas.width = Math.round(vw * dpr);
     canvas.height = Math.round(vh * dpr);
@@ -325,6 +328,16 @@
     }
   }
 
+  // линия вдоль тела со смещением k (в долях ширины; плюс - спина, минус - брюхо)
+  function sideLine(k) {
+    ctx.beginPath();
+    for (var b = 1; b < N - 4; b++) {
+      var q = S[b];
+      var x = q.x + q.nx * q.w * k, y = q.y + q.ny * q.w * k;
+      if (b === 1) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }
+  }
+
   function drawBody() {
     var head0 = S[0], tail = S[N - 1];
 
@@ -335,11 +348,14 @@
     // свечение
     bodyPath();
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = C('glow', .10);
-    ctx.lineWidth = W0 * cur.scale * 1.6;
+    ctx.strokeStyle = C('glow', .05);
+    ctx.lineWidth = W0 * cur.scale * 2.0;
     ctx.stroke();
-    ctx.strokeStyle = C('glow', .16);
-    ctx.lineWidth = W0 * cur.scale * .7;
+    ctx.strokeStyle = C('glow', .07);
+    ctx.lineWidth = W0 * cur.scale * 1.2;
+    ctx.stroke();
+    ctx.strokeStyle = C('glow', .12);
+    ctx.lineWidth = W0 * cur.scale * .55;
     ctx.stroke();
 
     var gr = ctx.createLinearGradient(head0.x, head0.y, tail.x, tail.y);
@@ -395,16 +411,12 @@
         ctx.stroke();
       }
     }
-    // блик по спине
-    ctx.strokeStyle = C('scale', .25);
-    ctx.lineWidth = W0 * 0.12;
-    ctx.beginPath();
-    for (var b = 1; b < N - 4; b++) {
-      var q = S[b];
-      var bx = q.x + q.nx * q.w * 0.55, by = q.y + q.ny * q.w * 0.55;
-      if (b === 1) ctx.moveTo(bx, by); else ctx.lineTo(bx, by);
-    }
-    ctx.stroke();
+    // объём: тень к брюху, мягкий свет по спине и острый блик
+    var sc = cur.scale;
+    ctx.lineCap = 'round';
+    sideLine(-0.82); ctx.strokeStyle = 'rgba(0,0,0,.34)'; ctx.lineWidth = W0 * sc * 0.75; ctx.stroke();
+    sideLine(0.42); ctx.strokeStyle = C('scale', .16); ctx.lineWidth = W0 * sc * 0.55; ctx.stroke();
+    sideLine(0.56); ctx.strokeStyle = C('belly', .42); ctx.lineWidth = Math.max(1, W0 * sc * 0.07); ctx.stroke();
     ctx.restore();
 
     // контур
@@ -428,6 +440,15 @@
       var al2 = 0.92 * (1 - k / N) + 0.08;
       ctx.fillStyle = C('spine', al2.toFixed(3));
       ctx.fill();
+      if (tier >= 2) {
+        // светлая передняя кромка шипа
+        ctx.beginPath();
+        ctx.moveTo(bx2 + g.tx * gw * 0.32, by2 + g.ty * gw * 0.32);
+        ctx.quadraticCurveTo(bx2 + g.nx * h * 0.6, by2 + g.ny * h * 0.6, tipx, tipy);
+        ctx.strokeStyle = C('belly', (al2 * 0.7).toFixed(3));
+        ctx.lineWidth = Math.max(0.8, gw * 0.06);
+        ctx.stroke();
+      }
     }
 
     // хвостовой плавник
@@ -590,6 +611,16 @@
     ctx.strokeStyle = C('edge', .9);
     ctx.lineWidth = Math.max(1, h * 0.06);
     ctx.stroke();
+    // блик по верху черепа
+    ctx.save();
+    ctx.clip();
+    ctx.beginPath();
+    ctx.moveTo(-0.9 * h, 0.55 * h);
+    ctx.quadraticCurveTo(0.6 * h, 0.95 * h, 2.3 * h, 0.3 * h);
+    ctx.strokeStyle = C('scale', .22);
+    ctx.lineWidth = h * 0.32;
+    ctx.stroke();
+    ctx.restore();
 
     // зубы
     ctx.fillStyle = 'rgba(246,240,224,.9)';
@@ -622,8 +653,14 @@
     // глаз
     ctx.save();
     ctx.translate(0.82 * h, 0.42 * h);
-    ctx.fillStyle = C('eye', .25);
-    ctx.beginPath(); ctx.arc(0, 0, h * .55, 0, PI * 2); ctx.fill();
+    // живое свечение глаза
+    var pulse = 0.75 + 0.25 * Math.sin(t * 2.6);
+    var eg = ctx.createRadialGradient(0, 0, 0, 0, 0, h * 0.75);
+    eg.addColorStop(0, C('eye', (0.55 * pulse).toFixed(3)));
+    eg.addColorStop(0.4, C('eye', (0.18 * pulse).toFixed(3)));
+    eg.addColorStop(1, C('eye', 0));
+    ctx.fillStyle = eg;
+    ctx.beginPath(); ctx.arc(0, 0, h * 0.75, 0, PI * 2); ctx.fill();
     ctx.beginPath();
     ctx.ellipse(0, 0, 0.27 * h, 0.13 * h, -0.18, 0, PI * 2);
     ctx.fillStyle = C('eye');
@@ -631,6 +668,10 @@
     ctx.beginPath();
     ctx.ellipse(0.03 * h, 0, 0.045 * h, 0.12 * h, -0.18, 0, PI * 2);
     ctx.fillStyle = '#120a02';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(-0.09 * h, 0.05 * h, 0.035 * h, 0, PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,.9)';
     ctx.fill();
     ctx.restore();
 

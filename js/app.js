@@ -144,7 +144,11 @@
     }
     if (!active) active = zones[0];
     var reading = !gatePhase && active.dataset.room !== '0';
-    if (reading !== isReading) { isReading = reading; root.classList.toggle('reading', reading); }
+    if (reading !== isReading) {
+      isReading = reading;
+      root.classList.toggle('reading', reading);
+      if (Worlds && Worlds.setReading) Worlds.setReading(reading);
+    }
     setRoom(active.dataset.room);
     setWorld(Math.max(0, world));
     var want = gatePhase ? 'gate' : (active.dataset.dragon || currentPlan || 'hero');
