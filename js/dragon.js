@@ -55,10 +55,11 @@
   var jaw = 0;
 
   /* ---------------------------------------------------- размеры */
+  function mobileGuess() { return window.innerWidth < 1100 || ('ontouchstart' in window); }
   function resize() {
     vw = window.innerWidth;
     vh = window.innerHeight;
-    dpr = Math.min(1.75, window.devicePixelRatio || 1);
+    dpr = Math.min(mobileGuess() ? 1.25 : 1.5, window.devicePixelRatio || 1);
     mobile = vw < 760;
     canvas.width = Math.round(vw * dpr);
     canvas.height = Math.round(vh * dpr);
@@ -330,12 +331,13 @@
 
     // свечение
     bodyPath();
-    ctx.save();
-    ctx.shadowColor = C('glow', .55);
-    ctx.shadowBlur = mobile ? 18 : 34;
-    ctx.fillStyle = C('b3');
-    ctx.fill();
-    ctx.restore();
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = C('glow', .10);
+    ctx.lineWidth = W0 * cur.scale * 1.6;
+    ctx.stroke();
+    ctx.strokeStyle = C('glow', .16);
+    ctx.lineWidth = W0 * cur.scale * .7;
+    ctx.stroke();
 
     var gr = ctx.createLinearGradient(head0.x, head0.y, tail.x, tail.y);
     gr.addColorStop(0, C('b1'));
@@ -344,10 +346,23 @@
     ctx.fillStyle = gr;
     ctx.fill();
 
-    // брюхо: золотые пластины
+    // брюхо: светлая полоса и золотые пластины
     ctx.save();
     bodyPath();
     ctx.clip();
+    ctx.beginPath();
+    for (var bi = 1; bi < N - 3; bi++) {
+      var bo = S[bi];
+      var bx0 = bo.x - bo.nx * bo.w * .28, by0 = bo.y - bo.ny * bo.w * .28;
+      if (bi === 1) ctx.moveTo(bx0, by0); else ctx.lineTo(bx0, by0);
+    }
+    for (var bj = N - 4; bj >= 1; bj--) {
+      var bq = S[bj];
+      ctx.lineTo(bq.x - bq.nx * bq.w * 1.05, bq.y - bq.ny * bq.w * 1.05);
+    }
+    ctx.closePath();
+    ctx.fillStyle = C('belly', .2);
+    ctx.fill();
     ctx.lineCap = 'round';
     for (var i = 1; i < N - 2; i++) {
       var o = S[i];
@@ -563,12 +578,11 @@
     ctx.quadraticCurveTo(1.2 * h, -0.12 * h, 0.2 * h, -0.3 * h);
     ctx.quadraticCurveTo(-0.5 * h, -0.5 * h, -1.1 * h, -0.55 * h);
     ctx.closePath();
-    ctx.save();
-    ctx.shadowColor = C('glow', .6);
-    ctx.shadowBlur = h * 1.2;
+    ctx.strokeStyle = C('glow', .18);
+    ctx.lineWidth = h * .9;
+    ctx.stroke();
     ctx.fillStyle = skull;
     ctx.fill();
-    ctx.restore();
     ctx.strokeStyle = C('edge', .9);
     ctx.lineWidth = Math.max(1, h * 0.06);
     ctx.stroke();
@@ -604,13 +618,12 @@
     // глаз
     ctx.save();
     ctx.translate(0.82 * h, 0.42 * h);
-    ctx.shadowColor = C('eye');
-    ctx.shadowBlur = h * 1.1;
+    ctx.fillStyle = C('eye', .25);
+    ctx.beginPath(); ctx.arc(0, 0, h * .55, 0, PI * 2); ctx.fill();
     ctx.beginPath();
     ctx.ellipse(0, 0, 0.27 * h, 0.13 * h, -0.18, 0, PI * 2);
     ctx.fillStyle = C('eye');
     ctx.fill();
-    ctx.shadowBlur = 0;
     ctx.beginPath();
     ctx.ellipse(0.03 * h, 0, 0.045 * h, 0.12 * h, -0.18, 0, PI * 2);
     ctx.fillStyle = '#120a02';
@@ -651,21 +664,21 @@
     ctx.restore();
   }
 
+  var fireSprite = (function () {
+    var c = document.createElement('canvas'); c.width = c.height = 64;
+    var g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    gr.addColorStop(0, 'rgba(255,240,200,.9)'); gr.addColorStop(.35, 'rgba(255,180,70,.6)'); gr.addColorStop(1, 'rgba(200,60,20,0)');
+    g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    return c;
+  })();
   function drawFire() {
     if (!fire.length) return;
     ctx.save();
     ctx.globalCompositeOperation = 'lighter';
     for (var i = 0; i < fire.length; i++) {
       var f = fire[i];
-      var k = f.life / f.max;
-      var g = ctx.createRadialGradient(f.x, f.y, 0, f.x, f.y, f.r);
-      g.addColorStop(0, 'rgba(255,240,200,' + (0.85 * k).toFixed(3) + ')');
-      g.addColorStop(0.35, 'rgba(255,180,70,' + (0.55 * k).toFixed(3) + ')');
-      g.addColorStop(1, 'rgba(200,60,20,0)');
-      ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(f.x, f.y, f.r, 0, PI * 2);
-      ctx.fill();
+      ctx.globalAlpha = Math.max(0, f.life / f.max);
+      ctx.drawImage(fireSprite, f.x - f.r, f.y - f.r, f.r * 2, f.r * 2);
     }
     ctx.restore();
   }

@@ -118,12 +118,20 @@
      от порядка триггеров и пинов */
   var zones = Array.prototype.slice.call(document.querySelectorAll('[data-room]'));
   var currentPlan = '';
+  var zoneTops = [];
+  function measureZones() {
+    var sy = window.scrollY || 0;
+    zoneTops = zones.map(function (el) {
+      var box = el.classList.contains('gate') && el.parentNode.classList.contains('pin-spacer') ? el.parentNode : el;
+      return box.getBoundingClientRect().top + sy;
+    });
+  }
   function trackZones() {
-    var vh = window.innerHeight, line = vh * .55, active = null, gatePhase = false, world = 0;
+    if (zoneTops.length !== zones.length) measureZones();
+    var vh = window.innerHeight, line = vh * .55, active = null, gatePhase = false, world = 0, sy = window.scrollY || 0;
     for (var i = 0; i < zones.length; i++) {
       var el = zones[i];
-      var box = el.classList.contains('gate') && el.parentNode.classList.contains('pin-spacer') ? el.parentNode : el;
-      var top = box.getBoundingClientRect().top;
+      var top = zoneTops[i] - sy;
       if (top <= line) {
         active = el;
         var isGate = el.classList.contains('gate');
@@ -148,7 +156,7 @@
   function trackQueued() { if (zq) return; zq = true; requestAnimationFrame(function () { zq = false; trackZones(); }); }
   window.addEventListener('scroll', trackQueued, { passive: true });
   window.addEventListener('resize', trackQueued, { passive: true });
-  ScrollTrigger.addEventListener('refresh', trackQueued);
+  ScrollTrigger.addEventListener('refresh', function () { measureZones(); trackQueued(); });
 
   /* ---------- загрузка и вход в hero ---------- */
   var loader = document.getElementById('loader');
@@ -239,10 +247,10 @@
     });
 
     tl.fromTo(frame, { scale: .84, y: 50 }, { scale: 1, y: 0, duration: .32, ease: 'power1.out' }, 0)
-      .fromTo(copy, { autoAlpha: 0, y: 60, filter: 'blur(12px)' }, { autoAlpha: 1, y: 0, filter: 'blur(0px)', duration: .24, ease: 'power2.out' }, 0)
+      .fromTo(copy, { autoAlpha: 0, y: 60 }, { autoAlpha: 1, y: 0, duration: .24, ease: 'power2.out' }, 0)
       .fromTo(num, { scale: .7, autoAlpha: 0 }, { scale: 1, autoAlpha: 1, duration: .34, ease: 'power2.out' }, 0)
       .fromTo(title, { letterSpacing: '.12em' }, { letterSpacing: '-.01em', duration: .3, ease: 'power2.out' }, 0)
-      .to(copy, { autoAlpha: 0, y: -50, filter: 'blur(10px)', duration: .16, ease: 'power1.in' }, .42)
+      .to(copy, { autoAlpha: 0, y: -50, duration: .16, ease: 'power1.in' }, .42)
       .to(num, { autoAlpha: 0, scale: 1.3, duration: .2 }, .42)
       .to(doorL, { rotateY: -112, duration: .34, ease: 'power2.inOut' }, .44)
       .to(doorR, { rotateY: 112, duration: .34, ease: 'power2.inOut' }, .44)
@@ -257,19 +265,23 @@
   /* ---------- появление блоков ----------
      Считаем по геометрии на каждом кадре скролла: так блоки проявляются
      и при плавном скролле, и после прыжка по якорю. */
-  var pendingRv = reduce ? [] : Array.prototype.slice.call(document.querySelectorAll('.rv'));
-  if (!reduce) gsap.set(pendingRv, { opacity: 0, y: 34, filter: 'blur(6px)' });
-  function sweepReveals() {
-    if (!pendingRv.length) return;
-    var vh = window.innerHeight, now = [];
-    for (var i = pendingRv.length - 1; i >= 0; i--) {
-      var r = pendingRv[i].getBoundingClientRect();
-      if (r.top < vh * .92 && (r.bottom > 0 || r.height === 0)) { now.unshift(pendingRv[i]); pendingRv.splice(i, 1); }
-      else if (r.bottom <= 0) { gsap.set(pendingRv[i], { opacity: 1, y: 0, filter: 'none' }); pendingRv.splice(i, 1); }
-    }
-    if (now.length) gsap.to(now, { opacity: 1, y: 0, filter: 'blur(0px)', duration: 1.15, ease: 'expo.out', stagger: .08, overwrite: true });
+  var rvEls = Array.prototype.slice.call(document.querySelectorAll('.rv'));
+  function sweepReveals() {}
+  if (reduce || !('IntersectionObserver' in window)) {
+    rvEls.forEach(function (el) { el.classList.add('in'); });
+  } else {
+    var rvIO = new IntersectionObserver(function (entries) {
+      var k = 0;
+      entries.forEach(function (e) {
+        if (!e.isIntersecting && e.boundingClientRect.top > 0) return;
+        var el = e.target;
+        el.style.transitionDelay = e.isIntersecting ? (Math.min(k++, 5) * 70) + 'ms' : '0ms';
+        el.classList.add('in');
+        rvIO.unobserve(el);
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0 });
+    rvEls.forEach(function (el) { rvIO.observe(el); });
   }
-  window.addEventListener('scroll', function () { requestAnimationFrame(sweepReveals); }, { passive: true });
 
   /* ---------- зал пути ---------- */
   var path = document.getElementById('path');
@@ -284,8 +296,8 @@
       if (reduce) { step.classList.add('lit'); return; }
       ScrollTrigger.create({ trigger: step, start: 'top 62%', onEnter: function () { step.classList.add('lit'); }, onLeaveBack: function () { step.classList.remove('lit'); } });
       var dir = isMobile() ? 40 : (i % 2 ? 70 : -70);
-      gsap.fromTo(card, { opacity: 0, x: dir, filter: 'blur(8px)' }, {
-        opacity: 1, x: 0, filter: 'blur(0px)', duration: 1.2, ease: 'expo.out',
+      gsap.fromTo(card, { opacity: 0, x: dir }, {
+        opacity: 1, x: 0, duration: 1.2, ease: 'expo.out',
         scrollTrigger: { trigger: step, start: 'top 85%', toggleActions: 'play none none none' }
       });
     });
@@ -469,9 +481,7 @@
       deal.classList.add('js-seal');
       var flame = Worlds.flame(stage, 0);
       var revealed = false;
-      ScrollTrigger.create({
-        trigger: deal, start: 'top 62%',
-        onEnter: function () {
+      var revealPrice = function () {
           if (revealed) return;
           revealed = true;
           var o = { v: 120000 };
@@ -479,19 +489,30 @@
           var tl = gsap.timeline();
           tl.to(flame, { k: 1.8, duration: .7, ease: 'power2.in' }, .35)
             .to(seal, { x: '+=3', duration: .06, repeat: 9, yoyo: true, ease: 'none' }, .4)
-            .to(seal, { scale: 1.4, opacity: 0, filter: 'blur(10px) brightness(2.2)', duration: .7, ease: 'power2.in' }, 1.05)
+            .to(seal, { scale: 1.5, opacity: 0, duration: .6, ease: 'power2.in' }, 1.05)
             .add(function () { stage.classList.add('lit'); }, 1.2)
-            .fromTo(dealPrice, { opacity: 0, scale: .8, filter: 'blur(8px)' }, { opacity: 1, scale: 1, filter: 'blur(0px)', duration: .8, ease: 'expo.out', clearProps: 'filter' }, 1.25)
+            .fromTo(dealPrice, { opacity: 0, scale: .8 }, { opacity: 1, scale: 1, duration: .8, ease: 'expo.out', clearProps: 'transform' }, 1.25)
             .to(o, { v: 99900, duration: 1.7, ease: 'power3.inOut', onUpdate: function () { dealPrice.textContent = fmtPrice(o.v); }, onComplete: function () { dealPrice.textContent = '99\u00A0900\u00A0\u20BD'; } }, 1.25)
             .to(deal.querySelectorAll('.rvp'), { opacity: 1, y: 0, duration: .9, stagger: .12, ease: 'expo.out' }, 1.9)
             .to(flame, { k: .6, duration: 1.4, ease: 'power2.out' }, 3.1);
           dealPrice.textContent = fmtPrice(120000);
-        },
-        onEnterBack: function () {
-          fireAt(stage, 1.3);
-          gsap.fromTo(flame, { k: 1.6 }, { k: .6, duration: 2, ease: 'power2.out' });
-        }
-      });
+          // страховка: что бы ни случилось с анимацией, через 4 с цена видна
+          setTimeout(function () {
+            gsap.set(dealPrice, { opacity: 1, scale: 1 });
+            gsap.set(deal.querySelectorAll('.rvp'), { opacity: 1, y: 0 });
+            if (seal) seal.style.display = 'none';
+            stage.classList.add('lit');
+            dealPrice.textContent = '99\u00A0900\u00A0\u20BD';
+          }, 4200);
+      };
+      var dealIO = new IntersectionObserver(function (en) {
+        en.forEach(function (e) {
+          if (!e.isIntersecting) return;
+          if (!revealed) revealPrice();
+          else { fireAt(stage, 1.2); gsap.fromTo(flame, { k: 1.4 }, { k: .6, duration: 2, ease: 'power2.out' }); }
+        });
+      }, { threshold: .35 });
+      dealIO.observe(stage);
     }
   }
 
