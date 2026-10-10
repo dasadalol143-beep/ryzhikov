@@ -5,10 +5,11 @@
   'use strict';
 
   /* ---------- НАСТРОЙКИ ----------
-     Ссылка, куда ведут все кнопки «Записаться на разбор».
-     Например: 'https://t.me/ryzhikov_work'. Пока пусто - кнопки ведут к финалу. */
+     pay - ссылка на оплату обучения (страница оплаты SkillSpace или банка).
+     Её открывает кнопка «Забрать место за 99 900 ₽» в финале.
+     Все остальные золотые кнопки ведут к финалу с ценой. */
   var CONFIG = {
-    cta: ''
+    pay: ''
   };
 
   var root = document.documentElement;
@@ -44,8 +45,8 @@
 
   /* ---------- кнопки ---------- */
   document.querySelectorAll('[data-cta]').forEach(function (a) {
-    if (CONFIG.cta) {
-      a.href = CONFIG.cta;
+    if (CONFIG.pay) {
+      a.href = CONFIG.pay;
       a.target = '_blank';
       a.rel = 'noopener';
     } else {
@@ -92,11 +93,11 @@
   }
 
   var PLANS = {
-    hero:  function () { return { tx: isMobile() ? .7 : .74, ty: isMobile() ? .62 : .5, scale: 1.15, alpha: 1, wander: 1 }; },
-    right: function () { return { tx: isMobile() ? .84 : .905, ty: .46, scale: isMobile() ? .8 : 1, alpha: isMobile() ? .45 : .8, wander: .6 }; },
-    left:  function () { return { tx: isMobile() ? .16 : .095, ty: .46, scale: isMobile() ? .8 : 1, alpha: isMobile() ? .45 : .8, wander: .6 }; },
-    gate:  function () { return { tx: .5, ty: .56, scale: 1.35, alpha: 1, wander: .35 }; },
-    final: function () { return { tx: .5, ty: isMobile() ? .2 : .2, scale: 1.25, alpha: 1, wander: .3 }; }
+    hero:  function () { return { tx: isMobile() ? .7 : .74, ty: isMobile() ? .62 : .5, scale: 1.15, alpha: 1, wander: 1 , k: 1.7 }; },
+    right: function () { return { tx: isMobile() ? .84 : .905, ty: .46, scale: isMobile() ? .8 : 1, alpha: isMobile() ? .45 : .8, wander: .6 , k: 1.7 }; },
+    left:  function () { return { tx: isMobile() ? .16 : .095, ty: .46, scale: isMobile() ? .8 : 1, alpha: isMobile() ? .45 : .8, wander: .6 , k: 1.7 }; },
+    gate:  function () { return { tx: .5, ty: .3, scale: 1.25, alpha: 1, wander: .3, k: 5 }; },
+    final: function () { return { tx: .5, ty: isMobile() ? .2 : .2, scale: 1.25, alpha: 1, wander: .3 , k: 1.7 }; }
   };
   function plan(name) { Dragon.setPlan(PLANS[name]()); }
   plan('hero');
@@ -113,13 +114,19 @@
       var top = box.getBoundingClientRect().top;
       if (top <= line) {
         active = el;
-        gatePhase = el.classList.contains('gate') && top > -vh * 1.4;
+        gatePhase = el.classList.contains('gate') && top > -vh * 1.35;
       }
     }
     if (!active) active = zones[0];
     setRoom(active.dataset.room);
     var want = gatePhase ? 'gate' : (active.dataset.dragon || currentPlan || 'hero');
-    if (want !== currentPlan) { currentPlan = want; plan(want); }
+    if (want !== currentPlan) {
+      var fromGate = currentPlan === 'gate';
+      currentPlan = want;
+      plan(want);
+      // нырнул во врата - в новом зале влетает сверху
+      if (fromGate && want !== 'gate' && Dragon.state && Dragon.state().alpha < .2 && Dragon.reenter) Dragon.reenter();
+    }
   }
   var zq = false;
   function trackQueued() { if (zq) return; zq = true; requestAnimationFrame(function () { zq = false; trackZones(); }); }
@@ -199,7 +206,17 @@
           if (!self.isActive) root.style.setProperty('--lb', '0px');
         },
         onUpdate: function (self) {
-          var p = Math.min(1, self.progress / .57);
+          var p = Math.min(1, self.progress / .574);
+          // дракон: зависает над вратами, затем ныряет в проём и растворяется в свете
+          if (currentPlan === 'gate' && p < 1) {
+            var dive = Math.max(0, Math.min(1, (p - .38) / .42));
+            var e = dive * dive * (3 - 2 * dive);
+            Dragon.setPlan({
+              tx: .5, ty: .3 + e * .36, wander: .3 * (1 - e), k: 6,
+              scale: (isMobile() ? 1 : 1.25) * (1 - e * .68),
+              alpha: 1 - Math.max(0, (dive - .55) / .45)
+            });
+          }
           root.style.setProperty('--lb', (Math.sin(p * Math.PI) * lbMax()).toFixed(1) + 'px');
         }
       }
@@ -267,7 +284,7 @@
   document.querySelectorAll('.scroll').forEach(function (sc, i) {
     var btn = sc.querySelector('.scroll-h');
     var b = sc.querySelector('.scroll-b');
-    if (i === 3) { sc.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); b.style.height = 'auto'; }
+    if (i === 2) { sc.classList.add('open'); btn.setAttribute('aria-expanded', 'true'); b.style.height = 'auto'; }
     btn.addEventListener('click', function () {
       var open = !sc.classList.contains('open');
       sc.classList.toggle('open', open);
@@ -417,13 +434,30 @@
     });
   }
 
-  /* ---------- финал: дыхание дракона ---------- */
-  var finalSec = document.getElementById('final');
-  if (finalSec) {
+  /* ---------- финал: цена сгорает до 99 900 и дракон дышит в неё ---------- */
+  var deal = document.getElementById('deal');
+  var dealPrice = document.getElementById('dealPrice');
+  function fireAtPrice(sec) {
+    if (!dealPrice || !Dragon.state) return Dragon.breathe(sec, Math.PI / 2);
+    var r = dealPrice.getBoundingClientRect(), st = Dragon.state();
+    Dragon.breathe(sec, Math.atan2(r.top + r.height / 2 - st.hy, r.left + r.width / 2 - st.hx));
+  }
+  if (deal && dealPrice) {
+    var priceDone = false;
     ScrollTrigger.create({
-      trigger: finalSec, start: 'top 35%',
-      onEnter: function () { setTimeout(function () { Dragon.breathe(2.2, Math.PI / 2); }, 500); },
-      onEnterBack: function () { Dragon.breathe(1.4, Math.PI / 2); }
+      trigger: deal, start: 'top 70%',
+      onEnter: function () {
+        if (priceDone || reduce) return;
+        priceDone = true;
+        var o = { v: 120000 };
+        fireAtPrice(1.8);
+        gsap.to(o, {
+          v: 99900, duration: 1.8, delay: .35, ease: 'power3.inOut',
+          onUpdate: function () { dealPrice.textContent = String(Math.round(o.v / 100) * 100).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0') + '\u00A0\u20BD'; },
+          onComplete: function () { dealPrice.textContent = '99\u00A0900\u00A0\u20BD'; }
+        });
+      },
+      onEnterBack: function () { fireAtPrice(1.2); }
     });
   }
 

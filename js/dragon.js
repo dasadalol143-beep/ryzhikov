@@ -27,7 +27,7 @@
   var t = 0;
 
   // план полёта: куда тянется голова (доли экрана), масштаб, прозрачность
-  var plan = { tx: 0.72, ty: 0.5, scale: 1, alpha: 1, wander: 1 };
+  var plan = { tx: 0.72, ty: 0.5, scale: 1, alpha: 1, wander: 1, k: 1.7 };
   var cur = { tx: 0.72, ty: 0.5, scale: 1, alpha: 0 };
 
   var lastScroll = window.scrollY || 0;
@@ -102,11 +102,12 @@
     lastScroll = sy;
     scrollVel += ((dS / Math.max(dt, 0.001)) - scrollVel) * Math.min(1, dt * 6);
 
-    var k = Math.min(1, dt * 1.7);
+    var rate = plan.k || 1.7;
+    var k = Math.min(1, dt * rate);
     cur.tx += (plan.tx - cur.tx) * k;
     cur.ty += (plan.ty - cur.ty) * k;
-    cur.scale += (plan.scale - cur.scale) * Math.min(1, dt * 2.2);
-    cur.alpha += (plan.alpha - cur.alpha) * Math.min(1, dt * 1.6);
+    cur.scale += (plan.scale - cur.scale) * Math.min(1, dt * rate * 1.3);
+    cur.alpha += (plan.alpha - cur.alpha) * Math.min(1, dt * rate * 1.1);
 
     var calm = 1 - Math.min(1, Math.abs(scrollVel) / 1800);
     var wa = reduce ? 0 : plan.wander * (0.35 + 0.65 * calm);
@@ -701,6 +702,17 @@
   window.RyzhikovDragon = {
     setPlan: function (p) {
       for (var k in p) if (Object.prototype.hasOwnProperty.call(p, k)) plan[k] = p[k];
+    },
+    // дракон заново влетает сверху (после того как нырнул во врата)
+    reenter: function () {
+      var sy = window.scrollY || 0;
+      head.x = vw * plan.tx;
+      head.y = sy - vh * 0.25;
+      head.vx = 0; head.vy = vh * 0.8;
+      heading = PI / 2;
+      for (var i = 0; i < N; i++) { pts[i].x = head.x + Math.sin(i * 0.4) * W0; pts[i].y = head.y - i * L * plan.scale; }
+      for (var w = 0; w < 2; w++) for (var j = 0; j < WN; j++) { whiskers[w][j].x = head.x; whiskers[w][j].y = head.y - sy; }
+      cur.scale = plan.scale; cur.tx = plan.tx;
     },
     breathe: function (sec, aim) {
       if (reduce) return;

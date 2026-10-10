@@ -297,7 +297,7 @@ strong, b { color: var(--ivory); font-weight: 800; }
 .sub-block { margin-top: clamp(80px, 11vw, 140px); }
 
 /* зал после врат заезжает на свет открытых врат, без пустого экрана */
-.pin-spacer + .room, .pin-spacer + .final { margin-top: -100vh; margin-top: -100svh; }
+.pin-spacer + .room, .pin-spacer + .final { margin-top: -125vh; margin-top: -125svh; }
 .pin-spacer + .room { padding-top: clamp(110px, 14vw, 170px); }
 
 /* появление */
@@ -616,7 +616,6 @@ strong, b { color: var(--ivory); font-weight: 800; }
 .final h2 { font-size: clamp(38px, 7.2vw, 96px); margin-top: 22px; }
 .final .lead { margin: 30px auto 0; max-width: 620px; }
 .final-cta { margin-top: 44px; display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
-.final .btn--gold { padding: 22px 40px; font-size: 15px; }
 .sign { margin-top: 56px; font-family: var(--f-s); font-style: italic; font-size: 24px; color: var(--ivory); }
 .sign b { color: var(--gold-hi); font-family: var(--f-s); }
 .sign-tag { margin-top: 12px; font-family: var(--f-m); font-size: 10.5px; letter-spacing: .24em; text-transform: uppercase; color: var(--dim); }
@@ -628,6 +627,27 @@ strong, b { color: var(--ivory); font-weight: 800; }
   .panel--gold { background: linear-gradient(180deg, rgba(48, 36, 14, .85), rgba(12, 10, 6, .92)); }
   .fog { filter: blur(24px); }
 }
+
+/* ---------- сделка в финале ---------- */
+.deal { margin: 50px auto 0; max-width: 980px; padding: clamp(28px, 4.5vw, 54px); display: grid; grid-template-columns: 1fr 1fr; gap: clamp(26px, 5vw, 60px); align-items: center; text-align: left; }
+@media (max-width: 860px) { .deal { grid-template-columns: 1fr; } }
+.deal-list { list-style: none; margin-top: 22px; display: grid; gap: 12px; }
+.deal-list li { display: grid; grid-template-columns: 22px 1fr; gap: 12px; font-size: 15.5px; color: var(--ivory); opacity: .92; }
+.deal-list li::before { content: ''; width: 16px; height: 9px; margin-top: 5px; border-left: 2px solid var(--gold-hi); border-bottom: 2px solid var(--gold-hi); transform: rotate(-45deg); }
+.deal-r { text-align: center; }
+.deal-old { display: flex; justify-content: center; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.deal-old s { font-family: var(--f-m); font-size: 18px; color: var(--dim); }
+.deal-old span { font-family: var(--f-m); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--gold); padding: 5px 9px; border: 1px solid var(--line); }
+.deal-price { margin-top: 10px; font-family: var(--f-d); font-size: clamp(56px, 8.4vw, 104px); line-height: 1; letter-spacing: -.02em; white-space: nowrap; font-variant-numeric: tabular-nums;
+  background: linear-gradient(180deg, #fff6d8, var(--gold-hi) 45%, var(--gold) 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 44px rgba(243, 213, 138, .45)); }
+.deal-split { margin-top: 12px; font-size: 15px; color: var(--mute); }
+.deal-split b { color: var(--azure); }
+.deal-btn { margin-top: 26px; width: 100%; padding: 22px 26px; font-size: 14.5px; }
+.deal-seats { margin-top: 16px; display: inline-flex; align-items: center; gap: 10px; font-family: var(--f-m); font-size: 10.5px; letter-spacing: .16em; text-transform: uppercase; color: var(--ivory); opacity: .8; }
+.deal-seats i { width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 0 rgba(226, 87, 76, .6); animation: seat 1.8s infinite; }
+@keyframes seat { 70% { box-shadow: 0 0 0 10px rgba(226, 87, 76, 0); } 100% { box-shadow: 0 0 0 0 rgba(226, 87, 76, 0); } }
+.final > .wrap > .lead { margin-top: 40px; }
 
 /* мобильная липкая кнопка */
 .dock { position: fixed; left: 12px; right: 12px; bottom: 12px; z-index: 72; display: none; transform: translateY(140%); transition: transform .5s var(--ease); }
