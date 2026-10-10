@@ -6,6 +6,27 @@
 (function () {
   'use strict';
 
+  /* ---------- Яндекс Метрика ----------
+     Впиши сюда номер счётчика из metrika.yandex.ru (только цифры).
+     Пока 0 — метрика не грузится. Вебвизор включён: в нём есть карта
+     скроллинга, карта кликов и записи сессий. */
+  var METRIKA_ID = 0;
+  if (METRIKA_ID) {
+    (function (m, e, t, r, i, k, a) {
+      m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments); };
+      m[i].l = 1 * new Date();
+      k = e.createElement(t); a = e.getElementsByTagName(t)[0];
+      k.async = 1; k.src = r; a.parentNode.insertBefore(k, a);
+    })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js', 'ym');
+    window.ym(METRIKA_ID, 'init', { clickmap: true, trackLinks: true, accurateTrackBounce: true, webvisor: true });
+  }
+  var goalsHit = {};
+  function goal(name, once) {
+    if (once && goalsHit[name]) return;
+    goalsHit[name] = true;
+    if (METRIKA_ID && window.ym) window.ym(METRIKA_ID, 'reachGoal', name);
+  }
+
   var root = document.documentElement;
   var body = document.body;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -275,7 +296,7 @@
       barEl.style.transform = 'scaleX(' + Math.min(1, total / MAX).toFixed(3) + ')';
       hint.textContent = n === 0 ? 'Нажми на банки ниже' : ('Выбрано: ' + n + ' из ' + chips.length + (total >= 100000 ? ' · это уже больше 100 тысяч' : ''));
       all.textContent = n === chips.length ? 'Сбросить' : 'Открыть все';
-      if (total >= 100000 && !hit) { hit = true; Dragon.breathe(1.2); }
+      if (total >= 100000 && !hit) { hit = true; Dragon.breathe(1.2); goal('calc_100k', true); }
       if (total < 100000) hit = false;
     }
     chips.forEach(function (c) {
@@ -288,6 +309,7 @@
       });
     });
     all.addEventListener('click', function () {
+      goal('calc_all', true);
       var on = !chips.every(function (c) { return c.classList.contains('on'); });
       chips.forEach(function (c, i) {
         setTimeout(function () { c.classList.toggle('on', on); c.setAttribute('aria-pressed', String(on)); render(); }, on && !reduce ? i * 70 : 0);
@@ -300,6 +322,7 @@
     t.addEventListener('click', function () {
       all.forEach(function (x) { var on = x === t; x.classList.toggle('on', on); x.setAttribute('aria-selected', String(on)); });
       document.querySelectorAll('#board .tpane').forEach(function (p) { p.classList.toggle('on', p.dataset.p === t.dataset.t); });
+      goal('tab_' + t.dataset.t, true);
       refreshSoon(60);
     });
   });
@@ -321,6 +344,7 @@
     btn.addEventListener('click', function () {
       var open = !qa.classList.contains('open');
       qa.classList.toggle('open', open);
+      if (open) goal('faq_open', true);
       btn.setAttribute('aria-expanded', String(open));
       gsap.to(b, { height: open ? 'auto' : 0, duration: reduce ? 0 : .55, ease: 'expo.inOut', onComplete: function () { refreshSoon(30); } });
     });
@@ -349,6 +373,7 @@
         res.innerHTML = '<b>Есть нюанс.</b><p>' + TXT[miss[0]] + '</p><a class="btn btn--ghost btn--sm" href="#final" data-jump>Обсудить на созвоне</a>';
       }
       res.classList.add('on');
+      goal(miss.length ? 'quiz_nuance' : 'quiz_fit', true);
       refreshSoon(400);
     }
     qs.forEach(function (q) {
@@ -371,6 +396,7 @@
     boxes.forEach(function (b, i) {
       b.checked = !!saved[i];
       b.addEventListener('change', function () {
+        if (b.checked) goal('todo_' + (i + 1), true);
         try { localStorage.setItem('rz-guide-todo', JSON.stringify(boxes.map(function (x) { return x.checked; }))); } catch (e) {}
         if (b.checked && i === boxes.length - 1) scrollToEl(document.getElementById('final'));
       });
@@ -438,6 +464,22 @@
     var nearEnd = finalEl.getBoundingClientRect().top < vh * 1.1;
     var on = after && !nearEnd && !(currentPlan === 'gate');
     if (on !== stickyOn) { stickyOn = on; sticky.classList.toggle('on', on); }
+  }
+
+  /* ---------- цели метрики: кнопки и дочитывание ---------- */
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest('a');
+    if (!a) return;
+    if (a.id === 'finalCta') goal('cta_telegram');
+    else if (a.id === 'stickyCta') goal('cta_sticky');
+    else if (a.getAttribute('href') === '#final') goal('cta_to_final');
+  });
+  if ('IntersectionObserver' in window) {
+    var marks = [['ch-2', 'read_ch2'], ['ch-3', 'read_ch3'], ['anton', 'read_cases'], ['final', 'read_final']];
+    var mIO = new IntersectionObserver(function (en) {
+      en.forEach(function (e) { if (e.isIntersecting) { goal(e.target.dataset.goal, true); mIO.unobserve(e.target); } });
+    }, { threshold: .15 });
+    marks.forEach(function (m) { var el = document.getElementById(m[0]); if (el) { el.dataset.goal = m[1]; mIO.observe(el); } });
   }
 
   /* ---------- прогресс ---------- */

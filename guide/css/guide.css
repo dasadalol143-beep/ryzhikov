@@ -375,3 +375,15 @@ mark.hl { background: linear-gradient(90deg, rgba(212, 166, 74, .38), rgba(243, 
 .tnote { margin-top: 12px; padding: 12px 14px; font-size: 13.5px !important; line-height: 1.55 !important; background: rgba(255, 255, 255, .03); border-left: 2px solid var(--gold); }
 .tnote--warn { border-left-color: #ff7a45; }
 .tnote b { color: var(--ivory); }
+
+/* кейс Антона */
+.a-stats { margin-top: 18px; display: grid; gap: 8px; }
+.a-stats > div { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 12px 14px; border: 1px solid var(--line); background: rgba(10, 6, 16, .72); }
+.a-stats b { font-family: var(--f-d); font-weight: 400; font-size: 22px; color: var(--gold-hi); white-space: nowrap; }
+.a-stats span { font-size: 13.5px; color: var(--dim); }
+#anton .pays { margin-top: 22px; }
+.pays-2 { display: grid; grid-template-columns: 1.6fr 1fr; gap: 8px; align-items: start; }
+.a-quote { margin-top: 22px; padding: 20px 22px; border-left: 3px solid var(--gold); background: rgba(10, 6, 16, .78); }
+.a-quote p { color: var(--ivory) !important; font-size: 16px !important; }
+.a-quote cite { display: block; margin-top: 10px; font-style: normal; font-family: var(--f-m); font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+@media (max-width: 520px) { .pays-2 { grid-template-columns: 1fr; } }
