@@ -367,3 +367,11 @@ mark.hl { background: linear-gradient(90deg, rgba(212, 166, 74, .38), rgba(243, 
 .trust-c .g { color: var(--gold-hi); font-weight: 700; }
 .g-final .sign { font-size: 22px; }
 @media (max-width: 760px) { .trust { grid-template-columns: 1fr; } }
+
+/* v4: докрутка в калькуляторе, займы в табах */
+.chips-sub { margin: 18px 0 10px; text-align: center; font-family: var(--f-m); font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--dim); }
+.chips--x .chip { border-style: dashed; }
+.tabs { grid-template-columns: repeat(3, 1fr); }
+.tnote { margin-top: 12px; padding: 12px 14px; font-size: 13.5px !important; line-height: 1.55 !important; background: rgba(255, 255, 255, .03); border-left: 2px solid var(--gold); }
+.tnote--warn { border-left-color: #ff7a45; }
+.tnote b { color: var(--ivory); }

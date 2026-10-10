@@ -259,7 +259,7 @@
 
   /* ---------- золотой круг ---------- */
   (function () {
-    var chips = Array.prototype.slice.call(document.querySelectorAll('#chips .chip'));
+    var chips = Array.prototype.slice.call(document.querySelectorAll('#calc .chip'));
     if (!chips.length) return;
     var sumEl = document.getElementById('calcSum');
     var hint = document.getElementById('calcHint');
@@ -273,7 +273,7 @@
       chips.forEach(function (c) { if (c.classList.contains('on')) { total += parseInt(c.dataset.v, 10); n++; } });
       gsap.to(shown, { v: total, duration: .55, ease: 'power3.out', onUpdate: function () { sumEl.textContent = fmt(shown.v) + ' ₽'; } });
       barEl.style.transform = 'scaleX(' + Math.min(1, total / MAX).toFixed(3) + ')';
-      hint.textContent = n === 0 ? 'Нажми на банки ниже' : (n + ' ' + (n === 1 ? 'банк' : n < 5 ? 'банка' : 'банков') + (total >= 100000 ? ' · это уже больше 100 тысяч' : ''));
+      hint.textContent = n === 0 ? 'Нажми на банки ниже' : ('Выбрано: ' + n + ' из ' + chips.length + (total >= 100000 ? ' · это уже больше 100 тысяч' : ''));
       all.textContent = n === chips.length ? 'Сбросить' : 'Открыть все';
       if (total >= 100000 && !hit) { hit = true; Dragon.breathe(1.2); }
       if (total < 100000) hit = false;
@@ -334,19 +334,19 @@
     var ans = {};
     var qs = Array.prototype.slice.call(box.querySelectorAll('.qz'));
     var TXT = {
-      age: 'До 18 лет РКО открыть нельзя. Но есть продукты, которые оформляются с согласия родителей, — расскажем на разборе, с чего начать уже сейчас.',
-      gov: 'Госслужащим и сотрудникам оборонных предприятий ИП открывать нельзя. Есть другие варианты работы в нише — обсудим на разборе.',
-      time: 'Без пары часов в день результата не будет — это честно. Но начать на себе можно и в выходные. Приходи на разбор, прикинем реальный темп.',
+      age: 'До 18 лет РКО открыть нельзя. Но есть продукты, которые оформляются с согласия родителей, — расскажем на созвоне, с чего начать уже сейчас.',
+      gov: 'Госслужащим и сотрудникам оборонных предприятий ИП открывать нельзя. Есть другие варианты работы в нише — обсудим на созвоне.',
+      time: 'Без пары часов в день результата не будет — это честно. Но начать на себе можно и в выходные. Приходи на созвон, прикинем реальный темп.',
       talk: 'Кнопки «бабло» нет. Здесь платят за общение с людьми. Хорошая новость — это навык, и он качается за первые 10 диалогов.'
     };
     function render() {
       if (Object.keys(ans).length < qs.length) return;
       var miss = Object.keys(ans).filter(function (k) { return !ans[k]; });
       if (!miss.length) {
-        res.innerHTML = '<b>Ты подходишь.</b><p>У тебя есть всё, чтобы сделать первые деньги уже в этом месяце. Осталось собрать маршрут.</p><a class="btn btn--gold btn--sm" href="#final" data-jump>Забрать место на разбор</a>';
+        res.innerHTML = '<b>Ты подходишь.</b><p>У тебя есть всё, чтобы сделать первые деньги уже в этом месяце. Осталось собрать маршрут.</p><a class="btn btn--gold btn--sm" href="#final" data-jump>Забрать место на созвон</a>';
         Dragon.breathe(1);
       } else {
-        res.innerHTML = '<b>Есть нюанс.</b><p>' + TXT[miss[0]] + '</p><a class="btn btn--ghost btn--sm" href="#final" data-jump>Обсудить на разборе</a>';
+        res.innerHTML = '<b>Есть нюанс.</b><p>' + TXT[miss[0]] + '</p><a class="btn btn--ghost btn--sm" href="#final" data-jump>Обсудить на созвоне</a>';
       }
       res.classList.add('on');
       refreshSoon(400);
