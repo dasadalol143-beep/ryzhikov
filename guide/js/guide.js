@@ -7,19 +7,9 @@
   'use strict';
 
   /* ---------- Яндекс Метрика ----------
-     Впиши сюда номер счётчика из metrika.yandex.ru (только цифры).
-     Пока 0 — метрика не грузится. Вебвизор включён: в нём есть карта
-     скроллинга, карта кликов и записи сессий. */
-  var METRIKA_ID = 0;
-  if (METRIKA_ID) {
-    (function (m, e, t, r, i, k, a) {
-      m[i] = m[i] || function () { (m[i].a = m[i].a || []).push(arguments); };
-      m[i].l = 1 * new Date();
-      k = e.createElement(t); a = e.getElementsByTagName(t)[0];
-      k.async = 1; k.src = r; a.parentNode.insertBefore(k, a);
-    })(window, document, 'script', 'https://mc.yandex.ru/metrika/tag.js', 'ym');
-    window.ym(METRIKA_ID, 'init', { clickmap: true, trackLinks: true, accurateTrackBounce: true, webvisor: true });
-  }
+     Счётчик подключён в <head> index.html (вебвизор, карта кликов и скролла).
+     Здесь только отправка целей. */
+  var METRIKA_ID = 113600337;
   var goalsHit = {};
   function goal(name, once) {
     if (once && goalsHit[name]) return;
