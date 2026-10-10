@@ -11,8 +11,8 @@
   --gold-hi: #f3d58a;
   --gold-deep: #9c7428;
   --ivory: #f3eee2;
-  --mute: rgba(243, 238, 226, .68);
-  --dim: rgba(243, 238, 226, .44);
+  --mute: rgba(243, 238, 226, .82);
+  --dim: rgba(243, 238, 226, .58);
   --line: rgba(212, 166, 74, .24);
   --line-b: rgba(123, 155, 255, .16);
   --danger: #e2574c;
@@ -91,6 +91,8 @@ button { font: inherit; color: inherit; }
     radial-gradient(ellipse 80% 70% at 50% 45%, rgba(0, 0, 0, .18), rgba(0, 0, 0, .55) 100%),
     linear-gradient(180deg, rgba(0, 0, 0, .45) 0%, rgba(0, 0, 0, .15) 30%, rgba(0, 0, 0, .25) 70%, rgba(0, 0, 0, .7) 100%); }
 #world-fx { position: fixed; inset: 0; z-index: 2; pointer-events: none; }
+.worlds::after { content: ''; position: absolute; inset: 0; z-index: 5; pointer-events: none; background: rgba(4, 5, 12, .62); opacity: 0; transition: opacity .9s ease; will-change: opacity; }
+.reading .worlds::after { opacity: 1; }
 .atmo { opacity: .55; }
 .fog { opacity: .25; }
 .world-scene .lava, .gate .lava { animation: lava 2.6s ease-in-out infinite; }
@@ -258,7 +260,8 @@ strong, b { color: var(--ivory); font-weight: 800; }
 /* =========================================================== ПАНЕЛИ */
 .panel {
   position: relative;
-  background: linear-gradient(180deg, rgba(var(--panel), .8), rgba(var(--panel-d), .88));
+  background: linear-gradient(180deg, rgba(var(--panel), .94), rgba(var(--panel-d), .96));
+  box-shadow: 0 24px 60px -30px rgba(0, 0, 0, .8);
   border: 1px solid var(--line-b);
   border-radius: 3px;
 }
@@ -361,7 +364,7 @@ strong, b { color: var(--ivory); font-weight: 800; }
 .sub-block { margin-top: clamp(80px, 11vw, 140px); }
 
 /* зал после врат заезжает на свет открытых врат, без пустого экрана */
-.pin-spacer + .room, .pin-spacer + .final { margin-top: -125vh; margin-top: -125svh; }
+.pin-spacer + .room, .pin-spacer + .final { margin-top: -102vh; margin-top: -102svh; }
 .pin-spacer + .room { padding-top: clamp(110px, 14vw, 170px); }
 
 /* появление */
@@ -756,3 +759,9 @@ strong, b { color: var(--ivory); font-weight: 800; }
   .grain, .fog, .btn--gold::after, .marquee-track, .scroll-cue i, .loader-seal { animation: none !important; }
   .marquee { overflow-x: auto; }
 }
+
+/* читаемость: крупнее основной текст в карточках */
+.step-card p, .tile p, .check span, .weapon > p, .weapon li, .cur-d, .case-story, .ba-row p, .mline, .rev-t, .bonus p, .vrow span { font-size: 16px; line-height: 1.6; }
+.quote p { font-size: 16.5px; }
+.lead { color: rgba(243, 238, 226, .88); }
+.room-head h2, .room-head .lead, .kicker { text-shadow: 0 2px 18px rgba(0, 0, 0, .65); }

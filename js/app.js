@@ -105,8 +105,8 @@
 
   var PLANS = {
     hero:  function () { return { tx: isMobile() ? .7 : .74, ty: isMobile() ? .62 : .5, scale: 1.15, alpha: 1, wander: 1 , k: 1.7 }; },
-    right: function () { return { tx: isMobile() ? .84 : .905, ty: .46, scale: isMobile() ? .8 : 1, alpha: isMobile() ? .45 : .8, wander: .6 , k: 1.7 }; },
-    left:  function () { return { tx: isMobile() ? .16 : .095, ty: .46, scale: isMobile() ? .8 : 1, alpha: isMobile() ? .45 : .8, wander: .6 , k: 1.7 }; },
+    right: function () { return { tx: isMobile() ? .9 : .955, ty: .5, scale: isMobile() ? .7 : .9, alpha: isMobile() ? .3 : (window.innerWidth < 1300 ? .3 : .6), wander: .35, k: 1.7 }; },
+    left:  function () { return { tx: isMobile() ? .9 : .955, ty: .5, scale: isMobile() ? .7 : .9, alpha: isMobile() ? .3 : (window.innerWidth < 1300 ? .3 : .6), wander: .35, k: 1.7 }; },
     gate:  function () { return { tx: .5, ty: .3, scale: 1.25, alpha: 1, wander: .3, k: 5 }; },
     final: function () { return { tx: .5, ty: isMobile() ? .2 : .2, scale: 1.25, alpha: 1, wander: .3 , k: 1.7 }; }
   };
@@ -118,6 +118,8 @@
      от порядка триггеров и пинов */
   var zones = Array.prototype.slice.call(document.querySelectorAll('[data-room]'));
   var currentPlan = '';
+  var GATE_A = 1.09;
+  var isReading = false;   // сколько экранов длится анимация врат внутри пина
   var zoneTops = [];
   function measureZones() {
     var sy = window.scrollY || 0;
@@ -136,11 +138,13 @@
         active = el;
         var isGate = el.classList.contains('gate');
         var room = parseInt(el.dataset.room, 10) || 0;
-        gatePhase = isGate && top > -vh * 1.35;
-        world = isGate ? (-top / (vh * 1.35) < .8 ? room - 1 : room) : room;
+        gatePhase = isGate && top > -vh * GATE_A;
+        world = isGate ? (-top / (vh * GATE_A) < .8 ? room - 1 : room) : room;
       }
     }
     if (!active) active = zones[0];
+    var reading = !gatePhase && active.dataset.room !== '0';
+    if (reading !== isReading) { isReading = reading; root.classList.toggle('reading', reading); }
     setRoom(active.dataset.room);
     setWorld(Math.max(0, world));
     var want = gatePhase ? 'gate' : (active.dataset.dragon || currentPlan || 'hero');
@@ -229,7 +233,7 @@
       scrollTrigger: {
         trigger: gate,
         start: 'top top',
-        end: '+=235%',
+        end: '+=190%',
         pin: true,
         scrub: 1,
         anticipatePin: 1,

@@ -172,7 +172,10 @@
     scenes.forEach(function (d, i) {
       if (!d._vid) return;
       if (i === n) { var pr = d._vid.play(); if (pr && pr.catch) pr.catch(function () {}); }
-      else if (!d._vid.paused) setTimeout(function () { if (i !== current) d._vid.pause(); }, 1800);
+      else if (!d._vid.paused) {
+        var v = d._vid;
+        setTimeout(function () { if (i !== current && v && !v.paused) v.pause(); }, 1800);
+      }
     });
   }
   var atmo = document.querySelector('.atmo');
@@ -204,7 +207,6 @@
     img.className = 'gate-art';
     img.alt = '';
     img.decoding = 'async';
-    img.loading = 'lazy';
     img.src = 'assets/gates/' + th.id + '.webp';
     if (svg) svg.replaceWith(img); else frame.appendChild(img);
   });
