@@ -63,9 +63,9 @@
     vw = window.innerWidth;
     vh = window.innerHeight;
     // телефон: экран маленький, поэтому можем позволить чёткость почти Retina
-    dpr = Math.min(window.innerWidth < 760 ? 2 : (mobileGuess() ? 1.5 : 1.5), window.devicePixelRatio || 1) * RES[tier];
+    dpr = Math.min(2, window.devicePixelRatio || 1) * RES[tier];
     // потолок по пикселям: Retina-мониторы и iPad Pro не должны гонять холст на 8 млн точек
-    var cap = (('ontouchstart' in window) ? 1.6e6 : 2.2e6) * (tier >= 3 ? 1 : 0.8);
+    var cap = (('ontouchstart' in window) ? 1.7e6 : 3.0e6) * (tier >= 3 ? 1 : 0.8);
     dpr = Math.min(dpr, Math.sqrt(cap / (vw * vh)));
     mobile = vw < 760;
     canvas.width = Math.round(vw * dpr);
@@ -349,14 +349,15 @@
     // свечение
     bodyPath();
     ctx.lineJoin = 'round';
-    ctx.strokeStyle = C('glow', .05);
-    ctx.lineWidth = W0 * cur.scale * 2.0;
+    ctx.strokeStyle = C('glow', .045);
+    ctx.lineWidth = W0 * cur.scale * 1.9;
     ctx.stroke();
-    ctx.strokeStyle = C('glow', .07);
-    ctx.lineWidth = W0 * cur.scale * 1.2;
+    ctx.strokeStyle = C('glow', .09);
+    ctx.lineWidth = W0 * cur.scale * .9;
     ctx.stroke();
-    ctx.strokeStyle = C('glow', .12);
-    ctx.lineWidth = W0 * cur.scale * .55;
+    // тёмная обводка: силуэт читается на любом фоне
+    ctx.strokeStyle = 'rgba(6,3,10,.62)';
+    ctx.lineWidth = Math.max(2, W0 * cur.scale * .2);
     ctx.stroke();
 
     var gr = ctx.createLinearGradient(head0.x, head0.y, tail.x, tail.y);
@@ -397,7 +398,7 @@
     }
     // чешуя
     ctx.lineWidth = 1;
-    var scStep = tier >= 3 ? 1 : tier === 2 ? 2 : 999;
+    var scStep = tier >= 3 ? 1 : tier === 2 ? 2 : 3;
     for (var j = 2; j < N - 3; j += scStep) {
       var s = S[j];
       var ws = s.w;
@@ -422,8 +423,8 @@
 
     // контур
     bodyPath();
-    ctx.strokeStyle = C('edge', .6);
-    ctx.lineWidth = Math.max(1, W0 * 0.05);
+    ctx.strokeStyle = C('edge', .85);
+    ctx.lineWidth = Math.max(1.2, W0 * 0.06);
     ctx.stroke();
 
     // гребень
@@ -604,8 +605,11 @@
     ctx.quadraticCurveTo(1.2 * h, -0.12 * h, 0.2 * h, -0.3 * h);
     ctx.quadraticCurveTo(-0.5 * h, -0.5 * h, -1.1 * h, -0.55 * h);
     ctx.closePath();
-    ctx.strokeStyle = C('glow', .18);
-    ctx.lineWidth = h * .9;
+    ctx.strokeStyle = C('glow', .14);
+    ctx.lineWidth = h * .8;
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(6,3,10,.6)';
+    ctx.lineWidth = Math.max(2, h * .2);
     ctx.stroke();
     ctx.fillStyle = skull;
     ctx.fill();

@@ -295,6 +295,25 @@
     });
   })();
 
+  /* ---------- табы офферов ---------- */
+  document.querySelectorAll('#board .tab').forEach(function (t, _, all) {
+    t.addEventListener('click', function () {
+      all.forEach(function (x) { var on = x === t; x.classList.toggle('on', on); x.setAttribute('aria-selected', String(on)); });
+      document.querySelectorAll('#board .tpane').forEach(function (p) { p.classList.toggle('on', p.dataset.p === t.dataset.t); });
+      refreshSoon(60);
+    });
+  });
+
+  /* ---------- параллакс фото ---------- */
+  if (!reduce) {
+    document.querySelectorAll('.par').forEach(function (el) {
+      gsap.fromTo(el, { yPercent: -6 }, { yPercent: 6, ease: 'none', scrollTrigger: { trigger: el.parentNode, start: 'top bottom', end: 'bottom top', scrub: true } });
+    });
+    document.querySelectorAll('.beach-ph img').forEach(function (img) {
+      gsap.fromTo(img, { scale: 1.18 }, { scale: 1, ease: 'none', scrollTrigger: { trigger: img.parentNode, start: 'top bottom', end: 'center center', scrub: true } });
+    });
+  }
+
   /* ---------- вопросы ---------- */
   document.querySelectorAll('.qa').forEach(function (qa) {
     var btn = qa.querySelector('.qa-h');
