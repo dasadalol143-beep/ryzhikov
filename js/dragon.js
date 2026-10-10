@@ -36,6 +36,18 @@
   var whiskers = [[], []];
   var WN = 11;
 
+  /* ---------- окрас: текущий и целевой, плавно перетекают ---------- */
+  var KEYS = ['b1', 'b2', 'b3', 'edge', 'belly', 'scale', 'glow', 'spine', 'eye'];
+  function hx(h) { h = h.replace('#', ''); return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]; }
+  var DEF = { b1: '#1a2f78', b2: '#10205a', b3: '#070d24', edge: '#d4a64a', belly: '#f3d58a', scale: '#7b9bff', glow: '#4673ff', spine: '#d4a64a', eye: '#ffd77a' };
+  var pal = {}, palT = {};
+  KEYS.forEach(function (k) { pal[k] = hx(DEF[k]); palT[k] = pal[k].slice(); });
+  var palRate = 1.4;
+  function C(k, a) {
+    var c = pal[k];
+    return 'rgba(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ',' + (a === undefined ? 1 : a) + ')';
+  }
+
   var embers = [];
   var fire = [];
   var breathT = 0;
@@ -70,7 +82,7 @@
       for (var j = 0; j < WN; j++) whiskers[w].push({ x: head.x, y: head.y - sy });
     }
     embers = [];
-    var count = mobile ? 34 : 70;
+    var count = 0;
     for (var e = 0; e < count; e++) embers.push(newEmber(true));
   }
 
@@ -108,6 +120,12 @@
     cur.ty += (plan.ty - cur.ty) * k;
     cur.scale += (plan.scale - cur.scale) * Math.min(1, dt * rate * 1.3);
     cur.alpha += (plan.alpha - cur.alpha) * Math.min(1, dt * rate * 1.1);
+
+    var pk = Math.min(1, dt * palRate);
+    for (var pi = 0; pi < KEYS.length; pi++) {
+      var a0 = pal[KEYS[pi]], a1 = palT[KEYS[pi]];
+      a0[0] += (a1[0] - a0[0]) * pk; a0[1] += (a1[1] - a0[1]) * pk; a0[2] += (a1[2] - a0[2]) * pk;
+    }
 
     var calm = 1 - Math.min(1, Math.abs(scrollVel) / 1800);
     var wa = reduce ? 0 : plan.wander * (0.35 + 0.65 * calm);
@@ -281,15 +299,15 @@
     ctx.beginPath();
     ctx.moveTo(sx, syy);
     ctx.quadraticCurveTo(kx, ky, fx, fy);
-    ctx.strokeStyle = back ? 'rgba(160,125,55,.45)' : 'rgba(212,166,74,.85)';
+    ctx.strokeStyle = back ? C('edge', .45) : C('edge', .85);
     ctx.lineWidth = w * 0.62;
     ctx.stroke();
-    ctx.strokeStyle = back ? '#070c1f' : '#0d1a44';
+    ctx.strokeStyle = back ? C('b3') : C('b2');
     ctx.lineWidth = w * 0.46;
     ctx.stroke();
 
     // когти
-    ctx.strokeStyle = back ? 'rgba(200,170,110,.45)' : 'rgba(243,213,138,.95)';
+    ctx.strokeStyle = back ? C('belly', .45) : C('belly', .95);
     ctx.lineWidth = Math.max(1, w * 0.1);
     for (var c = -1; c <= 1; c++) {
       var ca = Math.atan2(fy - ky, fx - kx) + c * 0.5;
@@ -313,16 +331,16 @@
     // свечение
     bodyPath();
     ctx.save();
-    ctx.shadowColor = 'rgba(70,115,255,.55)';
+    ctx.shadowColor = C('glow', .55);
     ctx.shadowBlur = mobile ? 18 : 34;
-    ctx.fillStyle = '#0a1536';
+    ctx.fillStyle = C('b3');
     ctx.fill();
     ctx.restore();
 
     var gr = ctx.createLinearGradient(head0.x, head0.y, tail.x, tail.y);
-    gr.addColorStop(0, '#1a2f78');
-    gr.addColorStop(0.35, '#10205a');
-    gr.addColorStop(1, '#070d24');
+    gr.addColorStop(0, C('b1'));
+    gr.addColorStop(0.35, C('b2'));
+    gr.addColorStop(1, C('b3'));
     ctx.fillStyle = gr;
     ctx.fill();
 
@@ -335,7 +353,7 @@
       var o = S[i];
       var w = o.w;
       var al = 0.55 * (1 - i / N);
-      ctx.strokeStyle = 'rgba(243,213,138,' + al.toFixed(3) + ')';
+      ctx.strokeStyle = C('belly', al.toFixed(3));
       ctx.lineWidth = Math.max(0.6, w * 0.07);
       ctx.beginPath();
       ctx.moveTo(o.x - o.nx * w * 0.38, o.y - o.ny * w * 0.38);
@@ -350,7 +368,7 @@
       var dir = Math.atan2(-s.ty, -s.tx);
       var rows = j % 2 ? [0.62, 0.05] : [0.34, -0.22];
       var aa = 0.42 * (1 - j / N) + 0.06;
-      ctx.strokeStyle = 'rgba(123,155,255,' + aa.toFixed(3) + ')';
+      ctx.strokeStyle = C('scale', aa.toFixed(3));
       for (var r = 0; r < rows.length; r++) {
         var cx = s.x + s.nx * ws * rows[r], cy = s.y + s.ny * ws * rows[r];
         ctx.beginPath();
@@ -359,7 +377,7 @@
       }
     }
     // блик по спине
-    ctx.strokeStyle = 'rgba(150,180,255,.22)';
+    ctx.strokeStyle = C('scale', .25);
     ctx.lineWidth = W0 * 0.12;
     ctx.beginPath();
     for (var b = 1; b < N - 4; b++) {
@@ -372,7 +390,7 @@
 
     // контур
     bodyPath();
-    ctx.strokeStyle = 'rgba(212,166,74,.55)';
+    ctx.strokeStyle = C('edge', .6);
     ctx.lineWidth = Math.max(1, W0 * 0.05);
     ctx.stroke();
 
@@ -389,7 +407,7 @@
       ctx.lineTo(bx2 - g.tx * gw * 0.36, by2 - g.ty * gw * 0.36);
       ctx.closePath();
       var al2 = 0.92 * (1 - k / N) + 0.08;
-      ctx.fillStyle = 'rgba(212,166,74,' + al2.toFixed(3) + ')';
+      ctx.fillStyle = C('spine', al2.toFixed(3));
       ctx.fill();
     }
 
@@ -409,7 +427,7 @@
         src.y + dy * len * 0.5 + tb.ny * W0 * 0.6 * Math.sin(t * 2.4 + f),
         src.x + dx * len, src.y + dy * len
       );
-      ctx.strokeStyle = 'rgba(243,213,138,' + (0.55 - Math.abs(f - 3) * 0.1).toFixed(2) + ')';
+      ctx.strokeStyle = C('belly', (0.55 - Math.abs(f - 3) * 0.1).toFixed(2));
       ctx.lineWidth = Math.max(1, W0 * 0.09);
       ctx.stroke();
     }
@@ -430,7 +448,7 @@
         sx + mn.nx * mw * 1.3 - mn.tx * mw * 0.8, sy2 + mn.ny * mw * 1.3 - mn.ty * mw * 0.8,
         sx + mn.nx * mw * (1.5 + wv) - mn.tx * mw * 2.6, sy2 + mn.ny * mw * (1.5 + wv) - mn.ty * mw * 2.6
       );
-      ctx.strokeStyle = m % 3 ? 'rgba(243,213,138,.55)' : 'rgba(123,155,255,.5)';
+      ctx.strokeStyle = m % 3 ? C('belly', .55) : C('scale', .55);
       ctx.lineWidth = Math.max(1, mw * 0.08);
       ctx.stroke();
     }
@@ -469,7 +487,7 @@
         ctx.beginPath();
         ctx.moveTo(ch[i - 1].x, ch[i - 1].y);
         ctx.lineTo(ch[i].x, ch[i].y);
-        ctx.strokeStyle = 'rgba(243,213,138,' + (0.85 * (1 - i / WN)).toFixed(3) + ')';
+        ctx.strokeStyle = C('belly', (0.85 * (1 - i / WN)).toFixed(3));
         ctx.lineWidth = Math.max(0.6, W0 * cur.scale * 0.1 * (1 - i / WN));
         ctx.stroke();
       }
@@ -487,7 +505,7 @@
     var open = jaw * 0.38;
 
     // рога (дальний)
-    ctx.strokeStyle = 'rgba(170,130,60,.7)';
+    ctx.strokeStyle = C('spine', .6);
     ctx.lineWidth = h * 0.2;
     ctx.beginPath();
     ctx.moveTo(-0.1 * h, 0.55 * h);
@@ -502,9 +520,9 @@
     ctx.quadraticCurveTo(0.8 * h, -0.85 * h, 2.15 * h, -0.32 * h);
     ctx.quadraticCurveTo(1.2 * h, -0.2 * h, 0.2 * h, -0.05 * h);
     ctx.closePath();
-    ctx.fillStyle = '#0c1a46';
+    ctx.fillStyle = C('b2');
     ctx.fill();
-    ctx.strokeStyle = 'rgba(212,166,74,.75)';
+    ctx.strokeStyle = C('edge', .8);
     ctx.lineWidth = Math.max(1, h * 0.06);
     ctx.stroke();
     // борода
@@ -513,7 +531,7 @@
       ctx.moveTo((0.2 + b * 0.35) * h, -0.62 * h);
       ctx.quadraticCurveTo((-0.2 + b * 0.3) * h, (-1.2 - b * 0.08) * h,
         (-0.9 + b * 0.25 + Math.sin(t * 3 + b) * 0.15) * h, (-1.45 - b * 0.1) * h);
-      ctx.strokeStyle = 'rgba(243,213,138,.5)';
+      ctx.strokeStyle = C('belly', .5);
       ctx.lineWidth = Math.max(0.8, h * 0.06);
       ctx.stroke();
     }
@@ -532,9 +550,9 @@
 
     // череп
     var skull = ctx.createLinearGradient(-h, h, 2 * h, -h);
-    skull.addColorStop(0, '#203a8f');
-    skull.addColorStop(0.6, '#132560');
-    skull.addColorStop(1, '#0b163d');
+    skull.addColorStop(0, C('b1'));
+    skull.addColorStop(0.6, C('b2'));
+    skull.addColorStop(1, C('b3'));
     ctx.beginPath();
     ctx.moveTo(-1.1 * h, -0.55 * h);
     ctx.quadraticCurveTo(-1.3 * h, 0.55 * h, -0.6 * h, 0.85 * h);
@@ -546,12 +564,12 @@
     ctx.quadraticCurveTo(-0.5 * h, -0.5 * h, -1.1 * h, -0.55 * h);
     ctx.closePath();
     ctx.save();
-    ctx.shadowColor = 'rgba(70,115,255,.6)';
+    ctx.shadowColor = C('glow', .6);
     ctx.shadowBlur = h * 1.2;
     ctx.fillStyle = skull;
     ctx.fill();
     ctx.restore();
-    ctx.strokeStyle = 'rgba(212,166,74,.85)';
+    ctx.strokeStyle = C('edge', .9);
     ctx.lineWidth = Math.max(1, h * 0.06);
     ctx.stroke();
 
@@ -568,7 +586,7 @@
     }
 
     // ноздря и надбровье
-    ctx.strokeStyle = 'rgba(243,213,138,.9)';
+    ctx.strokeStyle = C('belly', .9);
     ctx.lineWidth = Math.max(1, h * 0.07);
     ctx.beginPath();
     ctx.arc(2.3 * h, 0.2 * h, 0.12 * h, PI * 0.2, PI * 1.6);
@@ -586,11 +604,11 @@
     // глаз
     ctx.save();
     ctx.translate(0.82 * h, 0.42 * h);
-    ctx.shadowColor = 'rgba(255,205,110,1)';
+    ctx.shadowColor = C('eye');
     ctx.shadowBlur = h * 1.1;
     ctx.beginPath();
     ctx.ellipse(0, 0, 0.27 * h, 0.13 * h, -0.18, 0, PI * 2);
-    ctx.fillStyle = '#ffd77a';
+    ctx.fillStyle = C('eye');
     ctx.fill();
     ctx.shadowBlur = 0;
     ctx.beginPath();
@@ -601,8 +619,8 @@
 
     // рога (ближний) с отростком
     var hg = ctx.createLinearGradient(0, 0, -2.6 * h, 1.8 * h);
-    hg.addColorStop(0, '#f3d58a');
-    hg.addColorStop(1, 'rgba(212,166,74,.35)');
+    hg.addColorStop(0, C('belly'));
+    hg.addColorStop(1, C('spine', .35));
     ctx.strokeStyle = hg;
     ctx.lineWidth = h * 0.22;
     ctx.beginPath();
@@ -656,8 +674,6 @@
     var sy = window.scrollY || 0;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, vw, vh);
-
-    drawEmbers();
 
     computeScreen(sy);
     // отсечение: если дракон целиком вне кадра - не рисуем тело
@@ -713,6 +729,14 @@
       for (var i = 0; i < N; i++) { pts[i].x = head.x + Math.sin(i * 0.4) * W0; pts[i].y = head.y - i * L * plan.scale; }
       for (var w = 0; w < 2; w++) for (var j = 0; j < WN; j++) { whiskers[w][j].x = head.x; whiskers[w][j].y = head.y - sy; }
       cur.scale = plan.scale; cur.tx = plan.tx;
+    },
+    setPalette: function (p, instant) {
+      if (!p) return;
+      KEYS.forEach(function (k) {
+        if (!p[k]) return;
+        palT[k] = hx(p[k]);
+        if (instant) pal[k] = palT[k].slice();
+      });
     },
     breathe: function (sec, aim) {
       if (reduce) return;

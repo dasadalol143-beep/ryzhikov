@@ -15,7 +15,8 @@
   var root = document.documentElement;
   var body = document.body;
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  var Dragon = window.RyzhikovDragon || { setPlan: function () {}, breathe: function () {}, isMobile: function () { return false; } };
+  var Dragon = window.RyzhikovDragon || { setPlan: function () {}, breathe: function () {}, setPalette: function () {}, isMobile: function () { return false; } };
+  var Worlds = window.RyzhikovWorlds || null;
   var isMobile = function () { return window.innerWidth < 760; };
 
   if (reduce) root.classList.add('reduced');
@@ -89,7 +90,17 @@
       a.classList.toggle('on', f === n);
       a.classList.toggle('past', f < n);
     });
-    gsap.to(root, { '--tone': r.tone, '--tone2': r.tone2, duration: 1.8, ease: 'power2.out' });
+  }
+
+  /* мир сменяется, когда дракон уже нырнул в свет врат:
+     он исчезает одного цвета и вылетает в новом зале другим */
+  var currentWorld = -1;
+  function setWorld(n) {
+    if (!Worlds || n === currentWorld) return;
+    var first = currentWorld < 0;
+    currentWorld = n;
+    var th = Worlds.activate(n, first);
+    if (th) Dragon.setPalette(th.dragon, first || (Dragon.state && Dragon.state().alpha < .35));
   }
 
   var PLANS = {
@@ -101,24 +112,29 @@
   };
   function plan(name) { Dragon.setPlan(PLANS[name]()); }
   plan('hero');
+  setWorld(0);
 
   /* какой зал сейчас в кадре - считаем по геометрии, без зависимости
      от порядка триггеров и пинов */
   var zones = Array.prototype.slice.call(document.querySelectorAll('[data-room]'));
   var currentPlan = '';
   function trackZones() {
-    var vh = window.innerHeight, line = vh * .55, active = null, gatePhase = false;
+    var vh = window.innerHeight, line = vh * .55, active = null, gatePhase = false, world = 0;
     for (var i = 0; i < zones.length; i++) {
       var el = zones[i];
       var box = el.classList.contains('gate') && el.parentNode.classList.contains('pin-spacer') ? el.parentNode : el;
       var top = box.getBoundingClientRect().top;
       if (top <= line) {
         active = el;
-        gatePhase = el.classList.contains('gate') && top > -vh * 1.35;
+        var isGate = el.classList.contains('gate');
+        var room = parseInt(el.dataset.room, 10) || 0;
+        gatePhase = isGate && top > -vh * 1.35;
+        world = isGate ? (-top / (vh * 1.35) < .8 ? room - 1 : room) : room;
       }
     }
     if (!active) active = zones[0];
     setRoom(active.dataset.room);
+    setWorld(Math.max(0, world));
     var want = gatePhase ? 'gate' : (active.dataset.dragon || currentPlan || 'hero');
     if (want !== currentPlan) {
       var fromGate = currentPlan === 'gate';
@@ -434,31 +450,49 @@
     });
   }
 
-  /* ---------- финал: цена сгорает до 99 900 и дракон дышит в неё ---------- */
+  /* ---------- финал: дракон сжигает печать, сумма горит ---------- */
   var deal = document.getElementById('deal');
+  var stage = document.getElementById('priceStage');
   var dealPrice = document.getElementById('dealPrice');
-  function fireAtPrice(sec) {
-    if (!dealPrice || !Dragon.state) return Dragon.breathe(sec, Math.PI / 2);
-    var r = dealPrice.getBoundingClientRect(), st = Dragon.state();
+  var seal = document.getElementById('priceSeal');
+  function fireAt(el, sec) {
+    if (!el || !Dragon.state) return Dragon.breathe(sec, Math.PI / 2);
+    var r = el.getBoundingClientRect(), st = Dragon.state();
     Dragon.breathe(sec, Math.atan2(r.top + r.height / 2 - st.hy, r.left + r.width / 2 - st.hx));
   }
-  if (deal && dealPrice) {
-    var priceDone = false;
-    ScrollTrigger.create({
-      trigger: deal, start: 'top 70%',
-      onEnter: function () {
-        if (priceDone || reduce) return;
-        priceDone = true;
-        var o = { v: 120000 };
-        fireAtPrice(1.8);
-        gsap.to(o, {
-          v: 99900, duration: 1.8, delay: .35, ease: 'power3.inOut',
-          onUpdate: function () { dealPrice.textContent = String(Math.round(o.v / 100) * 100).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0') + '\u00A0\u20BD'; },
-          onComplete: function () { dealPrice.textContent = '99\u00A0900\u00A0\u20BD'; }
-        });
-      },
-      onEnterBack: function () { fireAtPrice(1.2); }
-    });
+  function fmtPrice(v) { return String(Math.round(v / 100) * 100).replace(/\B(?=(\d{3})+(?!\d))/g, '\u00A0') + '\u00A0\u20BD'; }
+  if (deal && stage && dealPrice) {
+    if (reduce || !Worlds) {
+      if (seal) seal.remove();
+      stage.classList.add('lit');
+    } else {
+      deal.classList.add('js-seal');
+      var flame = Worlds.flame(stage, 0);
+      var revealed = false;
+      ScrollTrigger.create({
+        trigger: deal, start: 'top 62%',
+        onEnter: function () {
+          if (revealed) return;
+          revealed = true;
+          var o = { v: 120000 };
+          fireAt(stage, 2.6);
+          var tl = gsap.timeline();
+          tl.to(flame, { k: 1.8, duration: .7, ease: 'power2.in' }, .35)
+            .to(seal, { x: '+=3', duration: .06, repeat: 9, yoyo: true, ease: 'none' }, .4)
+            .to(seal, { scale: 1.4, opacity: 0, filter: 'blur(10px) brightness(2.2)', duration: .7, ease: 'power2.in' }, 1.05)
+            .add(function () { stage.classList.add('lit'); }, 1.2)
+            .fromTo(dealPrice, { opacity: 0, scale: .8, filter: 'blur(8px)' }, { opacity: 1, scale: 1, filter: 'blur(0px)', duration: .8, ease: 'expo.out', clearProps: 'filter' }, 1.25)
+            .to(o, { v: 99900, duration: 1.7, ease: 'power3.inOut', onUpdate: function () { dealPrice.textContent = fmtPrice(o.v); }, onComplete: function () { dealPrice.textContent = '99\u00A0900\u00A0\u20BD'; } }, 1.25)
+            .to(deal.querySelectorAll('.rvp'), { opacity: 1, y: 0, duration: .9, stagger: .12, ease: 'expo.out' }, 1.9)
+            .to(flame, { k: .6, duration: 1.4, ease: 'power2.out' }, 3.1);
+          dealPrice.textContent = fmtPrice(120000);
+        },
+        onEnterBack: function () {
+          fireAt(stage, 1.3);
+          gsap.fromTo(flame, { k: 1.6 }, { k: .6, duration: 2, ease: 'power2.out' });
+        }
+      });
+    }
   }
 
   /* ---------- прогресс и глубина ---------- */
@@ -471,15 +505,6 @@
       if (depthM) depthM.textContent = Math.round(self.progress * 1240) + ' м';
     }
   });
-
-  /* ---------- мобильная кнопка ---------- */
-  var dock = document.getElementById('dock');
-  if (dock) {
-    ScrollTrigger.create({
-      trigger: '.hero', start: 'bottom 30%', endTrigger: '#final', end: 'top 80%',
-      onToggle: function (self) { dock.classList.toggle('on', self.isActive); }
-    });
-  }
 
   ScrollTrigger.sort();
   trackQueued();
