@@ -80,8 +80,8 @@
     <div class="hero-cta h-in">
       <a class="btn btn--gold" href="#story" data-jump>Читать гайд
         <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3v10M4 9l4 4 4-4"/></svg></a>
-      <a class="btn btn--ghost" href="#final" data-jump>Сразу на созвон</a>
     </div>
+    <p class="loop h-in"><i aria-hidden="true">龍</i>В самом конце гайда есть кодовое слово. Кто дочитал и напишет его мне, попадает на созвон вне очереди.</p>
     <div class="toc h-in">
       <a href="#story" data-jump><b>I</b><span>Как устроены деньги</span><i>Сакура</i></a>
       <a href="#ch-2" data-jump><b>II</b><span>Где все сгорают</span><i>Врата ада</i></a>
@@ -197,8 +197,8 @@
       <div class="chips" id="chips">
         <button type="button" class="chip" data-v="16000">Альфа-Банк <em>16 000</em></button>
         <button type="button" class="chip" data-v="20000">Инго Банк <em>20 000</em></button>
-        <button type="button" class="chip" data-v="10000">ВТБ <em>10 000</em></button>
-        <button type="button" class="chip" data-v="10000">ПСБ <em>10 000</em></button>
+        <button type="button" class="chip" data-v="7000">ВТБ <em>7 000</em></button>
+        <button type="button" class="chip" data-v="10000">ПСБ <em>10 000 · без активации</em></button>
         <button type="button" class="chip" data-v="8000">Озон Банк <em>8 000</em></button>
         <button type="button" class="chip" data-v="6000">Уралсиб <em>6 000</em></button>
         <button type="button" class="chip" data-v="6000">Контур <em>6 000</em></button>
@@ -244,13 +244,16 @@
       </div>
     </div>
 
-    <div class="mult rv">
-      <p>И это <b>один</b> человек. Теперь вспомни, сколько у тебя друзей.</p>
-      <div class="mult-row"><span>5 друзей</span><i>×</i><span>~100 000 ₽</span><i>=</i><b>500 000 ₽</b></div>
-    </div>
-    <div class="soft-cta rv">
-      <p>Уже понятно, что тема живая? Можешь не дочитывать.</p>
-      <a class="btn btn--ghost btn--sm" href="#final" data-jump>Сразу на созвон</a>
+    <div class="task panel rv" id="names">
+      <span class="task-tag">Задание · 20 секунд</span>
+      <h3>Впиши трёх людей, которым можешь написать сегодня</h3>
+      <p>Друг, одноклассник, брат, коллега. Первые, кто пришёл в голову. Никуда не отправляется, остаётся только у тебя в телефоне.</p>
+      <div class="task-in">
+        <input type="text" maxlength="20" placeholder="Имя 1" class="ym-disable-keys" autocomplete="off">
+        <input type="text" maxlength="20" placeholder="Имя 2" class="ym-disable-keys" autocomplete="off">
+        <input type="text" maxlength="20" placeholder="Имя 3" class="ym-disable-keys" autocomplete="off">
+      </div>
+      <div class="task-out" id="namesOut" aria-live="polite"><b>0 ₽</b><span>впиши хотя бы одно имя</span></div>
     </div>
   </div>
 </section>
@@ -362,6 +365,7 @@
       <li class="road-s rv"><b>4</b><div><h3>Нашёл первых людей</h3><p>Ближний круг, своя рефералка, чаты подработок. Без бюджета.</p></div></li>
       <li class="road-s rv"><b>5</b><div><h3>Уходишь в онлайн</h3><p>С первым капиталом и опытом общения: отклики, закупы рекламы в TG и VK, УБТ. Тут начинаются 300–500 тысяч.</p></div></li>
     </ol>
+    <p class="note rv"><b>И честно:</b> из нуля в стабильный миллион за три месяца ты не выйдешь. Кто обещает, тот врёт. А первые деньги на себе вполне реальны уже в этом месяце. Хватит ставить низкие цели: 50–150 тысяч не цель.</p>
   </div>
 </section>
 
@@ -379,6 +383,30 @@
         <p class="lk-k">Ты перестаёшь искать людей. Люди ищут людей друг для друга.</p></div>
       <div class="lk panel rv"><b>03</b><h3>Чаты подработок</h3><p>Там сидят ровно те, кто ищет деньги прямо сейчас. Я сам начинал отсюда и сделал 500–600 тысяч через пользу, а не через спам.</p></div>
     </div>
+  </div>
+</section>
+
+<section class="room g-sec" id="script" data-room="2" data-dragon="side">
+  <div class="wrap wrap--narrow">
+    <div class="room-head rv">
+      <div class="kicker">Подарок</div>
+      <h2 class="d">Первое сообщение <span class="it">другу</span></h2>
+      <p class="lead">Самый страшный шаг: написать первым. Вот текст, который работает. Заходи как человек, а не как продавец.</p>
+      <p class="for-name" id="forName" hidden>Помнишь имена из главы I? Начни с первого в списке: <b class="nm" data-i="0"></b>. Текст ниже уже подписан.</p>
+    </div>
+    <div class="chat rv" aria-label="Пример переписки">
+      <div class="msg msg--me">Привет, <span class="nm" data-i="0">брат</span>. Как дела? Работаешь сейчас где-то?</div>
+      <div class="msg msg--wait">Ждёшь ответ. Ничего не дописываешь.</div>
+      <div class="msg msg--them">Да так, на складе пока. А что?</div>
+      <div class="msg msg--me">Да, брат, пишу не просто так. Сейчас нужны доп. руки в новом направлении.</div>
+      <div class="msg msg--me">Если вкратце, я занимаюсь бесплатными банковскими продуктами через официальные партнёрские программы. Никакой хрени, никакого дроповодства, налоги плачу. Интересно? Расскажу подробнее.</div>
+    </div>
+    <div class="words rv">
+      <p>И два слова, которые лучше заменить на старте. Не чтобы обмануть, а чтобы не пугать человека канцеляритом:</p>
+      <div class="w-row"><s>РКО</s><b>бесплатная бизнес-карта</b></div>
+      <div class="w-row"><s>ИП на НПД</s><b>расширенная самозанятость</b></div>
+    </div>
+    <p class="note rv">Что отвечать, когда спросят «а это легально?», «а где подвох?» и «мне надо подумать», разбираем на созвоне.</p>
   </div>
 </section>
 
@@ -400,29 +428,6 @@
       <div class="lock lock--gold panel rv"><i aria-hidden="true"></i><b>УБТ <em>моя личная связка</em></b><p>Условно бесплатный трафик: Reels, Shorts, Telegram. Мою схему, как ролики превращаются в поток заявок без бюджета на рекламу, я собирал весь последний год, и заработал на ней больше всего.</p></div>
     </div>
     <a class="lock-cta rv" href="#final" data-jump>Разобрать эти связки на созвоне →</a>
-  </div>
-</section>
-
-<section class="room g-sec" id="script" data-room="2" data-dragon="side">
-  <div class="wrap wrap--narrow">
-    <div class="room-head rv">
-      <div class="kicker">Подарок</div>
-      <h2 class="d">Первое сообщение <span class="it">другу</span></h2>
-      <p class="lead">Самый страшный шаг: написать первым. Вот текст, который работает. Заходи как человек, а не как продавец.</p>
-    </div>
-    <div class="chat rv" aria-label="Пример переписки">
-      <div class="msg msg--me">Привет, брат. Как дела? Работаешь сейчас где-то?</div>
-      <div class="msg msg--wait">Ждёшь ответ. Ничего не дописываешь.</div>
-      <div class="msg msg--them">Да так, на складе пока. А что?</div>
-      <div class="msg msg--me">Да, брат, пишу не просто так. Сейчас нужны доп. руки в новом направлении.</div>
-      <div class="msg msg--me">Если вкратце, я занимаюсь бесплатными банковскими продуктами через официальные партнёрские программы. Никакой хрени, никакого дроповодства, налоги плачу. Интересно? Расскажу подробнее.</div>
-    </div>
-    <div class="words rv">
-      <p>И два слова, которые лучше заменить на старте. Не чтобы обмануть, а чтобы не пугать человека канцеляритом:</p>
-      <div class="w-row"><s>РКО</s><b>бесплатная бизнес-карта</b></div>
-      <div class="w-row"><s>ИП на НПД</s><b>расширенная самозанятость</b></div>
-    </div>
-    <p class="note rv">Что отвечать, когда спросят «а это легально?», «а где подвох?» и «мне надо подумать», разбираем на созвоне.</p>
   </div>
 </section>
 
@@ -473,24 +478,6 @@
   <div class="wrap"><p class="swipe-hint">Листай вбок →</p></div>
 </section>
 
-<section class="room g-sec" data-room="2" data-dragon="side">
-  <div class="wrap wrap--narrow">
-    <div class="room-head rv">
-      <div class="kicker">До Нового года</div>
-      <h2 class="d">Математика <span class="it">трёх месяцев</span></h2>
-      <p class="lead">Не обещание, а расчёт. При условии, что ты делаешь, а не «собираешься».</p>
-    </div>
-    <div class="cal">
-      <div class="cal-r rv"><span>Октябрь</span><p>Всё на себе, первые разговоры с друзьями</p><b>~130 000 ₽</b></div>
-      <div class="cal-r rv"><span>Ноябрь</span><p>Пошли чужие люди, рефералка, чаты</p><b>~180 000 ₽</b></div>
-      <div class="cal-r rv"><span>Декабрь</span><p>Связка найдена, льёшь в объём</p><b>~250 000 ₽</b></div>
-      <div class="cal-t rv"><span>Итого к Новому году</span><b data-count>560 000 ₽</b></div>
-    </div>
-    <p class="note rv"><b>Хватит ставить низкие цели.</b> 50–150 тысяч не цель. Хочешь помогать родным, путешествовать, быть свободным? Целься выше.</p>
-    <p class="note rv"><b>И честно:</b> из нуля в стабильный миллион за три месяца ты не выйдешь. Кто обещает, тот врёт. А пятьсот тысяч вполне реальны. Начнёшь в ноябре, вычёркивай октябрь. Новый год наступит в любом случае. Вопрос только в том, с чем ты в него войдёшь.</p>
-  </div>
-</section>
-
 <section class="room g-sec" id="quiz" data-room="2" data-dragon="side">
   <div class="wrap wrap--narrow">
     <div class="room-head rv">
@@ -504,21 +491,6 @@
       <div class="qz" data-k="time"><p>Готов уделять нише 2–3 часа в день?</p><div><button type="button" data-a="1">Да</button><button type="button" data-a="0">Пока нет</button></div></div>
       <div class="qz" data-k="talk"><p>Готов общаться с людьми, а не ждать кнопку «бабло»?</p><div><button type="button" data-a="1">Готов</button><button type="button" data-a="0">Не уверен</button></div></div>
       <div class="qz-res" id="quizRes" aria-live="polite"></div>
-    </div>
-  </div>
-</section>
-
-<section class="room g-sec" data-room="2" data-dragon="side">
-  <div class="wrap wrap--narrow">
-    <div class="room-head rv">
-      <div class="kicker">Сегодня</div>
-      <h2 class="d">Одно действие, <span class="it">и ты впереди</span></h2>
-      <p class="lead">Сделаешь сегодня хотя бы первый пункт, и ты уже впереди большинства тех, кто дочитал этот гайд. Инвестируй в свои мозги, а не в чипсы «Лейс» с солью.</p>
-    </div>
-    <div class="todo" id="todo">
-      <label class="td rv"><input type="checkbox"><span></span><div><b>Скачать «Мой налог»</b><i>2 минуты</i></div></label>
-      <label class="td rv"><input type="checkbox"><span></span><div><b>Стать самозанятым</b><i>10 минут, бесплатно</i></div></label>
-      <label class="td rv"><input type="checkbox"><span></span><div><b>Записаться на созвон</b><i>соберём маршрут под тебя</i></div></label>
     </div>
   </div>
 </section>
@@ -541,6 +513,12 @@
       <figcaption>40 секунд от меня лично. Включи со звуком.</figcaption>
     </figure>
 
+    <div class="code panel rv" id="code">
+      <span>Кодовое слово для тех, кто дочитал</span>
+      <b>ДРАКОН</b>
+      <p>Напиши его мне в Telegram. Так я пойму, что ты прошёл гайд целиком, и поставлю тебя на созвон вне очереди. Слово скопируется само, когда нажмёшь кнопку ниже.</p>
+    </div>
+
     <div class="offer panel panel--gold rv" id="offer">
       <div class="offer-l">
         <div class="kicker">За 30 минут: план на первые 200к</div>
@@ -553,7 +531,7 @@
       </div>
       <div class="offer-r">
         <div class="seats"><b>10</b><span>мест на созвон на этой неделе</span></div>
-        <a class="btn btn--gold offer-btn" href="https://t.me/m/LVtEUNBOM2Ji" target="_blank" rel="noopener" id="finalCta">Забрать свой план
+        <a class="btn btn--gold offer-btn" href="https://t.me/m/LVtEUNBOM2Ji" target="_blank" rel="noopener" id="finalCta">Написать «ДРАКОН» и забрать план
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a>
         <p class="offer-fine">Отвечаю лично. Пишешь в Telegram, выбираем ближайший свободный слот.</p>
       </div>

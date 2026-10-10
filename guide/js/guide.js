@@ -97,7 +97,7 @@
      gate  - зависает над вратами и ныряет
      final - над кнопкой, дышит огнём */
   var PLANS = {
-    hero:  function () { return isMobile() ? { tx: .56, ty: .17, scale: 1.05, alpha: 1, wander: .7, k: 1.7 } : { tx: .74, ty: .5, scale: 1.15, alpha: 1, wander: 1, k: 1.7 }; },
+    hero:  function () { return isMobile() ? { tx: .66, ty: .15, scale: .95, alpha: 1, wander: .6, k: 1.7 } : { tx: .74, ty: .5, scale: 1.15, alpha: 1, wander: 1, k: 1.7 }; },
     side:  function () { return isMobile() ? { tx: .97, ty: .52, scale: .6, alpha: .2, wander: .25, k: 1.7 } : { tx: .95, ty: .5, scale: .9, alpha: window.innerWidth < 1300 ? .32 : .55, wander: .35, k: 1.7 }; },
     show:  function () { return isMobile() ? { tx: .9, ty: .16, scale: .62, alpha: .55, wander: .3, k: 1.7 } : { tx: .9, ty: .3, scale: 1, alpha: .85, wander: .5, k: 1.7 }; },
     gate:  function () { return { tx: .5, ty: .3, scale: isMobile() ? 1 : 1.25, alpha: 1, wander: .3, k: 5 }; },
@@ -135,7 +135,8 @@
       }
     }
     if (!active) active = zones[0];
-    var reading = !gatePhase && active.dataset.dragon !== 'hero';
+    var heroLeft = active.dataset.dragon === 'hero' && sy > vh * .22;
+    var reading = !gatePhase && (active.dataset.dragon !== 'hero' || heroLeft);
     if (reading !== isReading) {
       isReading = reading;
       root.classList.toggle('reading', reading);
@@ -143,7 +144,7 @@
     }
     setRoom(active.dataset.room);
     setWorld(Math.max(0, world));
-    var want = gatePhase ? 'gate' : (active.dataset.dragon || currentPlan || 'hero');
+    var want = gatePhase ? 'gate' : (heroLeft ? 'side' : (active.dataset.dragon || currentPlan || 'hero'));
     if (want !== currentPlan) {
       var fromGate = currentPlan === 'gate';
       currentPlan = want;
@@ -327,6 +328,38 @@
     });
   }
 
+  /* ---------- задание: три имени ----------
+     имена живут только в браузере читателя и подставляются в сообщение другу */
+  (function () {
+    var box = document.getElementById('names');
+    if (!box) return;
+    var ins = Array.prototype.slice.call(box.querySelectorAll('input'));
+    var out = document.getElementById('namesOut');
+    var forName = document.getElementById('forName');
+    var saved = [];
+    try { saved = JSON.parse(localStorage.getItem('rz-guide-names') || '[]'); } catch (e) {}
+    ins.forEach(function (el, i) { el.value = saved[i] || ''; });
+    var PER = 100000, done = false;
+    function clean(v) { v = (v || '').trim().replace(/[<>]/g, ''); return v ? v.charAt(0).toUpperCase() + v.slice(1) : ''; }
+    function render() {
+      var names = ins.map(function (el) { return clean(el.value); }).filter(Boolean);
+      try { localStorage.setItem('rz-guide-names', JSON.stringify(ins.map(function (el) { return clean(el.value); }))); } catch (e) {}
+      var b = out.querySelector('b'), sp = out.querySelector('span');
+      b.textContent = fmt(names.length * PER) + '\u00A0₽';
+      if (!names.length) sp.textContent = 'впиши хотя бы одно имя';
+      else sp.textContent = names.join(', ') + ': это ~' + fmt(names.length * PER) + ' ₽ в потенциале. Запомни их: в главе III будет текст, который им отправить.';
+      out.classList.toggle('on', names.length > 0);
+      document.querySelectorAll('.nm').forEach(function (el) {
+        var n = names[parseInt(el.dataset.i, 10) || 0];
+        el.textContent = n || (el.tagName === 'B' ? '' : 'брат');
+      });
+      if (forName) forName.hidden = !names.length;
+      if (names.length === 3 && !done) { done = true; Dragon.breathe(1); goal('names_3', true); }
+    }
+    ins.forEach(function (el) { el.addEventListener('input', render); });
+    render();
+  })();
+
   /* ---------- вопросы ---------- */
   document.querySelectorAll('.qa').forEach(function (qa) {
     var btn = qa.querySelector('.qa-h');
@@ -445,12 +478,12 @@
   /* ---------- липкая кнопка: появляется во второй главе, прячется у финала ---------- */
   var sticky = document.getElementById('stickyCta');
   var finalEl = document.getElementById('final');
-  var ch2 = document.getElementById('ch-2');
+  var ch2 = document.getElementById('ch-3');
   var stickyOn = false;
   function stickyCheck() {
     if (!sticky || !finalEl || !ch2) return;
     var vh = window.innerHeight;
-    var after = ch2.getBoundingClientRect().top < -vh * 1.5;
+    var after = ch2.getBoundingClientRect().top < -vh * 2.2;
     var nearEnd = finalEl.getBoundingClientRect().top < vh * 1.1;
     var on = after && !nearEnd && !(currentPlan === 'gate');
     if (on !== stickyOn) { stickyOn = on; sticky.classList.toggle('on', on); }
@@ -474,7 +507,10 @@
   document.addEventListener('click', function (e) {
     var a = e.target.closest('a');
     if (!a) return;
-    if (a.id === 'finalCta') goal('cta_telegram');
+    if (a.id === 'finalCta') {
+      goal('cta_telegram');
+      try { if (navigator.clipboard) navigator.clipboard.writeText('ДРАКОН'); } catch (err) {}
+    }
     else if (a.id === 'stickyCta') goal('cta_sticky');
     else if (a.getAttribute('href') === '#final') goal('cta_to_final');
   });

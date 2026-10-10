@@ -404,3 +404,30 @@ mark.hl { background: linear-gradient(90deg, rgba(212, 166, 74, .38), rgba(243, 
 .vid-play { place-content: end start; justify-items: start; padding: 0 0 16px 16px; grid-auto-flow: column; align-items: center; gap: 12px; background: linear-gradient(180deg, transparent 55%, rgba(4, 6, 20, .7)); }
 .vid-play i { width: 56px; height: 56px; box-shadow: 0 0 0 7px rgba(212, 166, 74, .2), 0 10px 30px -8px rgba(0, 0, 0, .8); }
 .vid-play i::after { left: 22px; top: 17px; border-width: 11px 0 11px 17px; }
+
+/* v5: открытая петля на первом экране */
+.loop { margin-top: 22px; max-width: 560px; display: flex; gap: 12px; align-items: flex-start; font-size: 14.5px; line-height: 1.55; color: var(--mute); }
+.loop i { flex-shrink: 0; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--gold); font-family: var(--f-cn); font-style: normal; font-size: 14px; color: var(--gold-hi); }
+
+/* задание с именами */
+.task { margin-top: 26px; padding: clamp(20px, 3.6vw, 32px); display: grid; gap: 12px; }
+.task-tag { font-family: var(--f-m); font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--gold); }
+.task h3 { font-size: clamp(19px, 2.4vw, 24px) !important; }
+.task p { font-size: 14.5px !important; line-height: 1.55 !important; }
+.task-in { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.task-in input { width: 100%; padding: 14px 14px; border: 1px solid var(--line); background: rgba(255, 255, 255, .04); color: var(--ivory); font-family: var(--f-b); font-size: 16px; font-weight: 700; border-radius: 0; -webkit-appearance: none; }
+.task-in input::placeholder { color: var(--dim); font-weight: 500; }
+.task-in input:focus { outline: none; border-color: var(--gold); background: rgba(212, 166, 74, .08); }
+.task-out { display: grid; gap: 4px; padding: 14px 16px; border-left: 2px solid var(--line); transition: border-color .4s; }
+.task-out b { font-family: var(--f-d); font-weight: 400; font-size: clamp(30px, 6vw, 42px); color: var(--dim); line-height: 1; transition: color .4s; }
+.task-out span { font-size: 14.5px; color: var(--mute); line-height: 1.5; }
+.task-out.on { border-left-color: var(--gold); }
+.task-out.on b { color: #ffd978; }
+@media (max-width: 560px) { .task-in { grid-template-columns: 1fr; } }
+.for-name { margin-top: 12px; padding: 10px 14px; border-left: 2px solid var(--gold); background: rgba(212, 166, 74, .08); font-size: 15px !important; }
+
+/* кодовое слово в финале */
+.code { margin-top: 14px; padding: 22px; display: grid; justify-items: center; gap: 8px; text-align: center; border-color: rgba(212, 166, 74, .6); }
+.code > span { font-family: var(--f-m); font-size: 10.5px; letter-spacing: .22em; text-transform: uppercase; color: var(--gold); }
+.code > b { font-family: var(--f-d); font-weight: 400; font-size: clamp(34px, 7vw, 52px); letter-spacing: .14em; color: #ffd978; text-shadow: 0 0 26px rgba(255, 190, 80, .35); }
+.code p { max-width: 520px; font-size: 14.5px; line-height: 1.6; color: var(--mute); }
