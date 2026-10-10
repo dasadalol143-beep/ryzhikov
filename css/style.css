@@ -124,8 +124,14 @@ button { font: inherit; color: inherit; }
   position: fixed; inset: 0; z-index: 59; pointer-events: none;
   background: radial-gradient(ellipse 120% 90% at 50% 50%, transparent 55%, rgba(0, 0, 0, .65) 100%);
 }
-.lb { position: fixed; left: 0; right: 0; height: var(--lb); background: #000; z-index: 58; pointer-events: none; }
-.lb--t { top: 0; } .lb--b { bottom: 0; }
+.lb { position: fixed; left: 0; right: 0; height: 9vh; background: #000; z-index: 58; pointer-events: none; transform: scaleY(0); will-change: transform; }
+.lb--t { top: 0; transform-origin: 50% 0; } .lb--b { bottom: 0; transform-origin: 50% 100%; }
+@media (max-width: 760px) { .lb { height: 6vh; } }
+/* ступени качества (их выставляет автопилот perf.js) */
+.q-0 .ws-img, .q-0 .ws-vid { animation: none !important; }
+.q-0 .btn--gold::after, .q-0 .scroll-cue i, .q-0 .deal-seats i { animation: none; }
+.q-0 .grain, .q-1 .grain { display: none; }
+.q-0 .price-tongues i:nth-child(n+5) { display: none; }
 
 /* =========================================================== ЗАГРУЗКА */
 .loader {

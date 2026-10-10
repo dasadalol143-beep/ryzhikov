@@ -117,7 +117,9 @@
   var layer = document.createElement('div');
   layer.className = 'worlds';
   layer.setAttribute('aria-hidden', 'true');
-  var canVideo = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var Perf = window.RyzhikovPerf;
+  var tierNow = Perf ? Perf.tier() : 3;
+  var canVideo = !window.matchMedia('(prefers-reduced-motion: reduce)').matches && tierNow >= 2;
   var scenes = SCN.map(function (sc) {
     var d = document.createElement('div');
     d.className = 'world-scene';
@@ -141,7 +143,10 @@
     im.decoding = 'async';
     im.onload = function () { d._img.style.backgroundImage = 'url("' + src + '")'; d.classList.add('ready'); };
     im.src = src;
-    if (canVideo) {
+    addVideo(d);
+  }
+  function addVideo(d) {
+    if (canVideo && !d._vid && d._loaded) {
       var v = document.createElement('video');
       v.className = 'ws-vid';
       v.muted = true; v.loop = true; v.playsInline = true;
@@ -155,6 +160,14 @@
       d._vid = v;
     }
   }
+  function dropVideo(d) {
+    if (!d._vid) return;
+    var v = d._vid;
+    d._vid = null; d.classList.remove('vid');
+    try { v.pause(); while (v.firstChild) v.removeChild(v.firstChild); v.removeAttribute('src'); v.load(); } catch (e) {}
+    v.remove();
+  }
+  function dropVideos() { scenes.forEach(dropVideo); }
   function playOnly(n) {
     scenes.forEach(function (d, i) {
       if (!d._vid) return;
@@ -244,9 +257,10 @@
     }
     p.a = .35 + Math.random() * .55;
   }
+  var PART = [0, .35, .6, 1];
   function initParts() {
     parts = [];
-    var n = reduce ? 0 : (mobile ? 40 : 90);
+    var n = reduce ? 0 : Math.round((mobile ? 40 : 90) * PART[tierNow]);
     for (var i = 0; i < n; i++) { var p = {}; spawn(p, true); parts.push(p); }
   }
 
@@ -281,7 +295,7 @@
     var r = f.c.getBoundingClientRect();
     if (r.bottom < -100 || r.top > vh + 100) { f.list.length = 0; return; }
     sizeFlame(f);
-    var n = Math.round((mobile ? 45 : 90) * f.k * dt);
+    var n = Math.round((mobile ? 45 : 90) * f.k * dt * (tierNow >= 2 ? 1 : .5));
     for (var i = 0; i < n; i++) {
       f.list.push({ x: f.w * (.12 + Math.random() * .76), y: f.h * .78, vx: (Math.random() - .5) * 30, vy: -(80 + Math.random() * 140) * (.6 + f.k * .6), r: 6 + Math.random() * 16 * (.5 + f.k * .5), life: .5 + Math.random() * .7 });
     }
@@ -349,14 +363,22 @@
     }
     if (current >= 0 && scenes[current]) {
       var py = Math.max(-70, Math.min(70, -(y - enterY) * .05));
-      parY += (py - parY) * Math.min(1, dt * 4);
-      scenes[current]._par.style.transform = 'translate3d(0,' + parY.toFixed(1) + 'px,0)';
+      var np = parY + (py - parY) * Math.min(1, dt * 4);
+      if (Math.abs(np - parY) > .15) {
+        parY = np;
+        scenes[current]._par.style.transform = 'translate3d(0,' + parY.toFixed(1) + 'px,0)';
+      }
     }
     for (var f = 0; f < flames.length; f++) if (flames[f].k > 0 || flames[f].list.length) stepFlame(flames[f], dt);
     raf = requestAnimationFrame(frame);
   }
 
   resize(); initParts();
+  if (Perf) Perf.onChange(function (t) {
+    tierNow = t;
+    if (t < 2) { canVideo = false; dropVideos(); }
+    initParts();
+  });
   window.addEventListener('resize', function () { var m = mobile; resize(); if (m !== mobile) initParts(); }, { passive: true });
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) { if (raf) cancelAnimationFrame(raf); raf = null; }
@@ -377,6 +399,10 @@
       enterY = window.scrollY || 0; parY = 0;
       var th = T[n];
       ensureImg(n); ensureImg(n + 1); if (n > 0) ensureImg(n - 1);
+      // в памяти держим видео только текущего мира и соседей
+      scenes.forEach(function (d, i) {
+        if (Math.abs(i - n) > 1) dropVideo(d); else addVideo(d);
+      });
       playOnly(n);
       scenes.forEach(function (s, i) {
         s.classList.toggle('on', i === n);
@@ -386,8 +412,7 @@
       mix = th.fx;
       for (var i = 0; i < parts.length; i++) if (instant) spawn(parts[i], true); else parts[i].fade = 1;
       var vars = { '--tone': th.tone, '--tone2': th.tone2, '--bg-top': th.bg[0], '--bg-bot': th.bg[1], '--panel': th.panel[0], '--panel-d': th.panel[1] };
-      if (window.gsap && !instant) window.gsap.to(root, Object.assign({ duration: 1.6, ease: 'power2.out' }, vars));
-      else for (var k in vars) root.style.setProperty(k, vars[k]);
+      for (var k in vars) root.style.setProperty(k, vars[k]);
       root.dataset.world = th.id;
       return th;
     },

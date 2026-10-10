@@ -207,7 +207,14 @@
   }
 
   /* ---------- врата: кинокадр, створки, пролёт ---------- */
-  var lbMax = function () { return window.innerHeight * (isMobile() ? .06 : .09); };
+  var lbT = document.querySelector('.lb--t'), lbB = document.querySelector('.lb--b'), lbLast = -1;
+  function setLB(k) {
+    k = Math.round(k * 100) / 100;
+    if (k === lbLast || !lbT) return;
+    lbLast = k;
+    lbT.style.transform = 'scaleY(' + k + ')';
+    lbB.style.transform = 'scaleY(' + k + ')';
+  }
   document.querySelectorAll('.gate').forEach(function (gate) {
     if (reduce) return;
     var frame = gate.querySelector('.gate-frame');
@@ -227,7 +234,7 @@
         scrub: 1,
         anticipatePin: 1,
         onToggle: function (self) {
-          if (!self.isActive) root.style.setProperty('--lb', '0px');
+          if (!self.isActive) setLB(0);
         },
         onUpdate: function (self) {
           var p = Math.min(1, self.progress / .574);
@@ -241,7 +248,7 @@
               alpha: 1 - Math.max(0, (dive - .55) / .45)
             });
           }
-          root.style.setProperty('--lb', (Math.sin(p * Math.PI) * lbMax()).toFixed(1) + 'px');
+          setLB(Math.sin(p * Math.PI));
         }
       }
     });
@@ -255,7 +262,7 @@
       .to(doorL, { rotateY: -112, duration: .34, ease: 'power2.inOut' }, .44)
       .to(doorR, { rotateY: 112, duration: .34, ease: 'power2.inOut' }, .44)
       .to(light, { autoAlpha: 1, scale: 1.5, duration: .38, ease: 'power1.out' }, .44)
-      .to(frame, { scale: 3.4, duration: .46, ease: 'power2.in' }, .56)
+      .to(frame, { scale: 2.2, duration: .46, ease: 'power2.in' }, .56)
       .to(frame, { opacity: .3, duration: .14 }, .88)
       // зал выезжает поверх света из открытых врат, затем свет гаснет
       .to(frame, { opacity: 0, duration: .5, ease: 'none' }, 1.1)
@@ -519,11 +526,13 @@
   /* ---------- прогресс и глубина ---------- */
   var progress = document.getElementById('progress');
   var depthM = document.getElementById('depthM');
+  var depthLast = -1;
   ScrollTrigger.create({
     start: 0, end: 'max',
     onUpdate: function (self) {
-      if (progress) progress.style.transform = 'scaleX(' + self.progress.toFixed(4) + ')';
-      if (depthM) depthM.textContent = Math.round(self.progress * 1240) + ' м';
+      if (progress) progress.style.transform = 'scaleX(' + self.progress.toFixed(3) + ')';
+      var dm = Math.round(self.progress * 1240);
+      if (depthM && dm !== depthLast) { depthLast = dm; depthM.textContent = dm + ' м'; }
     }
   });
 

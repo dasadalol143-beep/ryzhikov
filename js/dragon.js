@@ -15,6 +15,9 @@
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   var N = 72;                 // сегментов в теле
+  var Perf = window.RyzhikovPerf;
+  var tier = Perf ? Perf.tier() : 3;
+  var RES = [.6, .72, .85, 1];  // доля разрешения холста по ступеням качества
   var PI = Math.PI;
 
   var vw = 0, vh = 0, dpr = 1, mobile = false;
@@ -59,7 +62,7 @@
   function resize() {
     vw = window.innerWidth;
     vh = window.innerHeight;
-    dpr = Math.min(mobileGuess() ? 1.25 : 1.5, window.devicePixelRatio || 1);
+    dpr = Math.min(mobileGuess() ? 1.25 : 1.5, window.devicePixelRatio || 1) * RES[tier];
     mobile = vw < 760;
     canvas.width = Math.round(vw * dpr);
     canvas.height = Math.round(vh * dpr);
@@ -377,7 +380,8 @@
     }
     // чешуя
     ctx.lineWidth = 1;
-    for (var j = 2; j < N - 3; j++) {
+    var scStep = tier >= 3 ? 1 : tier === 2 ? 2 : 999;
+    for (var j = 2; j < N - 3; j += scStep) {
       var s = S[j];
       var ws = s.w;
       var dir = Math.atan2(-s.ty, -s.tx);
@@ -410,7 +414,7 @@
     ctx.stroke();
 
     // гребень
-    for (var k = 3; k < N - 5; k += 2) {
+    for (var k = 3; k < N - 5; k += (tier >= 2 ? 2 : 3)) {
       var g = S[k];
       var gw = g.w;
       var bx2 = g.x + g.nx * gw * 0.9, by2 = g.y + g.ny * gw * 0.9;
@@ -452,7 +456,7 @@
     drawLeg(33, 1, 2.6, false);
 
     // грива вдоль шеи
-    for (var m = 1; m < 12; m++) {
+    for (var m = 1; m < (tier >= 2 ? 12 : 6); m++) {
       var mn = S[m];
       var mw = mn.w;
       var wv = Math.sin(t * 4 + m * 0.7) * 0.5;
@@ -707,14 +711,17 @@
 
   /* ------------------------------------------------------ цикл */
   var raf = null, last = 0;
+  var odd = false;
   function frame(now) {
     var dt = Math.min(0.05, (now - last) / 1000 || 0.016);
     last = now;
     update(dt);
     updateWhiskers(dt);
-    draw();
+    odd = !odd;
+    if (tier > 0 || odd) draw();
     raf = requestAnimationFrame(frame);
   }
+  if (Perf) Perf.onChange(function (t) { tier = t; resize(); });
   function start() { if (raf === null) { last = performance.now(); raf = requestAnimationFrame(frame); } }
   function stop() { if (raf !== null) { cancelAnimationFrame(raf); raf = null; } }
 
