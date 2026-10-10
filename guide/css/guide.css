@@ -355,3 +355,15 @@ mark.hl { background: linear-gradient(90deg, rgba(212, 166, 74, .38), rgba(243, 
 .offer .deal-list li b { color: var(--ivory); }
 .offer .deal-list .li-gold b { color: var(--gold-hi); }
 .offer .deal-list .li-gold { padding: 10px 12px 10px 0; margin-left: -12px; padding-left: 12px; background: rgba(212, 166, 74, .1); border-left: 2px solid var(--gold); }
+
+/* v3: почему банк платит, доверие в финале */
+.why { margin-top: 14px; padding: 18px 20px; border-left: 2px solid var(--gold); background: rgba(10, 6, 16, .72); }
+.why b { display: block; margin-bottom: 6px; font-family: var(--f-d); font-weight: 400; text-transform: uppercase; font-size: 16px; color: var(--gold-hi); }
+.why p { font-size: 15px !important; }
+.trust { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; text-align: left; }
+.trust-c { padding: 22px; }
+.trust-c b { display: block; margin-bottom: 8px; font-family: var(--f-d); font-weight: 400; text-transform: uppercase; font-size: 18px; color: var(--ivory); }
+.trust-c p { font-size: 15px; line-height: 1.6; color: var(--mute); }
+.trust-c .g { color: var(--gold-hi); font-weight: 700; }
+.g-final .sign { font-size: 22px; }
+@media (max-width: 760px) { .trust { grid-template-columns: 1fr; } }
