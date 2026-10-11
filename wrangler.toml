@@ -2,6 +2,8 @@ name = "ryzhikov"
 main = "worker/index.mjs"
 compatibility_date = "2026-09-01"
 compatibility_flags = ["nodejs_compat"]
+# Не затирать переменные, добавленные в дашборде Cloudflare.
+keep_vars = true
 
 [assets]
 directory = "./public"
