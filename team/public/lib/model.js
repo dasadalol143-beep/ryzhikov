@@ -145,3 +145,41 @@ export function followupState(c, now = Date.now()) {
   const touchedToday = touches.some((t) => mskKey(Date.parse(t.at)) === mskKey(now));
   return { touches: touches.length, touchedToday, due: !touchedToday && touches.length < FOLLOWUP_TOUCHES, exhausted: touches.length >= FOLLOWUP_TOUCHES };
 }
+
+// ---------- ссылки на оплату ----------
+// commission — комиссия рассрочки в % (чистая = сумма × (1 − комиссия)). null — не знаем, РОП внесёт руками.
+export const DEFAULT_PAY_LINKS = [
+  { id: "tb-105", provider: "Т-Банк", label: "105к · Т-Банк", amount: 105000, commission: null, url: "https://link.tbank.ru/9GP6Nnmda3A", note: "" },
+  { id: "tb-100-31", provider: "Т-Банк", label: "100к · Т-Банк · 31%", amount: 100000, commission: 31, url: "https://link.tinkoff.ru/6thz4EczA4l", note: "" },
+  { id: "tb-100-27", provider: "Т-Банк", label: "100к · Т-Банк · 27,5%", amount: 100000, commission: 27.5, url: "https://link.tinkoff.ru/7NVYPhE2z2C", note: "" },
+  { id: "tb-100-19", provider: "Т-Банк", label: "100к · Т-Банк · 18,9%", amount: 100000, commission: 18.9, url: "https://link.tinkoff.ru/2UaO7wWdE2D", note: "Для 21+ (шансы выше). Не одобрили — следом ссылка на 31%" },
+  { id: "tb-80", provider: "Т-Банк", label: "80к · Т-Банк", amount: 80000, commission: null, url: "https://link.tinkoff.ru/kMUDA45HYU", note: "" },
+  { id: "tb-70", provider: "Т-Банк", label: "70к · Т-Банк", amount: 70000, commission: null, url: "https://link.tinkoff.ru/6kIjrDpuk0t", note: "" },
+  { id: "tb-50", provider: "Т-Банк", label: "50к · Т-Банк", amount: 50000, commission: null, url: "https://link.tinkoff.ru/6Z7jgR307T7", note: "" },
+  { id: "tb-40", provider: "Т-Банк", label: "40к · Т-Банк", amount: 40000, commission: null, url: "https://link.tbank.ru/7Pnl9uIQD1P", note: "" },
+  { id: "rr-100", provider: "Ресурс развития", label: "100к · Ресурс развития", amount: 100000, commission: null, url: "https://pay.rrllc.ru/r-b-academy-100000", note: "" },
+  { id: "pr-100", provider: "Продамус", label: "100к · Продамус", amount: 100000, commission: null, url: "https://payform.ru/jqbd1JX/", note: "Всегда да, Фреш кредит и др." },
+  { id: "pr-90", provider: "Продамус", label: "90к · Продамус", amount: 90000, commission: null, url: "https://payform.ru/omcwxn8/", note: "" },
+  { id: "pr-80", provider: "Продамус", label: "80к · Продамус (Фреш кредит)", amount: 80000, commission: null, url: "https://payform.ru/aac051q/", note: "Всегда да, Фреш кредит и др." },
+  { id: "pr-70", provider: "Продамус", label: "70к · Продамус", amount: 70000, commission: null, url: "https://payform.ru/8rb9FgL/", note: "Всегда да, Фреш кредит и др." },
+  { id: "pr-50", provider: "Продамус", label: "50к · Продамус", amount: 50000, commission: null, url: "https://payform.ru/ljaU8A0/", note: "Всегда да, Фреш кредит и др." },
+  { id: "pr-40", provider: "Продамус", label: "40к · Продамус", amount: 40000, commission: null, url: "https://payform.ru/5ncwxta/", note: "" },
+  { id: "pr-30", provider: "Продамус", label: "30к · Продамус", amount: 30000, commission: null, url: "https://payform.ru/6scwxtM/", note: "" },
+];
+
+// ---------- план и темп ----------
+export function daysInMonth(mk) {
+  const [y, m] = mk.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).getUTCDate();
+}
+// Сколько уже сделано, где должны быть к сегодняшнему дню, прогноз на конец месяца и сколько нужно в день.
+export function pace(done, plan, today) {
+  const mk = today.slice(0, 7);
+  const total = daysInMonth(mk);
+  const day = Number(today.slice(8, 10));
+  const expected = plan ? Math.round((plan * day) / total) : 0;
+  const forecast = day ? Math.round((done / day) * total) : 0;
+  const left = Math.max(0, plan - done);
+  const daysLeft = total - day + 1;
+  return { done, plan, expected, forecast, left, perDay: daysLeft ? Math.ceil(left / daysLeft) : left, ahead: done - expected, pct: plan ? done / plan : null, dayPct: day / total };
+}

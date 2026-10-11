@@ -12,6 +12,11 @@ export function d1Store(db) {
       const { results } = await db.prepare("SELECT data FROM docs WHERE kind = ?").bind(kind).all();
       return results.map((r) => JSON.parse(r.data));
     },
+    async recent(kind, limit = 100) {
+      await init();
+      const { results } = await db.prepare("SELECT data FROM docs WHERE kind = ? ORDER BY id DESC LIMIT ?").bind(kind, limit).all();
+      return results.map((r) => JSON.parse(r.data));
+    },
     async get(kind, id) {
       await init();
       const row = await db.prepare("SELECT data FROM docs WHERE kind = ? AND id = ?").bind(kind, String(id)).first();
@@ -49,6 +54,9 @@ export function memoryStore(seed = {}) {
     data,
     async all(kind) {
       return [...data.entries()].filter(([k]) => k.startsWith(`${kind}/`)).map(([, v]) => structuredClone(v));
+    },
+    async recent(kind, limit = 100) {
+      return [...data.entries()].filter(([k]) => k.startsWith(`${kind}/`)).sort(([a], [b]) => (a < b ? 1 : -1)).slice(0, limit).map(([, v]) => structuredClone(v));
     },
     async get(kind, id) {
       const v = data.get(key(kind, id));

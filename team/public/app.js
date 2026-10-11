@@ -2,12 +2,18 @@ import {
   ROLES, STATUSES, SOURCES, REPORT_FIELDS, AFTER_CALL, FOLLOWUP_TOUCHES, DEFAULT_RATES,
   statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState,
   mskKey, mskTime, mskMidnight, addDaysKey, fmtDay, weekday, fmtWhen, monthName, payrollRow, monthSummary,
+  DEFAULT_PAY_LINKS, pace, daysInMonth,
 } from "./lib/model.js";
 import { rnp, lidorubStats, periodRange } from "./lib/stats.js";
+import { columns, cumulative, funnel as funnelChart, shareBar, sparkline, bindCharts, compact } from "./charts.js";
 
 const tg = window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
+// Тема графиков следует за Telegram (свои шаги палитры для тёмного фона).
+const applyTheme = () => (document.documentElement.dataset.theme = tg?.colorScheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+applyTheme();
+tg?.onEvent?.("themeChanged", applyTheme);
 
 const AUTH_ERRORS = {
   no_bot_token: "На сервере не задан токен бота (BOT_TOKEN в Cloudflare).",
@@ -24,6 +30,8 @@ const state = {
   settings: { rates: DEFAULT_RATES, monthPlan: 0, aliases: {} },
   legacy: {},
   payments: null,
+  feed: [],
+  statsPerson: "all",
   tab: "today",
   clientId: null,
   more: null, // payroll | team | settings | import | rules
@@ -134,6 +142,7 @@ async function load() {
       settings: data.settings,
       legacy: data.legacy || {},
       payments: data.payments,
+      feed: data.feed || [],
     });
     $tabs.hidden = false;
     // Ссылки из бота: ?client=ID&report=1
@@ -144,6 +153,7 @@ async function load() {
       state.clientId = q.get("client");
       render();
       if (q.get("report")) openReport(clientById(state.clientId));
+      if (q.get("book")) openBooking(clientById(state.clientId));
       return;
     }
     render();
@@ -243,6 +253,24 @@ function callsOn(day, filterFn = () => true) {
   return out.sort((a, b) => Date.parse(a.call.at) - Date.parse(b.call.at));
 }
 
+// План: полоса факта, белая риска — где должны быть сегодня, прогноз и сколько надо в день.
+function paceBlock(p, fmt, unit) {
+  const lead = p.ahead >= 0 ? `опережаем на ${fmt(p.ahead)}` : `отстаём на ${fmt(-p.ahead)}`;
+  return `<div class="pace"><i style="width:${Math.min(100, (p.pct || 0) * 100)}%"></i><u style="left:${Math.min(100, p.dayPct * 100)}%"></u></div>
+    <div class="hero-foot"><span>${Math.round((p.pct || 0) * 100)}% плана ${fmt(p.plan)} · ${lead}</span><span>прогноз ${fmt(p.forecast)}</span></div>
+    ${p.left ? `<div class="hero-foot"><span>нужно ${fmt(p.perDay)} ${unit}в день до конца месяца</span></div>` : `<div class="hero-foot"><span>🔥 план выполнен</span></div>`}`;
+}
+
+const FEED_SEEN_KEY = "feedSeen";
+const feedSeen = () => {
+  try {
+    return localStorage.getItem(FEED_SEEN_KEY) || "";
+  } catch {
+    return "";
+  }
+};
+const unreadFeed = () => state.feed.filter((f) => f.id > feedSeen() && f.by !== state.me.id).length;
+
 // ---------- СЕГОДНЯ ----------
 function renderToday() {
   const me = state.me;
@@ -259,20 +287,24 @@ function renderToday() {
   const follow = state.clients.filter((c) => c.mopId && (role !== "mop" || c.mopId === me.id) && followupState(c, now)?.due);
   const fresh = state.clients.filter((c) => c.status === "new" && (role !== "lidorub" || !c.lidorubId || c.lidorubId === me.id));
 
-  let html = `<div class="hero"><div class="hero-top"><div><div class="hero-hi">${hello}</div><div class="hero-date">${esc(dateLine)} · ${esc(ROLES[role])}</div></div>${role !== "mop" ? `<button class="btn small light" data-new>＋ Лид</button>` : ""}</div>`;
-  if (isBoss()) {
-    const m = rnp(state.clients, state.legacy, { ...periodRange("month"), aliases: aliasesFor() }).total;
-    const plan = state.settings.monthPlan || 0;
-    html += `<div class="hero-label">Продажи за ${monthName(today().slice(0, 7))}</div><div class="hero-value">${rub(m.salesSum)}</div>`;
-    if (plan) html += `<div class="hero-bar"><i style="width:${Math.min(100, (m.salesSum / plan) * 100)}%"></i></div><div class="hero-foot"><span>план ${rub(plan)}</span><span>${Math.round((m.salesSum / plan) * 100)}%</span></div>`;
-    else html += `<div class="hero-foot"><span>${m.sales} ${plural(m.sales, "продажа", "продажи", "продаж")} · средний чек ${rub(m.avgCheck)}</span><span>CR ${pct(m.crSale)}</span></div>`;
-  } else if (role === "mop") {
-    const m = rnp(state.clients, state.legacy, { ...periodRange("month"), people: new Set([me.id]), aliases: aliasesFor() }).total;
-    html += `<div class="hero-label">Мои продажи за ${monthName(today().slice(0, 7))}</div><div class="hero-value">${rub(m.salesSum)}</div><div class="hero-foot"><span>${m.sales} ${plural(m.sales, "продажа", "продажи", "продаж")} · проведено ${m.held}</span><span>CR ${pct(m.crSale)}</span></div>`;
+  const unread = unreadFeed();
+  let html = `<div class="hero"><div class="hero-top"><div><div class="hero-hi">${hello}</div><div class="hero-date">${esc(dateLine)} · ${esc(ROLES[role])}</div></div><div class="hero-actions"><button class="icon-btn" data-feed>🔔${unread ? `<em>${unread > 9 ? "9+" : unread}</em>` : ""}</button>${role !== "mop" ? `<button class="btn small light" data-new>＋ Лид</button>` : ""}</div></div>`;
+  const mk = today().slice(0, 7);
+  if (role === "lidorub") {
+    const t = lidorubStats(state.clients, state.legacy, { from: today(), to: today(), people: new Set([me.id]), aliases: aliasesFor() }).total;
+    const m = lidorubStats(state.clients, state.legacy, { ...periodRange("month"), people: new Set([me.id]), aliases: aliasesFor() }).total;
+    const plan = state.settings.personPlans?.[me.id] || 0;
+    const done = m.scheduled + m.baseScheduled;
+    html += `<div class="hero-label">Записал на созвон сегодня</div><div class="hero-value">${t.scheduled + t.baseScheduled}</div>`;
+    html += plan ? paceBlock(pace(done, plan, today()), (v) => String(v), "записей") : "";
+    html += `<div class="hero-stats"><div><small>лидов сегодня</small><b>${t.received + t.baseResponses}</b></div><div><small>ЛМ сегодня</small><b>${t.lm + t.baseLm}</b></div><div><small>записей за месяц</small><b>${done}</b></div></div>`;
   } else {
-    const t = lidorubStats(state.clients, state.legacy, { from: today(), to: today(), people: new Set([me.id]) }).total;
-    const m = lidorubStats(state.clients, state.legacy, { ...periodRange("month"), people: new Set([me.id]) }).total;
-    html += `<div class="hero-label">Записал на созвон сегодня</div><div class="hero-value">${t.scheduled + t.baseScheduled}</div><div class="hero-foot"><span>лидов ${t.received + t.baseResponses} · ЛМ ${t.lm + t.baseLm}</span><span>за месяц ${m.scheduled + m.baseScheduled}</span></div>`;
+    const people = role === "mop" ? new Set([me.id]) : null;
+    const m = rnp(state.clients, state.legacy, { ...periodRange("month"), people, aliases: aliasesFor() }).total;
+    const plan = role === "mop" ? state.settings.personPlans?.[me.id] || 0 : state.settings.monthPlan || 0;
+    html += `<div class="hero-label">${role === "mop" ? "Мои продажи" : "Продажи"} · ${monthName(mk)}</div><div class="hero-value">${rub(m.salesSum)}</div>`;
+    if (plan) html += paceBlock(pace(m.salesSum, plan, today()), rub, "");
+    html += `<div class="hero-stats"><div><small>продаж</small><b>${m.sales}</b></div><div><small>доходимость</small><b>${pct(m.crHeld)}</b></div><div><small>CR в продажу</small><b>${pct(m.crSale)}</b></div></div>`;
   }
   html += `</div>`;
 
@@ -327,38 +359,27 @@ function teamToday() {
 }
 
 // ---------- КЛИЕНТЫ ----------
-const FILTERS = [
-  ["active", "В работе"],
-  ["new", "Новые"],
-  ["calls", "Созвон назначен"],
-  ["report", "Нет отчёта"],
-  ["follow", "Дожим"],
-  ["hot", "Думают / предоплата"],
-  ["paid", "Оплатили"],
-  ["bank", "Отказ по банкам"],
-  ["lost", "Отказы и игнор"],
-  ["all", "Все"],
+// Папки лидов: путь клиента от заявки до денег. Тап — фильтр списка.
+const FOLDERS = [
+  ["active", "В работе", (c) => !isClosed(c.status)],
+  ["new", "Новые, без ЛМ", (c) => c.status === "new" && !(c.events || []).some((e) => e.t === "lm")],
+  ["lm", "ЛМ отправлен, ждут записи", (c) => c.status === "new" && (c.events || []).some((e) => e.t === "lm")],
+  ["calls", "Созвон назначен", (c) => !!currentCall(c)],
+  ["today", "Созвон сегодня", (c) => (c.calls || []).some((x) => !x.outcome && mskKey(Date.parse(x.at)) === today())],
+  ["report", "Нет отчёта", (c) => needsReport(c), true],
+  ["ndz", "НДЗ", (c) => ["ndz1", "ndz2", "ndz3"].includes(c.status), true],
+  ["follow", "Дожим", (c) => !!followupState(c), true],
+  ["hot", "Думают / предоплата", (c) => ["thinking", "prepaid"].includes(c.status)],
+  ["paid", "Оплатили", (c) => c.status === "paid"],
+  ["bank", "Отказ по банкам → рекрутеру", (c) => c.status === "refuse_bank"],
+  ["lost", "Отказ, игнор, невалид", (c) => ["refuse_personal", "ignore", "invalid"].includes(c.status)],
+  ["all", "Все", () => true],
 ];
 function filterClients() {
   const q = state.query.trim().toLowerCase();
-  const now = Date.now();
-  return state.clients
-    .filter((c) => {
-      if (state.person !== "all" && c.mopId !== state.person && c.lidorubId !== state.person) return false;
-      if (q && ![c.name, c.telegram, c.phone, c.info].join(" ").toLowerCase().includes(q)) return false;
-      switch (state.filter) {
-        case "active": return !isClosed(c.status);
-        case "new": return c.status === "new";
-        case "calls": return !!currentCall(c);
-        case "report": return needsReport(c);
-        case "follow": return !!followupState(c, now);
-        case "hot": return ["thinking", "prepaid"].includes(c.status);
-        case "paid": return c.status === "paid";
-        case "bank": return c.status === "refuse_bank";
-        case "lost": return ["refuse_personal", "refuse_bank", "ignore", "invalid"].includes(c.status);
-        default: return true;
-      }
-    })
+  const folder = FOLDERS.find((f) => f[0] === state.filter) || FOLDERS[0];
+  return byPerson(state.clients)
+    .filter((c) => (!q || [c.name, c.telegram, c.phone, c.info].join(" ").toLowerCase().includes(q)) && folder[2](c))
     .sort((a, b) => {
       const ca = currentCall(a), cb = currentCall(b);
       if (ca && cb) return Date.parse(ca.at) - Date.parse(cb.at);
@@ -366,16 +387,22 @@ function filterClients() {
       return (b.updatedAt || "").localeCompare(a.updatedAt || "");
     });
 }
+const byPerson = (list) => (state.person === "all" ? list : list.filter((c) => c.mopId === state.person || c.lidorubId === state.person));
 
 function renderClients() {
   const list = filterClients();
   const people = [...closers(), ...lidorubs()];
+  const base = byPerson(state.clients);
+  const folders = FOLDERS.map(([id, label, fn, alert]) => {
+    const n = base.filter(fn).length;
+    return `<button class="folder ${state.filter === id ? "active" : ""} ${alert && n ? "alert" : ""}" data-filter="${id}"><b>${n}</b><span>${label}</span></button>`;
+  }).join("");
   $app.innerHTML = `
-    <div class="toolbar"><input type="search" id="q" placeholder="Поиск: имя, ник, телефон" value="${esc(state.query)}"><button class="btn round" data-new>＋</button></div>
-    <div class="chips">${FILTERS.map(([id, label]) => `<button class="chip ${state.filter === id ? "active" : ""}" data-filter="${id}">${label}</button>`).join("")}</div>
-    ${people.length > 1 ? `<div class="chips"><button class="chip ${state.person === "all" ? "active" : ""}" data-pfilter="all">Все</button>${people.map((u) => `<button class="chip ${state.person === u.id ? "active" : ""}" data-pfilter="${u.id}">${esc(u.name)}</button>`).join("")}</div>` : ""}
-    <div class="sub" style="margin:0 4px 8px">${list.length} ${plural(list.length, "клиент", "клиента", "клиентов")}</div>
-    ${list.length ? `<div class="list">${list.slice(0, 300).map((c) => clientRow(c)).join("")}</div>` : `<div class="card empty">Никого. ${state.clients.length ? "Попробуй другой фильтр." : "Жми ＋ и заводи первого клиента."}</div>`}`;
+    <div class="toolbar"><input type="search" id="q" placeholder="Поиск: имя, ник, телефон, инфа" value="${esc(state.query)}"><button class="btn round" data-new>＋</button></div>
+    ${people.length > 1 ? `<div class="chips"><button class="chip ${state.person === "all" ? "active" : ""}" data-pfilter="all">Вся команда</button>${people.map((u) => `<button class="chip ${state.person === u.id ? "active" : ""}" data-pfilter="${u.id}">${esc(u.name)}</button>`).join("")}</div>` : ""}
+    <div class="folders">${folders}</div>
+    <div class="sub" style="margin:0 4px 8px">${esc(FOLDERS.find((f) => f[0] === state.filter)?.[1] || "")}: ${list.length} ${plural(list.length, "клиент", "клиента", "клиентов")}</div>
+    ${list.length ? `<div class="list">${list.slice(0, 300).map((c) => clientRow(c)).join("")}</div>` : `<div class="card empty">Пусто. ${state.clients.length ? "Загляни в другую папку." : "Жми ＋ и заводи первого клиента."}</div>`}`;
   const q = document.getElementById("q");
   q.oninput = () => {
     state.query = q.value;
@@ -399,7 +426,8 @@ function renderClient(c) {
       ${c.chatUrl ? `<button class="action" data-link="${esc(c.chatUrl)}"><span>💬</span>Чат</button>` : ""}
       ${c.phone ? `<a class="action" href="tel:${esc(c.phone)}"><span>📞</span>Позвонить</a>` : ""}
       <button class="action" data-book="${c.id}"><span>📅</span>${call ? "Перенести" : "Созвон"}</button>
-    </div></div>`;
+      <button class="action" data-paylinks="${c.id}"><span>💳</span>Ссылка</button>
+    </div>${c.payLinkId ? `<div class="sub" style="margin-top:10px">💳 Отправлена ссылка: <b>${esc(linkById(c.payLinkId)?.label || c.payLinkId)}</b></div>` : ""}</div>`;
 
   if (needsReport(c)) html += `<button class="big-cta warn" data-report-open="${c.id}"><span>📝</span><div>Заполнить отчёт после диагностики<small>потребность, боль, возражение, договорённости</small></div></button>`;
 
@@ -453,6 +481,54 @@ function renderClient(c) {
       }
     };
   }
+}
+
+// ---------- ссылки на оплату ----------
+const payLinks = () => (state.settings.payLinks?.length ? state.settings.payLinks : DEFAULT_PAY_LINKS);
+const linkById = (id) => payLinks().find((l) => l.id === id);
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.append(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  }
+}
+function linksList(c) {
+  const groups = {};
+  for (const l of payLinks()) (groups[l.provider] ||= []).push(l);
+  return Object.entries(groups)
+    .map(([prov, ls]) => `<div class="sheet-label">${esc(prov)}</div><div class="list">${ls
+      .map((l) => `<div class="link-row"><div class="grow"><div class="title">${esc(l.label)}</div><div class="sub">${l.commission !== null && l.commission !== undefined ? `комиссия ${String(l.commission).replace(".", ",")}% · чистыми ${compact(l.amount * (1 - l.commission / 100))}` : "комиссия — уточнить"}${l.note ? ` · ${esc(l.note)}` : ""}</div></div><button class="qbtn g-lead" data-copy="${l.id}" ${c ? `data-cid="${c.id}"` : ""}>Копировать</button><button class="qbtn g-won" data-share="${l.id}" ${c ? `data-cid="${c.id}"` : ""}>Отправить</button></div>`)
+      .join("")}</div>`)
+    .join("");
+}
+function openPayLinks(c) {
+  openSheet(`<div class="sheet-title">Ссылка на оплату</div><div class="sub" style="margin:0 4px 6px">${c ? `${esc(clientTitle(c))} · ` : ""}отметится в карточке, а при оплате чистая сама встанет в ведомость</div>${linksList(c)}`, (sh) => {
+    sh.onclick = async (e) => {
+      const b = e.target.closest("[data-copy],[data-share]");
+      if (!b) return;
+      const l = linkById(b.dataset.copy || b.dataset.share);
+      if (b.dataset.share) {
+        const text = `Ссылка на оплату обучения (${l.amount.toLocaleString("ru-RU")} ₽): ${l.url}`;
+        const url = `https://t.me/share/url?url=${encodeURIComponent(l.url)}&text=${encodeURIComponent(text)}`;
+        tg?.openTelegramLink ? tg.openTelegramLink(url) : window.open(url, "_blank");
+      } else {
+        toast((await copyText(l.url)) ? "Ссылка скопирована" : l.url);
+      }
+      haptic();
+      if (b.dataset.cid) {
+        closeSheet();
+        await act(b.dataset.cid, { type: "paylink", linkId: l.id });
+      }
+    };
+  });
 }
 
 // ---------- шторки: новый лид, запись на созвон, отчёт, сумма ----------
@@ -662,93 +738,172 @@ function renderCalendar() {
 }
 
 // ---------- РнП ----------
-const PERIODS = [["today", "Сегодня"], ["yesterday", "Вчера"], ["7", "7 дней"], ["half", "Пол-месяца"], ["month", "Месяц"], ["prev_month", "Прошлый"], ["all", "Всё время"]];
+const PERIODS = [["today", "Сегодня"], ["yesterday", "Вчера"], ["7", "7 дней"], ["half", "Пол-месяца"], ["month", "Месяц"], ["prev_month", "Прошлый месяц"], ["30", "30 дней"], ["all", "Всё время"]];
+
+// Такой же по длине период прямо перед выбранным — для «▲ +12%».
+function prevRange(r) {
+  if (!r.from || !r.to) return null;
+  const len = (Date.parse(r.to) - Date.parse(r.from)) / 86400_000 + 1;
+  return { from: addDaysKey(r.from, -len), to: addDaysKey(r.from, -1) };
+}
+const delta = (cur, prev) => {
+  if (!prev) return "";
+  const d = Math.round(((cur - prev) / prev) * 100);
+  return d ? `<span class="delta ${d > 0 ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${Math.abs(d)}%</span>` : "";
+};
+function dayList(r, fallbackDays) {
+  const keys = Object.keys(fallbackDays).sort();
+  const from = r.from || keys[0] || today();
+  const to = r.to || keys.at(-1) || today();
+  const out = [];
+  for (let d = from; d <= to && out.length < 400; d = addDaysKey(d, 1)) out.push(d);
+  return out;
+}
+
 function renderStats() {
   const range = periodRange(state.period);
   const aliases = aliasesFor();
-  let html = `<h1>РнП</h1><div class="chips">${PERIODS.map(([id, l]) => `<button class="chip ${state.period === id ? "active" : ""}" data-period="${id}">${l}</button>`).join("")}</div>
-    <div class="seg"><button class="${state.statsView === "rnp" ? "active" : ""}" data-sview="rnp">Отдел продаж</button><button class="${state.statsView === "lr" ? "active" : ""}" data-sview="lr">Лидоруб</button><button class="${state.statsView === "days" ? "active" : ""}" data-sview="days">По дням</button></div>`;
+  const ids = new Set([...closers(), ...lidorubs()].map((u) => u.id));
+  const personChips = `<div class="chips"><button class="chip ${state.statsPerson === "all" ? "active" : ""}" data-sperson="all">Вся команда</button>${(state.statsView === "lr" ? lidorubs() : closers()).map((u) => `<button class="chip ${state.statsPerson === u.id ? "active" : ""}" data-sperson="${u.id}">${esc(u.name)}</button>`).join("")}</div>`;
+  const people = state.statsPerson !== "all" && ids.has(state.statsPerson) ? new Set([state.statsPerson]) : null;
+  let html = `<h1>РнП</h1>
+    <div class="seg"><button class="${state.statsView === "rnp" ? "active" : ""}" data-sview="rnp">Отдел продаж</button><button class="${state.statsView === "lr" ? "active" : ""}" data-sview="lr">Лидоруб</button><button class="${state.statsView === "days" ? "active" : ""}" data-sview="days">По дням</button></div>
+    <div class="chips">${PERIODS.map(([id, l]) => `<button class="chip ${state.period === id ? "active" : ""}" data-period="${id}">${l}</button>`).join("")}</div>${personChips}`;
 
   if (state.statsView === "lr") {
-    const r = lidorubStats(state.clients, state.legacy, { ...range, aliases });
+    const r = lidorubStats(state.clients, state.legacy, { ...range, people, aliases });
+    const pr = prevRange(range);
+    const p = pr ? lidorubStats(state.clients, state.legacy, { ...pr, people, aliases }).total : null;
     const t = r.total;
-    html += `<div class="kpis three"><div class="kpi"><div class="label">Получено</div><div class="value">${t.received}</div></div><div class="kpi"><div class="label">ЛМ</div><div class="value">${t.lm}</div></div><div class="kpi accent"><div class="label">Записано</div><div class="value">${t.scheduled}</div></div></div>`;
-    html += funnel([["Получено новых лидов", t.received], ["Невалид", t.invalid], ["Отправлен ЛМ", t.lm, t.crLm], ["Назначено диагностик", t.scheduled, t.crLmScheduled]]);
-    html += `<h2>Работа по базе</h2>` + funnel([["Откликов", t.baseResponses], ["Отправлен ЛМ", t.baseLm], ["Назначено", t.baseScheduled, t.crBase]]);
-    const persons = Object.entries(r.byPerson);
-    if (persons.length) html += `<h2>По людям</h2><div class="rnp"><table><tr><th></th><th>Лидов</th><th>Невалид</th><th>ЛМ</th><th>Назнач.</th><th>База</th></tr>${persons.map(([id, m]) => `<tr><td>${esc(userName(id))}</td><td>${m.received}</td><td>${m.invalid}</td><td>${m.lm}</td><td>${m.scheduled}</td><td>${m.baseScheduled}/${m.baseResponses}</td></tr>`).join("")}</table></div>`;
+    const sched = t.scheduled + t.baseScheduled;
+    html += `<div class="kpis"><div class="kpi accent wide"><div class="label">Записано на диагностику</div><div class="value">${sched}${delta(sched, p && p.scheduled + p.baseScheduled)}</div><div class="hint">из ${t.received + t.baseResponses} лидов · CR ${pct((t.received + t.baseResponses) ? sched / (t.received + t.baseResponses) : null)}</div></div></div>`;
+    html += funnelChart([
+      { label: "Получено новых лидов", value: t.received },
+      { label: "Валидных", value: Math.max(0, t.received - t.invalid) },
+      { label: "Отправлен ЛМ", value: t.lm },
+      { label: "Записано на созвон", value: t.scheduled },
+    ], { title: "Новые заявки" });
+    if (t.baseResponses) html += funnelChart([{ label: "Откликов из базы", value: t.baseResponses }, { label: "Отправлен ЛМ", value: t.baseLm }, { label: "Записано", value: t.baseScheduled }], { title: "Работа по базе" });
+    const days = dayList(range, r.days);
+    if (days.length > 1) html += columns(days.map((d) => ({ label: fmtDay(d), value: (r.days[d]?.scheduled || 0) + (r.days[d]?.baseScheduled || 0), tip: `${fmtDay(d)} ${weekday(d)}: записано ${(r.days[d]?.scheduled || 0) + (r.days[d]?.baseScheduled || 0)}, лидов ${(r.days[d]?.received || 0) + (r.days[d]?.baseResponses || 0)}` })), { title: "Записи на созвон по дням", fmt: (v) => String(Math.round(v)) });
+    // Что стало с записанными лидоруба: дошли, купили
+    const mine = state.clients.filter((c) => c.lidorubId && (!people || people.has(c.lidorubId)));
+    const held = mine.filter((c) => (c.calls || []).some((x) => x.outcome === "held")).length;
+    const paid = mine.filter((c) => c.status === "paid").length;
+    if (mine.length) html += `<h2>Качество лидов (вся база)</h2><div class="kpis three"><div class="kpi"><div class="label">Заведено</div><div class="value">${mine.length}</div></div><div class="kpi"><div class="label">Дошли</div><div class="value">${held}</div></div><div class="kpi"><div class="label">Купили</div><div class="value">${paid}</div></div></div>`;
     $app.innerHTML = html;
     return;
   }
 
-  const r = rnp(state.clients, state.legacy, { ...range, aliases });
+  const r = rnp(state.clients, state.legacy, { ...range, people, aliases });
   const t = r.total;
+  const days = dayList(range, r.days);
+
   if (state.statsView === "days") {
-    const days = Object.keys(r.days).sort().reverse();
-    html += chart(r.days, range);
-    html += days.length
-      ? `<div class="rnp" style="margin-top:10px"><table><tr><th>День</th><th>Лиды</th><th>Назн.</th><th>Пров.</th><th>Прод.</th><th>Сумма</th></tr>${days.map((d) => { const m = r.days[d]; return `<tr><td>${fmtDay(d)} ${weekday(d)}</td><td>${m.leads}</td><td>${m.scheduled}</td><td>${m.held}</td><td>${m.sales}</td><td class="${m.salesSum ? "money-green" : ""}">${m.salesSum ? short(m.salesSum) : "—"}</td></tr>`; }).join("")}</table></div>`
+    if (days.length > 1) html += columns(days.map((d) => ({ label: fmtDay(d), value: r.days[d]?.salesSum || 0, tip: `${fmtDay(d)} ${weekday(d)}: ${rub(r.days[d]?.salesSum || 0)} · продаж ${r.days[d]?.sales || 0}` })), { title: "Продажи по дням, ₽" });
+    const list = days.filter((d) => r.days[d]).reverse();
+    html += list.length
+      ? `<div class="rnp" style="margin-top:10px"><table><tr><th>День</th><th>Лиды</th><th>Назн.</th><th>Пров.</th><th>Прод.</th><th>Сумма</th><th>Потенц.</th></tr>${list.map((d) => { const m = r.days[d]; return `<tr><td>${fmtDay(d)} ${weekday(d)}</td><td>${m.leads}</td><td>${m.scheduled}</td><td>${m.held}</td><td>${m.sales}</td><td class="${m.salesSum ? "money-green" : ""}">${m.salesSum ? compact(m.salesSum) : "—"}</td><td>${m.potentialSum ? compact(m.potentialSum) : "—"}</td></tr>`; }).join("")}</table></div>`
       : `<div class="card empty">За период пусто</div>`;
     $app.innerHTML = html;
     return;
   }
 
-  html += `<div class="kpis"><div class="kpi accent wide"><div class="label">Продажи</div><div class="value">${rub(t.salesSum)}</div><div class="hint">${t.sales} ${plural(t.sales, "продажа", "продажи", "продаж")} · средний чек ${rub(t.avgCheck)}${t.prepaySum ? ` · предоплат ${rub(t.prepaySum)}` : ""}</div></div>
-    <div class="kpi"><div class="label">CR назначено → проведено</div><div class="value">${pct(t.crHeld)}</div><div class="hint">${t.held} из ${t.scheduled}</div></div>
-    <div class="kpi"><div class="label">CR проведено → продажа</div><div class="value">${pct(t.crSale)}</div><div class="hint">${t.sales} из ${t.held}</div></div>
-    <div class="kpi"><div class="label">Потенциал</div><div class="value">${short(t.potentialSum)}</div><div class="hint">${t.potential} ${plural(t.potential, "клиент", "клиента", "клиентов")}</div></div>
-    <div class="kpi"><div class="label">Отказы по банкам</div><div class="value">${short(t.bankSum)}</div><div class="hint">${t.bank} шт.</div></div></div>`;
+  const pr = prevRange(range);
+  const p = pr ? rnp(state.clients, state.legacy, { ...pr, people, aliases }).total : null;
+  const spark = days.slice(-14).map((d) => r.days[d]?.salesSum || 0);
+  html += `<div class="kpis"><div class="kpi accent wide"><div class="label">Продажи${pr ? " · к прошлому такому же периоду" : ""}</div><div class="value">${rub(t.salesSum)}${delta(t.salesSum, p?.salesSum)}</div><div class="hint">${t.sales} ${plural(t.sales, "продажа", "продажи", "продаж")} · средний чек ${rub(t.avgCheck)}${t.prepaySum ? ` · предоплат ${rub(t.prepaySum)}` : ""}</div>${sparkline(spark)}</div>
+    <div class="kpi"><div class="label">Доходимость</div><div class="value">${pct(t.crHeld)}</div><div class="hint">${t.held} из ${t.scheduled} назначенных</div></div>
+    <div class="kpi"><div class="label">CR диагностика → оплата</div><div class="value">${pct(t.crSale)}</div><div class="hint">${t.sales} из ${t.held}</div></div>
+    <div class="kpi"><div class="label">Потенциал</div><div class="value">${compact(t.potentialSum)}</div><div class="hint">${t.potential} ${plural(t.potential, "клиент", "клиента", "клиентов")} думают</div></div>
+    <div class="kpi"><div class="label">Отказы по банкам</div><div class="value">${compact(t.bankSum)}</div><div class="hint">${t.bank} шт. → рекрутеру</div></div></div>`;
 
-  const people = Object.keys(r.byPerson);
-  const cols = [["", t], ...people.map((id) => [userName(id), r.byPerson[id]])];
+  html += funnelChart([
+    { label: "Лидов в работе", value: t.leads },
+    { label: "Назначено диагностик", value: t.scheduled },
+    { label: "Проведено", value: t.held },
+    { label: "Оплатили", value: t.sales, display: `${t.sales} · ${compact(t.salesSum)}` },
+  ], { title: "Воронка отдела продаж" });
+
+  // Месяц: накопительно против плана
+  if (["month", "half"].includes(state.period)) {
+    const mk = today().slice(0, 7);
+    const full = rnp(state.clients, state.legacy, { from: `${mk}-01`, to: today(), people, aliases });
+    const n = daysInMonth(mk);
+    const plan = people ? [...people].reduce((sum, id) => sum + (state.settings.personPlans?.[id] || 0), 0) : state.settings.monthPlan || 0;
+    html += cumulative(Array.from({ length: n }, (_, i) => {
+      const d = `${mk}-${String(i + 1).padStart(2, "0")}`;
+      return { label: fmtDay(d), value: full.days[d]?.salesSum || 0, future: d > today() };
+    }), { plan, title: `Выручка за ${monthName(mk)}${plan ? " против плана" : ""}` });
+  } else if (days.length > 1) {
+    html += columns(days.map((d) => ({ label: fmtDay(d), value: r.days[d]?.salesSum || 0, tip: `${fmtDay(d)} ${weekday(d)}: ${rub(r.days[d]?.salesSum || 0)} · продаж ${r.days[d]?.sales || 0}` })), { title: "Продажи по дням, ₽" });
+  }
+
+  // Рейтинг менеджеров
+  const ranking = Object.entries(rnp(state.clients, state.legacy, { ...range, aliases }).byPerson).sort((a, b) => b[1].salesSum - a[1].salesSum);
+  if (ranking.length) {
+    const max = Math.max(1, ...ranking.map(([, m]) => m.salesSum));
+    html += `<h2>Рейтинг менеджеров</h2><div class="list leader">${ranking.map(([id, m], i) => `<div class="hbar" data-sperson="${id}"><div class="hbar-top"><span>${["🥇", "🥈", "🥉"][i] || "•"} ${esc(userName(id))}</span><b>${rub(m.salesSum)}</b></div><div class="bar-track"><i style="width:${(m.salesSum / max) * 100}%"></i></div><div class="sub">продаж ${m.sales} · проведено ${m.held}/${m.scheduled} · доходимость ${pct(m.crHeld)} · CR ${pct(m.crSale)} · чек ${m.avgCheck ? compact(m.avgCheck) : "—"}${state.settings.personPlans?.[id] && state.period === "month" ? ` · план ${Math.round((m.salesSum / state.settings.personPlans[id]) * 100)}%` : ""}</div></div>`).join("")}</div>`;
+  }
+
+  // Таблица РнП как в Google-таблице
+  const cols = [["Общая", t], ...Object.entries(r.byPerson).map(([id, m]) => [userName(id), m])];
   const row = (label, f, cls = "") => `<tr class="${cls}"><td>${label}</td>${cols.map(([, m]) => `<td>${f(m)}</td>`).join("")}</tr>`;
-  html += `<h2>Отчётность РнП</h2><div class="rnp"><table><tr><th></th>${cols.map(([n]) => `<th>${esc(n || "Общая")}</th>`).join("")}</tr>
-    ${row("Лидов в работе", (m) => m.leads)}
-    ${row("Назначено диагностик", (m) => m.scheduled)}
-    ${row("Проведено", (m) => m.held)}
-    ${row("CR назнач. → пров.", (m) => pct(m.crHeld), "cr")}
-    ${row("Продаж", (m) => m.sales)}
-    ${row("Сумма", (m) => short(m.salesSum), "money")}
-    ${row("Предоплат", (m) => `${m.prepays}${m.prepaySum ? ` · ${short(m.prepaySum)}` : ""}`)}
-    ${row("CR пров. → продажа", (m) => pct(m.crSale), "cr")}
-    ${row("Средний чек", (m) => (m.avgCheck ? short(m.avgCheck) : "—"))}
-    ${row("Отказы по банкам", (m) => `${m.bank}${m.bankSum ? ` · ${short(m.bankSum)}` : ""}`)}
-    ${row("Потенциал", (m) => `${m.potential}${m.potentialSum ? ` · ${short(m.potentialSum)}` : ""}`)}
+  html += `<h2>Отчётность РнП</h2><div class="rnp"><table><tr><th></th>${cols.map(([n]) => `<th>${esc(n)}</th>`).join("")}</tr>
+    ${row("Лидов в работе", (m) => m.leads)}${row("Назначено", (m) => m.scheduled)}${row("Проведено", (m) => m.held)}${row("CR назн. → пров.", (m) => pct(m.crHeld), "cr")}
+    ${row("Продаж", (m) => m.sales)}${row("Сумма", (m) => compact(m.salesSum), "money")}${row("Предоплат", (m) => `${m.prepays}${m.prepaySum ? ` · ${compact(m.prepaySum)}` : ""}`)}${row("CR пров. → продажа", (m) => pct(m.crSale), "cr")}
+    ${row("Средний чек", (m) => (m.avgCheck ? compact(m.avgCheck) : "—"))}${row("Отказы по банкам", (m) => `${m.bank}${m.bankSum ? ` · ${compact(m.bankSum)}` : ""}`)}${row("Потенциал", (m) => `${m.potential}${m.potentialSum ? ` · ${compact(m.potentialSum)}` : ""}`)}
   </table></div>`;
-  html += insights(t, r.byPerson);
+
+  // Доходимость по часам — когда лучше назначать
+  const byHour = {};
+  for (const c of state.clients) for (const call of c.calls || []) {
+    if (!["held", "ndz"].includes(call.outcome)) continue;
+    if (people && !people.has(call.mopId)) continue;
+    const d = mskKey(Date.parse(call.at));
+    if ((range.from && d < range.from) || (range.to && d > range.to)) continue;
+    const hh = mskTime(Date.parse(call.at)).slice(0, 2);
+    const x = (byHour[hh] ||= { held: 0, all: 0 });
+    x.all++;
+    if (call.outcome === "held") x.held++;
+  }
+  const hours = Object.keys(byHour).sort();
+  if (hours.length >= 2) html += columns(hours.map((hh) => ({ label: `${hh}:00`, value: Math.round((byHour[hh].held / byHour[hh].all) * 100), tip: `${hh}:00 — дошли ${byHour[hh].held} из ${byHour[hh].all}` })), { title: "Доходимость по часам, %", fmt: (v) => `${Math.round(v)}%`, xEvery: 1 });
+
+  // Срез базы по статусам
+  const base = people ? state.clients.filter((c) => people.has(c.mopId)) : state.clients;
+  const g = (grp) => base.filter((c) => statusGroup(c.status) === grp).length;
+  html += shareBar([
+    { label: "Новые", value: g("lead"), cls: "s-lead" },
+    { label: "В работе", value: g("work"), cls: "s-work" },
+    { label: "НДЗ", value: g("ndz"), cls: "s-ndz" },
+    { label: "Думают", value: g("hot"), cls: "s-hot" },
+    { label: "Оплатили", value: g("won"), cls: "s-won" },
+    { label: "Отказы", value: g("lost"), cls: "s-lost" },
+  ], { title: "База сейчас" });
+
+  html += insights(t, r.byPerson, byHour);
   if (Object.keys(state.legacy.rnp || {}).length) html += `<div class="sub" style="margin:10px 4px">До ${fmtDay(state.legacy.importedAt || "")} цифры перенесены из таблицы «РнП», дальше считаются сами по карточкам.</div>`;
   $app.innerHTML = html;
 }
 
-function funnel(steps) {
-  const max = Math.max(1, ...steps.map((s) => s[1]));
-  return `<div class="list funnel" style="margin-top:10px">${steps.map(([l, v, cr]) => `<div class="hbar"><div class="hbar-top"><span>${l}</span><b>${v}${cr !== undefined && cr !== null ? ` <span class="sub">· ${pct(cr)}</span>` : ""}</b></div><div class="bar-track"><i style="width:${(v / max) * 100}%"></i></div></div>`).join("")}</div>`;
-}
-
-function chart(days, range) {
-  const keys = Object.keys(days).sort();
-  if (!keys.length) return "";
-  const from = range.from || keys[0];
-  const to = range.to || keys.at(-1);
-  const all = [];
-  for (let d = from; d <= to && all.length < 120; d = addDaysKey(d, 1)) all.push(d);
-  const vals = all.map((d) => days[d]?.salesSum || 0);
-  const max = Math.max(1, ...vals);
-  const w = 100 / all.length;
-  return `<div class="chart"><div class="chart-tip">Продажи по дням · макс ${rub(max)}</div><svg viewBox="0 0 100 60" preserveAspectRatio="none"><line class="axis" x1="0" y1="60" x2="100" y2="60"/>${vals.map((v, i) => `<rect class="bar" x="${i * w + w * 0.15}" width="${w * 0.7}" y="${60 - (v / max) * 58}" height="${(v / max) * 58}"><title>${fmtDay(all[i])}: ${rub(v)}</title></rect>`).join("")}</svg><div class="chart-x"><span>${fmtDay(all[0])}</span><span>${fmtDay(all.at(-1))}</span></div></div>`;
-}
-
 // Продюсерские подсказки по цифрам: где течёт воронка.
-function insights(t, byPerson) {
+function insights(t, byPerson, byHour = {}) {
   const out = [];
-  if (t.scheduled >= 5 && t.crHeld !== null && t.crHeld < 0.7) out.push(`🚨 Доходимость ${pct(t.crHeld)} — каждый третий не доходит. Проверь подтверждение за 2 часа и напоминание за 15 минут.`);
-  if (t.held >= 5 && t.crSale !== null && t.crSale < 0.25) out.push(`📉 Конверсия диагностики в продажу ${pct(t.crSale)}. Слушать записи: где теряем — на боли или на презентации тарифов.`);
-  if (t.bank && t.bankSum > t.salesSum * 0.3) out.push(`🏦 Отказы по банкам на ${rub(t.bankSum)} — это ${Math.round((t.bankSum / Math.max(1, t.salesSum)) * 100)}% от продаж. Нужен второй банк рассрочки или рассрочка от школы.`);
-  if (t.potentialSum > t.salesSum && t.potential >= 3) out.push(`🔥 В потенциале ${rub(t.potentialSum)} — больше, чем продано. Дожим по регламенту: 3 касания, каждый день.`);
+  if (t.scheduled >= 5 && t.crHeld !== null && t.crHeld < 0.7) out.push(`🚨 Доходимость ${pct(t.crHeld)} — каждый третий не доходит. Подтверждение за 2 часа и напоминание за 15 минут — без пропусков.`);
+  if (t.held >= 5 && t.crSale !== null && t.crSale < 0.25) out.push(`📉 Диагностика → оплата ${pct(t.crSale)}. Слушать записи: где теряем — на боли или на презентации тарифов.`);
+  if (t.bank && t.bankSum > t.salesSum * 0.3) out.push(`🏦 Отказы по банкам на ${rub(t.bankSum)} — ${Math.round((t.bankSum / Math.max(1, t.salesSum)) * 100)}% от продаж. Сначала 18,9% для 21+, не прошло — 31%, дальше Продамус.`);
+  if (t.potentialSum > t.salesSum && t.potential >= 3) out.push(`🔥 В потенциале ${rub(t.potentialSum)} — больше, чем продано. Дожим: 3 касания, каждый день.`);
   const ppl = Object.entries(byPerson).filter(([, m]) => m.held >= 3);
   if (ppl.length > 1) {
     const best = ppl.reduce((a, b) => ((b[1].crSale || 0) > (a[1].crSale || 0) ? b : a));
-    out.push(`🏆 Лучшая конверсия в продажу — ${esc(userName(best[0]))}, ${pct(best[1].crSale)}. Разбор этих созвонов = обучение остальным.`);
+    out.push(`🏆 Лучшая конверсия в оплату — ${esc(userName(best[0]))}, ${pct(best[1].crSale)}. Разбор этих созвонов = обучение остальным.`);
+  }
+  const hs = Object.entries(byHour).filter(([, x]) => x.all >= 3);
+  if (hs.length >= 2) {
+    const best = hs.reduce((a, b) => (b[1].held / b[1].all > a[1].held / a[1].all ? b : a));
+    const worst = hs.reduce((a, b) => (b[1].held / b[1].all < a[1].held / a[1].all ? b : a));
+    if (best[0] !== worst[0]) out.push(`🕐 Лучше всего доходят в ${best[0]}:00 (${Math.round((best[1].held / best[1].all) * 100)}%), хуже — в ${worst[0]}:00. Лидорубу — ставить на сильные часы.`);
   }
   return out.length ? `<h2>Где течёт</h2><div class="list">${out.map((x) => `<div class="row" style="min-height:0;cursor:default"><div class="grow" style="white-space:normal">${x}</div></div>`).join("")}</div>` : "";
 }
@@ -759,12 +914,16 @@ function renderMore() {
   if (state.more === "team") return renderTeam();
   if (state.more === "settings" && money()) return renderSettings();
   if (state.more === "rules") return renderRules();
+  if (state.more === "feed") return renderFeed();
+  if (state.more === "links") return renderLinks();
   state.more = null;
   const item = (id, icon, title, sub) => `<div class="row" data-more="${id}"><div class="icon">${icon}</div><div class="grow"><div class="title">${title}</div><div class="sub">${sub}</div></div><div class="right sub">›</div></div>`;
   const pend = (state.payments || []).filter((p) => !p.verified).length;
   $app.innerHTML = `<div class="lead-card"><div class="lead-head">${avatar(state.me.name, state.me.id, 52)}<div class="grow"><h1>${esc(state.me.name)}</h1><div class="sub">${esc(ROLES[state.me.role])}</div></div></div></div>
     <div class="list">
       ${money() ? item("payroll", "💰", "Зарплатная ведомость", pend ? `ждут проверки: ${pend}` : "выручка, чистая, вознаграждения") : ""}
+      ${item("feed", "🔔", "Лента событий", unreadFeed() ? `новых: ${unreadFeed()}` : "созвоны, продажи, НДЗ, комментарии")}
+      ${item("links", "💳", "Ссылки на оплату", `${payLinks().length} шт · Т-Банк, Ресурс развития, Продамус`)}
       ${item("team", "🧑‍🤝‍🧑", "Команда", `${state.users.filter((u) => u.active !== false).length} в команде${state.pending.length ? ` · заявок ${state.pending.length}` : ""}`)}
       ${item("rules", "📘", "Регламент отдела продаж", "кто что делает и когда")}
       ${money() ? item("settings", "⚙️", "Настройки", "проценты, план, перенос из таблиц") : ""}
@@ -922,6 +1081,57 @@ function openUser(id, isPending) {
   );
 }
 
+const FEED_ICONS = { call: "📅", ndz: "❌", paid: "💰", prepaid: "💵", refuse_bank: "🏦", comment: "💬" };
+function renderFeed() {
+  const seen = feedSeen();
+  const items = state.feed;
+  $app.innerHTML = `<h1>Лента</h1><div class="sub" style="margin:0 4px 10px">${isBoss() ? "Всё, что происходит в команде" : "То, что касается тебя"} — то же самое приходит в бот.</div>
+    ${items.length ? `<div class="list">${items.map((f) => `<div class="row feed-row ${f.id > seen && f.by !== state.me.id ? "unread" : ""}" ${f.clientId && clientById(f.clientId) ? `data-open="${f.clientId}"` : ""}><div class="icon">${FEED_ICONS[f.type] || "•"}</div><div class="grow">${esc(f.text)}</div><div class="right sub">${fmtWhen(Date.parse(f.at))}</div></div>`).join("")}</div>` : `<div class="card empty">Пока тихо. Здесь будут записи на созвоны, продажи, НДЗ и комментарии.</div>`}`;
+  try {
+    if (items[0]) localStorage.setItem(FEED_SEEN_KEY, items[0].id);
+  } catch {}
+}
+
+function renderLinks() {
+  $app.innerHTML = `<div class="list-head"><h1 style="margin:0">Ссылки на оплату</h1>${isBoss() ? `<button class="btn small" data-link-new>＋ Ссылка</button>` : ""}</div>
+    <div class="sub" style="margin:0 4px 6px">«Отправить» — выбрать чат в Telegram. Из карточки клиента ссылка ещё и отметится — при оплате чистая сама встанет в ведомость.</div>
+    ${linksList(null)}
+    ${isBoss() ? `<div class="sub" style="margin:12px 4px">Чтобы поправить ссылку, тапни по её названию.</div>` : ""}`;
+}
+
+function openLinkEdit(l) {
+  const isNew = !l;
+  l = l || { provider: "Т-Банк", label: "", amount: "", commission: "", url: "", note: "" };
+  openSheet(`<div class="sheet-title">${isNew ? "Новая ссылка" : "Ссылка"}</div><div class="card">
+    <div class="two"><label class="field"><span>Где</span><input id="l-prov" value="${esc(l.provider)}"></label><label class="field"><span>Сумма</span><input id="l-amount" inputmode="numeric" value="${l.amount || ""}"></label></div>
+    <label class="field"><span>Название</span><input id="l-label" value="${esc(l.label)}" placeholder="100к · Т-Банк · 31%"></label>
+    <div class="two"><label class="field"><span>Комиссия, %</span><input id="l-com" inputmode="decimal" value="${l.commission ?? ""}" placeholder="не знаем — пусто"></label><span></span></div>
+    <label class="field"><span>Ссылка</span><input id="l-url" value="${esc(l.url)}" placeholder="https://"></label>
+    <label class="field"><span>Заметка</span><input id="l-note" value="${esc(l.note || "")}" placeholder="для 21+, если не одобрили — 31%"></label></div>
+    <button class="btn block" id="l-save">Сохранить</button>${isNew ? "" : `<button class="btn danger" id="l-del">Удалить ссылку</button>`}`, (sh) => {
+    const save = async (list) => {
+      try {
+        const res = await api("PUT", "/settings", { payLinks: list });
+        state.settings = res.settings;
+        closeSheet();
+        render();
+        toast("Сохранено");
+      } catch (e) {
+        alertDialog(e.message);
+      }
+    };
+    sh.querySelector("#l-save").onclick = () => {
+      const v = (id) => sh.querySelector(id).value;
+      const item = { id: l.id, provider: v("#l-prov"), label: v("#l-label"), amount: v("#l-amount"), commission: v("#l-com") === "" ? null : v("#l-com"), url: v("#l-url").trim(), note: v("#l-note") };
+      if (!/^https:\/\//.test(item.url)) return alertDialog("Ссылка должна начинаться с https://");
+      save(isNew ? [...payLinks(), item] : payLinks().map((x) => (x.id === l.id ? item : x)));
+    };
+    sh.querySelector("#l-del")?.addEventListener("click", async () => {
+      if (await confirmDialog("Удалить ссылку?")) save(payLinks().filter((x) => x.id !== l.id));
+    });
+  });
+}
+
 function renderSettings() {
   const s = state.settings;
   const legacyNames = [...new Set([...Object.keys(state.legacy.rnp || {}), ...Object.keys(state.legacy.lidorub || {}), ...(state.payments || []).map((p) => p.mopAlias).filter(Boolean)])];
@@ -933,7 +1143,11 @@ function renderSettings() {
       <label class="field"><span>РОП</span><input data-rate="rop" inputmode="decimal" value="${s.rates.rop}"></label>
       <label class="field"><span>Лидоруб</span><input data-rate="lidorub" inputmode="decimal" value="${s.rates.lidorub}"></label></div>
       <div class="sub">МОП/РОП/лидоруб — от (чистая − налог), как в таблице.</div></div>
-    <h2>План продаж на месяц</h2><div class="card"><input id="plan" inputmode="numeric" value="${s.monthPlan || ""}" placeholder="например 2000000"></div>
+    <h2>План на месяц</h2><div class="card">
+      <label class="field"><span>Отдел продаж, ₽</span><input id="plan" inputmode="numeric" value="${s.monthPlan || ""}" placeholder="например 2000000"></label>
+      ${closers().map((u) => `<label class="field"><span>${esc(u.name)}, ₽ продаж</span><input data-pplan="${u.id}" inputmode="numeric" value="${s.personPlans?.[u.id] || ""}"></label>`).join("")}
+      ${lidorubs().map((u) => `<label class="field"><span>${esc(u.name)}, записей на созвон</span><input data-pplan="${u.id}" inputmode="numeric" value="${s.personPlans?.[u.id] || ""}"></label>`).join("")}
+      <div class="sub">У каждого на «Сегодня» — полоса плана, где должен быть к этому дню, прогноз и сколько нужно в день.</div></div>
     ${legacyNames.length ? `<h2>Люди из старых таблиц</h2><div class="card">${legacyNames.map((n) => `<label class="field"><span>«${esc(n)}» в таблицах — это</span><select data-alias="${esc(n)}"><option value="">— не связан —</option>${people.map((u) => `<option value="${u.id}" ${s.aliases?.[n] === u.id ? "selected" : ""}>${esc(u.name)} · ${ROLES[u.role]}</option>`).join("")}</select></label>`).join("")}<div class="sub">Свяжи — и история из РнП и ведомости ляжет на человека.</div></div>` : ""}
     <button class="btn block" id="set-save">Сохранить</button>
     ${state.me.role === "owner" ? `<h2>Перенос из Google-таблиц</h2><div class="card"><div class="sub">РнП с 29.07, лидоруб Алексей, зарплатная ведомость август–октябрь. Файл history.json — в личке от Claude, в репозиторий не кладём: там деньги. Повторный импорт ничего не дублирует.</div><label class="btn block ghost" style="text-align:center">Выбрать файл history.json<input type="file" id="import" accept=".json,application/json" hidden></label></div>` : ""}`;
@@ -943,7 +1157,9 @@ function renderSettings() {
     const aliases = {};
     for (const el of $app.querySelectorAll("[data-alias]")) if (el.value) aliases[el.dataset.alias] = el.value;
     try {
-      const res = await api("PUT", "/settings", { rates, monthPlan: document.getElementById("plan").value, aliases });
+      const personPlans = {};
+      for (const el of $app.querySelectorAll("[data-pplan]")) if (el.value) personPlans[el.dataset.pplan] = el.value;
+      const res = await api("PUT", "/settings", { rates, monthPlan: document.getElementById("plan").value, personPlans, aliases });
       state.settings = res.settings;
       toast("Сохранено");
     } catch (e) {
@@ -975,7 +1191,9 @@ function renderRules() {
 
 // ---------- клики ----------
 $app.addEventListener("click", async (e) => {
-  const t = e.target.closest("button, [data-open], [data-more], [data-pay], [data-user], [data-person]");
+  const lt = e.target.closest(".link-row .title");
+  if (lt && isBoss() && state.more === "links") return openLinkEdit(linkById(lt.closest(".link-row").querySelector("[data-copy]").dataset.copy));
+  const t = e.target.closest("button, [data-open], [data-more], [data-pay], [data-user], [data-person], [data-sperson]");
   if (!t) return;
   const d = t.dataset;
   if (d.link) {
@@ -1006,6 +1224,22 @@ $app.addEventListener("click", async (e) => {
     return openBooking(clientById(d.book));
   }
   if (d.reportOpen) return openReport(clientById(d.reportOpen));
+  if (d.paylinks) return openPayLinks(clientById(d.paylinks));
+  if (d.copy || d.share) {
+    const l = linkById(d.copy || d.share);
+    if (d.share) {
+      const url = `https://t.me/share/url?url=${encodeURIComponent(l.url)}&text=${encodeURIComponent(`Ссылка на оплату обучения (${l.amount.toLocaleString("ru-RU")} ₽): ${l.url}`)}`;
+      return tg?.openTelegramLink ? tg.openTelegramLink(url) : window.open(url, "_blank");
+    }
+    return toast((await copyText(l.url)) ? "Ссылка скопирована" : l.url);
+  }
+  if (d.feed !== undefined) {
+    state.tab = "more";
+    state.more = "feed";
+    render();
+    return window.scrollTo(0, 0);
+  }
+  if (d.linkNew !== undefined) return openLinkEdit(null);
   if (d.new !== undefined) return openNewClient();
   if (d.open) {
     state.clientId = d.open;
@@ -1033,7 +1267,8 @@ $app.addEventListener("click", async (e) => {
   if (d.person) return (state.tab = "clients"), (state.person = d.person), (state.filter = "active"), render();
   if (d.cal) return (state.calDay = d.cal), render();
   if (d.period) return (state.period = d.period), render();
-  if (d.sview) return (state.statsView = d.sview), render();
+  if (d.sview) return (state.statsView = d.sview), (state.statsPerson = "all"), render();
+  if (d.sperson) return (state.statsPerson = d.sperson), render();
   if (d.more) {
     state.tab = "more";
     state.more = d.more;
@@ -1046,6 +1281,8 @@ $app.addEventListener("click", async (e) => {
   if (d.userNew !== undefined) return openUser("", false);
   if (d.user) return openUser(d.user, !!d.pending);
 });
+
+bindCharts($app);
 
 // Тихо подтягивать свежие данные, пока приложение открыто.
 setInterval(() => {

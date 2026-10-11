@@ -1,14 +1,36 @@
 // Бот команды: напоминания о созвонах, отметки «пришёл / НДЗ» прямо из Telegram, утренняя сводка.
 import { escapeHtml as h } from "./telegram.mjs";
 import {
-  ROLES, currentCall, clientTitle, mskKey, mskTime, fmtWhen, needsReport, followupState, statusLabel, monthSummary, addDaysKey,
+  ROLES, currentCall, clientTitle, mskKey, mskTime, fmtWhen, needsReport, followupState, statusLabel, monthSummary, addDaysKey, weekday,
 } from "../public/lib/model.js";
 import { rnp } from "../public/lib/stats.js";
+import { parseBooking, parseWindows } from "./nlp.mjs";
+import { dispatch } from "./notify.mjs";
+import { DEFAULT_PAY_LINKS } from "../public/lib/model.js";
 
 export const BOT_COMMANDS = [
-  { command: "start", description: "Открыть приложение команды" },
+  { command: "start", description: "Открыть приложение и что умеет бот" },
   { command: "today", description: "Мои созвоны и задачи на сегодня" },
+  { command: "tomorrow", description: "Созвоны на завтра" },
+  { command: "windows", description: "Свободные окна диагностов на завтра" },
+  { command: "links", description: "Ссылки на оплату" },
 ];
+
+export const BOT_HELP = [
+  "<b>Что я умею</b>",
+  "",
+  "📅 <b>Записать на созвон</b> — пиши как человеку:",
+  "• <code>созвон завтра в 15 к Тёме @ivan Иван</code>",
+  "• <code>запиши Олега на созвон в пятницу 18:30 к Диме +79001234567</code>",
+  "Диагност сразу получит уведомление. Нет такого клиента — заведу.",
+  "",
+  "🕐 <b>Окна</b>: <code>окна завтра</code>, <code>окна в пятницу у Темы</code>",
+  "📋 /today, /tomorrow — мои созвоны и задачи",
+  "💳 /links — ссылки на оплату",
+  "↪️ Перешли мне сообщение клиента — заведу лида.",
+  "",
+  "⏰ Сам напомню диагносту за 2 часа, за час и за 15 минут до созвона, после — спрошу «пришёл или НДЗ».",
+].join("\n");
 
 const MIN = 60_000;
 const nowIso = () => new Date().toISOString();
@@ -44,14 +66,112 @@ export async function handleUpdate(update, { store, env, tg, appUrl }) {
   }
   // Запоминаем, что человек запустил бота: только таким можно писать напоминания.
   if (!me.botStarted) await store.put("user", me.id, { ...me, botStarted: true });
-  const text = (msg.text || "").trim();
-  if (/^\/today/.test(text)) {
-    const clients = await store.all("client");
-    return reply(dayPlan(me, clients, Date.now()) || "На сегодня созвонов и долгов нет 👌", { inline_keyboard: [[openApp(appUrl)]] });
+  const text = (msg.text || msg.caption || "").trim();
+  const now = Date.now();
+  const clients = await store.all("client");
+  const closers = users.filter((u) => ["mop", "rop"].includes(u.role));
+  const settings = (await store.get("meta", "settings")) || {};
+  const usersMap = Object.fromEntries(users.map((u) => [u.id, u]));
+
+  // Пересланное сообщение клиента → новый лид
+  const fwd = msg.forward_origin;
+  if (fwd || msg.forward_from || msg.forward_sender_name) {
+    const su = fwd?.sender_user || msg.forward_from;
+    const nick = su?.username ? `@${su.username}` : "";
+    const name = su ? [su.first_name, su.last_name].filter(Boolean).join(" ") : fwd?.sender_user_name || msg.forward_sender_name || "";
+    const dup = nick && clients.find((c) => c.telegram?.toLowerCase() === nick.toLowerCase());
+    if (dup) return reply(`Уже есть: <b>${who(dup)}</b> — ${statusLabel(dup.status)}`, { inline_keyboard: [[openApp(appUrl, "Открыть карточку", `?client=${dup.id}`)]] });
+    const { blankClient, log } = await import("./api.mjs");
+    const c = blankClient(me.id);
+    Object.assign(c, { name: name.slice(0, 120), telegram: nick, info: text.slice(0, 1000), lidorubId: me.role === "lidorub" ? me.id : null });
+    log(c, me.id, "Клиент создан из пересланного сообщения");
+    await store.put("client", c.id, c);
+    return reply(`🆕 Лид заведён: <b>${who(c)}</b>${nick ? "" : "\n⚠️ Ника нет (скрыт) — допиши телефон или ник в карточке."}\n\nЗаписать: <code>созвон завтра в 15 к Тёме ${nick || h(name)}</code>`, { inline_keyboard: [[openApp(appUrl, "📅 Записать на созвон", `?client=${c.id}&book=1`)]] });
   }
-  return reply(`Привет, ${h(me.name)}! Роль: <b>${ROLES[me.role]}</b>.\n\nЗа 2 часа, за час и за 15 минут до созвона напомню, после созвона спрошу «пришёл или НДЗ», утром пришлю план на день.\n\n/today — мои созвоны и задачи на сегодня`, {
-    inline_keyboard: [[openApp(appUrl)]],
+
+  if (/^\/today/.test(text) || /^(сегодня|мои созвоны)\??$/i.test(text)) {
+    return reply(dayPlan(me, clients, now) || "На сегодня созвонов и долгов нет 👌", { inline_keyboard: [[openApp(appUrl)]] });
+  }
+  if (/^\/tomorrow/.test(text) || /^завтра\??$/i.test(text)) {
+    return reply(dayCalls(me, clients, addDaysKey(mskKey(now), 1), usersMap) || "На завтра созвонов нет", { inline_keyboard: [[openApp(appUrl)]] });
+  }
+  if (/^\/links/.test(text) || /^ссылк/i.test(text)) {
+    const want = Number((text.match(/(\d{2,3})\s*к?/) || [])[1]) * 1000 || null;
+    const links = (settings.payLinks?.length ? settings.payLinks : DEFAULT_PAY_LINKS).filter((l) => !want || l.amount === want);
+    if (!links.length) return reply("Таких ссылок нет. Напиши /links — пришлю все.");
+    const groups = {};
+    for (const l of links) (groups[l.provider] ||= []).push(l);
+    const body = Object.entries(groups).map(([p, ls]) => `<b>${h(p)}</b>\n${ls.map((l) => `• ${h(l.label)}${l.note ? ` — <i>${h(l.note)}</i>` : ""}\n${h(l.url)}`).join("\n")}`).join("\n\n");
+    return reply(`💳 <b>Ссылки на оплату</b>\n\n${body}\n\nОтправил ссылку — отметь в карточке клиента «💳 Ссылка»: при оплате чистая сама подставится в ведомость.`);
+  }
+
+  const win = /^\/windows/.test(text) ? { day: addDaysKey(mskKey(now), 1), mop: null } : parseWindows(text, closers, now);
+  if (win) return reply(windowsText(win.day, win.mop ? [win.mop] : closers, clients));
+
+  const book = parseBooking(text, closers, now);
+  if (book) return handleBooking(book, { me, msg, clients, closers, store, tg, appUrl, reply, usersMap, settings, env });
+
+  return reply(`Привет, ${h(me.name)}! Роль: <b>${ROLES[me.role]}</b>.\n\n${BOT_HELP}`, { inline_keyboard: [[openApp(appUrl)]] });
+}
+
+// Свободные окна: 10:00–21:00 по часу, занятые — с именем клиента.
+const SLOTS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"];
+function busyOf(mopId, day, clients) {
+  const out = [];
+  for (const c of clients) for (const call of c.calls || []) if (call.mopId === mopId && !["moved", "ndz"].includes(call.outcome) && mskKey(Date.parse(call.at)) === day) out.push({ time: mskTime(Date.parse(call.at)), c });
+  return out.sort((a, b) => a.time.localeCompare(b.time));
+}
+export function windowsText(day, mops, clients) {
+  const now = Date.now();
+  const parts = mops.map((m) => {
+    const busy = busyOf(m.id, day, clients);
+    const taken = new Set(busy.map((b) => b.time.slice(0, 2)));
+    const free = SLOTS.filter((s) => !taken.has(s.slice(0, 2)) && Date.parse(`${day}T${s}:00+03:00`) > now);
+    return `<b>${h(m.name)}</b>\n${busy.length ? busy.map((b) => `🔴 ${b.time} — ${who(b.c)}`).join("\n") + "\n" : ""}🟢 свободно: ${free.join(", ") || "нет"}`;
   });
+  return `🕐 <b>Окна на ${day.slice(8)}.${day.slice(5, 7)} (${weekday(day)})</b>\n\n${parts.join("\n\n") || "Нет диагностов в команде"}`;
+}
+
+function dayCalls(user, clients, day, usersMap) {
+  const boss = ["owner", "rop", "lidorub"].includes(user.role);
+  const list = [];
+  for (const c of clients) for (const call of c.calls || []) if (!call.outcome && mskKey(Date.parse(call.at)) === day && (boss || call.mopId === user.id)) list.push({ c, call });
+  list.sort((a, b) => Date.parse(a.call.at) - Date.parse(b.call.at));
+  if (!list.length) return "";
+  return `📅 <b>Созвоны ${day.slice(8)}.${day.slice(5, 7)} (${list.length})</b>\n${list.map(({ c, call }) => `• ${mskTime(Date.parse(call.at))} — ${who(c)}${boss ? ` · ${h(usersMap[call.mopId]?.name || "")}` : ""}`).join("\n")}`;
+}
+
+async function handleBooking(book, { me, clients, closers, store, tg, appUrl, reply, usersMap, settings, env }) {
+  const example = "<code>созвон завтра в 15 к Тёме @ivan Иван</code>";
+  if (book.needTime) return reply(`Во сколько? Напиши с временем, например:\n${example}`);
+  if (book.past) return reply("Это время уже прошло 🙂 Напиши другое.");
+  const mop = book.mop || (["mop", "rop"].includes(me.role) ? me : null);
+  if (!mop) return reply(`К кому записать? Добавь имя диагноста: ${closers.map((u) => h(u.name)).join(" / ") || "—"}\n${example}`);
+  if (!book.nick && !book.name && !book.phone) return reply(`Кого записать? Добавь @ник или имя клиента:\n${example}`);
+  // Пересечение: у диагноста уже созвон в этот час
+  const clash = busyOf(mop.id, mskKey(book.at), clients).find((b) => Math.abs(Date.parse(`${mskKey(book.at)}T${b.time}:00+03:00`) - book.at) < 45 * 60_000);
+  if (clash) return reply(`⛔️ У ${h(mop.name)} уже созвон в ${clash.time} — ${who(clash.c)}.\n\n${windowsText(mskKey(book.at), [mop], clients)}`);
+
+  const { blankClient, log, applyAction } = await import("./api.mjs");
+  const nick = book.nick ? `@${book.nick}` : "";
+  let c = (nick && clients.find((x) => x.telegram?.toLowerCase() === nick.toLowerCase())) || (book.phone && clients.find((x) => x.phone?.replace(/\D/g, "").endsWith(book.phone.replace(/\D/g, "").slice(-10)))) || null;
+  let created = false;
+  if (!c) {
+    c = blankClient(me.id);
+    Object.assign(c, { name: book.name, telegram: nick, phone: book.phone, lidorubId: me.role === "lidorub" ? me.id : null });
+    log(c, me.id, "Клиент создан из бота");
+    created = true;
+  }
+  const ctx = { by: me.id, store, users: usersMap, settings, notes: [] };
+  await applyAction(c, { type: "call", at: new Date(book.at).toISOString(), mopId: mop.id }, ctx);
+  c.updatedAt = new Date().toISOString();
+  await store.put("client", c.id, c);
+  await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
+  const call = c.calls.at(-1);
+  return reply(
+    `✅ <b>Записал${created ? " нового клиента" : ""}</b>\n👤 ${who(c)}\n📅 ${fmtWhen(book.at)} МСК · ${h(mop.name)}${mop.id !== me.id ? "\n\n" + h(mop.name) + " получил уведомление." : ""}`,
+    { inline_keyboard: [[openApp(appUrl, "Карточка", `?client=${c.id}`), { text: "Отменить", callback_data: `uncall:${c.id}:${call.id}` }]] },
+  );
 }
 
 async function handleCallback(cb, { store, env, tg, appUrl }) {
@@ -73,6 +193,18 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
     const tail = action === "held" ? "\n\n✅ Проведён. Заполни отчёт — без него созвон не закрыт." : `\n\n❌ ${statusLabel(c.status)}. Клиент ушёл в дожим.`;
     const kb = { inline_keyboard: [[openApp(appUrl, action === "held" ? "Заполнить отчёт" : "Открыть карточку", `?client=${c.id}${action === "held" ? "&report=1" : ""}`)]] };
     await tg.editMessage(cb.message.chat.id, cb.message.message_id, `${cb.message.text || ""}${tail}`, kb).catch(() => {});
+    return;
+  }
+  if (action === "uncall") {
+    const call = c.calls.find((x) => x.id === callId);
+    if (!call || call.outcome) return answer("Уже неактуально");
+    Object.assign(call, { outcome: "moved", movedAt: new Date().toISOString() });
+    if (!c.calls.some((x) => !x.outcome)) c.status = "new";
+    c.history = [{ at: new Date().toISOString(), by: me.id, text: "Запись на созвон отменена" }, ...(c.history || [])];
+    await store.put("client", c.id, c);
+    await answer("Запись отменена");
+    await tg.editMessage(cb.message.chat.id, cb.message.message_id, `❌ <s>${h(cb.message.text || "")}</s>\nЗапись отменена`).catch(() => {});
+    await tg.sendMessage(call.mopId, `❌ Отменён созвон ${fmtWhen(Date.parse(call.at))} — ${who(c)}`).catch(() => {});
     return;
   }
   return answer("Неизвестная кнопка");

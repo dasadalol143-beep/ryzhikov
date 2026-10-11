@@ -2,9 +2,10 @@ import { randomUUID } from "node:crypto";
 import { checkInitData, parseIds } from "./auth.mjs";
 import { telegram, webhookSecret } from "./telegram.mjs";
 import { handleUpdate, BOT_COMMANDS } from "./bot.mjs";
+import { dispatch } from "./notify.mjs";
 import {
   ROLES, STATUS_IDS, SOURCES, REPORT_FIELDS, AFTER_CALL, DEFAULT_RATES, FOLLOWUP_TOUCHES,
-  canSeeMoney, currentCall, ndzCount, clientTitle, statusLabel, fmtWhen,
+  canSeeMoney, DEFAULT_PAY_LINKS, currentCall, ndzCount, clientTitle, statusLabel, fmtWhen,
 } from "../public/lib/model.js";
 
 export const json = (data, status = 200) =>
@@ -24,10 +25,10 @@ const isoOrNull = (v) => (typeof v === "string" && !Number.isNaN(Date.parse(v)) 
 const isDay = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const nowIso = () => new Date().toISOString();
 
-export const DEFAULT_SETTINGS = { rates: DEFAULT_RATES, monthPlan: 0, aliases: {} };
+export const DEFAULT_SETTINGS = { rates: DEFAULT_RATES, monthPlan: 0, personPlans: {}, aliases: {}, payLinks: DEFAULT_PAY_LINKS };
 export const loadSettings = async (store) => {
   const s = (await store.get("meta", "settings")) || {};
-  return { ...DEFAULT_SETTINGS, ...s, rates: { ...DEFAULT_RATES, ...(s.rates || {}) } };
+  return { ...DEFAULT_SETTINGS, ...s, rates: { ...DEFAULT_RATES, ...(s.rates || {}) }, payLinks: s.payLinks?.length ? s.payLinks : DEFAULT_PAY_LINKS };
 };
 
 // ---------- доступ ----------
@@ -59,7 +60,7 @@ async function authenticate(req, env, store) {
 }
 
 // ---------- клиент ----------
-function blankClient(by) {
+export function blankClient(by) {
   const at = nowIso();
   return {
     id: randomUUID(),
@@ -84,7 +85,7 @@ function blankClient(by) {
   };
 }
 
-const log = (c, by, text) => {
+export const log = (c, by, text) => {
   c.history = [{ at: nowIso(), by, text }, ...(c.history || [])].slice(0, 60);
 };
 const event = (c, t, by, extra = {}) => {
@@ -103,7 +104,7 @@ function applyFields(c, body) {
 }
 
 // Смена статуса + события для РнП. sum — сумма продажи/предоплаты/потенциала/отказа.
-async function setStatus(c, status, { by, sum, store }) {
+async function setStatus(c, status, { by, sum, store, settings, notes }) {
   if (!STATUS_IDS.includes(status) || status === c.status) return;
   const mop = c.mopId;
   const amount = money(sum) || c.wantedSum || 0;
@@ -122,7 +123,9 @@ async function setStatus(c, status, { by, sum, store }) {
         mopId: mop,
         lidorubId: c.lidorubId,
         tariff: amount,
-        net: null,
+        // Отправляли ссылку с известной комиссией — чистую подставим сразу, РОП только проверит.
+        net: netFromLink(settings, c.payLinkId, amount),
+        payLink: c.payLinkId || null,
         verified: false,
         note: "",
         createdBy: by,
@@ -132,6 +135,7 @@ async function setStatus(c, status, { by, sum, store }) {
     }
   }
   if (status === "prepaid") event(c, "prepaid", by, { mop, sum: money(sum) });
+  if (["paid", "prepaid", "refuse_bank"].includes(status)) notes?.push({ t: status, sum: status === "prepaid" ? money(sum) : amount, mop });
   if (status === "thinking" || status === "resched") event(c, "potential", by, { mop, sum: amount });
   if (status === "refuse_bank") event(c, "refuse_bank", by, { mop, sum: amount });
   if (status === "invalid") event(c, "invalid", by);
@@ -144,7 +148,9 @@ async function setStatus(c, status, { by, sum, store }) {
 }
 
 // Действия с карточкой: созвоны, итоги, отчёт, касания дожима.
-export async function applyAction(c, body, { by, store, users }) {
+export async function applyAction(c, body, ctx) {
+  const { by, store, users, settings } = ctx;
+  const notes = (ctx.notes ||= []);
   const type = body.type;
   if (type === "call") {
     const at = isoOrNull(body.at);
@@ -155,6 +161,7 @@ export async function applyAction(c, body, { by, store, users }) {
     // Первый раз отдали этому менеджеру — это «лид в работе» в РнП.
     if (!(c.events || []).some((e) => e.t === "handed" && e.mop === mopId)) event(c, "handed", by, { mop: mopId });
     c.calls.push({ id: randomUUID().slice(0, 8), at, mopId, setAt: nowIso(), setBy: by, outcome: null, notified: {} });
+    notes.push({ t: "call", at, mop: mopId, moved: cur ? cur.at : null, prevMop: cur?.mopId || null });
     c.mopId = mopId;
     if (!["paid"].includes(c.status)) {
       c.status = "in_work";
@@ -177,6 +184,7 @@ export async function applyAction(c, body, { by, store, users }) {
       c.statusAt = nowIso();
       c.touches = [];
       event(c, "ndz", by, { mop: call.mopId });
+      notes.push({ t: "ndz", mop: call.mopId, n });
       log(c, by, `НДЗ-${n}`);
     } else {
       log(c, by, "Созвон проведён");
@@ -193,13 +201,13 @@ export async function applyAction(c, body, { by, store, users }) {
     call.report = report;
     call.reportAt = nowIso();
     if ("wantedSum" in body) c.wantedSum = money(body.wantedSum);
-    if (AFTER_CALL.includes(body.status)) await setStatus(c, body.status, { by, sum: body.sum, store, users });
+    if (AFTER_CALL.includes(body.status)) await setStatus(c, body.status, { by, sum: body.sum, store, settings, notes });
     log(c, by, "Отчёт после диагностики");
-    if (body.status === "resched" && isoOrNull(body.nextAt)) await applyAction(c, { type: "call", at: body.nextAt, mopId: call.mopId }, { by, store, users });
+    if (body.status === "resched" && isoOrNull(body.nextAt)) await applyAction(c, { type: "call", at: body.nextAt, mopId: call.mopId }, ctx);
     return;
   }
   if (type === "status") {
-    await setStatus(c, body.status, { by, sum: body.sum, store, users });
+    await setStatus(c, body.status, { by, sum: body.sum, store, settings, notes });
     return;
   }
   if (type === "touch") {
@@ -207,7 +215,7 @@ export async function applyAction(c, body, { by, store, users }) {
     log(c, by, body.answered ? "Касание: ответил" : "Касание: без ответа");
     // Регламент: 3 касания подряд без ответа → «Игнор».
     const silent = c.touches.filter((t) => !t.answered).length;
-    if (!body.answered && silent >= FOLLOWUP_TOUCHES && !["paid", "invalid"].includes(c.status)) await setStatus(c, "ignore", { by, store, users });
+    if (!body.answered && silent >= FOLLOWUP_TOUCHES && !["paid", "invalid"].includes(c.status)) await setStatus(c, "ignore", { by, store, settings, notes });
     if (body.answered) c.touches = [];
     return;
   }
@@ -218,9 +226,21 @@ export async function applyAction(c, body, { by, store, users }) {
     log(c, by, "Отправлен лид-магнит");
     return;
   }
+  if (type === "paylink") {
+    const link = (settings?.payLinks || DEFAULT_PAY_LINKS).find((l) => l.id === body.linkId);
+    if (!link) throw Object.assign(new Error("Ссылка не найдена"), { status: 400 });
+    c.payLinkId = link.id;
+    if (!c.wantedSum) c.wantedSum = link.amount;
+    event(c, "paylink", by, { link: link.id, sum: link.amount });
+    log(c, by, `💳 Отправлена ссылка: ${link.label}`);
+    return;
+  }
   if (type === "comment") {
     const text = str(body.text, 1000);
-    if (text) log(c, by, `💬 ${text}`);
+    if (text) {
+      log(c, by, `💬 ${text}`);
+      notes.push({ t: "comment", text });
+    }
     return;
   }
   throw Object.assign(new Error("Неизвестное действие"), { status: 400 });
@@ -258,11 +278,15 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       const body = ["POST", "PUT", "PATCH"].includes(req.method) ? await req.json().catch(() => ({})) : {};
       const users = Object.fromEntries((await store.all("user")).map((u) => [u.id, u]));
       users[me.id] = { ...(users[me.id] || {}), ...me };
+      const settings = await loadSettings(store);
+      const tg = env.BOT_TOKEN ? telegram(env.BOT_TOKEN, fetchImpl) : null;
+      const appUrl = env.APP_URL || `${url.origin}/`;
+      const notify = (notes, c) => dispatch(notes, c, { store, env, tg, appUrl, by, users, settings }).catch(() => {});
 
       if (path === "/state" && req.method === "GET") {
         // Бот подключается сам при первом входе собственника.
         if (me.role === "owner" && env.BOT_TOKEN) await ensureWebhook(store, env, fetchImpl, `${url.origin}/api/tg`).catch(() => {});
-        const [clients, settings, legacy, pending] = await Promise.all([store.all("client"), loadSettings(store), store.get("meta", "legacy"), store.all("pending")]);
+        const [clients, legacy, pending, feed] = await Promise.all([store.all("client"), store.get("meta", "legacy"), store.all("pending"), store.recent("feed", 120)]);
         return json({
           me,
           users: Object.values(users),
@@ -271,6 +295,8 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           settings,
           legacy: legacy || {},
           payments: money_ ? await store.all("payment") : null,
+          // Лента: руководству — всё, остальным — адресованное им и про их клиентов (без денег ведомости).
+          feed: ["owner", "rop"].includes(me.role) ? feed : feed.filter((f) => (f.to || []).includes(me.id) || f.by === me.id),
           serverNow: Date.now(),
         });
       }
@@ -286,8 +312,10 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           if (dup) return json({ error: "duplicate", client: dup }, 409);
         }
         log(c, by, "Клиент создан");
-        if (body.call?.at) await applyAction(c, { type: "call", ...body.call }, { by, store, users });
+        const ctx = { by, store, users, settings, notes: [] };
+        if (body.call?.at) await applyAction(c, { type: "call", ...body.call }, ctx);
         await store.put("client", c.id, c);
+        await notify(ctx.notes, c);
         return json({ client: c });
       }
       const cm = path.match(/^\/clients\/([\w-]+)(\/action)?$/);
@@ -299,13 +327,15 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           await store.del("client", c.id);
           return json({ ok: true });
         }
-        if (cm[2] && req.method === "POST") await applyAction(c, body, { by, store, users });
+        const ctx = { by, store, users, settings, notes: [] };
+        if (cm[2] && req.method === "POST") await applyAction(c, body, ctx);
         else if (req.method === "PATCH") {
           applyFields(c, body);
           log(c, by, "Изменены данные");
         } else return json({ error: "not_found" }, 404);
         c.updatedAt = nowIso();
         await store.put("client", c.id, c);
+        await notify(ctx.notes, c);
         return json({ client: c, payments: money_ ? await store.all("payment") : null });
       }
 
@@ -339,11 +369,13 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
 
       if (path === "/settings" && req.method === "PUT") {
         if (!money_) return json({ error: "forbidden" }, 403);
-        const cur = await loadSettings(store);
+        const cur = settings;
         const pct = (v, d) => (Number.isFinite(Number(v)) && Number(v) >= 0 && Number(v) <= 100 ? Number(v) : d);
         const next = {
           rates: Object.fromEntries(Object.keys(DEFAULT_RATES).map((k) => [k, pct(body.rates?.[k], cur.rates[k])])),
           monthPlan: "monthPlan" in body ? money(body.monthPlan) : cur.monthPlan,
+          personPlans: body.personPlans && typeof body.personPlans === "object" ? Object.fromEntries(Object.entries(body.personPlans).map(([k, v]) => [str(k, 20), money(v)]).filter(([, v]) => v)) : cur.personPlans,
+          payLinks: Array.isArray(body.payLinks) ? sanitizeLinks(body.payLinks) : cur.payLinks,
           aliases: body.aliases && typeof body.aliases === "object" ? Object.fromEntries(Object.entries(body.aliases).map(([k, v]) => [str(k, 40), str(String(v), 40)]).filter(([, v]) => v)) : cur.aliases,
         };
         await store.put("meta", "settings", next);
@@ -384,6 +416,27 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       return json({ error: e.message || "error" }, e.status || 500);
     }
   };
+}
+
+function sanitizeLinks(list) {
+  return list
+    .slice(0, 60)
+    .map((l, i) => ({
+      id: str(l.id, 40).replace(/[^\w-]/g, "") || `l${Date.now().toString(36)}${i}`,
+      provider: str(l.provider, 40) || "Другое",
+      label: str(l.label, 80) || "Ссылка",
+      amount: money(l.amount),
+      commission: l.commission === null || l.commission === "" || l.commission === undefined ? null : Math.min(100, Number(String(l.commission).replace(",", ".")) || 0),
+      url: /^https:\/\//.test(str(l.url, 300)) ? str(l.url, 300) : "",
+      note: str(l.note, 200),
+    }))
+    .filter((l) => l.url);
+}
+
+export function netFromLink(settings, linkId, amount) {
+  const link = (settings?.payLinks || DEFAULT_PAY_LINKS).find((l) => l.id === linkId);
+  if (!link || link.commission === null || link.commission === undefined || !amount) return null;
+  return Math.round(amount * (1 - link.commission / 100));
 }
 
 export async function importSeed(store, body) {
