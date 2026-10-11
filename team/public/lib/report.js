@@ -121,38 +121,75 @@ export function sheetDate(v, year = 2026) {
   return null;
 }
 
-// Строки листа CRM → клиенты. Колонки ищем по заголовкам: у Темы ник и имя стоят в другом порядке, чем у Димы.
-export function crmRowsToClients(rows, { mopId, mopAlias = null, now = new Date().toISOString() } = {}) {
+const isHandle = (v) => /^@?[A-Za-z][A-Za-z0-9_]{3,}$/.test(String(v || "").trim());
+const isTemplateYn = (v) => typeof v === "string" && /^да\s*[\/\\]\s*нет$/i.test(v.trim());
+function cleanReport(r) {
+  const out = { ...r };
+  if (isTemplateYn(out.presented)) out.presented = null;
+  if (isTemplateYn(out.offeredPay)) out.offeredPay = null;
+  const filled = ["need", "occupation", "dream", "objection", "nextStep", "extra"].some((k) => out[k]) || typeof out.presented === "boolean" || typeof out.offeredPay === "boolean";
+  return filled ? out : null;
+}
+
+// Строки листа CRM → клиенты. Колонки ищем по заголовкам; ник и имя в таблице местами путаются —
+// решаем по каждой строке: что похоже на @ник, то и ник. Дата пустая — берём из строки выше.
+// Строка без даты, имени и ника, но с текстом — продолжение отчёта клиента выше.
+export function crmRowsToClients(rows, { mopId = null, mopAlias = null, now = new Date().toISOString() } = {}) {
   const hi = rows.findIndex((r) => r.some((c) => /дата\s*диагност/i.test(c)));
   if (hi < 0) return [];
-  const head = rows[hi].map((c) => c.toLowerCase());
+  const head = rows[hi].map((c) => String(c).toLowerCase().trim());
   const col = (re) => head.findIndex((c) => re.test(c));
-  const ix = { date: col(/дата/), name: col(/^имя|имя$/), nick: col(/ник|телеграм/), status: col(/статус/), held: col(/проведен/), report: col(/итог/), next: col(/дальнейш|шаги/) };
+  const ix = { date: col(/дата/), name: col(/^имя/), nick: col(/ник|телеграм/), status: col(/статус/), held: col(/проведен/), report: col(/итог/), next: col(/дальнейш|шаги/) };
   const out = [];
+  let lastDay = null;
   for (const r of rows.slice(hi + 1)) {
     const get = (k) => (ix[k] >= 0 ? String(r[ix[k]] ?? "").trim() : "");
-    const day = sheetDate(get("date"));
-    const nickRaw = get("nick").replace(/\s+/g, "");
-    const name = get("name");
-    if (!day || (!nickRaw && !name)) continue;
-    const telegram = /^@?[A-Za-z][\w]{3,}$/.test(nickRaw) ? (nickRaw.startsWith("@") ? nickRaw : `@${nickRaw}`) : "";
+    let a = get("name"), b = get("nick").replace(/\s+/g, "");
+    if (!isHandle(b) && isHandle(a.replace(/\s+/g, ""))) [a, b] = [b, a.replace(/\s+/g, "")];
+    if (isHandle(a.replace(/\s+/g, "")) && isHandle(b)) a = "";
     const reportText = get("report");
-    const report = parseReportText(reportText);
-    const filled = Object.values({ ...report, presented: null, offeredPay: null }).some((v) => v && !/^да\s*\\?\s*нет$/i.test(v));
-    const heldMark = /true|да|✓|1/i.test(get("held"));
+    const next = get("next");
+    let day = sheetDate(get("date"));
+    // Продолжение отчёта на следующих строках
+    if (!day && !a && !b) {
+      const prev = out.at(-1);
+      if (!prev || (!reportText && !next)) continue;
+      const add = cleanReport(parseReportText(reportText));
+      const call = prev.calls.at(-1);
+      if (add && call) {
+        const rep = (call.report ||= {});
+        for (const [k, v] of Object.entries(add)) if (v !== null && v !== "" && (rep[k] === undefined || rep[k] === null || rep[k] === "")) rep[k] = v;
+        call.reportAt ||= call.at;
+      }
+      if (next) prev.nextSteps = [prev.nextSteps, next].filter(Boolean).join("\n");
+      continue;
+    }
+    if (!a && !b) continue;
+    // Опечатка в месяце: дата на 20+ дней раньше предыдущей строки → месяц предыдущей строки
+    if (day && lastDay && Date.parse(day) < Date.parse(lastDay) - 20 * 86400_000) {
+      const fixed = `${lastDay.slice(0, 7)}-${day.slice(8)}`;
+      if (Date.parse(fixed) <= Date.parse(lastDay) + 10 * 86400_000) day = fixed;
+    }
+    day ||= lastDay;
+    if (!day) continue;
+    lastDay = day;
+    const telegram = isHandle(b) ? (b.startsWith("@") ? b : `@${b}`) : "";
     const status = statusFromSheet(get("status"));
+    const report = cleanReport(parseReportText(reportText));
+    const held = /true|да|✓|1/i.test(get("held"));
     const at = new Date(Date.parse(`${day}T12:00:00+03:00`)).toISOString();
-    const outcome = heldMark || filled ? "held" : /^ndz/.test(status) ? "ndz" : "held";
+    const outcome = held ? "held" : /^ndz/.test(status) ? "ndz" : null;
+    const calls = outcome ? [{ id: `crm-${day}`, at, mopId, mopAlias, setAt: at, setBy: null, outcome, outcomeAt: at, legacy: true, notified: { h2: at, h1: at, m15: at, after: at, report: at }, ...(report && outcome === "held" ? { report, reportAt: at } : {}) }] : [];
     out.push({
-      name: name || (!telegram ? nickRaw : ""),
+      name: a.replace(/\s+/g, " ").trim() || (!telegram ? b : ""),
       telegram,
       status,
-      nextSteps: get("next"),
-      info: telegram || !nickRaw ? "" : `Ник в таблице: ${nickRaw}`,
+      nextSteps: next || (!outcome && reportText && !report ? "" : next),
+      info: [!telegram && b && !isHandle(b) ? b : "", !outcome && report ? [report.extra, report.need].filter(Boolean).join("\n") : ""].filter(Boolean).join("\n"),
       source: "Новая заявка",
-      mopId: mopId || null,
+      mopId,
       mopAlias,
-      calls: [{ id: `crm-${day}`, at, mopId: mopId || null, mopAlias, setAt: at, setBy: null, outcome, outcomeAt: at, legacy: true, notified: { h2: at, h1: at, m15: at, after: at, report: at }, ...(filled ? { report, reportAt: at } : {}) }],
+      calls,
       createdAt: at,
       updatedAt: now,
       fromSheet: true,

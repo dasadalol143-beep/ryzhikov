@@ -481,19 +481,29 @@ export async function importSeed(store, body) {
   if (Array.isArray(body.clients)) {
     // Клиенты из CRM-таблицы: склеиваем с уже заведёнными по нику, созвоны из таблицы добавляем без дублей.
     const existing = await store.all("client");
-    const byNick = new Map(existing.filter((c) => c.telegram).map((c) => [c.telegram.toLowerCase(), c]));
+    // Ключ склейки: ник, а у кого ника нет (было в таблице) — имя клиента из таблицы
+    const keyOf = (c) => (c.telegram ? c.telegram.toLowerCase() : c.fromSheet && c.name ? `name:${c.name.toLowerCase()}` : null);
+    const byNick = new Map(existing.filter((c) => keyOf(c)).map((c) => [keyOf(c), c]));
     const aliases = (await loadSettings(store)).aliases || {};
+    // «Тема»/«Дима» из таблицы ещё не связаны в настройках — ищем человека по имени
+    const { findUserInText } = await import("./nlp.mjs");
+    const team = (await store.all("user")).filter((u) => u.active !== false && ["mop", "rop"].includes(u.role));
+    for (const raw of body.clients) if (raw.mopAlias && !aliases[raw.mopAlias]) {
+      const u = findUserInText(raw.mopAlias, team);
+      if (u) aliases[raw.mopAlias] = u.id;
+    }
     const changed = new Map();
     out.merged = 0;
     for (const raw of body.clients.slice(0, 5000)) {
       const mopId = raw.mopId || aliases[raw.mopAlias] || null;
       const calls = (raw.calls || []).map((x) => ({ ...x, mopId: x.mopId || mopId }));
-      const key = raw.telegram?.toLowerCase();
+      const key = keyOf(raw);
       const hit = (key && (changed.get(key) || byNick.get(key))) || null;
       if (hit) {
         for (const call of calls) if (!hit.calls.some((x) => x.id === call.id || (x.legacy && x.at === call.at))) hit.calls.push(call);
         hit.calls.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
-        if (!hit.nextSteps && raw.nextSteps) hit.nextSteps = raw.nextSteps;
+        if (raw.nextSteps && (!hit.nextSteps || hit.fromSheet)) hit.nextSteps = raw.nextSteps;
+        if (raw.info && !hit.info) hit.info = raw.info;
         if (!hit.name && raw.name) hit.name = raw.name;
         if (!hit.mopId && mopId) hit.mopId = mopId;
         // Статус из таблицы берём, только если в приложении клиент ещё «новый» или пришёл из таблицы

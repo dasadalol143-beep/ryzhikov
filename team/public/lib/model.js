@@ -140,6 +140,8 @@ export const needsReport = (c) => (c.calls || []).some((x) => x.outcome === "hel
 export function followupState(c, now = Date.now()) {
   if (!["thinking", "ndz1", "ndz2", "ndz3", "prepaid"].includes(c.status)) return null;
   if (currentCall(c)) return null;
+  // Старые клиенты из CRM-таблицы не сыпем в ежедневный дожим, пока с ними не начали работать в приложении
+  if (c.fromSheet && !(c.calls || []).some((x) => !x.legacy) && !(c.touches || []).length) return null;
   const since = c.statusAt ? Date.parse(c.statusAt) : now;
   const touches = (c.touches || []).filter((t) => Date.parse(t.at) >= since);
   const touchedToday = touches.some((t) => mskKey(Date.parse(t.at)) === mskKey(now));
