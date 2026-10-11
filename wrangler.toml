@@ -13,9 +13,9 @@ binding = "ASSETS"
 [[kv_namespaces]]
 binding = "CRM"
 
-# Утренняя сводка: 05:57 UTC = 08:57 по Москве.
+# Утренняя сводка: 05:57 UTC = 08:57 по Москве. Каждую минуту — напоминания из бота.
 [triggers]
-crons = ["57 5 * * *"]
+crons = ["57 5 * * *", "* * * * *"]
 
 [vars]
 APP_URL = "https://ryzhikov.dasadalol143.workers.dev/"

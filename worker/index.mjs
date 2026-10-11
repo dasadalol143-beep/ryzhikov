@@ -1,6 +1,7 @@
 // Cloudflare Workers: /api/* обрабатывает та же логика, что и Netlify Function, статика — из public/.
 import { createHandler, loadAll, recipientsOf } from "../lib/core.mjs";
 import { runDaily } from "../lib/report.mjs";
+import { runReminders } from "../lib/reminders.mjs";
 import { telegram } from "../lib/telegram.mjs";
 
 function kvStore(kv) {
@@ -31,6 +32,11 @@ export default {
 
   // Каждое утро: сводка в бота всем с доступом, по понедельникам ещё и бэкап админам.
   async scheduled(event, env, ctx) {
+    // Каждую минуту — напоминания из бота.
+    if (event.cron !== "57 5 * * *") {
+      await runReminders({ store: kvStore(env.CRM), tg: telegram(env.BOT_TOKEN), appUrl: env.APP_URL, now: event.scheduledTime });
+      return;
+    }
     const { offers, settings, leads, access } = await loadAll(kvStore(env.CRM));
     const results = await runDaily({
       tg: telegram(env.BOT_TOKEN),

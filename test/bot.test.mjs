@@ -116,3 +116,63 @@ test("payouts: mark offers received, see network debt, undo", async () => {
   assert.equal(networkReport(st.leads, st.offers, st.payouts).find((n) => n.network === "RKO Group").debt, 31000);
   assert.equal(st.payouts.length, 0);
 });
+
+test("bot reminders: set, appear in CRM, fire on time, snooze, cancel", async () => {
+  const { runReminders } = await import("../lib/reminders.mjs");
+  const { telegram } = await import("../lib/telegram.mjs");
+  const { hook, sent, api, data } = setup();
+  const petr = { id: 1, first_name: "Пётр" };
+  await hook({ from: petr, text: "@diman0004 Давыдов Дмитрий" });
+
+  await hook({ from: petr, text: "Привет, напомни о том, что завтра нужно сделать целевое действие с лидом @Diman0004 в 12 по МСК" });
+  const confirm = sent.at(-1);
+  assert.match(confirm.text, /⏰ Напомню <b>\d\d\.\d\d \(..\) в 12:00 МСК<\/b>\nНужно сделать целевое действие\n👤 @diman0004 · Давыдов Дмитрий/);
+  const kb = JSON.parse(confirm.markup).inline_keyboard[0];
+  assert.deepEqual(kb.map((b) => b.text), ["Открыть лида", "Отменить"]);
+
+  const lead = (await api(petr, "GET", "/state")).body.leads[0];
+  assert.match(lead.nextStep, /^12:00 — Нужно сделать целевое действие$/);
+  assert.match(lead.remindAt, /^\d{4}-\d{2}-\d{2}$/);
+
+  const rem = data.get("reminders")[0];
+  // крон: рано — ничего, в срок — уведомление
+  const fakeFetch = async (url, init) => {
+    sent.push({ method: url.split("/").pop(), chat: init.body.get("chat_id"), text: init.body.get("text"), markup: init.body.get("reply_markup") });
+    return new Response(JSON.stringify({ ok: true, result: {} }));
+  };
+  const store = { getJSON: async (k) => structuredClone(data.get(k) ?? null), setJSON: async (k, v) => void data.set(k, structuredClone(v)) };
+  assert.deepEqual(await runReminders({ store, tg: telegram("x", fakeFetch), appUrl: "https://crm.test/", now: rem.dueAt - 120000 }), []);
+  assert.deepEqual(await runReminders({ store, tg: telegram("x", fakeFetch), appUrl: "https://crm.test/", now: rem.dueAt }), [rem.id]);
+  assert.match(sent.at(-1).text, /^⏰ <b>Напоминание<\/b>\nНужно сделать целевое действие/);
+  assert.deepEqual(JSON.parse(sent.at(-1).markup).inline_keyboard[0].map((b) => b.text), ["Открыть лида", "Отложить на час"]);
+  assert.equal(data.get("reminders").length, 0);
+
+  // отложить на час
+  const secret = await (await import("../lib/telegram.mjs")).webhookSecret(BOT_TOKEN);
+  const handle = (await import("../lib/core.mjs")).createHandler({ store: { ...store, delete: async () => {}, list: async (p) => [...data.keys()].filter((k) => k.startsWith(p)) }, env, fetch: fakeFetch });
+  const press = (cbData, msgText) =>
+    handle(new Request("https://crm.test/api/tg", {
+      method: "POST",
+      headers: { "x-telegram-bot-api-secret-token": secret },
+      body: JSON.stringify({ callback_query: { id: "q1", from: petr, data: cbData, message: { message_id: 5, chat: { id: 1 }, text: msgText } } }),
+    }));
+  await press(`snooze:${rem.id}`, "⏰ Напоминание");
+  assert.equal(data.get("reminders").length, 1);
+  const snoozed = data.get("reminders")[0];
+  assert.ok(Math.abs(snoozed.dueAt - (Date.now() + 3600000)) < 5000);
+  assert.ok(sent.some((x) => x.method === "answerCallbackQuery"));
+
+  await press(`rmcancel:${snoozed.id}`, "⏰ Напомню ...");
+  assert.equal(data.get("reminders").length, 0);
+
+  // без времени — переспрашивает; список
+  await hook({ from: petr, text: "напомни дожать @diman0004" });
+  assert.match(sent.at(-1).text, /Когда напомнить/);
+  await hook({ from: petr, text: "напомни через 2 часа позвонить" });
+  await hook({ from: petr, text: "мои напоминания" });
+  assert.match(sent.at(-1).text, /Твои напоминания \(1\)[\s\S]*Позвонить/);
+
+  // пересланное сообщение со словом «напомни» — это лид, а не напоминание
+  await hook({ from: petr, text: "напомни мне про банк", forward_origin: { type: "user", sender_user: { id: 321, username: "new_guy", first_name: "Новый" } } });
+  assert.match(sent.at(-1).text, /Лид создан: <b>@new_guy/);
+});
