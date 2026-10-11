@@ -1,0 +1,18 @@
+name = "ryzhikov-crm"
+main = "worker/index.mjs"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# База лидов. Без id wrangler сам создаёт namespace при первом деплое.
+[[kv_namespaces]]
+binding = "CRM"
+
+[vars]
+ADMIN_IDS = "1971711686"
+MANAGER_IDS = ""
+
+# BOT_TOKEN — секрет: `npx wrangler secret put BOT_TOKEN` или в дашборде Cloudflare.

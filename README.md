@@ -19,11 +19,17 @@ CRM для лидов по РКО, МФО и картам. Повторяет л
 ## Стек
 
 - Фронт: чистый HTML/JS в `public/`, подхватывает тему Telegram.
-- Бэкенд: одна Netlify Function (`netlify/functions/api.mjs`), логика в `lib/`.
-- База: Netlify Blobs (встроена в Netlify, отдельная БД не нужна).
+- Бэкенд: логика в `lib/`, запускается на **Cloudflare Workers** (`worker/index.mjs`, база Workers KV) или на Netlify (`netlify/functions/api.mjs`, база Netlify Blobs).
 - Доступ: подпись Telegram `initData` проверяется на сервере, плюс белый список Telegram ID.
 
-## Запуск за 15 минут
+## Запуск на Cloudflare (основной вариант)
+
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages → Create → Import a repository** → подключи GitHub → выбери этот репозиторий и ветку с кодом. Остальные поля оставь по умолчанию: деплой сделает `npx wrangler deploy`, а база KV создастся сама.
+2. В созданном воркере: **Settings → Variables and Secrets → Add** → тип **Secret**, имя `BOT_TOKEN`, значение — токен бота.
+3. Админы и менеджеры задаются в `wrangler.toml` (`ADMIN_IDS`, `MANAGER_IDS`), любое изменение выкатывается автоматически после пуша.
+4. В BotFather: `/mybots` → бот → **Bot Settings → Menu Button** → адрес воркера (`https://ryzhikov-crm.<аккаунт>.workers.dev`).
+
+## Запуск на Netlify (запасной вариант)
 
 ### 1. Бот
 1. Открой [@BotFather](https://t.me/BotFather) → `/newbot` → придумай имя → получи **токен**.
@@ -67,8 +73,8 @@ ID офферов (`alfa`, `otp`, `zaymer`…) смотри в `lib/offers.mjs`.
 
 ```bash
 npm install
-npm test                       # тесты API и проверки подписи
-DEV_MODE=1 npx netlify dev     # открыть в браузере без Telegram (вход как админ)
+npm test                                 # тесты API и проверки подписи
+echo "DEV_MODE=1" > .dev.vars && npx wrangler dev   # открыть в браузере без Telegram (вход как админ)
 ```
 
 `DEV_MODE=1` никогда не ставь на продакшене: он пускает без авторизации.
