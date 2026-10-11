@@ -936,7 +936,7 @@ function renderSettings() {
     <h2>План продаж на месяц</h2><div class="card"><input id="plan" inputmode="numeric" value="${s.monthPlan || ""}" placeholder="например 2000000"></div>
     ${legacyNames.length ? `<h2>Люди из старых таблиц</h2><div class="card">${legacyNames.map((n) => `<label class="field"><span>«${esc(n)}» в таблицах — это</span><select data-alias="${esc(n)}"><option value="">— не связан —</option>${people.map((u) => `<option value="${u.id}" ${s.aliases?.[n] === u.id ? "selected" : ""}>${esc(u.name)} · ${ROLES[u.role]}</option>`).join("")}</select></label>`).join("")}<div class="sub">Свяжи — и история из РнП и ведомости ляжет на человека.</div></div>` : ""}
     <button class="btn block" id="set-save">Сохранить</button>
-    ${state.me.role === "owner" ? `<h2>Перенос из Google-таблиц</h2><div class="card"><div class="sub">РнП с 29.07, лидоруб Алексей, зарплатная ведомость август–октябрь. Повторный импорт ничего не дублирует.</div><button class="btn block ghost" id="import">Загрузить историю из таблиц</button></div>` : ""}`;
+    ${state.me.role === "owner" ? `<h2>Перенос из Google-таблиц</h2><div class="card"><div class="sub">РнП с 29.07, лидоруб Алексей, зарплатная ведомость август–октябрь. Файл history.json — в личке от Claude, в репозиторий не кладём: там деньги. Повторный импорт ничего не дублирует.</div><label class="btn block ghost" style="text-align:center">Выбрать файл history.json<input type="file" id="import" accept=".json,application/json" hidden></label></div>` : ""}`;
   document.getElementById("set-save").onclick = async () => {
     const rates = {};
     for (const el of $app.querySelectorAll("[data-rate]")) rates[el.dataset.rate] = Number(String(el.value).replace(",", "."));
@@ -950,9 +950,11 @@ function renderSettings() {
       alertDialog(e.message);
     }
   };
-  document.getElementById("import")?.addEventListener("click", async () => {
+  document.getElementById("import")?.addEventListener("change", async (e) => {
     try {
-      const res = await api("POST", "/import", { bundled: true });
+      const file = e.target.files[0];
+      if (!file) return;
+      const res = await api("POST", "/import", JSON.parse(await file.text()));
       toast(`Перенесено: оплат ${res.payments}, РнП ✓`);
       await load();
     } catch (e) {

@@ -2,8 +2,6 @@ import { randomUUID } from "node:crypto";
 import { checkInitData, parseIds } from "./auth.mjs";
 import { telegram, webhookSecret } from "./telegram.mjs";
 import { handleUpdate, BOT_COMMANDS } from "./bot.mjs";
-// История из Google-таблиц едет внутри воркера, а не в public/: там зарплаты.
-import HISTORY from "../seed/history.json" with { type: "json" };
 import {
   ROLES, STATUS_IDS, SOURCES, REPORT_FIELDS, AFTER_CALL, DEFAULT_RATES, FOLLOWUP_TOUCHES,
   canSeeMoney, currentCall, ndzCount, clientTitle, statusLabel, fmtWhen,
@@ -377,7 +375,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       // импорт истории из Google-таблиц (seed/*.json)
       if (path === "/import" && req.method === "POST") {
         if (me.role !== "owner") return json({ error: "forbidden" }, 403);
-        const res = await importSeed(store, body.bundled ? HISTORY : body);
+        const res = await importSeed(store, body);
         return json(res);
       }
 
