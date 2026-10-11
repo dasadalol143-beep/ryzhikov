@@ -64,40 +64,75 @@ test("lead lifecycle, offer statuses and manager isolation", async () => {
   const state = await admin("GET", "/state");
   assert.equal(state.status, 200);
   assert.equal(state.body.me.role, "admin");
-  assert.ok(state.body.offers.find((o) => o.id === "alfa_ip"));
+  assert.equal(state.body.settings.partnerShare, 15);
+  assert.ok(state.body.offers.find((o) => o.id === "zaymer" && o.category === "mfo" && o.cost === 20));
 
-  const created = await manager("POST", "/leads", { name: "  Гоша  ", contact: "@gosha" });
+  assert.equal((await manager("POST", "/leads", { source: "x" })).status, 400);
+  const created = await manager("POST", "/leads", { telegram: "Diman0004", fio: " Давыдов Дмитрий " });
   assert.equal(created.status, 201);
-  assert.equal(created.body.name, "Гоша");
+  assert.equal(created.body.telegram, "@Diman0004");
+  assert.equal(created.body.fio, "Давыдов Дмитрий");
   assert.equal(created.body.ownerId, 2);
   const id = created.body.id;
 
   const patched = await manager("PATCH", `/leads/${id}`, {
     stage: "offers",
-    offers: { alfa_ip: { status: "paid" }, vtb: { status: "done", amount: "6500" }, fake: { status: "paid" } },
+    payout: "1000",
+    offers: {
+      alfa: { status: "paid", amount: 15500, comment: "Провели 2300" },
+      otp: { status: "opened", cost: "1380,5" },
+      zaymer: { status: "rejected" },
+      fake: { status: "paid" },
+    },
   });
   assert.equal(patched.status, 200);
+  const o = patched.body.offers;
   assert.equal(patched.body.stage, "offers");
-  assert.deepEqual(
-    { s: patched.body.offers.alfa_ip.status, a: patched.body.offers.alfa_ip.amount },
-    { s: "paid", a: 15000 },
-  );
-  assert.equal(patched.body.offers.vtb.amount, 6500);
-  assert.equal(patched.body.offers.fake, undefined);
+  assert.equal(patched.body.payout, 1000);
+  assert.deepEqual([o.alfa.status, o.alfa.amount, o.alfa.comment], ["paid", 15500, "Провели 2300"]);
+  assert.equal(o.otp.cost, 1380.5);
+  assert.equal(o.zaymer.cost, 20);
+  assert.equal(o.fake, undefined);
 
-  const bad = await manager("PATCH", `/leads/${id}`, { stage: "hacked" });
-  assert.equal(bad.body.stage, "offers");
+  assert.equal((await manager("PATCH", `/leads/${id}`, { stage: "hacked" })).body.stage, "offers");
 
   // другой менеджер не видит и не может править чужого лида
   assert.equal((await other("GET", "/state")).body.leads.length, 0);
-  assert.equal((await other("PATCH", `/leads/${id}`, { name: "x" })).status, 404);
-  // админ видит всех
+  assert.equal((await other("PATCH", `/leads/${id}`, { fio: "x" })).status, 404);
   assert.equal((await admin("GET", "/state")).body.leads.length, 1);
 
-  // удалять может только админ
   assert.equal((await manager("DELETE", `/leads/${id}`)).status, 403);
   assert.equal((await admin("DELETE", `/leads/${id}`)).status, 200);
   assert.equal((await admin("GET", "/state")).body.leads.length, 0);
+});
+
+test("settings and import (upsert by telegram)", async () => {
+  const handle = createHandler({ store: memoryStore(), env });
+  const admin = client(handle, { id: 1, first_name: "Пётр" });
+  const manager = client(handle, { id: 2, first_name: "Слава" });
+
+  assert.equal((await manager("PUT", "/settings", { partnerShare: 20 })).status, 403);
+  const s = await admin("PUT", "/settings", { partnerShare: 20, taxRate: 500 });
+  assert.deepEqual(s.body, { taxRate: 6, partnerShare: 20, partnerName: "Дамир" });
+
+  assert.equal((await manager("POST", "/import", { leads: [] })).status, 403);
+  const first = await admin("POST", "/import", {
+    leads: [
+      { telegram: "@GreeenTeea", fio: "Ильязов Марат", offers: { uralsib: { status: "paid", amount: 6000 } } },
+      { telegram: "@borbazez", payout: 500 },
+      { source: "без имени" },
+    ],
+  });
+  assert.deepEqual(first.body, { created: 2, updated: 0 });
+  const second = await admin("POST", "/import", {
+    leads: [{ telegram: "greeenteea", offers: { ozon: { status: "paid", amount: 3750 } } }],
+  });
+  assert.deepEqual(second.body, { created: 0, updated: 1 });
+  const leads = (await admin("GET", "/state")).body.leads;
+  assert.equal(leads.length, 2);
+  const marat = leads.find((l) => l.telegram === "@GreeenTeea");
+  assert.equal(marat.fio, "Ильязов Марат");
+  assert.deepEqual(Object.keys(marat.offers).sort(), ["ozon", "uralsib"]);
 });
 
 test("offers catalog: admin only, sanitized", async () => {

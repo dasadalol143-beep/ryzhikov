@@ -1,4 +1,4 @@
-"use strict";
+import { leadMoney, sumMoney, ACTIVE_STAGES } from "./economics.js";
 
 const tg = window.Telegram?.WebApp;
 tg?.ready();
@@ -7,28 +7,31 @@ tg?.expand();
 const STAGE_LABELS = {
   new: "Новый",
   in_work: "В работе",
-  ip: "ИП открыт",
   offers: "Докрутка",
   closed: "Цикл закрыт",
   lost: "Слился",
 };
 const STATUS_LABELS = {
   none: "—",
-  in_progress: "В процессе",
-  done: "Оформлен",
-  paid: "Выплачено",
+  applied: "Заявка заведена",
+  opened: "Счёт открыт, нужна ЦД",
+  done: "ЦД выполнено",
+  paid: "Засчитано ✓",
   rejected: "Отказ",
+  exists: "Уже есть / дубль",
 };
-const ACTIVE_STAGES = new Set(["new", "in_work", "ip", "offers"]);
+const CATEGORY_LABELS = { rko: "РКО", mfo: "МФО", debit: "Дебетовые карты", credit: "Кредитные карты" };
 
 const state = {
   me: null,
   offers: [],
+  settings: { taxRate: 6, partnerShare: 15, partnerName: "Партнёр" },
   leads: [],
   tab: "dashboard",
   leadId: null,
   filter: "all",
   query: "",
+  openCats: new Set(),
 };
 
 const $app = document.getElementById("app");
@@ -39,13 +42,15 @@ const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const rub = (n) => `${Math.round(n || 0).toLocaleString("ru-RU")} ₽`;
 const haptic = (type = "light") => tg?.HapticFeedback?.impactOccurred(type);
+const money = (lead) => leadMoney(lead, state.offers, state.settings);
+const leadTitle = (l) => l.telegram || l.fio || "Без имени";
 
 function toast(text) {
   const el = document.createElement("div");
   el.className = "toast";
   el.textContent = text;
   document.body.append(el);
-  setTimeout(() => el.remove(), 1800);
+  setTimeout(() => el.remove(), 2000);
 }
 
 function confirmDialog(text) {
@@ -63,42 +68,26 @@ async function api(method, path, body) {
   return data;
 }
 
-// Деньги по одному лиду: сколько уже пришло, сколько ждём, сколько ещё можно докрутить.
-function leadMoney(lead) {
-  const r = { paid: 0, pending: 0, inProgress: 0, untouched: 0 };
-  const active = ACTIVE_STAGES.has(lead.stage);
-  for (const offer of state.offers) {
-    const lo = lead.offers[offer.id];
-    const status = lo?.status || "none";
-    const amount = lo ? lo.amount : offer.amount;
-    if (status === "paid") r.paid += amount;
-    else if (status === "done") r.pending += amount;
-    else if (status === "in_progress" && active) r.inProgress += amount;
-    else if (status === "none" && active && offer.active) r.untouched += amount;
-  }
-  r.potential = r.inProgress + r.untouched;
-  return r;
-}
-
-function totals(leads) {
-  return leads.reduce(
-    (t, l) => {
-      const m = leadMoney(l);
-      t.paid += m.paid;
-      t.pending += m.pending;
-      t.inProgress += m.inProgress;
-      t.potential += m.potential;
-      return t;
-    },
-    { paid: 0, pending: 0, inProgress: 0, potential: 0 },
-  );
-}
-
 function contactLink(contact) {
   const c = (contact || "").trim();
   if (/^@\w{3,}$/.test(c)) return `<a href="https://t.me/${esc(c.slice(1))}">${esc(c)}</a>`;
   if (/^\+?[\d\s()-]{7,}$/.test(c)) return `<a href="tel:${esc(c.replace(/[^\d+]/g, ""))}">${esc(c)}</a>`;
   return esc(c);
+}
+
+function reportRows(m) {
+  const s = state.settings;
+  const rows = [
+    ["Доход (засчитано)", m.income],
+    ["Затраты", -m.costs],
+    [`${s.partnerName} ${s.partnerShare}%`, -m.partner],
+    [`Налог ${s.taxRate}%`, -m.tax],
+    ["Выплачено лидам", -m.payout],
+  ];
+  return `<div class="list">
+    ${rows.map(([k, v]) => `<div class="row"><div class="grow">${esc(k)}</div><div class="right">${v < 0 ? "−" : ""}${rub(Math.abs(v))}</div></div>`).join("")}
+    <div class="row total"><div class="grow">Чистая выручка</div><div class="right">${rub(m.net)}</div></div>
+  </div>`;
 }
 
 // ---------- rendering ----------
@@ -112,44 +101,62 @@ function render() {
 }
 
 function leadRow(lead, right) {
+  const sub = [lead.telegram && lead.fio ? esc(lead.fio) : "", state.me.role === "admin" ? esc(lead.ownerName) : ""].filter(Boolean).join(" · ");
   return `<button class="row" data-open="${lead.id}">
     <div class="grow">
-      <div class="title">${esc(lead.name)}</div>
-      <div class="sub"><span class="badge s-${lead.stage}">${STAGE_LABELS[lead.stage]}</span>
-        ${state.me.role === "admin" && lead.ownerName ? ` · ${esc(lead.ownerName)}` : ""}</div>
+      <div class="title">${esc(leadTitle(lead))}</div>
+      <div class="sub"><span class="badge s-${lead.stage}">${STAGE_LABELS[lead.stage] || lead.stage}</span> ${sub}</div>
     </div>
     <div class="right">${right}</div>
   </button>`;
 }
 
 function renderDashboard() {
-  const t = totals(state.leads);
+  const withMoney = state.leads.map((l) => ({ l, m: money(l) }));
+  const t = sumMoney(withMoney.map((x) => x.m));
   const active = state.leads.filter((l) => ACTIVE_STAGES.has(l.stage));
+  const zero = withMoney.filter((x) => x.m.income === 0 && ACTIVE_STAGES.has(x.l.stage)).length;
+
+  const byCat = Object.fromEntries(Object.keys(CATEGORY_LABELS).map((c) => [c, 0]));
+  const catOf = new Map(state.offers.map((o) => [o.id, o.category]));
+  state.leads.forEach((l) =>
+    Object.entries(l.offers).forEach(([id, lo]) => {
+      if (lo.status === "paid") byCat[catOf.get(id) || "rko"] += lo.amount;
+    }),
+  );
+
   const counts = Object.fromEntries(Object.keys(STAGE_LABELS).map((s) => [s, 0]));
-  state.leads.forEach((l) => counts[l.stage]++);
+  state.leads.forEach((l) => (counts[l.stage] = (counts[l.stage] || 0) + 1));
   const max = Math.max(1, ...Object.values(counts));
 
-  const toPush = active
-    .map((l) => ({ l, m: leadMoney(l) }))
+  const toPush = withMoney
     .filter((x) => x.m.potential > 0)
     .sort((a, b) => b.m.potential - a.m.potential)
-    .slice(0, 7);
+    .slice(0, 10);
 
   $app.innerHTML = `
     <h1>Привет, ${esc(state.me.name)}</h1>
     <div class="stats">
-      <div class="card stat accent"><div class="label">Получено</div><div class="value">${rub(t.paid)}</div></div>
-      <div class="card stat"><div class="label">Ждём выплату</div><div class="value">${rub(t.pending)}</div></div>
-      <div class="card stat"><div class="label">В процессе</div><div class="value">${rub(t.inProgress)}</div></div>
+      <div class="card stat accent"><div class="label">Чистая выручка</div><div class="value">${rub(t.net)}</div></div>
+      <div class="card stat"><div class="label">ЦД выполнено, ждём засчёта</div><div class="value">${rub(t.waiting)}</div></div>
+      <div class="card stat"><div class="label">Заявки и открытые счета</div><div class="value">${rub(t.inWork)}</div></div>
       <div class="card stat"><div class="label">Недокрут (потенциал)</div><div class="value money-orange">${rub(t.potential)}</div></div>
     </div>
 
-    <h2>Воронка · ${state.leads.length} лидов, активных ${active.length}</h2>
+    <h2>Отчётный лист</h2>
+    ${reportRows(t)}
+
+    <h2>Доход по категориям</h2>
+    <div class="list">
+      ${Object.entries(byCat).map(([c, v]) => `<div class="row"><div class="grow">${CATEGORY_LABELS[c]}</div><div class="right">${rub(v)}</div></div>`).join("")}
+    </div>
+
+    <h2>Воронка · ${state.leads.length} лидов, активных ${active.length}${zero ? `, без дохода ${zero}` : ""}</h2>
     <div class="card">
       ${Object.entries(counts)
         .map(
           ([s, n]) => `<div style="margin-bottom:8px">
-            <div style="display:flex;justify-content:space-between"><span>${STAGE_LABELS[s]}</span><b>${n}</b></div>
+            <div style="display:flex;justify-content:space-between"><span>${STAGE_LABELS[s] || s}</span><b>${n}</b></div>
             <div class="bar"><i style="width:${(n / max) * 100}%"></i></div></div>`,
         )
         .join("")}
@@ -168,11 +175,11 @@ function renderLeads() {
   const list = state.leads.filter(
     (l) =>
       (state.filter === "all" || l.stage === state.filter) &&
-      (!q || `${l.name} ${l.contact} ${l.source}`.toLowerCase().includes(q)),
+      (!q || `${l.telegram} ${l.fio} ${l.source}`.toLowerCase().includes(q)),
   );
   $app.innerHTML = `
     <div class="toolbar">
-      <input id="q" type="search" placeholder="Поиск: имя, @ник, источник" value="${esc(state.query)}">
+      <input id="q" type="search" placeholder="Поиск: @ник, ФИО, источник" value="${esc(state.query)}">
       <button class="btn" id="add">+ Лид</button>
     </div>
     <div class="chips">
@@ -184,10 +191,10 @@ function renderLeads() {
       list.length
         ? `<div class="list">${list
             .map((l) => {
-              const m = leadMoney(l);
+              const m = money(l);
               return leadRow(
                 l,
-                `<div class="money-green">${rub(m.paid + m.pending)}</div>${m.potential ? `<div class="money-orange">+${rub(m.potential)}</div>` : ""}`,
+                `<div class="money-green">${rub(m.net)}</div>${m.potential ? `<div class="money-orange">+${rub(m.potential)}</div>` : ""}`,
               );
             })
             .join("")}</div>`
@@ -206,52 +213,81 @@ function renderLeads() {
   document.getElementById("add").onclick = addLead;
 }
 
+function offerRow(o, lo) {
+  if (lo.status === "none") {
+    return `<div class="offer-row compact">
+      <div class="head"><div class="title">${esc(o.name)}</div><div class="sub">${rub(lo.amount)}${o.partner ? " · " + esc(o.partner) : ""}${o.note ? " · " + esc(o.note) : ""}</div></div>
+      <select data-offer="${o.id}" data-k="status">
+        ${Object.entries(STATUS_LABELS).map(([s, label]) => `<option value="${s}" ${s === "none" ? "selected" : ""}>${s === "none" ? "＋ В работу" : label}</option>`).join("")}
+      </select>
+    </div>`;
+  }
+  return `<div class="offer-row st-${lo.status}">
+    <div class="head"><div class="title">${esc(o.name)}</div><div class="sub">${esc(o.partner)}${o.note ? " · " + esc(o.note) : ""}</div></div>
+    <select class="status" data-offer="${o.id}" data-k="status">
+      ${Object.entries(STATUS_LABELS).map(([s, label]) => `<option value="${s}" ${lo.status === s ? "selected" : ""}>${label}</option>`).join("")}
+    </select>
+    <label class="mini"><span>Ставка</span><input data-offer="${o.id}" data-k="amount" type="number" inputmode="decimal" min="0" value="${lo.amount}"></label>
+    <label class="mini"><span>Затраты</span><input data-offer="${o.id}" data-k="cost" type="number" inputmode="decimal" min="0" value="${lo.cost || 0}"></label>
+    <input class="comment" data-offer="${o.id}" data-k="comment" value="${esc(lo.comment)}" placeholder="Комментарий: «Провели 2300», «ЛК ${esc(state.settings.partnerName)}»">
+  </div>`;
+}
+
 function renderLead() {
   const lead = state.leads.find((l) => l.id === state.leadId);
   if (!lead) {
     state.leadId = null;
     return render();
   }
-  const m = leadMoney(lead);
-  const offers = state.offers.filter((o) => o.active || lead.offers[o.id]);
+  const m = money(lead);
+
+  const groups = Object.keys(CATEGORY_LABELS)
+    .map((cat) => {
+      const offers = state.offers.filter((o) => o.category === cat && (o.active || lead.offers[o.id]));
+      if (!offers.length) return "";
+      const touched = offers.filter((o) => lead.offers[o.id] && lead.offers[o.id].status !== "none");
+      const paid = touched.filter((o) => lead.offers[o.id].status === "paid").reduce((s, o) => s + lead.offers[o.id].amount, 0);
+      const open = state.openCats.has(cat);
+      return `<details class="cat" data-cat="${cat}" ${open ? "open" : ""}>
+        <summary><span>${CATEGORY_LABELS[cat]}</span><span class="sub">${touched.length}/${offers.length} · ${rub(paid)}</span></summary>
+        <div class="list">${offers.map((o) => offerRow(o, lead.offers[o.id] || { status: "none", amount: o.amount, cost: o.cost || 0, comment: "" })).join("")}</div>
+      </details>`;
+    })
+    .join("");
 
   $app.innerHTML = `
-    <h1>${esc(lead.name)}</h1>
+    <h1>${esc(leadTitle(lead))}</h1>
     <div class="stats">
-      <div class="card stat"><div class="label">Заработано</div><div class="value money-green">${rub(m.paid + m.pending)}</div></div>
+      <div class="card stat"><div class="label">Чистая выручка</div><div class="value money-green">${rub(m.net)}</div></div>
       <div class="card stat"><div class="label">Можно докрутить</div><div class="value money-orange">${rub(m.potential)}</div></div>
     </div>
 
-    <h2>Карточка</h2>
-    <label class="field"><span>Имя</span><input data-f="name" value="${esc(lead.name)}"></label>
-    <label class="field"><span>Контакт (@ник или телефон) ${lead.contact ? "· " + contactLink(lead.contact) : ""}</span>
-      <input data-f="contact" value="${esc(lead.contact)}" placeholder="@username"></label>
+    <h2>Информация о клиенте</h2>
+    <label class="field"><span>Telegram ${lead.telegram ? "· " + contactLink(lead.telegram) : ""}</span>
+      <input data-f="telegram" value="${esc(lead.telegram)}" placeholder="@username"></label>
+    <label class="field"><span>ФИО</span><input data-f="fio" value="${esc(lead.fio)}" placeholder="Фамилия Имя Отчество"></label>
     <label class="field"><span>Источник</span><input data-f="source" value="${esc(lead.source)}" placeholder="YouTube, Reels, партнёр…"></label>
-    <label class="field"><span>Этап</span><select data-f="stage">
-      ${Object.entries(STAGE_LABELS).map(([s, label]) => `<option value="${s}" ${lead.stage === s ? "selected" : ""}>${label}</option>`).join("")}
-    </select></label>
+    <div class="two">
+      <label class="field"><span>Этап</span><select data-f="stage">
+        ${Object.entries(STAGE_LABELS).map(([s, label]) => `<option value="${s}" ${lead.stage === s ? "selected" : ""}>${label}</option>`).join("")}
+      </select></label>
+      <label class="field"><span>Выплачено лиду, ₽</span><input data-f="payout" type="number" inputmode="decimal" min="0" value="${lead.payout || 0}"></label>
+    </div>
     <label class="field"><span>Заметки</span><textarea data-f="note" placeholder="Что обсудили, что дальше">${esc(lead.note)}</textarea></label>
 
-    <h2>Маршрут по офферам</h2>
-    <div class="list">
-      ${offers
-        .map((o) => {
-          const lo = lead.offers[o.id] || { status: "none", amount: o.amount };
-          return `<div class="offer-row st-${lo.status}">
-            <div><div class="title">${esc(o.name)}</div><div class="sub">${esc(o.partner)}${o.note ? " · " + esc(o.note) : ""}</div></div>
-            <select data-offer="${o.id}" data-k="status">
-              ${Object.entries(STATUS_LABELS).map(([s, label]) => `<option value="${s}" ${lo.status === s ? "selected" : ""}>${label}</option>`).join("")}
-            </select>
-            <input class="amount" data-offer="${o.id}" data-k="amount" type="number" inputmode="numeric" min="0" value="${lo.amount}">
-          </div>`;
-        })
-        .join("")}
-    </div>
+    <h2>Офферы</h2>
+    ${groups}
+
+    <h2>Расчёт по лиду</h2>
+    ${reportRows(m)}
     <div class="sub" style="margin:8px 4px;color:var(--hint);font-size:12px">
       Добавлен ${new Date(lead.createdAt).toLocaleDateString("ru-RU")}${lead.ownerName ? " · " + esc(lead.ownerName) : ""}
     </div>
     ${state.me.role === "admin" ? `<button class="btn danger" id="del">Удалить лида</button>` : ""}`;
 
+  $app.querySelectorAll("details.cat").forEach((d) =>
+    d.addEventListener("toggle", () => state.openCats[d.open ? "add" : "delete"](d.dataset.cat)),
+  );
   $app.querySelectorAll("[data-f]").forEach((el) =>
     el.addEventListener("change", () => saveLead(lead.id, { [el.dataset.f]: el.value })),
   );
@@ -265,33 +301,79 @@ function renderLead() {
 
 function renderOffers() {
   const admin = state.me.role === "admin";
-  const sum = state.offers.filter((o) => o.active).reduce((s, o) => s + o.amount, 0);
+  const s = state.settings;
+  const routeSum = (cat) => state.offers.filter((o) => o.active && o.category === cat).reduce((t, o) => t + o.amount, 0);
+
+  const catalog = Object.keys(CATEGORY_LABELS)
+    .map((cat) => {
+      const items = state.offers.map((o, i) => ({ o, i })).filter(({ o }) => o.category === cat);
+      if (!items.length) return "";
+      return `<h2>${CATEGORY_LABELS[cat]} · полный маршрут ${rub(routeSum(cat))}</h2>
+        <div class="list">${items
+          .map(({ o, i }) =>
+            admin
+              ? `<div class="offer-edit" data-i="${i}">
+                  <input class="full" data-k="name" value="${esc(o.name)}" placeholder="Название">
+                  <input data-k="partner" value="${esc(o.partner)}" placeholder="Партнёрская сеть">
+                  <select data-k="category">${Object.entries(CATEGORY_LABELS).map(([c, l]) => `<option value="${c}" ${o.category === c ? "selected" : ""}>${l}</option>`).join("")}</select>
+                  <label class="mini"><span>Ставка</span><input data-k="amount" type="number" inputmode="decimal" value="${o.amount}"></label>
+                  <label class="mini"><span>Затраты по умолч.</span><input data-k="cost" type="number" inputmode="decimal" value="${o.cost || 0}"></label>
+                  <input class="full" data-k="note" value="${esc(o.note)}" placeholder="Заметка">
+                  <label class="check"><input type="checkbox" data-k="active" ${o.active ? "checked" : ""}> Активен</label>
+                </div>`
+              : `<div class="row"><div class="grow"><div class="title">${esc(o.name)}</div>
+                  <div class="sub">${esc(o.partner)}${o.note ? " · " + esc(o.note) : ""}${o.active ? "" : " · неактивен"}</div></div>
+                  <div class="right"><b>${rub(o.amount)}</b></div></div>`,
+          )
+          .join("")}</div>`;
+    })
+    .join("");
+
   $app.innerHTML = `
     <h1>Офферы</h1>
-    <div class="card stat"><div class="label">Полный маршрут по активным офферам</div><div class="value">${rub(sum)} с одного человека</div></div>
-    <h2>${admin ? "Редактирование каталога" : "Каталог"}</h2>
-    <div class="list" id="offers">
-      ${state.offers
-        .map((o, i) =>
-          admin
-            ? `<div class="offer-edit" data-i="${i}">
-                <input class="full" data-k="name" value="${esc(o.name)}" placeholder="Название">
-                <input data-k="partner" value="${esc(o.partner)}" placeholder="Партнёрка">
-                <input data-k="amount" type="number" inputmode="numeric" value="${o.amount}" placeholder="₽">
-                <input class="full" data-k="note" value="${esc(o.note)}" placeholder="Заметка">
-                <label class="check"><input type="checkbox" data-k="active" ${o.active ? "checked" : ""}> Активен</label>
-              </div>`
-            : `<div class="row"><div class="grow"><div class="title">${esc(o.name)}</div>
-                <div class="sub">${esc(o.partner)}${o.note ? " · " + esc(o.note) : ""}${o.active ? "" : " · неактивен"}</div></div>
-                <div class="right"><b>${rub(o.amount)}</b></div></div>`,
-        )
-        .join("")}
-    </div>
-    ${admin ? `<button class="btn ghost block" id="addOffer">+ Добавить оффер</button><button class="btn block" id="saveOffers">Сохранить каталог</button>` : ""}`;
+    ${
+      admin
+        ? `<h2>Расчёт</h2>
+      <div class="card offer-edit settings">
+        <label class="mini full"><span>Партнёр (доля от дохода после налога)</span><input id="sName" value="${esc(s.partnerName)}"></label>
+        <label class="mini"><span>Доля партнёра, %</span><input id="sShare" type="number" inputmode="decimal" value="${s.partnerShare}"></label>
+        <label class="mini"><span>Налог, %</span><input id="sTax" type="number" inputmode="decimal" value="${s.taxRate}"></label>
+        <button class="btn full" id="saveSettings">Сохранить расчёт</button>
+      </div>`
+        : ""
+    }
+    ${catalog}
+    ${
+      admin
+        ? `<button class="btn ghost block" id="addOffer">+ Добавить оффер</button>
+      <button class="btn block" id="saveOffers">Сохранить каталог</button>
+      <h2>Импорт лидов</h2>
+      <div class="card">
+        <div class="sub" style="color:var(--hint);font-size:13px;margin-bottom:8px">JSON-файл с лидами из таблиц. Лиды с тем же Telegram обновятся, новые добавятся.</div>
+        <input type="file" id="importFile" accept="application/json,.json">
+      </div>`
+        : ""
+    }`;
 
   if (!admin) return;
+
+  document.getElementById("saveSettings").onclick = async () => {
+    try {
+      state.settings = await api("PUT", "/settings", {
+        partnerName: document.getElementById("sName").value,
+        partnerShare: Number(document.getElementById("sShare").value),
+        taxRate: Number(document.getElementById("sTax").value),
+      });
+      haptic("medium");
+      toast("Расчёт сохранён");
+      renderOffers();
+    } catch (e) {
+      toast(`Ошибка: ${e.message}`);
+    }
+  };
+
   const collect = () =>
-    [...$app.querySelectorAll(".offer-edit")].map((row) => {
+    [...$app.querySelectorAll(".offer-edit[data-i]")].map((row) => {
       const o = { ...state.offers[row.dataset.i] };
       row.querySelectorAll("[data-k]").forEach((el) => {
         o[el.dataset.k] = el.type === "checkbox" ? el.checked : el.type === "number" ? Number(el.value) : el.value;
@@ -299,7 +381,7 @@ function renderOffers() {
       return o;
     });
   document.getElementById("addOffer").onclick = () => {
-    state.offers = [...collect(), { id: "", name: "Новый оффер", partner: "", amount: 0, active: true, note: "" }];
+    state.offers = [...collect(), { id: "", category: "rko", name: "Новый оффер", partner: "", amount: 0, cost: 0, active: true, note: "" }];
     renderOffers();
   };
   document.getElementById("saveOffers").onclick = async () => {
@@ -312,16 +394,31 @@ function renderOffers() {
       toast(`Ошибка: ${e.message}`);
     }
   };
+  document.getElementById("importFile").onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      const leads = Array.isArray(parsed) ? parsed : parsed.leads;
+      const r = await api("POST", "/import", { leads });
+      await reload();
+      toast(`Импорт: новых ${r.created}, обновлено ${r.updated}`);
+    } catch (err) {
+      toast(`Импорт не удался: ${err.message}`);
+    }
+  };
 }
 
 // ---------- actions ----------
 async function addLead() {
-  const name = (window.prompt("Имя лида") || "").trim();
-  if (!name) return;
+  const telegram = (window.prompt("Telegram лида (@ник) или ФИО") || "").trim();
+  if (!telegram) return;
+  const isNick = /^@?\w{3,}$/.test(telegram);
   try {
-    const lead = await api("POST", "/leads", { name });
+    const lead = await api("POST", "/leads", isNick ? { telegram } : { fio: telegram });
     state.leads.unshift(lead);
     state.leadId = lead.id;
+    state.openCats = new Set(["rko"]);
     haptic("medium");
     render();
   } catch (e) {
@@ -354,14 +451,24 @@ async function deleteLead(id) {
   }
 }
 
+function openLead(id) {
+  const lead = state.leads.find((l) => l.id === id);
+  const catOf = new Map(state.offers.map((o) => [o.id, o.category]));
+  state.openCats = new Set(
+    Object.entries(lead?.offers || {})
+      .filter(([, lo]) => lo.status !== "none")
+      .map(([oid]) => catOf.get(oid)),
+  );
+  if (!state.openCats.size) state.openCats.add("rko");
+  state.leadId = id;
+  window.scrollTo(0, 0);
+  render();
+}
+
 // ---------- wiring ----------
 $app.addEventListener("click", (e) => {
   const open = e.target.closest("[data-open]");
-  if (open) {
-    state.leadId = open.dataset.open;
-    window.scrollTo(0, 0);
-    return render();
-  }
+  if (open) return openLead(open.dataset.open);
   const chip = e.target.closest("[data-filter]");
   if (chip) {
     state.filter = chip.dataset.filter;
@@ -383,18 +490,19 @@ tg?.BackButton.onClick(() => {
   render();
 });
 
-(async function init() {
-  try {
-    const data = await api("GET", "/state");
-    Object.assign(state, { me: data.me, offers: data.offers, leads: data.leads });
-    $tabs.hidden = false;
-    render();
-  } catch (e) {
+async function reload() {
+  const data = await api("GET", "/state");
+  Object.assign(state, { me: data.me, offers: data.offers, settings: data.settings, leads: data.leads });
+  render();
+}
+
+reload()
+  .then(() => ($tabs.hidden = false))
+  .catch((e) => {
     $app.innerHTML =
       e.status === 403
         ? `<div class="card empty">Нет доступа.<br>Твой Telegram ID: <b>${esc(e.data.userId)}</b><br>Передай его владельцу CRM.</div>`
         : e.status === 401
           ? `<div class="card empty">Открой приложение через бота в Telegram.</div>`
           : `<div class="card empty">Ошибка загрузки: ${esc(e.message)}</div>`;
-  }
-})();
+  });
