@@ -81,15 +81,18 @@ function openTelegram(nick) {
 }
 
 // ---------- bottom sheet ----------
-function openSheet(html, onMount) {
+function openSheet(html, onMount, { instant = false } = {}) {
+  const prevScroll = instant ? document.querySelector(".sheet")?.scrollTop || 0 : 0;
   closeSheet();
   const wrap = document.createElement("div");
-  wrap.className = "sheet-wrap";
+  wrap.className = "sheet-wrap" + (instant ? " open instant" : "");
   wrap.innerHTML = `<div class="sheet-backdrop"></div><div class="sheet"><div class="sheet-grip"></div>${html}</div>`;
   wrap.querySelector(".sheet-backdrop").onclick = closeSheet;
   document.body.append(wrap);
-  requestAnimationFrame(() => wrap.classList.add("open"));
-  onMount?.(wrap.querySelector(".sheet"));
+  if (!instant) requestAnimationFrame(() => wrap.classList.add("open"));
+  const sheet = wrap.querySelector(".sheet");
+  sheet.scrollTop = prevScroll;
+  onMount?.(sheet);
 }
 function closeSheet() {
   document.querySelector(".sheet-wrap")?.remove();
@@ -99,15 +102,39 @@ function closeSheet() {
 const statusPill = (status) => `<span class="pill st-${status}">${STATUS_SHORT[status]}</span>`;
 const stageBadge = (stage) => `<span class="badge s-${stage}">${STAGE_LABELS[stage] || stage}</span>`;
 
-function leadRow(lead, sub, right) {
-  return `<button class="row" data-open="${lead.id}">
+// Аватар: инициалы на градиенте, цвет стабилен для лида.
+const AVATAR_COLORS = [["#ff8a65", "#e8505b"], ["#4fc3f7", "#2481cc"], ["#81c784", "#2e9e5b"], ["#ba68c8", "#7a4fd0"], ["#ffb74d", "#d97f00"], ["#4db6ac", "#00897b"], ["#f06292", "#c2185b"], ["#7986cb", "#3949ab"]];
+function avatar(lead, size = 40) {
+  const name = (lead.fio || lead.telegram || "?").replace(/^@/, "");
+  const parts = name.split(/\s+/).filter(Boolean);
+  const initials = (parts.length > 1 ? parts[0][0] + parts[1][0] : name.slice(0, 2)).toUpperCase();
+  let h = 0;
+  for (const ch of lead.id || name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  const [a, b] = AVATAR_COLORS[h % AVATAR_COLORS.length];
+  return `<div class="avatar" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.38)}px;background:linear-gradient(135deg,${a},${b})">${esc(initials)}</div>`;
+}
+
+function leadRow(lead, sub, right, actions = "") {
+  return `<div class="row" data-open="${lead.id}" role="button" tabindex="0">
+    ${avatar(lead)}
     <div class="grow">
       <div class="title">${esc(leadTitle(lead))}</div>
       <div class="sub">${sub}</div>
+      ${actions ? `<div class="quick">${actions}</div>` : ""}
     </div>
     <div class="right">${right}</div>
-  </button>`;
+  </div>`;
 }
+
+// Быстрые кнопки «следующий шаг» прямо в списке: ЦД сделали, засчитали, счёт открыли.
+const NEXT_STATUS = { applied: "opened", opened: "done", done: "paid" };
+const NEXT_LABEL = { applied: "счёт ✓", opened: "ЦД ✓", done: "засчитано ✓" };
+const shortName = (n) => n.replace(/ — РКО$/, "").replace(/ — Регбиз$/, "").replace(/ Банк$/, "");
+const quickButtons = (lead, items, status, max = 3) =>
+  items
+    .slice(0, max)
+    .map((i) => `<button class="qbtn st-${NEXT_STATUS[status]}" data-quick="${lead.id}|${i.id}|${NEXT_STATUS[status]}">${esc(shortName(i.name))} · ${NEXT_LABEL[status]}</button>`)
+    .join("") + (items.length > max ? `<span class="qmore">+ ещё ${items.length - max}</span>` : "");
 
 function reportRows(m) {
   const s = state.settings;
@@ -164,36 +191,61 @@ function renderToday() {
   const dateText = new Date().toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
   const tasks = w.reminders.length + w.needCd.length + w.waiting.filter((x) => x.days >= 5).length;
 
+  const hour = new Date().getHours();
+  const hi = hour < 5 ? "Доброй ночи" : hour < 12 ? "Доброе утро" : hour < 18 ? "Добрый день" : "Добрый вечер";
+  const monthFrom = `${today.slice(0, 8)}01`;
+  const monthIncome = paid.filter((e) => e.day && e.day >= monthFrom && e.day <= today).reduce((s, e) => s + e.amount, 0);
+  const goal = state.settings.monthlyGoal || 0;
+  const pct = goal ? Math.min(100, Math.round((monthIncome / goal) * 100)) : 0;
+  const daysInMonth = new Date(+today.slice(0, 4), +today.slice(5, 7), 0).getDate();
+  const daysLeft = daysInMonth - +today.slice(8, 10) + 1;
+  const perDay = goal > monthIncome ? (goal - monthIncome) / daysLeft : 0;
+
   $app.innerHTML = `
-    <div class="hello">
-      <div>
-        <h1>Сегодня</h1>
-        <div class="sub">${esc(dateText)} · ${tasks ? `${tasks} ${plural(tasks, "задача", "задачи", "задач")}` : "срочного нет"}</div>
+    <div class="hero">
+      <div class="hero-top">
+        <div>
+          <div class="hero-hi">${hi}, ${esc((state.me.name || "").split(" ")[0])} 👋</div>
+          <div class="hero-date">${esc(dateText)} · ${tasks ? `${tasks} ${plural(tasks, "задача", "задачи", "задач")}` : "срочного нет"}</div>
+        </div>
+        <button class="btn round light" id="addLead" aria-label="Новый лид">＋</button>
       </div>
-      <button class="btn round" id="addLead" aria-label="Новый лид">＋</button>
+      <div class="hero-label">Засчитано в этом месяце</div>
+      <div class="hero-value">${rub(monthIncome)}</div>
+      ${
+        goal
+          ? `<div class="hero-bar"><i style="width:${pct}%"></i></div>
+             <div class="hero-foot"><span>${pct}% от плана ${rub(goal)}</span><span>${perDay ? `нужно ${rub(perDay)}/день` : "план выполнен 🔥"}</span></div>`
+          : `<div class="hero-foot"><span>${isAdmin() ? "Задай план на месяц: «Ещё» → «Расчёт»" : ""}</span></div>`
+      }
     </div>
 
     <div class="kpis">
-      <div class="kpi accent"><div class="label">Засчитано за 7 дней</div><div class="value">${rub(week)}</div>
+      <div class="kpi"><div class="label">За 7 дней</div><div class="value">${rub(week)}</div>
         <div class="hint">${!week && !prevWeek ? "считается по засчётам в CRM" : delta === null ? "чистыми ≈ " + rub(netOf(week, state.settings)) : `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta)}% к прошлой неделе`}</div></div>
       <div class="kpi"><div class="label">Ждём засчёта</div><div class="value">${rub(t.waiting)}</div><div class="hint">ЦД сделали, денег нет</div></div>
-      <div class="kpi"><div class="label">В работе</div><div class="value">${rub(t.inWork)}</div><div class="hint">заявки и открытые счета</div></div>
+      <div class="kpi wide"><div class="label">В работе</div><div class="value">${rub(t.inWork)}</div><div class="hint">заявки и открытые счета — столько можно дожать</div></div>
     </div>
+
+    ${section("⏰", "Сроки по офферам", w.dues, (d) =>
+      leadRow(d.lead, `${esc(d.name.replace(/ — РКО$/, ""))} · ${statusPill(d.status)}`, `<span class="badge ${d.overdue ? "warn" : ""}">${d.overdue ? "просрочено " : ""}${fmtDate(d.dueAt)}</span>`),
+      { max: 10 },
+    )}
 
     ${section("🔔", "Напоминания", w.reminders, (r) =>
       leadRow(r.lead, esc(r.lead.nextStep || "Без описания"), `<span class="badge ${r.overdue ? "warn" : ""}">${r.overdue ? "просрочено " + fmtDate(r.lead.remindAt) : "сегодня"}</span>`),
       { filter: "remind", max: 10 },
     )}
     ${section("🎯", "Нужна ЦД — счёт открыт", w.needCd, (x) =>
-      leadRow(x.lead, esc(x.items.map((i) => i.name.replace(/ — РКО$/, "")).join(", ")), `<b>${rub(x.sum)}</b>${x.days ? `<div class="sub">${x.days} дн.</div>` : ""}`),
+      leadRow(x.lead, "", `<b>${rub(x.sum)}</b>${x.days ? `<div class="sub">${x.days} дн.</div>` : ""}`, quickButtons(x.lead, x.items, "opened")),
       { empty: "Открытых счетов без ЦД нет", filter: "cd" },
     )}
     ${section("📞", "Ждут засчёта — пинать партнёрку", w.waiting, (x) =>
-      leadRow(x.lead, esc(x.items.map((i) => i.name.replace(/ — РКО$/, "")).join(", ")), `<b>${rub(x.sum)}</b>${x.days ? `<div class="sub ${x.days >= 5 ? "danger" : ""}">${x.days} дн.</div>` : ""}`),
+      leadRow(x.lead, "", `<b>${rub(x.sum)}</b>${x.days ? `<div class="sub ${x.days >= 5 ? "danger" : ""}">${x.days} дн.</div>` : ""}`, quickButtons(x.lead, x.items, "done")),
       { filter: "waiting" },
     )}
     ${section("📝", "Заявки заведены — довести до счёта", w.applied, (x) =>
-      leadRow(x.lead, esc(x.items.map((i) => i.name.replace(/ — РКО$/, "")).join(", ")), `<b>${rub(x.sum)}</b>${x.days ? `<div class="sub">${x.days} дн.</div>` : ""}`),
+      leadRow(x.lead, "", `<b>${rub(x.sum)}</b>${x.days ? `<div class="sub">${x.days} дн.</div>` : ""}`, quickButtons(x.lead, x.items, "applied")),
       { filter: "applied" },
     )}
     ${section("🐢", "Без движения 5+ дней", w.stale, (x) => leadRow(x.lead, `${stageBadge(x.lead.stage)} в работе ${rub(x.sum)}`, `<span class="danger">${x.days} дн.</span>`), { filter: "stale" })}
@@ -238,7 +290,7 @@ function filterLeads() {
   }[state.filter];
   const list = state.leads
     .filter(pass)
-    .filter((l) => !q || `${l.telegram} ${l.fio} ${l.source} ${l.nextStep || ""}`.toLowerCase().includes(q))
+    .filter((l) => !q || `${l.telegram} ${l.fio} ${l.phone || ""} ${l.source} ${l.nextStep || ""}`.toLowerCase().includes(q))
     .map((l) => ({ l, m: money(l) }));
   const sorters = {
     recent: (a, b) => b.l.updatedAt.localeCompare(a.l.updatedAt),
@@ -253,7 +305,7 @@ function renderLeads() {
   const list = filterLeads();
   $app.innerHTML = `
     <div class="toolbar">
-      <input id="q" type="search" placeholder="🔍 Ник, ФИО, источник" value="${esc(state.query)}" autocomplete="off">
+      <input id="q" type="search" placeholder="🔍 Ник, ФИО, телефон, источник" value="${esc(state.query)}" autocomplete="off">
       <button class="btn round" id="addLead" aria-label="Новый лид">＋</button>
     </div>
     <div class="chips">
@@ -302,13 +354,15 @@ function addLeadSheet() {
     `<h2 class="sheet-title">Новый лид</h2>
     <label class="field"><span>Telegram</span><input id="nTg" placeholder="@username" autocomplete="off" autocapitalize="off"></label>
     <label class="field"><span>ФИО</span><input id="nFio" placeholder="Можно потом"></label>
-    <label class="field"><span>Откуда пришёл</span><input id="nSrc" placeholder="YouTube, Reels, партнёр…" list="srcList"></label>
-    <datalist id="srcList">${sources.map((s) => `<option value="${esc(s)}">`).join("")}</datalist>
+    <label class="field"><span>Телефон</span><input id="nPhone" type="tel" placeholder="Можно потом"></label>
+    <label class="field"><span>Откуда пришёл</span><input id="nSrc" placeholder="YouTube, Reels, партнёр…"></label>
+    <div class="chips tight" style="margin-bottom:6px">${[...new Set([...sources, "YouTube", "Reels", "Telegram", "Сарафан", "Партнёр"])].slice(0, 8).map((x) => `<button class="chip" data-src="${esc(x)}">${esc(x)}</button>`).join("")}</div>
     <button class="btn block" id="nSave">Создать и открыть</button>`,
     (el) => {
       el.querySelector("#nTg").focus();
+      el.querySelectorAll("[data-src]").forEach((b) => (b.onclick = () => (el.querySelector("#nSrc").value = b.dataset.src)));
       el.querySelector("#nSave").onclick = async () => {
-        const body = { telegram: el.querySelector("#nTg").value, fio: el.querySelector("#nFio").value, source: el.querySelector("#nSrc").value };
+        const body = { telegram: el.querySelector("#nTg").value, fio: el.querySelector("#nFio").value, phone: el.querySelector("#nPhone").value, source: el.querySelector("#nSrc").value };
         if (!body.telegram.trim() && !body.fio.trim()) return toast("Нужен ник или ФИО");
         const dup = body.telegram && state.leads.find((l) => l.telegram.toLowerCase() === `@${body.telegram.replace(/^@/, "")}`.toLowerCase());
         if (dup && !(await confirmDialog(`${dup.telegram} уже есть в базе. Всё равно создать?`))) return;
@@ -341,12 +395,20 @@ function renderLead() {
   const dead = touched.filter(isDead);
 
   $app.innerHTML = `
-    <div class="lead-head">
-      <div class="grow">
-        <h1>${esc(leadTitle(lead))}</h1>
-        <div class="sub">${[lead.telegram && lead.fio ? esc(lead.fio) : "", lead.source ? "из " + esc(lead.source) : "", isAdmin() && lead.ownerName ? "ведёт " + esc(lead.ownerName) : ""].filter(Boolean).join(" · ")}</div>
+    <div class="lead-card">
+      <div class="lead-head">
+        ${avatar(lead, 56)}
+        <div class="grow">
+          <h1>${esc(leadTitle(lead))}</h1>
+          <div class="sub">${[lead.telegram && lead.fio ? esc(lead.fio) : "", lead.source ? "из " + esc(lead.source) : "", isAdmin() && lead.ownerName ? "ведёт " + esc(lead.ownerName) : ""].filter(Boolean).join(" · ")}</div>
+        </div>
       </div>
-      ${nick ? `<button class="btn ghost" id="write">✉️ Написать</button>` : ""}
+      <div class="actions">
+        ${nick ? `<button class="action" id="write"><span>✉️</span>Написать</button>` : ""}
+        <button class="action" id="tpl"><span>💬</span>Шаблоны</button>
+        ${lead.phone ? `<a class="action" href="tel:${esc(lead.phone.replace(/[^\d+]/g, ""))}"><span>📞</span>Позвонить</a>` : ""}
+        <button class="action" id="pay"><span>💵</span>Выплата</button>
+      </div>
     </div>
 
     <div class="chips stages">
@@ -358,6 +420,7 @@ function renderLead() {
       <div class="kpi"><div class="label">В работе</div><div class="value money-orange">${rub(m.inWork)}</div></div>
       <div class="kpi"><div class="label">Ждём засчёта</div><div class="value">${rub(m.waiting)}</div></div>
     </div>
+    ${lead.payout ? `<div class="sub" style="margin:8px 4px 0">💵 Выплачено лиду: <b>${rub(lead.payout)}</b></div>` : ""}
 
     <h2>Следующий шаг</h2>
     <div class="card next">
@@ -383,6 +446,7 @@ function renderLead() {
       <div class="card flat">
         <label class="field"><span>Telegram</span><input data-f="telegram" value="${esc(lead.telegram)}" placeholder="@username"></label>
         <label class="field"><span>ФИО</span><input data-f="fio" value="${esc(lead.fio)}"></label>
+        <label class="field"><span>Телефон</span><input data-f="phone" type="tel" value="${esc(lead.phone || "")}" placeholder="+7…"></label>
         <label class="field"><span>Источник</span><input data-f="source" value="${esc(lead.source)}" placeholder="YouTube, Reels, партнёр…"></label>
         <label class="field"><span>Выплачено лиду, ₽</span><input data-f="payout" type="number" inputmode="decimal" min="0" value="${lead.payout || 0}"></label>
         <label class="field"><span>Заметки</span><textarea data-f="note" placeholder="Что обсудили, нюансы">${esc(lead.note)}</textarea></label>
@@ -406,6 +470,11 @@ function renderLead() {
     ${isAdmin() ? `<button class="btn danger" id="del">Удалить лида</button>` : ""}`;
 
   document.getElementById("write")?.addEventListener("click", () => openTelegram(lead.telegram));
+  document.getElementById("tpl").onclick = () => templatesSheet(lead);
+  document.getElementById("pay").onclick = () => {
+    const v = Number((window.prompt(`Сколько выплатили лиду, ₽?${lead.payout ? ` Уже выплачено ${rub(lead.payout)}.` : ""}`) || "").replace(",", "."));
+    if (v > 0) saveLead(lead.id, { addPayout: v }, `💵 Выплата +${rub(v)}`);
+  };
   $app.querySelectorAll("[data-stage]").forEach((b) => (b.onclick = () => b.dataset.stage !== lead.stage && saveLead(lead.id, { stage: b.dataset.stage })));
   const $next = document.getElementById("nextStep");
   $next.addEventListener("change", () => saveLead(lead.id, { nextStep: $next.value }));
@@ -421,7 +490,7 @@ function renderLead() {
 const offerRowHtml = ({ id, lo, o }) => `<button class="row" data-offer="${id}">
   <div class="grow"><div class="title">${esc(o.name)}</div>
     <div class="sub">${[o.partner, lo.comment].filter(Boolean).map(esc).join(" · ")}</div></div>
-  <div class="right">${statusPill(lo.status)}<div class="sub">${rub(lo.amount)}${lo.changedAt ? " · " + fmtDate(lo.changedAt.slice(0, 10)) : ""}</div></div>
+  <div class="right">${statusPill(lo.status)}<div class="sub">${lo.dueAt ? `<span class="${lo.dueAt <= todayKey() ? "danger" : ""}">⏰ ${fmtDate(lo.dueAt)}</span> · ` : ""}${rub(lo.amount)}${lo.cost ? ` · −${short(lo.cost)}` : ""}</div></div>
 </button>`;
 
 const addLocal = (days) => {
@@ -430,35 +499,151 @@ const addLocal = (days) => {
   return localKey(d);
 };
 
-function offerSheet(lead, offerId) {
+const COMMENT_PRESETS = () => [`ЛК ${state.settings.partnerName}`, "ЛК Пети", "Провели ", "Маскировка", "Отчёт в конце месяца", "Дорег"];
+const COST_STEPS = [20, 50, 100, 500, 1000];
+
+function offerSheet(lead, offerId, opts) {
   const o = offerById(offerId);
-  const lo = lead.offers[offerId] || { status: "none", amount: o.amount, cost: o.cost || 0, comment: "" };
+  const lo = lead.offers[offerId] || { status: "none", amount: o.amount, cost: o.cost || 0, comment: "", dueAt: "" };
+  const save = async (patch, okText) => {
+    const updated = await saveLead(lead.id, { offers: { [offerId]: patch } }, okText);
+    if (updated) offerSheet(updated, offerId, { instant: true });
+  };
   openSheet(
-    `<h2 class="sheet-title">${esc(o.name)}</h2>
-    <div class="sub" style="margin:-6px 4px 12px">${[o.partner, CATEGORY_LABELS[o.category], o.note].filter(Boolean).map(esc).join(" · ")}</div>
+    `<div class="sheet-head">
+      <div><h2 class="sheet-title">${esc(o.name)}</h2>
+      <div class="sub">${[o.partner, CATEGORY_LABELS[o.category], o.note].filter(Boolean).map(esc).join(" · ")}</div></div>
+      <button class="btn small" id="oDone">Готово</button>
+    </div>
+
+    <div class="sheet-label">Статус</div>
     <div class="status-grid">
-      ${QUICK_STATUSES.map((s) => `<button class="status-btn st-${s} ${lo.status === s ? "current" : ""}" data-set="${s}">${STATUS_LABELS[s]}</button>`).join("")}
+      ${QUICK_STATUSES.map((st) => `<button class="status-btn st-${st} ${lo.status === st ? "current" : ""}" data-set="${st}">${lo.status === st ? "● " : ""}${STATUS_LABELS[st]}</button>`).join("")}
     </div>
-    <div class="two">
-      <label class="field"><span>Ставка, ₽</span><input id="oAmount" type="number" inputmode="decimal" value="${lo.amount}"></label>
-      <label class="field"><span>Затраты, ₽</span><input id="oCost" type="number" inputmode="decimal" value="${lo.cost || 0}"></label>
+
+    <div class="sheet-label">Деньги</div>
+    <div class="card">
+      <div class="two">
+        <label class="field"><span>Ставка, ₽</span><input id="oAmount" type="number" inputmode="decimal" value="${lo.amount}"></label>
+        <label class="field"><span>Затраты всего, ₽</span><input id="oCost" type="number" inputmode="decimal" value="${lo.cost || 0}"></label>
+      </div>
+      <div class="sub" style="margin:2px 4px 6px">Добавить затрату (комиссия, тариф, маскировка):</div>
+      <div class="chips tight">
+        ${COST_STEPS.map((c) => `<button class="chip" data-addcost="${c}">+${c}</button>`).join("")}
+        <button class="chip" data-addcost="?">+ своя</button>
+      </div>
     </div>
-    <label class="field"><span>Комментарий</span><input id="oComment" value="${esc(lo.comment || "")}" placeholder="«Провели 2300», «ЛК ${esc(state.settings.partnerName)}»"></label>
-    <button class="btn block" id="oSave">Сохранить ставку и комментарий</button>`,
+
+    <div class="sheet-label">Комментарий</div>
+    <div class="card">
+      <input id="oComment" value="${esc(lo.comment || "")}" placeholder="Провели 2300, ЛК Дамира…">
+      <div class="chips tight">${COMMENT_PRESETS().map((c) => `<button class="chip" data-preset="${esc(c)}">${esc(c.trim())}</button>`).join("")}</div>
+    </div>
+
+    <div class="sheet-label">Срок ${lo.dueAt ? `· <b>${fmtDate(lo.dueAt)}</b>` : ""}</div>
+    <div class="card">
+      <div class="sub" style="margin:0 4px 6px">Когда вернуться к офферу: конец маскировки, отчёт банка, встреча. Всплывёт в «Сегодня» и в утренней сводке.</div>
+      <div class="chips tight">
+        ${[["1", "Завтра"], ["3", "3 дня"], ["5", "5 дней · маскировка"], ["7", "Неделя"]].map(([d, label]) => `<button class="chip ${lo.dueAt === addLocal(+d) ? "active" : ""}" data-due="${d}">${label}</button>`).join("")}
+        <label class="chip date-chip">📅 Дата<input type="date" id="oDue" value="${lo.dueAt || ""}"></label>
+        ${lo.dueAt ? `<button class="chip danger-chip" data-due="">✕ Убрать</button>` : ""}
+      </div>
+    </div>`,
     (el) => {
+      el.querySelector("#oDone").onclick = closeSheet;
       el.querySelectorAll("[data-set]").forEach(
         (b) =>
           (b.onclick = () => {
-            closeSheet();
-            if (b.dataset.set !== lo.status) saveLead(lead.id, { offers: { [offerId]: { status: b.dataset.set } } }, `${o.name.replace(/ — РКО$/, "")}: ${STATUS_SHORT[b.dataset.set]}`);
+            if (b.dataset.set === lo.status) return;
+            const label = `${o.name.replace(/ — РКО$/, "")}: ${STATUS_SHORT[b.dataset.set]}`;
+            if (b.dataset.set === "paid") celebrate(lo.amount);
+            save({ status: b.dataset.set }, label);
           }),
       );
-      el.querySelector("#oSave").onclick = () => {
-        closeSheet();
-        saveLead(lead.id, { offers: { [offerId]: { amount: el.querySelector("#oAmount").value, cost: el.querySelector("#oCost").value, comment: el.querySelector("#oComment").value } } }, "Сохранено");
-      };
+      el.querySelector("#oAmount").onchange = (e) => save({ amount: e.target.value }, "Ставка сохранена");
+      el.querySelector("#oCost").onchange = (e) => save({ cost: e.target.value }, "Затраты сохранены");
+      el.querySelectorAll("[data-addcost]").forEach(
+        (b) =>
+          (b.onclick = () => {
+            const v = b.dataset.addcost === "?" ? Number((window.prompt("Сколько добавить к затратам, ₽?") || "").replace(",", ".")) : +b.dataset.addcost;
+            if (v > 0) save({ addCost: v }, `Затраты +${v} ₽`);
+          }),
+      );
+      const $c = el.querySelector("#oComment");
+      $c.onchange = () => save({ comment: $c.value }, "Комментарий сохранён");
+      el.querySelectorAll("[data-preset]").forEach(
+        (b) =>
+          (b.onclick = () => {
+            const p = b.dataset.preset;
+            if (p.endsWith(" ")) {
+              $c.value = ($c.value ? $c.value + ", " : "") + p;
+              $c.focus();
+              return;
+            }
+            save({ comment: $c.value ? `${$c.value}, ${p}` : p }, "Комментарий сохранён");
+          }),
+      );
+      el.querySelectorAll("[data-due]").forEach((b) => (b.onclick = () => save({ dueAt: b.dataset.due === "" ? "" : addLocal(+b.dataset.due) }, b.dataset.due === "" ? "Срок убран" : `⏰ Срок ${fmtDate(addLocal(+b.dataset.due))}`)));
+      el.querySelector("#oDue").onchange = (e) => e.target.value && save({ dueAt: e.target.value }, `⏰ Срок ${fmtDate(e.target.value)}`);
     },
+    opts,
   );
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.append(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  }
+}
+
+function templatesSheet(lead) {
+  const list = state.settings.templates || [];
+  openSheet(
+    `<h2 class="sheet-title">Шаблоны сообщений</h2>
+    <div class="sub" style="margin:-6px 4px 10px">Тап — текст скопируется${lead.telegram?.startsWith("@") ? " и откроется чат с " + esc(lead.telegram) : ""}. Останется вставить.</div>
+    <div class="list">${list.map((t, i) => `<button class="row tpl" data-tpl="${i}"><div class="grow">${esc(t)}</div></button>`).join("") || `<div class="empty small">Шаблонов нет — добавь в «Ещё» → «Шаблоны»</div>`}</div>`,
+    (el) =>
+      el.querySelectorAll("[data-tpl]").forEach(
+        (b) =>
+          (b.onclick = async () => {
+            const ok = await copyText(list[+b.dataset.tpl]);
+            closeSheet();
+            toast(ok ? "Скопировано — вставь в чат" : "Не удалось скопировать");
+            if (ok && lead.telegram?.startsWith("@")) setTimeout(() => openTelegram(lead.telegram), 400);
+          }),
+      ),
+  );
+}
+
+// Салют на засчёт: деньги должны радовать.
+function celebrate(amount) {
+  haptic("heavy");
+  tg?.HapticFeedback?.notificationOccurred?.("success");
+  const box = document.createElement("div");
+  box.className = "confetti";
+  for (let i = 0; i < 18; i++) {
+    const p = document.createElement("span");
+    p.textContent = ["💸", "💰", "🔥", "✨"][i % 4];
+    p.style.left = `${10 + Math.random() * 80}%`;
+    p.style.animationDelay = `${Math.random() * 0.25}s`;
+    p.style.setProperty("--dx", `${(Math.random() - 0.5) * 160}px`);
+    box.append(p);
+  }
+  const big = document.createElement("div");
+  big.className = "confetti-sum";
+  big.textContent = `+${rub(amount)}`;
+  box.append(big);
+  document.body.append(box);
+  setTimeout(() => box.remove(), 1800);
 }
 
 function addOfferSheet(lead) {
@@ -495,8 +680,10 @@ async function saveLead(id, patch, okText) {
     const scroll = window.scrollY;
     render();
     window.scrollTo(0, scroll);
+    return updated;
   } catch (e) {
     toast(`Не сохранилось: ${e.message}`);
+    return null;
   }
 }
 
@@ -663,12 +850,14 @@ function renderMore() {
   if (state.more === "settings") return renderSettings();
   if (state.more === "team") return renderTeam();
   if (state.more === "data") return renderData();
+  if (state.more === "templates") return renderTemplates();
   const items = [
     ["offers", "🏦", "Офферы и ставки", isAdmin() ? "Каталог банков и МФО" : "Каталог банков и МФО (просмотр)"],
     ...(isAdmin()
       ? [
           ["data", "💾", "Бэкап и выгрузка", "Файлы со всеми лидами в Telegram, импорт"],
-          ["settings", "🧮", "Расчёт", `${state.settings.partnerName} ${state.settings.partnerShare}% · налог ${state.settings.taxRate}%`],
+          ["settings", "🧮", "Расчёт и план", `${state.settings.partnerName} ${state.settings.partnerShare}% · налог ${state.settings.taxRate}%${state.settings.monthlyGoal ? ` · план ${rub(state.settings.monthlyGoal)}` : ""}`],
+          ["templates", "💬", "Шаблоны сообщений", `${(state.settings.templates || []).length} шт. — копируются в один тап из карточки лида`],
           ["team", "👥", "Команда", "Кто имеет доступ"],
         ]
       : []),
@@ -745,6 +934,36 @@ function renderData() {
   };
 }
 
+function renderTemplates() {
+  const list = [...(state.settings.templates || [])];
+  $app.innerHTML = `
+    <h1>Шаблоны сообщений</h1>
+    <div class="sub" style="margin:0 4px 10px">Тексты, которые Дамир чаще всего пишет лидам. В карточке лида «💬 Шаблоны» → тап → скопировано и открыт чат.</div>
+    <div id="tplList">${list.map((t, i) => `<div class="card tpl-edit"><textarea data-i="${i}">${esc(t)}</textarea><button class="chip danger-chip" data-del="${i}">Удалить</button></div>`).join("")}</div>
+    <button class="btn ghost block" id="tplAdd">＋ Добавить шаблон</button>
+    <button class="btn block" id="tplSave">Сохранить</button>`;
+  const collect = () => [...$app.querySelectorAll("textarea[data-i]")].map((t) => t.value);
+  $app.querySelectorAll("[data-del]").forEach((b) => (b.onclick = () => {
+    state.settings.templates = collect().filter((_, i) => i !== +b.dataset.del);
+    renderTemplates();
+  }));
+  document.getElementById("tplAdd").onclick = () => {
+    state.settings.templates = [...collect(), ""];
+    renderTemplates();
+    $app.querySelector("textarea[data-i]:last-of-type")?.focus();
+  };
+  document.getElementById("tplSave").onclick = async () => {
+    try {
+      state.settings = await api("PUT", "/settings", { templates: collect() });
+      haptic("medium");
+      toast("Шаблоны сохранены");
+      renderTemplates();
+    } catch (e) {
+      toast(`Ошибка: ${e.message}`);
+    }
+  };
+}
+
 function renderSettings() {
   const s = state.settings;
   $app.innerHTML = `
@@ -755,7 +974,8 @@ function renderSettings() {
         <label class="field"><span>Доля партнёра, %</span><input id="sShare" type="number" inputmode="decimal" value="${s.partnerShare}"></label>
         <label class="field"><span>Налог, %</span><input id="sTax" type="number" inputmode="decimal" value="${s.taxRate}"></label>
       </div>
-      <div class="sub" style="margin:4px 4px 10px">Чистая = доход − налог − доля партнёра от (доход − налог) − затраты − выплачено лиду</div>
+      <label class="field"><span>План засчитанного дохода на месяц, ₽</span><input id="sGoal" type="number" inputmode="decimal" value="${s.monthlyGoal || ""}" placeholder="Например, 500000"></label>
+      <div class="sub" style="margin:4px 4px 10px">Чистая = доход − налог − доля партнёра от (доход − налог) − затраты − выплачено лиду. План показывается прогресс-баром на «Сегодня».</div>
       <button class="btn block" id="saveSettings">Сохранить</button>
     </div>`;
   document.getElementById("saveSettings").onclick = async () => {
@@ -764,6 +984,7 @@ function renderSettings() {
         partnerName: document.getElementById("sName").value,
         partnerShare: Number(document.getElementById("sShare").value),
         taxRate: Number(document.getElementById("sTax").value),
+        monthlyGoal: Number(document.getElementById("sGoal").value || 0),
       });
       haptic("medium");
       toast("Расчёт сохранён");
@@ -880,6 +1101,15 @@ async function renderTeam() {
 
 // ---------- wiring ----------
 $app.addEventListener("click", (e) => {
+  const quick = e.target.closest("[data-quick]");
+  if (quick) {
+    const [leadId, offerId, status] = quick.dataset.quick.split("|");
+    const lead = state.leads.find((l) => l.id === leadId);
+    const o = offerById(offerId);
+    if (status === "paid") celebrate(lead?.offers[offerId]?.amount || 0);
+    quick.disabled = true;
+    return saveLead(leadId, { offers: { [offerId]: { status } } }, `${leadTitle(lead)} · ${o.name.replace(/ — РКО$/, "")}: ${STATUS_SHORT[status]}`);
+  }
   const open = e.target.closest("[data-open]");
   if (open) return go({ leadId: open.dataset.open });
   const jump = e.target.closest("[data-goto]");

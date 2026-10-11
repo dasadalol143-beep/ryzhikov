@@ -18,6 +18,7 @@ export function worklist(leads, offers, now = Date.now()) {
   const waiting = [];
   const applied = [];
   const stale = [];
+  const dues = [];
 
   for (const lead of leads) {
     const active = ACTIVE_STAGES.has(lead.stage);
@@ -25,6 +26,9 @@ export function worklist(leads, offers, now = Date.now()) {
 
     const by = { opened: [], done: [], applied: [] };
     for (const [id, lo] of Object.entries(lead.offers || {})) {
+      if (lo.dueAt && lo.dueAt <= today && !["paid", "rejected", "exists"].includes(lo.status)) {
+        dues.push({ lead, id, name: offerName(offers, id), status: lo.status, amount: lo.amount, dueAt: lo.dueAt, overdue: lo.dueAt < today });
+      }
       if (by[lo.status]) by[lo.status].push({ id, name: offerName(offers, id), amount: lo.amount, days: daysSince(lo.changedAt, now) });
     }
     const sum = (items) => items.reduce((s, i) => s + i.amount, 0);
@@ -40,6 +44,7 @@ export function worklist(leads, offers, now = Date.now()) {
 
   const bySum = (a, b) => b.sum - a.sum;
   return {
+    dues: dues.sort((a, b) => a.dueAt.localeCompare(b.dueAt)),
     reminders: reminders.sort((a, b) => (a.lead.remindAt || "").localeCompare(b.lead.remindAt || "")),
     needCd: needCd.sort(bySum),
     waiting: waiting.sort((a, b) => b.days - a.days || b.sum - a.sum),

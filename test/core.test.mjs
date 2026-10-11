@@ -113,7 +113,7 @@ test("settings and import (upsert by telegram)", async () => {
 
   assert.equal((await manager("PUT", "/settings", { partnerShare: 20 })).status, 403);
   const s = await admin("PUT", "/settings", { partnerShare: 25, taxRate: 500 });
-  assert.deepEqual(s.body, { taxRate: 7, partnerShare: 25, partnerName: "Дамир" });
+  assert.deepEqual([s.body.taxRate, s.body.partnerShare, s.body.partnerName, s.body.templates.length], [7, 25, "Дамир", 5]);
 
   assert.equal((await manager("POST", "/import", { leads: [] })).status, 403);
   const first = await admin("POST", "/import", {
@@ -253,4 +253,23 @@ test("import keeps spreadsheet offers undated; backup re-import keeps real dates
   await store.setJSON("leads/00000000-0000-0000-0000-000000000001", { id: "00000000-0000-0000-0000-000000000001", telegram: "@legacy", stage: "offers", ownerId: 1, createdAt: t, updatedAt: t, offers: { alfa: { status: "paid", amount: 1, changedAt: "2026-10-11T19:30:00.120Z" } } });
   const legacy = (await admin("GET", "/state")).body.leads.find((l) => l.telegram === "@legacy");
   assert.equal(legacy.offers.alfa.changedAt, undefined);
+});
+
+test("quick entry: add costs and payouts in parts, offer due date, phone", async () => {
+  const handle = createHandler({ store: memoryStore(), env });
+  const damir = client(handle, { id: 1, first_name: "Дамир" });
+  const lead = (await damir("POST", "/leads", { telegram: "@x", phone: "+7 900 000-00-00" })).body;
+  assert.equal(lead.phone, "+7 900 000-00-00");
+
+  await damir("PATCH", `/leads/${lead.id}`, { offers: { zaymer: { status: "applied" } } });
+  await damir("PATCH", `/leads/${lead.id}`, { offers: { zaymer: { addCost: 50 } } });
+  let l = (await damir("PATCH", `/leads/${lead.id}`, { offers: { zaymer: { addCost: "100", dueAt: "2026-10-16" } } })).body;
+  assert.equal(l.offers.zaymer.cost, 20 + 50 + 100);
+  assert.equal(l.offers.zaymer.dueAt, "2026-10-16");
+  assert.equal(l.history[0].text, "Займер: затраты +100 ₽ (итого 170 ₽)");
+
+  await damir("PATCH", `/leads/${lead.id}`, { addPayout: 1000 });
+  l = (await damir("PATCH", `/leads/${lead.id}`, { addPayout: 500 })).body;
+  assert.equal(l.payout, 1500);
+  assert.equal((await damir("PATCH", `/leads/${lead.id}`, { offers: { zaymer: { dueAt: "потом" } } })).body.offers.zaymer.dueAt, "2026-10-16");
 });

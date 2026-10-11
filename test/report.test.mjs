@@ -45,9 +45,9 @@ test("digest has yesterday's money and today's tasks, HTML-escaped", () => {
 
 test("CSV opens in Excel: BOM, semicolons, totals row", () => {
   const { leadsCsv, offersCsv } = buildCsvs(leads, DEFAULT_OFFERS, DEFAULT_SETTINGS);
-  assert.ok(leadsCsv.startsWith("﻿Лид;ФИО;Этап"));
-  assert.match(leadsCsv, /\n@V1dar851;Стариков;Докрутка;;11000;0;/);
-  assert.match(leadsCsv, /\nИТОГО;;;;11000;/);
+  assert.ok(leadsCsv.startsWith("\uFEFFЛид;ФИО;Телефон;Этап"));
+  assert.match(leadsCsv, /\n@V1dar851;Стариков;;Докрутка;;11000;0;/);
+  assert.match(leadsCsv, /\nИТОГО;;;;;11000;/);
   assert.match(offersCsv, /@V1dar851;Стариков;ВТБ — РКО;РКО;Бизнес Система;Счёт открыт · нужна ЦД;7000/);
 });
 
@@ -81,4 +81,11 @@ test("backup is three files", async () => {
   const tg = fakeTelegram();
   await sendBackup(tg, 1, leads, DEFAULT_OFFERS, DEFAULT_SETTINGS, new Date(NOW));
   assert.deepEqual(tg.sent.map((s) => s.filename), ["crm-backup-2026-10-12.json", "leads-2026-10-12.csv", "offers-2026-10-12.csv"]);
+});
+
+test("offer due dates show up in the worklist and the digest", () => {
+  const withDue = [{ ...leads[1], offers: { psb: { status: "applied", amount: 7500, dueAt: "2026-10-11" } } }];
+  const w = worklist(withDue, DEFAULT_OFFERS, NOW);
+  assert.deepEqual(w.dues.map((d) => [d.name, d.overdue]), [["ПСБ — РКО", true]]);
+  assert.match(buildDigest(withDue, DEFAULT_OFFERS, DEFAULT_SETTINGS, NOW), /Сроки по офферам \(1\)[\s\S]*ПСБ — РКО ⚠️ просрочено/);
 });
