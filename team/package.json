@@ -1,0 +1,15 @@
+{
+  "name": "ryzhikov-team",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.149.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

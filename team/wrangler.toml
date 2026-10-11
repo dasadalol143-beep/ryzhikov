@@ -1,0 +1,26 @@
+name = "ryzhikov-team"
+main = "worker/index.mjs"
+compatibility_date = "2026-09-01"
+compatibility_flags = ["nodejs_compat"]
+# Не затирать переменные, добавленные в дашборде Cloudflare.
+keep_vars = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# База команды (D1 = SQLite). Без database_id wrangler сам создаст базу при первом деплое.
+[[d1_databases]]
+binding = "DB"
+database_name = "ryzhikov-team"
+
+# Каждую минуту — напоминания о созвонах; 05:57 UTC = 08:57 МСК — утренний план; 18:00 UTC = 21:00 МСК — кто не закрыл день.
+[triggers]
+crons = ["* * * * *", "57 5 * * *", "0 18 * * *"]
+
+[vars]
+APP_URL = "https://ryzhikov-team.dasadalol143.workers.dev/"
+# Собственники: всегда полный доступ. Остальных добавляешь в приложении → «Команда».
+OWNER_IDS = "1971711686"
+
+# BOT_TOKEN — секрет: `npx wrangler secret put BOT_TOKEN` или в дашборде Cloudflare.
