@@ -102,6 +102,7 @@ details.cat[open] .list { border-radius: 0 0 var(--radius) var(--radius); }
 .offer-edit label.check { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--hint); }
 .offer-edit label.check input { width: auto; }
 
+#tabs[hidden] { display: none; }
 #tabs {
   position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--bg);
   border-top: 1px solid var(--bg2); padding-bottom: env(safe-area-inset-bottom);

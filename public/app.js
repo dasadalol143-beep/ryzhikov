@@ -20,6 +20,12 @@ const STATUS_LABELS = {
   rejected: "Отказ",
   exists: "Уже есть / дубль",
 };
+const AUTH_ERRORS = {
+  no_bot_token: "На сервере не задан токен бота (BOT_TOKEN в Cloudflare).",
+  bad_signature: "Токен бота на сервере не совпадает с ботом. Проверь BOT_TOKEN в Cloudflare.",
+  no_init_data: "Открой приложение кнопкой CRM в боте Telegram.",
+  expired: "Сессия устарела — закрой и открой приложение заново.",
+};
 const CATEGORY_LABELS = { rko: "РКО", mfo: "МФО", debit: "Дебетовые карты", credit: "Кредитные карты" };
 
 const state = {
@@ -538,6 +544,6 @@ reload()
       e.status === 403
         ? `<div class="card empty">Нет доступа.<br>Твой Telegram ID: <b>${esc(e.data.userId)}</b><br>Передай его владельцу CRM.</div>`
         : e.status === 401
-          ? `<div class="card empty">Открой приложение через бота в Telegram.</div>`
+          ? `<div class="card empty">${esc(AUTH_ERRORS[e.data.reason] || "Открой приложение через бота в Telegram.")}<br><span style="font-size:12px">код: ${esc(e.data.reason || "—")}</span></div>`
           : `<div class="card empty">Ошибка загрузки: ${esc(e.message)}</div>`;
   });

@@ -162,3 +162,12 @@ test("DEV_MODE gives admin access only without initData", async () => {
   assert.equal(res.status, 200);
   assert.equal(res.body.me.role, "admin");
 });
+
+test("401 explains why: missing token vs bad signature", async () => {
+  const noToken = createHandler({ store: memoryStore(), env: { ADMIN_IDS: "1" } });
+  assert.equal((await client(noToken, { id: 1, first_name: "П" })("GET", "/state")).body.reason, "no_bot_token");
+  const other = createHandler({ store: memoryStore(), env: { ...env, BOT_TOKEN: "999:OTHER" } });
+  const res = await client(other, { id: 1, first_name: "П" })("GET", "/state");
+  assert.equal(res.status, 401);
+  assert.equal(res.body.reason, "bad_signature");
+});
