@@ -171,3 +171,30 @@ test("401 explains why: missing token vs bad signature", async () => {
   assert.equal(res.status, 401);
   assert.equal(res.body.reason, "bad_signature");
 });
+
+test("access from the app: stranger lands in pending, admin grants a role", async () => {
+  const handle = createHandler({ store: memoryStore(), env });
+  const admin = client(handle, { id: 1, first_name: "Пётр" });
+  const damir = client(handle, { id: 777, first_name: "Дамир", username: "damir" });
+  const manager = client(handle, { id: 2, first_name: "Слава" });
+
+  assert.equal((await damir("GET", "/state")).status, 403);
+  let access = (await admin("GET", "/access")).body;
+  assert.deepEqual(access.pending.map((p) => [p.id, p.name, p.username]), [[777, "Дамир", "damir"]]);
+  assert.ok(access.fixed.find((f) => f.id === 1 && f.role === "admin"));
+
+  assert.equal((await manager("GET", "/access")).status, 403);
+  assert.equal((await admin("PUT", "/access", { id: 1, role: "manager" })).body.error, "fixed_in_config");
+
+  access = (await admin("PUT", "/access", { id: 777, role: "admin" })).body;
+  assert.equal(access.pending.length, 0);
+  assert.deepEqual(access.users.map((u) => [u.id, u.role, u.name]), [[777, "admin", "Дамир"]]);
+
+  const st = await damir("GET", "/state");
+  assert.equal(st.status, 200);
+  assert.equal(st.body.me.role, "admin");
+  assert.equal((await damir("POST", "/leads", { telegram: "@newlead" })).status, 201);
+
+  await admin("PUT", "/access", { id: 777, role: null });
+  assert.equal((await damir("GET", "/state")).status, 403);
+});

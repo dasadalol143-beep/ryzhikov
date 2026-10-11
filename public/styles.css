@@ -116,3 +116,6 @@ details.cat[open] .list { border-radius: 0 0 var(--radius) var(--radius); }
 .offer-row.compact .head { grid-column: 1; }
 .offer-row.compact .title { font-weight: 500; }
 .offer-row.compact select { color: var(--link); }
+
+.row .chip { background: var(--bg2); }
+.row .chip[data-role="admin"] { background: var(--btn); color: var(--btn-text); }

@@ -109,6 +109,7 @@ function render() {
   if (state.tab === "dashboard") return renderDashboard();
   if (state.tab === "leads") return renderLeads();
   if (state.tab === "offers") return renderOffers();
+  if (state.tab === "team") return renderTeam();
 }
 
 function leadRow(lead, right) {
@@ -450,6 +451,70 @@ function renderOffers() {
   };
 }
 
+const ROLE_LABELS = { admin: "Админ", manager: "Менеджер" };
+
+async function renderTeam() {
+  $app.innerHTML = `<div class="loader">Загрузка…</div>`;
+  let access;
+  try {
+    access = await api("GET", "/access");
+  } catch (e) {
+    $app.innerHTML = `<div class="card empty">Ошибка: ${esc(e.message)}</div>`;
+    return;
+  }
+  if (state.tab !== "team" || state.leadId) return;
+  const who = (u) =>
+    `<div class="grow"><div class="title">${esc(u.name || "Без имени")}</div>
+      <div class="sub">${u.username ? "@" + esc(u.username) + " · " : ""}ID ${u.id}</div></div>`;
+  const buttons = (u, current) =>
+    `<div class="right" style="display:flex;gap:6px">
+      ${Object.entries(ROLE_LABELS)
+        .filter(([r]) => r !== current)
+        .map(([r, label]) => `<button class="chip" data-grant="${u.id}" data-role="${r}">${label}</button>`)
+        .join("")}
+      <button class="chip" data-grant="${u.id}" data-role="" style="color:var(--danger)">✕</button>
+    </div>`;
+
+  $app.innerHTML = `
+    <h1>Команда</h1>
+    <div class="sub" style="color:var(--hint);font-size:13px;margin:0 4px 8px">
+      Новый человек открывает бота и жмёт CRM — он появится в «Ждут доступа». Админ видит всех лидов и всё настраивает, менеджер — только своих лидов.
+    </div>
+    <h2>Ждут доступа</h2>
+    ${
+      access.pending.length
+        ? `<div class="list">${access.pending.map((u) => `<div class="row">${who(u)}${buttons(u)}</div>`).join("")}</div>`
+        : `<div class="card empty">Никто не ждёт</div>`
+    }
+    <h2>Выдан доступ</h2>
+    ${
+      access.users.length
+        ? `<div class="list">${access.users
+            .map((u) => `<div class="row">${who(u)}<span class="badge">${ROLE_LABELS[u.role]}</span>${buttons(u, u.role)}</div>`)
+            .join("")}</div>`
+        : `<div class="card empty">Пока никого</div>`
+    }
+    ${access.fixed.length ? `<h2>Владельцы (из настроек сервера)</h2>` : ""}
+    <div class="list">${access.fixed
+      .map((u) => `<div class="row"><div class="grow">ID ${u.id}${u.id === state.me.id ? " — это ты" : ""}</div><span class="badge">${ROLE_LABELS[u.role]}</span></div>`)
+      .join("")}</div>`;
+
+  $app.querySelectorAll("[data-grant]").forEach((btn) =>
+    btn.addEventListener("click", async () => {
+      const role = btn.dataset.role || null;
+      if (!role && !(await confirmDialog("Убрать доступ?"))) return;
+      try {
+        await api("PUT", "/access", { id: Number(btn.dataset.grant), role });
+        haptic("medium");
+        toast(role ? `Выдан доступ: ${ROLE_LABELS[role]}` : "Доступ убран");
+        renderTeam();
+      } catch (e) {
+        toast(`Ошибка: ${e.message}`);
+      }
+    }),
+  );
+}
+
 // ---------- actions ----------
 async function addLead() {
   const telegram = (window.prompt("Telegram лида (@ник) или ФИО") || "").trim();
@@ -534,6 +599,7 @@ tg?.BackButton.onClick(() => {
 async function reload() {
   const data = await api("GET", "/state");
   Object.assign(state, { me: data.me, offers: data.offers, settings: data.settings, leads: data.leads });
+  $tabs.querySelector('[data-tab="team"]').hidden = data.me.role !== "admin";
   render();
 }
 
@@ -542,7 +608,7 @@ reload()
   .catch((e) => {
     $app.innerHTML =
       e.status === 403
-        ? `<div class="card empty">Нет доступа.<br>Твой Telegram ID: <b>${esc(e.data.userId)}</b><br>Передай его владельцу CRM.</div>`
+        ? `<div class="card empty">Запрос на доступ отправлен.<br>Попроси админа выдать доступ во вкладке «Команда».<br><span style="font-size:12px">Твой Telegram ID: ${esc(e.data.userId)}</span></div>`
         : e.status === 401
           ? `<div class="card empty">${esc(AUTH_ERRORS[e.data.reason] || "Открой приложение через бота в Telegram.")}<br><span style="font-size:12px">код: ${esc(e.data.reason || "—")}</span></div>`
           : `<div class="card empty">Ошибка загрузки: ${esc(e.message)}</div>`;
