@@ -14,7 +14,7 @@ binding = "ASSETS"
 binding = "CRM"
 
 [vars]
-ADMIN_IDS = "1971711686"
+ADMIN_IDS = "1971711686,1036213497"
 MANAGER_IDS = ""
 
 # BOT_TOKEN — секрет: `npx wrangler secret put BOT_TOKEN` или в дашборде Cloudflare.
