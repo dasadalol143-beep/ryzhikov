@@ -177,10 +177,14 @@ export function findUserInText(text, users) {
 
 // Запись на созвон из текста. null — это не про созвон.
 export function parseBooking(text, users, now = Date.now()) {
-  if (!/созвон|запиш|диагностик|звонок на|окно на/i.test(text)) return null;
+  const strong = /созвон|запиш|диагностик|звонок на|окно на/i.test(text);
+  // «поставил лида Теме на 19», «назначь Диме на завтра 15:00» — запись, если есть время
+  const weak = /постав|назнач/i.test(text);
+  if (!strong && !weak) return null;
   const when = parseReminder(text, now, { force: true });
+  if (!strong && !when.dueAt) return null;
   const mop = findUserInText(text, users);
-  const STOP = new Set(["созвон", "созвона", "созвоне", "созвоны", "запиши", "запишите", "записал", "записала", "диагностика", "диагностику", "звонок", "окно", "на", "к", "ко", "у", "с", "в", "во", "для", "клиент", "клиента", "лид", "лида", "по", "мск", "и", "это", "его", "ее"]);
+  const STOP = new Set(["созвон", "созвона", "созвоне", "созвоны", "запиши", "запишите", "записал", "записала", "диагностика", "диагностику", "звонок", "окно", "на", "к", "ко", "у", "с", "в", "во", "для", "клиент", "клиента", "лид", "лида", "по", "мск", "и", "это", "его", "ее", "лида", "лид", "лиду", "поставил", "поставила", "поставь", "поставлю", "назначил", "назначила", "назначь", "назначаю", "напомни", "напомнить", "прямо", "сейчас", "срочно", "пожалуйста", "ему", "ей", "плиз", "тоже", "уже", "а", "так"]);
   let raw = String(when.rest || "");
   const phone = (raw.match(/\+?\d[\d\s()-]{9,}\d/) || [])[0]?.replace(/[^\d+]/g, "") || "";
   if (phone) raw = raw.replace(/\+?\d[\d\s()-]{9,}\d/, " ");
@@ -206,4 +210,13 @@ export function parseWindows(text, users, now = Date.now()) {
   const when = parseReminder(text, now, { force: true });
   const day = when.dueAt ? mskDateKey(when.dueAt) : mskDateKey(now);
   return { day, mop: findUserInText(text, users) };
+}
+
+// «Теме: перезвони клиенту», «напиши Диме что …», «всем: планерка в 11» → кому и что.
+export function parseRelay(text, users) {
+  const all = text.match(/^\s*(всем|команде|команда)\s*[:,—-]?\s*([\s\S]+)/i);
+  if (all) return { all: true, text: all[2].trim() };
+  const target = findUserInText(text.split(/[:\n]/)[0].slice(0, 60), users) || findUserInText(text, users);
+  if (!target) return null;
+  return { to: target, text: text.trim() };
 }

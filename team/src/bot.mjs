@@ -4,7 +4,8 @@ import {
   ROLES, currentCall, clientTitle, mskKey, mskTime, fmtWhen, needsReport, followupState, statusLabel, monthSummary, addDaysKey, weekday,
 } from "../public/lib/model.js";
 import { rnp } from "../public/lib/stats.js";
-import { parseBooking, parseWindows } from "./nlp.mjs";
+import { parseBooking, parseWindows, parseRelay } from "./nlp.mjs";
+import { addFeed } from "./notify.mjs";
 import { dispatch } from "./notify.mjs";
 import { DEFAULT_PAY_LINKS } from "../public/lib/model.js";
 
@@ -21,10 +22,12 @@ export const BOT_HELP = [
   "",
   "📅 <b>Записать на созвон</b> — пиши как человеку:",
   "• <code>созвон завтра в 15 к Тёме @ivan Иван</code>",
+  "• <code>на завтра поставил лида Теме на 19:00 @nick</code>",
   "• <code>запиши Олега на созвон в пятницу 18:30 к Диме +79001234567</code>",
   "Диагност сразу получит уведомление. Нет такого клиента — заведу.",
   "",
   "🕐 <b>Окна</b>: <code>окна завтра</code>, <code>окна в пятницу у Темы</code>",
+  "💬 <b>Написать человеку</b>: <code>Теме: перезвони Глебу</code>, <code>всем: планёрка в 11</code> — отвечают реплаем, ответ придёт тебе.",
   "📋 /today, /tomorrow — мои созвоны и задачи",
   "💳 /links — ссылки на оплату",
   "↪️ Перешли мне сообщение клиента — заведу лида.",
@@ -65,7 +68,11 @@ export async function handleUpdate(update, { store, env, tg, appUrl }) {
     return reply(`Привет! Это рабочее пространство команды Рыжикова.\n\nДоступа пока нет. Твой ID: <code>${msg.from.id}</code>\nПетя или Андрей выдадут роль в приложении — ты уже в списке заявок.`);
   }
   // Запоминаем, что человек запустил бота: только таким можно писать напоминания.
-  if (!me.botStarted) await store.put("user", me.id, { ...me, botStarted: true });
+  const tgName = [msg.from.first_name, msg.from.last_name].filter(Boolean).join(" ") || msg.from.username || me.id;
+  if (!me.botStarted || me.name === "Собственник") {
+    me.name = me.name === "Собственник" ? tgName : me.name;
+    await store.put("user", me.id, { ...me, botStarted: true, username: msg.from.username || me.username || "" });
+  }
   const text = (msg.text || msg.caption || "").trim();
   const now = Date.now();
   const clients = await store.all("client");
@@ -109,9 +116,48 @@ export async function handleUpdate(update, { store, env, tg, appUrl }) {
   if (win) return reply(windowsText(win.day, win.mop ? [win.mop] : closers, clients));
 
   const book = parseBooking(text, closers, now);
-  if (book) return handleBooking(book, { me, msg, clients, closers, store, tg, appUrl, reply, usersMap, settings, env });
+  if (book) return handleBooking(book, { me, msg, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env });
+
+  // Ответ реплаем на пересланное ботом сообщение — обратно автору
+  const replyTo = msg.reply_to_message && (await store.get("relay", `${msg.chat.id}:${msg.reply_to_message.message_id}`));
+  if (replyTo && text) {
+    const back = usersMap[replyTo.from];
+    return relay(me, back, text, { store, tg, reply, appUrl, answer: true });
+  }
+
+  // «Теме: перезвони Глебу», «всем: планёрка в 11»
+  const rel = text && parseRelay(text, users.filter((u) => u.id !== me.id));
+  if (rel?.all) {
+    const to = users.filter((u) => u.id !== me.id);
+    const ok = [];
+    for (const u of to) if (await relay(me, u, rel.text, { store, tg, appUrl, silent: true })) ok.push(u.name);
+    await addFeed(store, { type: "comment", text: `📣 ${me.name} → всем: ${rel.text}`, by: me.id, to: to.map((u) => u.id) });
+    return reply(`📣 Отправил: ${ok.map(h).join(", ") || "никому — ещё никто не запустил бота"}`);
+  }
+  if (rel?.to) return relay(me, rel.to, rel.text, { store, tg, reply, appUrl });
 
   return reply(`Привет, ${h(me.name)}! Роль: <b>${ROLES[me.role]}</b>.\n\n${BOT_HELP}`, { inline_keyboard: [[openApp(appUrl)]] });
+}
+
+// Сообщение члену команды от имени бота. Ответ реплаем вернётся автору.
+async function relay(from, to, text, { store, tg, reply, appUrl, answer = false, silent = false }) {
+  if (!to) {
+    if (!silent) await reply("Не нашёл, кому передать.");
+    return false;
+  }
+  const head = answer ? `↩️ <b>Ответ от ${h(from.name)}</b>` : `📩 <b>${h(from.name)} пишет тебе</b>`;
+  try {
+    const sent = await tg.sendMessage(to.id, `${head}\n\n${h(text)}\n\n<i>Ответь на это сообщение (свайп влево → «Ответить») — передам ${h(from.name)}.</i>`, { inline_keyboard: [[openApp(appUrl)]] });
+    if (sent?.message_id) await store.put("relay", `${to.id}:${sent.message_id}`, { id: `${to.id}:${sent.message_id}`, from: from.id, at: new Date().toISOString() });
+    if (!silent) {
+      await addFeed(store, { type: "comment", text: `💬 ${from.name} → ${to.name}: ${text}`, by: from.id, to: [to.id] });
+      await reply(`✅ Передал ${h(to.name)}`);
+    }
+    return true;
+  } catch {
+    if (!silent) await reply(`⚠️ Не дошло до ${h(to.name)}: он ещё не нажал Start у бота (или заблокировал его).`);
+    return false;
+  }
 }
 
 // Свободные окна: 10:00–21:00 по часу, занятые — с именем клиента.
@@ -141,7 +187,7 @@ function dayCalls(user, clients, day, usersMap) {
   return `📅 <b>Созвоны ${day.slice(8)}.${day.slice(5, 7)} (${list.length})</b>\n${list.map(({ c, call }) => `• ${mskTime(Date.parse(call.at))} — ${who(c)}${boss ? ` · ${h(usersMap[call.mopId]?.name || "")}` : ""}`).join("\n")}`;
 }
 
-async function handleBooking(book, { me, clients, closers, store, tg, appUrl, reply, usersMap, settings, env }) {
+async function handleBooking(book, { me, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env }) {
   const example = "<code>созвон завтра в 15 к Тёме @ivan Иван</code>";
   if (book.needTime) return reply(`Во сколько? Напиши с временем, например:\n${example}`);
   if (book.past) return reply("Это время уже прошло 🙂 Напиши другое.");
@@ -166,6 +212,8 @@ async function handleBooking(book, { me, clients, closers, store, tg, appUrl, re
   await applyAction(c, { type: "call", at: new Date(book.at).toISOString(), mopId: mop.id }, ctx);
   c.updatedAt = new Date().toISOString();
   await store.put("client", c.id, c);
+  // Исходную фразу — диагносту целиком: там бывают детали, которых нет в карточке.
+  for (const n of ctx.notes) if (n.t === "call") n.text = text;
   await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
   const call = c.calls.at(-1);
   return reply(

@@ -11,7 +11,7 @@ async function setup() {
   const sent = [];
   const fetchImpl = async (url, init) => {
     sent.push({ method: url.split("/").pop(), chat: init.body.get("chat_id"), text: init.body.get("text"), markup: init.body.get("reply_markup") });
-    return new Response(JSON.stringify({ ok: true, result: {} }));
+    return new Response(JSON.stringify({ ok: true, result: { message_id: sent.length } }));
   };
   const handle = createHandler({ store, env, fetch: fetchImpl });
   const api = async (userId, method, path, body) => {
@@ -81,4 +81,31 @@ test("sale via pay link prefills net and notifies the bosses", async () => {
   assert.ok(!sent.some((m) => m.chat === "501" && /Продажа/.test(m.text))); // автору не пишем
   await api(501, "POST", `/clients/${id}/action`, { type: "comment", text: "клиент просит рассрочку на 12 мес" });
   assert.ok(sent.some((m) => m.chat === "503" && /рассрочку/.test(m.text)));
+});
+
+test("owner's exact phrase: 'поставил лида Теме на 19:00 … @rusbuu' books and notifies Tema with the text", async () => {
+  const { store, sent, say } = await setup();
+  await say(1, "На завтра поставил Лида Теме на 19:00 напомни прямо сейчас @rusbuu");
+  const [c] = await store.all("client");
+  assert.equal(c.telegram, "@rusbuu");
+  assert.equal(c.calls[0].mopId, "501");
+  assert.match(c.calls[0].at, /T16:00:00/); // 19:00 МСК
+  const toTema = sent.find((m) => m.chat === "501");
+  assert.match(toTema.text, /Новый созвон[\s\S]*19:00[\s\S]*напомни прямо сейчас/);
+  assert.match(sent.find((m) => m.chat === "1").text, /Записал нового клиента[\s\S]*Тема получил уведомление/);
+  // имя собственника из Telegram, а не «Собственник»
+  assert.equal((await store.get("user", "1")).name, "X");
+});
+
+test("relay: 'Теме: …' goes to Tema, his reply comes back to the author; 'всем:' broadcasts", async () => {
+  const { sent, say } = await setup();
+  await say(1, "Теме: перезвони Глебу до обеда");
+  const toTema = sent.find((m) => m.chat === "501");
+  assert.match(toTema.text, /пишет тебе[\s\S]*перезвони Глебу до обеда/);
+  assert.match(sent.at(-1).text, /Передал Тема/);
+  const idx = sent.indexOf(toTema) + 1; // message_id, который вернул фейковый Telegram
+  await say(501, "ок, наберу в 12", { reply_to_message: { message_id: idx } });
+  assert.match(sent.find((m) => m.chat === "1" && /Ответ от/.test(m.text)).text, /Ответ от Тема[\s\S]*наберу в 12/);
+  await say(1, "всем: планёрка в 11");
+  for (const id of ["501", "502", "503"]) assert.ok(sent.some((m) => m.chat === id && /планёрка в 11/.test(m.text)));
 });
