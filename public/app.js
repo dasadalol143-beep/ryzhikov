@@ -53,6 +53,11 @@ function toast(text) {
   setTimeout(() => el.remove(), 2000);
 }
 
+function alertDialog(text) {
+  if (tg?.showAlert) tg.showAlert(text);
+  else window.alert(text);
+}
+
 function confirmDialog(text) {
   return new Promise((resolve) => (tg?.showConfirm ? tg.showConfirm(text, resolve) : resolve(window.confirm(text))));
 }
@@ -350,8 +355,11 @@ function renderOffers() {
       <button class="btn block" id="saveOffers">Сохранить каталог</button>
       <h2>Импорт лидов</h2>
       <div class="card">
-        <div class="sub" style="color:var(--hint);font-size:13px;margin-bottom:8px">JSON-файл с лидами из таблиц. Лиды с тем же Telegram обновятся, новые добавятся.</div>
-        <input type="file" id="importFile" accept="application/json,.json">
+        <div class="sub" style="color:var(--hint);font-size:13px;margin-bottom:8px">Файл с лидами из таблиц (.json). Лиды с тем же Telegram обновятся, новые добавятся.</div>
+        <label class="btn block" style="display:block;text-align:center">📄 Выбрать файл<input type="file" id="importFile" hidden></label>
+        <div class="sub" style="color:var(--hint);font-size:13px;margin:14px 0 6px">Или вставь содержимое файла текстом:</div>
+        <textarea id="importText" placeholder='{"leads": [...]}'></textarea>
+        <button class="btn ghost block" id="importTextBtn">Импортировать текст</button>
       </div>`
         : ""
     }`;
@@ -395,18 +403,44 @@ function renderOffers() {
       toast(`Ошибка: ${e.message}`);
     }
   };
+  const readFile = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("не удалось прочитать файл"));
+      reader.readAsText(file);
+    });
+  const runImport = async (text) => {
+    try {
+      let parsed;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw new Error("это не JSON-файл импорта");
+      }
+      const leads = Array.isArray(parsed) ? parsed : parsed.leads;
+      if (!Array.isArray(leads)) throw new Error("в файле нет списка лидов");
+      const r = await api("POST", "/import", { leads });
+      await reload();
+      haptic("medium");
+      alertDialog(`Импорт готов: новых ${r.created}, обновлено ${r.updated}`);
+    } catch (err) {
+      alertDialog(`Импорт не удался: ${err.message}`);
+    }
+  };
   document.getElementById("importFile").onchange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    toast("Загружаю…");
     try {
-      const parsed = JSON.parse(await file.text());
-      const leads = Array.isArray(parsed) ? parsed : parsed.leads;
-      const r = await api("POST", "/import", { leads });
-      await reload();
-      toast(`Импорт: новых ${r.created}, обновлено ${r.updated}`);
+      await runImport(await readFile(file));
     } catch (err) {
-      toast(`Импорт не удался: ${err.message}`);
+      alertDialog(`Импорт не удался: ${err.message}`);
     }
+  };
+  document.getElementById("importTextBtn").onclick = () => {
+    const text = document.getElementById("importText").value.trim();
+    if (text) runImport(text);
   };
 }
 
