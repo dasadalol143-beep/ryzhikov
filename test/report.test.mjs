@@ -89,3 +89,9 @@ test("offer due dates show up in the worklist and the digest", () => {
   assert.deepEqual(w.dues.map((d) => [d.name, d.overdue]), [["ПСБ — РКО", true]]);
   assert.match(buildDigest(withDue, DEFAULT_OFFERS, DEFAULT_SETTINGS, NOW), /Сроки по офферам \(1\)[\s\S]*ПСБ — РКО ⚠️ просрочено/);
 });
+
+test("admins see network debts in the digest", () => {
+  const text = buildDigest(leads, DEFAULT_OFFERS, DEFAULT_SETTINGS, NOW, { networks: true });
+  assert.match(text, /Сети не доплатили: 11\s000 ₽[\s\S]*Бизнес Система — 11\s000 ₽ \(1 офф\.\)/);
+  assert.doesNotMatch(buildDigest(leads, DEFAULT_OFFERS, DEFAULT_SETTINGS, NOW), /Сети не доплатили/);
+});

@@ -71,3 +71,33 @@ export const netOf = (income, settings) => {
   const tax = (income * settings.taxRate) / 100;
   return income - tax - ((income - tax) * settings.partnerShare) / 100;
 };
+
+// Сверка с партнёрскими сетями: засчитано vs получено, по каждому офферу.
+export const networkOf = (lo, offer) => lo.network || offer?.partner || "Без сети";
+
+export function networkReport(leads, offers, payouts = []) {
+  const catalog = new Map(offers.map((o) => [o.id, o]));
+  const nets = new Map();
+  const get = (name) => {
+    if (!nets.has(name)) nets.set(name, { network: name, paid: 0, received: 0, waiting: 0, unpaid: [], payouts: 0 });
+    return nets.get(name);
+  };
+  for (const lead of leads) {
+    for (const [id, lo] of Object.entries(lead.offers || {})) {
+      if (lo.status !== "paid" && lo.status !== "done") continue;
+      const o = catalog.get(id);
+      const n = get(networkOf(lo, o));
+      if (lo.status === "done") {
+        n.waiting += lo.amount;
+        continue;
+      }
+      n.paid += lo.amount;
+      if (lo.received) n.received += lo.amount;
+      else n.unpaid.push({ lead, offerId: id, name: o?.name || id, amount: lo.amount, day: lo.changedAt ? dayKey(lo.changedAt) : null });
+    }
+  }
+  for (const p of payouts) get(p.network).payouts += p.amount;
+  return [...nets.values()]
+    .map((n) => ({ ...n, debt: n.paid - n.received, unpaid: n.unpaid.sort((a, b) => (a.day || "").localeCompare(b.day || "")) }))
+    .sort((a, b) => b.debt - a.debt || b.paid - a.paid);
+}

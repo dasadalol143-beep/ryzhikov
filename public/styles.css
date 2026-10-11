@@ -260,3 +260,17 @@ div.row:active { background: var(--bg2); }
 .qmore { font-size: 12px; color: var(--hint); align-self: center; padding: 0 4px; }
 .list-head h2 { flex: 1; min-width: 0; }
 .list-head .link { flex: none; }
+
+/* выплаты от сетей и бот */
+.kpi.debt { background: linear-gradient(135deg, #ff7a59, #e8505b); color: #fff; cursor: pointer; }
+.kpi.debt .label, .kpi.debt .hint { color: inherit; opacity: .9; }
+.net-ic { flex: none; width: 40px; height: 40px; border-radius: 12px; background: var(--bg2); color: var(--link); font-weight: 800; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+.row .bar-track { margin-top: 6px; }
+.row.pick { cursor: pointer; }
+.row.pick input { width: 22px; height: 22px; flex: none; accent-color: var(--btn); }
+.pay-bar { position: sticky; bottom: calc(70px + env(safe-area-inset-bottom)); margin-top: 10px; display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--bg); border-radius: 16px; padding: 10px 12px 10px 16px; box-shadow: 0 6px 24px rgba(0,0,0,.15); }
+.pay-bar b { font-size: 18px; }
+.bot-howto .step { display: flex; gap: 12px; align-items: flex-start; padding: 8px 0; }
+.bot-howto .step span { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--btn); color: var(--btn-text); font-weight: 700; display: flex; align-items: center; justify-content: center; }
+.bot-howto code { background: var(--bg2); padding: 1px 6px; border-radius: 6px; font-size: 13px; }
+.card.baseline { border: 1.5px dashed var(--btn); margin-bottom: 4px; }

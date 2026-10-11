@@ -1,6 +1,6 @@
 import { leadMoney, sumMoney, ACTIVE_STAGES } from "./economics.js";
 import { STAGE_LABELS, STATUS_LABELS, STATUS_SHORT, CATEGORY_LABELS } from "./labels.js";
-import { worklist, paidEvents, todayKey, addDays, daysSince, netOf } from "./insights.js";
+import { worklist, paidEvents, todayKey, addDays, daysSince, netOf, networkReport, networkOf } from "./insights.js";
 
 const tg = window.Telegram?.WebApp;
 tg?.ready();
@@ -22,6 +22,9 @@ const state = {
   offers: [],
   settings: { taxRate: 7, partnerShare: 20, partnerName: "Партнёр" },
   leads: [],
+  payouts: [],
+  network: null, // открытая сеть на экране выплат
+  picked: new Set(), // выбранные неоплаченные офферы «leadId|offerId»
   tab: "today",
   leadId: null,
   more: null, // offers | settings | team | data
@@ -224,6 +227,10 @@ function renderToday() {
       <div class="kpi"><div class="label">За 7 дней</div><div class="value">${rub(week)}</div>
         <div class="hint">${!week && !prevWeek ? "считается по засчётам в CRM" : delta === null ? "чистыми ≈ " + rub(netOf(week, state.settings)) : `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta)}% к прошлой неделе`}</div></div>
       <div class="kpi"><div class="label">Ждём засчёта</div><div class="value">${rub(t.waiting)}</div><div class="hint">ЦД сделали, денег нет</div></div>
+      ${isAdmin() ? (() => {
+        const debt = networkReport(state.leads, state.offers, state.payouts).reduce((t, n) => t + n.debt, 0);
+        return debt ? `<div class="kpi debt wide" data-gomore="payouts" role="button"><div class="label">Сети не доплатили</div><div class="value">${rub(debt)}</div><div class="hint">засчитано, но денег не видели → сверить</div></div>` : "";
+      })() : ""}
       <div class="kpi wide"><div class="label">В работе</div><div class="value">${rub(t.inWork)}</div><div class="hint">заявки и открытые счета — столько можно дожать</div></div>
     </div>
 
@@ -534,6 +541,13 @@ function offerSheet(lead, offerId, opts) {
       </div>
     </div>
 
+    <div class="sheet-label">Партнёрская сеть</div>
+    <div class="card">
+      <input id="oNet" value="${esc(networkOf(lo, o))}" list="netList" placeholder="RKO Group, Бизнес Система, FCN…">
+      <datalist id="netList">${[...new Set(state.offers.map((x) => x.partner).filter(Boolean))].map((x) => `<option value="${esc(x)}">`).join("")}</datalist>
+      ${lo.status === "paid" && isAdmin() ? `<button class="chip ${lo.received ? "active" : ""}" id="oRecv" style="margin-top:8px">${lo.received ? "💰 Деньги от сети получены" : "Отметить: деньги от сети пришли"}</button>` : ""}
+    </div>
+
     <div class="sheet-label">Комментарий</div>
     <div class="card">
       <input id="oComment" value="${esc(lo.comment || "")}" placeholder="Провели 2300, ЛК Дамира…">
@@ -569,6 +583,8 @@ function offerSheet(lead, offerId, opts) {
             if (v > 0) save({ addCost: v }, `Затраты +${v} ₽`);
           }),
       );
+      el.querySelector("#oNet").onchange = (e) => save({ network: e.target.value === (o.partner || "") ? "" : e.target.value }, "Сеть сохранена");
+      el.querySelector("#oRecv")?.addEventListener("click", () => save({ received: !lo.received }, lo.received ? "Отметка снята" : "💰 Отмечено: деньги пришли"));
       const $c = el.querySelector("#oComment");
       $c.onchange = () => save({ comment: $c.value }, "Комментарий сохранён");
       el.querySelectorAll("[data-preset]").forEach(
@@ -851,12 +867,19 @@ function renderMore() {
   if (state.more === "team") return renderTeam();
   if (state.more === "data") return renderData();
   if (state.more === "templates") return renderTemplates();
+  if (state.more === "payouts") return state.network ? renderNetwork() : renderPayouts();
+  if (state.more === "bot") return renderBot();
   const items = [
     ["offers", "🏦", "Офферы и ставки", isAdmin() ? "Каталог банков и МФО" : "Каталог банков и МФО (просмотр)"],
     ...(isAdmin()
       ? [
           ["data", "💾", "Бэкап и выгрузка", "Файлы со всеми лидами в Telegram, импорт"],
           ["settings", "🧮", "Расчёт и план", `${state.settings.partnerName} ${state.settings.partnerShare}% · налог ${state.settings.taxRate}%${state.settings.monthlyGoal ? ` · план ${rub(state.settings.monthlyGoal)}` : ""}`],
+          ["payouts", "🏦", "Выплаты от сетей", (() => {
+            const debt = networkReport(state.leads, state.offers, state.payouts).reduce((t, n) => t + n.debt, 0);
+            return debt ? `Не доплатили: ${rub(debt)}` : "Сверка засчитанного с пришедшими деньгами";
+          })()],
+          ["bot", "🤖", "Лиды через бота", "Пересылай боту сообщение или контакт — лид создастся сам"],
           ["templates", "💬", "Шаблоны сообщений", `${(state.settings.templates || []).length} шт. — копируются в один тап из карточки лида`],
           ["team", "👥", "Команда", "Кто имеет доступ"],
         ]
@@ -931,6 +954,200 @@ function renderData() {
   document.getElementById("importTextBtn").onclick = () => {
     const text = document.getElementById("importText").value.trim();
     if (text) runImport(text);
+  };
+}
+
+// ---------- ВЫПЛАТЫ ОТ СЕТЕЙ ----------
+function renderPayouts() {
+  const report = networkReport(state.leads, state.offers, state.payouts);
+  const debt = report.reduce((t, n) => t + n.debt, 0);
+  const paid = report.reduce((t, n) => t + n.paid, 0);
+  const received = report.reduce((t, n) => t + n.received, 0);
+  $app.innerHTML = `
+    <h1>Выплаты от сетей</h1>
+    <div class="sub" style="margin:0 4px 10px">Засчитано — сколько сети должны по засчитанным офферам. Пришёл платёж — открой сеть, отметь офферы, которые он закрыл, и внеси сумму.</div>
+    <div class="kpis">
+      <div class="kpi ${debt ? "debt" : ""}"><div class="label">Не доплатили</div><div class="value">${rub(debt)}</div><div class="hint">засчитано, но денег не видели</div></div>
+      <div class="kpi"><div class="label">Получено</div><div class="value money-green">${rub(received)}</div><div class="hint">из ${rub(paid)} засчитанного</div></div>
+    </div>
+    ${(() => {
+      const legacy = report.flatMap((n) => n.unpaid.filter((u) => !u.day).map((u) => ({ ...u, network: n.network })));
+      return legacy.length
+        ? `<div class="card baseline"><div class="title">📋 Начальная сверка</div>
+            <div class="sub" style="margin:4px 0 10px">${legacy.length} засчётов из таблицы на ${rub(legacy.reduce((t, u) => t + u.amount, 0))} — CRM не знает, оплатили ли их сети. Если деньги по ним уже пришли, отметь одной кнопкой. Если не все — открой сеть и отметь вручную.</div>
+            <button class="btn block" id="baselineAll">Всё из таблицы уже оплачено</button></div>`
+        : "";
+    })()}
+    <h2>Сети</h2>
+    <div class="list">${report
+      .map(
+        (n) => `<div class="row" data-net="${esc(n.network)}" role="button">
+          <div class="net-ic">${esc(n.network.slice(0, 2).toUpperCase())}</div>
+          <div class="grow"><div class="title">${esc(n.network)}</div>
+            <div class="sub">засчитано ${rub(n.paid)}${n.waiting ? ` · ждём засчёта ${rub(n.waiting)}` : ""}</div>
+            <div class="bar-track"><i style="width:${n.paid ? (n.received / n.paid) * 100 : 0}%;background:var(--green)"></i></div></div>
+          <div class="right">${n.debt ? `<b class="danger">${rub(n.debt)}</b><div class="sub">${n.unpaid.length} офф.</div>` : n.paid ? `<span class="pill st-paid">всё пришло</span>` : `<span class="sub">засчётов нет</span>`}</div>
+        </div>`,
+      )
+      .join("") || `<div class="empty small">Засчитанных офферов пока нет</div>`}</div>
+    ${state.payouts.length ? `<h2>Последние платежи</h2>${payoutList(state.payouts.slice(0, 15))}` : ""}`;
+  $app.querySelectorAll("[data-net]").forEach((r) => (r.onclick = () => go({ network: r.dataset.net, picked: new Set() })));
+  bindPayoutDelete();
+  document.getElementById("baselineAll")?.addEventListener("click", async () => {
+    if (!(await confirmDialog("Отметить все засчёты из таблицы как оплаченные сетями? Платёж «Начальная сверка» можно будет удалить."))) return;
+    await baseline(report);
+  });
+}
+
+// Начальная сверка: засчёты без даты (из таблицы) отмечаются как оплаченные отдельным платежом по каждой сети.
+async function baseline(nets) {
+  try {
+    for (const n of nets) {
+      const legacy = n.unpaid.filter((u) => !u.day);
+      if (!legacy.length) continue;
+      await api("POST", "/payouts", {
+        network: n.network,
+        amount: legacy.reduce((t, u) => t + u.amount, 0),
+        note: "Начальная сверка (из таблицы)",
+        items: legacy.map((u) => ({ leadId: u.lead.id, offerId: u.offerId })),
+      });
+    }
+    await reload();
+    haptic("medium");
+    toast("Начальная сверка сохранена");
+  } catch (e) {
+    toast(`Ошибка: ${e.message}`);
+  }
+}
+
+const payoutList = (list) =>
+  `<div class="list">${list
+    .map(
+      (p) => `<div class="row"><div class="grow"><div class="title">${rub(p.amount)} · ${esc(p.network)}</div>
+        <div class="sub">${fmtDate(p.date)}.${p.date.slice(2, 4)} · закрыто ${p.items.length} офф. на ${rub(p.covered)}${p.amount !== p.covered ? ` · <span class="danger">расхождение ${rub(p.amount - p.covered)}</span>` : ""}${p.note ? " · " + esc(p.note) : ""}</div></div>
+        <button class="chip danger-chip" data-delpay="${p.id}">✕</button></div>`,
+    )
+    .join("")}</div>`;
+
+function bindPayoutDelete() {
+  $app.querySelectorAll("[data-delpay]").forEach(
+    (b) =>
+      (b.onclick = async (e) => {
+        e.stopPropagation();
+        if (!(await confirmDialog("Удалить платёж? Отметки «получено» с его офферов снимутся."))) return;
+        try {
+          await api("DELETE", `/payouts/${b.dataset.delpay}`);
+          await reload();
+          toast("Платёж удалён");
+        } catch (err) {
+          toast(`Ошибка: ${err.message}`);
+        }
+      }),
+  );
+}
+
+function renderNetwork() {
+  const n = networkReport(state.leads, state.offers, state.payouts).find((x) => x.network === state.network);
+  if (!n) return go({ network: null });
+  const pickedSum = n.unpaid.filter((u) => state.picked.has(`${u.lead.id}|${u.offerId}`)).reduce((t, u) => t + u.amount, 0);
+  const pays = state.payouts.filter((p) => p.network === n.network);
+  $app.innerHTML = `
+    <h1>${esc(n.network)}</h1>
+    <div class="kpis three">
+      <div class="kpi"><div class="label">Засчитано</div><div class="value">${rub(n.paid)}</div></div>
+      <div class="kpi"><div class="label">Получено</div><div class="value money-green">${rub(n.received)}</div></div>
+      <div class="kpi ${n.debt ? "debt" : ""}"><div class="label">Должны</div><div class="value">${rub(n.debt)}</div></div>
+    </div>
+    ${
+      n.unpaid.length
+        ? `<div class="list-head"><h2 style="margin:0">Засчитано, денег нет · ${n.unpaid.length}</h2><button class="link" id="pickAll">${state.picked.size === n.unpaid.length ? "Снять все" : "Выбрать все"}</button></div>
+           <div class="list">${n.unpaid
+             .map((u) => {
+               const k = `${u.lead.id}|${u.offerId}`;
+               return `<label class="row pick"><input type="checkbox" data-pick="${k}" ${state.picked.has(k) ? "checked" : ""}>
+                 <div class="grow"><div class="title">${esc(leadTitle(u.lead))}</div><div class="sub">${esc(u.name)}${u.day ? " · засчитан " + fmtDate(u.day) : " · из таблицы"}</div></div>
+                 <div class="right"><b>${rub(u.amount)}</b></div></label>`;
+             })
+             .join("")}</div>
+           <div class="pay-bar"><div><div class="sub">Выбрано ${state.picked.size}</div><b>${rub(pickedSum)}</b></div><button class="btn" id="addPay">Внести платёж</button></div>`
+        : `<div class="card empty">🎉 Все засчитанные офферы этой сети оплачены</div>`
+    }
+    ${n.unpaid.some((u) => !u.day) ? `<button class="btn ghost block" id="baselineNet">📋 Все из таблицы по ${esc(n.network)} уже оплачены</button>` : ""}
+    ${pays.length ? `<h2>Платежи ${esc(n.network)}</h2>${payoutList(pays)}` : ""}`;
+
+  document.getElementById("baselineNet")?.addEventListener("click", async () => {
+    if (await confirmDialog(`Отметить засчёты из таблицы по ${n.network} как оплаченные?`)) baseline([n]);
+  });
+  $app.querySelectorAll("[data-pick]").forEach(
+    (c) =>
+      (c.onchange = () => {
+        c.checked ? state.picked.add(c.dataset.pick) : state.picked.delete(c.dataset.pick);
+        const y = window.scrollY;
+        renderNetwork();
+        window.scrollTo(0, y);
+      }),
+  );
+  document.getElementById("pickAll")?.addEventListener("click", () => {
+    state.picked = state.picked.size === n.unpaid.length ? new Set() : new Set(n.unpaid.map((u) => `${u.lead.id}|${u.offerId}`));
+    renderNetwork();
+  });
+  document.getElementById("addPay")?.addEventListener("click", () => payoutSheet(n, pickedSum));
+  bindPayoutDelete();
+}
+
+function payoutSheet(n, pickedSum) {
+  openSheet(
+    `<h2 class="sheet-title">Платёж от ${esc(n.network)}</h2>
+    <div class="sub" style="margin:-6px 4px 10px">Отмечено офферов: ${state.picked.size} на ${rub(pickedSum)}. Если сумма платежа другая — CRM покажет расхождение.</div>
+    <div class="card">
+      <label class="field"><span>Сколько пришло, ₽</span><input id="pAmount" type="number" inputmode="decimal" value="${pickedSum || ""}"></label>
+      <label class="field"><span>Дата</span><input id="pDate" type="date" value="${localKey()}"></label>
+      <label class="field"><span>Комментарий</span><input id="pNote" placeholder="Например: выплата за сентябрь"></label>
+      <div id="pDiff" class="sub" style="margin:0 4px"></div>
+    </div>
+    <button class="btn block" id="pSave">Сохранить платёж</button>`,
+    (el) => {
+      const diff = () => {
+        const v = Number(el.querySelector("#pAmount").value || 0);
+        el.querySelector("#pDiff").innerHTML = v && v !== pickedSum ? `<span class="danger">Расхождение ${rub(v - pickedSum)}: ${v > pickedSum ? "пришло больше, чем отмечено" : "недоплатили"}</span>` : v ? "✅ Сумма совпадает с отмеченными офферами" : "";
+      };
+      el.querySelector("#pAmount").oninput = diff;
+      diff();
+      el.querySelector("#pSave").onclick = async () => {
+        const items = [...state.picked].map((k) => ({ leadId: k.split("|")[0], offerId: k.split("|")[1] }));
+        try {
+          await api("POST", "/payouts", { network: n.network, amount: el.querySelector("#pAmount").value, date: el.querySelector("#pDate").value, note: el.querySelector("#pNote").value, items });
+          closeSheet();
+          state.picked = new Set();
+          await reload();
+          haptic("medium");
+          celebrate(Number(el.querySelector("#pAmount").value || 0));
+        } catch (e) {
+          toast(`Ошибка: ${e.message}`);
+        }
+      };
+    },
+  );
+}
+
+function renderBot() {
+  $app.innerHTML = `
+    <h1>Лиды через бота</h1>
+    <div class="card bot-howto">
+      <div class="step"><span>1</span><div><b>Перешли сообщение</b> человека боту — лид создастся с его ником и именем. Его текст сохранится в заметке.</div></div>
+      <div class="step"><span>2</span><div><b>Отправь контакт</b> (скрепка → Контакт) — заведу с телефоном.</div></div>
+      <div class="step"><span>3</span><div><b>Напиши текстом</b>: <code>@nick Иванов Иван +79001234567</code> — в любом порядке, лишнее можно опустить.</div></div>
+      <div class="sub" style="margin-top:8px">Бот ответит «✅ Лид создан» с кнопкой «Открыть лида». Дубли по нику, Telegram-аккаунту и телефону не создаёт. Если ник скрыт настройками приватности — создаст по имени и попросит дописать ник.</div>
+    </div>
+    <button class="btn ghost block" id="botSetup">Переподключить бота</button>
+    <div class="sub center">Подключение происходит само при первом входе админа. Кнопка нужна, только если бот перестал отвечать (например, после смены токена).</div>`;
+  document.getElementById("botSetup").onclick = async () => {
+    try {
+      await api("POST", "/bot/setup");
+      alertDialog("Бот подключён ✅ Перешли ему сообщение — проверим.");
+    } catch (e) {
+      alertDialog(`Не получилось: ${e.message}`);
+    }
   };
 }
 
@@ -1112,6 +1329,8 @@ $app.addEventListener("click", (e) => {
   }
   const open = e.target.closest("[data-open]");
   if (open) return go({ leadId: open.dataset.open });
+  const gm = e.target.closest("[data-gomore]");
+  if (gm) return go({ tab: "more", more: gm.dataset.gomore, network: null });
   const jump = e.target.closest("[data-goto]");
   if (jump) return go({ tab: "leads", filter: jump.dataset.goto, query: "", sort: "inwork" });
   const chip = e.target.closest("[data-filter]");
@@ -1123,23 +1342,30 @@ $app.addEventListener("click", (e) => {
 
 $tabs.addEventListener("click", (e) => {
   const btn = e.target.closest("[data-tab]");
-  if (btn) go({ tab: btn.dataset.tab, leadId: null, more: null });
+  if (btn) go({ tab: btn.dataset.tab, leadId: null, more: null, network: null });
 });
 
 tg?.BackButton.onClick(() => {
   if (document.querySelector(".sheet-wrap")) return closeSheet();
   if (state.leadId) return go({ leadId: null });
+  if (state.network) return go({ network: null });
   go({ more: null });
 });
 
 async function reload() {
   const data = await api("GET", "/state");
-  Object.assign(state, { me: data.me, offers: data.offers, settings: data.settings, leads: data.leads });
+  Object.assign(state, { me: data.me, offers: data.offers, settings: data.settings, leads: data.leads, payouts: data.payouts || [] });
   render();
 }
 
+// Кнопка «Открыть лида» из бота приходит с ?lead=<id>.
+const deepLead = new URLSearchParams(location.search).get("lead");
+
 reload()
-  .then(() => ($tabs.hidden = false))
+  .then(() => {
+    $tabs.hidden = false;
+    if (deepLead && state.leads.some((l) => l.id === deepLead)) go({ leadId: deepLead });
+  })
   .catch((e) => {
     $app.innerHTML =
       e.status === 403
