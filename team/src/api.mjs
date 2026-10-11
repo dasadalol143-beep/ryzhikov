@@ -25,7 +25,7 @@ const isoOrNull = (v) => (typeof v === "string" && !Number.isNaN(Date.parse(v)) 
 const isDay = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const nowIso = () => new Date().toISOString();
 
-export const DEFAULT_SETTINGS = { rates: DEFAULT_RATES, monthPlan: 0, personPlans: {}, aliases: {}, payLinks: DEFAULT_PAY_LINKS };
+export const DEFAULT_SETTINGS = { rates: DEFAULT_RATES, monthPlan: 0, salesPlan: 0, personPlans: {}, aliases: {}, payLinks: DEFAULT_PAY_LINKS };
 export const loadSettings = async (store) => {
   const s = (await store.get("meta", "settings")) || {};
   return { ...DEFAULT_SETTINGS, ...s, rates: { ...DEFAULT_RATES, ...(s.rates || {}) }, payLinks: s.payLinks?.length ? s.payLinks : DEFAULT_PAY_LINKS };
@@ -374,6 +374,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         const next = {
           rates: Object.fromEntries(Object.keys(DEFAULT_RATES).map((k) => [k, pct(body.rates?.[k], cur.rates[k])])),
           monthPlan: "monthPlan" in body ? money(body.monthPlan) : cur.monthPlan,
+          salesPlan: "salesPlan" in body ? Math.round(money(body.salesPlan)) : cur.salesPlan || 0,
           personPlans: body.personPlans && typeof body.personPlans === "object" ? Object.fromEntries(Object.entries(body.personPlans).map(([k, v]) => [str(k, 20), money(v)]).filter(([, v]) => v)) : cur.personPlans,
           payLinks: Array.isArray(body.payLinks) ? sanitizeLinks(body.payLinks) : cur.payLinks,
           aliases: body.aliases && typeof body.aliases === "object" ? Object.fromEntries(Object.entries(body.aliases).map(([k, v]) => [str(k, 40), str(String(v), 40)]).filter(([, v]) => v)) : cur.aliases,

@@ -181,5 +181,5 @@ export function pace(done, plan, today) {
   const forecast = day ? Math.round((done / day) * total) : 0;
   const left = Math.max(0, plan - done);
   const daysLeft = total - day + 1;
-  return { done, plan, expected, forecast, left, perDay: daysLeft ? Math.ceil(left / daysLeft) : left, ahead: done - expected, pct: plan ? done / plan : null, dayPct: day / total };
+  return { done, plan, expected, forecast, left, perDay: daysLeft ? Math.ceil(left / daysLeft) : left, perDayRaw: daysLeft ? left / daysLeft : left, daysLeft, ahead: done - expected, pct: plan ? done / plan : null, dayPct: day / total };
 }

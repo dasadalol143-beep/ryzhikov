@@ -40,11 +40,13 @@ export async function dispatch(notes, c, { store, env, tg, appUrl, by, users, se
       to = [...bosses, n.mop, c.lidorubId];
       const plan = settings?.monthPlan;
       let tail = "";
-      if (plan) {
+      if (settings?.salesPlan || plan) {
         const all = await store.all("client");
         const legacy = (await store.get("meta", "legacy")) || {};
         const m = rnp(all, legacy, { ...periodRange("month"), aliases: settings.aliases }).total;
-        tail = `\n📈 Месяц: ${rub(m.salesSum)} из ${rub(plan)} (${Math.round((m.salesSum / plan) * 100)}%)`;
+        tail = settings?.salesPlan
+          ? `\n📈 Продажа ${m.sales} из ${settings.salesPlan} за месяц · ${rub(m.salesSum)}`
+          : `\n📈 Месяц: ${rub(m.salesSum)} из ${rub(plan)} (${Math.round((m.salesSum / plan) * 100)}%)`;
       }
       html = `💰 <b>Продажа ${rub(n.sum)}</b>\n👤 ${who(c)}\n🎯 ${h(name(n.mop))}${c.lidorubId ? ` · лид от ${h(name(c.lidorubId))}` : ""}${tail}`;
     }

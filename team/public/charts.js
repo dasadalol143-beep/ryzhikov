@@ -50,7 +50,7 @@ export function columns(items, { height = 150, title = "", fmt = compact, xEvery
 }
 
 // Накопительно за месяц: факт (линия + заливка) против плана (прямая). Одна ось — рубли.
-export function cumulative(days, { plan = 0, title = "Выручка месяца против плана" } = {}) {
+export function cumulative(days, { plan = 0, title = "Выручка месяца против плана", fmt = compact } = {}) {
   const W = 340, H = 170, padL = 34, padB = 18, padT = 10;
   const n = days.length;
   let acc = 0;
@@ -59,25 +59,25 @@ export function cumulative(days, { plan = 0, title = "Выручка месяц�
   const max = niceMax(Math.max(plan, last?.acc || 0, 1));
   const X = (i) => padL + ((W - padL - 6) * i) / Math.max(1, n - 1);
   const Y = (v) => padT + (H - padT - padB) * (1 - v / max);
-  let svg = [0, max / 2, max].map((t) => `<line class="grid" x1="${padL}" x2="${W}" y1="${Y(t)}" y2="${Y(t)}"/><text class="tick" x="${padL - 4}" y="${Y(t) + 3}" text-anchor="end">${compact(t)}</text>`).join("");
+  let svg = [0, max / 2, max].map((t) => `<line class="grid" x1="${padL}" x2="${W}" y1="${Y(t)}" y2="${Y(t)}"/><text class="tick" x="${padL - 4}" y="${Y(t) + 3}" text-anchor="end">${fmt(t)}</text>`).join("");
   if (plan) svg += `<line class="plan" x1="${X(0)}" y1="${Y(plan / n)}" x2="${X(n - 1)}" y2="${Y(plan)}"/>`;
   const real = pts.filter((p) => p.acc !== null);
   if (real.length) {
     const line = real.map((p, i) => `${i ? "L" : "M"}${X(pts.indexOf(p))},${Y(p.acc)}`).join("");
     svg += `<path class="area" d="${line}L${X(pts.indexOf(real.at(-1)))},${Y(0)}L${X(0)},${Y(0)}Z"/><path class="line" d="${line}"/>`;
     svg += `<circle class="dot" cx="${X(pts.indexOf(last))}" cy="${Y(last.acc)}" r="4"/>`;
-    svg += `<text class="end-label" x="${Math.min(X(pts.indexOf(last)), W - 40)}" y="${Math.max(Y(last.acc) - 9, 10)}" text-anchor="middle">${compact(last.acc)}</text>`;
+    svg += `<text class="end-label" x="${Math.min(X(pts.indexOf(last)), W - 40)}" y="${Math.max(Y(last.acc) - 9, 10)}" text-anchor="middle">${fmt(last.acc)}</text>`;
   }
   const band = (W - padL) / n;
   pts.forEach((p, i) => {
     const planToDay = plan ? Math.round((plan * (i + 1)) / n) : 0;
-    const tip = `${p.label}: ${p.acc === null ? "впереди" : `${compact(p.acc)} накопительно, за день ${compact(p.value)}`}${plan ? ` · по плану ${compact(planToDay)}` : ""}`;
+    const tip = `${p.label}: ${p.acc === null ? "впереди" : `${fmt(p.acc)} накопительно, за день ${fmt(p.value)}`}${plan ? ` · по плану ${fmt(planToDay)}` : ""}`;
     svg += `<rect class="hit" x="${X(i) - band / 2}" y="${padT}" width="${band}" height="${H - padT - padB}" data-tip="${esc(tip)}" data-x="${X(i)}"/>`;
   });
   svg += `<line class="cross" x1="0" x2="0" y1="${padT}" y2="${H - padB}" style="display:none"/>`;
   svg += `<text class="tick" x="${X(0)}" y="${H - 4}">${esc(days[0].label)}</text><text class="tick" x="${X(n - 1)}" y="${H - 4}" text-anchor="end">${esc(days.at(-1).label)}</text>`;
   const legend = `<div class="legend"><span><i class="k-line"></i>факт</span>${plan ? `<span><i class="k-plan"></i>план</span>` : ""}</div>`;
-  return `<div class="chart"><div class="chart-head"><b>${esc(title)}</b><span class="chart-tip">${last ? `на сегодня ${compact(last.acc)}${plan ? ` из ${compact(plan)}` : ""}` : ""}</span></div>${legend}<svg viewBox="0 0 ${W} ${H}">${svg}</svg></div>`;
+  return `<div class="chart"><div class="chart-head"><b>${esc(title)}</b><span class="chart-tip">${last ? `на сегодня ${fmt(last.acc)}${plan ? ` из ${fmt(plan)}` : ""}` : ""}</span></div>${legend}<svg viewBox="0 0 ${W} ${H}">${svg}</svg></div>`;
 }
 
 // Воронка: ступени с конверсией между ними. Ordinal-рампа синего — чем глубже, тем темнее.

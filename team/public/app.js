@@ -254,11 +254,11 @@ function callsOn(day, filterFn = () => true) {
 }
 
 // План: полоса факта, белая риска — где должны быть сегодня, прогноз и сколько надо в день.
-function paceBlock(p, fmt, unit) {
-  const lead = p.ahead >= 0 ? `опережаем на ${fmt(p.ahead)}` : `отстаём на ${fmt(-p.ahead)}`;
+function paceBlock(p, fmt, unit, words = fmt) {
+  const lead = p.ahead >= 0 ? (p.ahead ? `опережаем на ${words(p.ahead)}` : "идём ровно по плану") : `отстаём на ${words(-p.ahead)}`;
   return `<div class="pace"><i style="width:${Math.min(100, (p.pct || 0) * 100)}%"></i><u style="left:${Math.min(100, p.dayPct * 100)}%"></u></div>
     <div class="hero-foot"><span>${Math.round((p.pct || 0) * 100)}% плана ${fmt(p.plan)} · ${lead}</span><span>прогноз ${fmt(p.forecast)}</span></div>
-    ${p.left ? `<div class="hero-foot"><span>нужно ${fmt(p.perDay)} ${unit}в день до конца месяца</span></div>` : `<div class="hero-foot"><span>🔥 план выполнен</span></div>`}`;
+    ${p.left ? `<div class="hero-foot"><span>осталось ${words(p.left)} за ${p.daysLeft} ${plural(p.daysLeft, "день", "дня", "дней")} · ${words === fmt ? `нужно ${fmt(p.perDay)} в день` : `темп ${String(Math.round(p.perDayRaw * 10) / 10).replace(".", ",")} в день, ${Math.ceil(p.perDayRaw * 7)} в неделю`}</span></div>` : `<div class="hero-foot"><span>🔥 план выполнен</span></div>`}`;
 }
 
 const FEED_SEEN_KEY = "feedSeen";
@@ -301,10 +301,17 @@ function renderToday() {
   } else {
     const people = role === "mop" ? new Set([me.id]) : null;
     const m = rnp(state.clients, state.legacy, { ...periodRange("month"), people, aliases: aliasesFor() }).total;
-    const plan = role === "mop" ? state.settings.personPlans?.[me.id] || 0 : state.settings.monthPlan || 0;
-    html += `<div class="hero-label">${role === "mop" ? "Мои продажи" : "Продажи"} · ${monthName(mk)}</div><div class="hero-value">${rub(m.salesSum)}</div>`;
-    if (plan) html += paceBlock(pace(m.salesSum, plan, today()), rub, "");
-    html += `<div class="hero-stats"><div><small>продаж</small><b>${m.sales}</b></div><div><small>доходимость</small><b>${pct(m.crHeld)}</b></div><div><small>CR в продажу</small><b>${pct(m.crSale)}</b></div></div>`;
+    const countPlan = role === "mop" ? state.settings.personPlans?.[me.id] || 0 : state.settings.salesPlan || 0;
+    const rubPlan = role === "mop" ? 0 : state.settings.monthPlan || 0;
+    const nSales = (n) => `${n} ${plural(n, "продажа", "продажи", "продаж")}`;
+    if (countPlan) {
+      html += `<div class="hero-label">${role === "mop" ? "Мои продажи" : "Продажи"} · ${monthName(mk)} · ${rub(m.salesSum)}</div><div class="hero-value">${m.sales} <span style="font-size:20px;opacity:.75">из ${countPlan}</span></div>`;
+      html += paceBlock(pace(m.sales, countPlan, today()), (v) => String(v), "продаж ", nSales);
+    } else {
+      html += `<div class="hero-label">${role === "mop" ? "Мои продажи" : "Продажи"} · ${monthName(mk)}</div><div class="hero-value">${rub(m.salesSum)}</div>`;
+      if (rubPlan) html += paceBlock(pace(m.salesSum, rubPlan, today()), rub, "");
+    }
+    html += `<div class="hero-stats"><div><small>${countPlan ? "средний чек" : "продаж"}</small><b>${countPlan ? compact(m.avgCheck) : m.sales}</b></div><div><small>доходимость</small><b>${pct(m.crHeld)}</b></div><div><small>CR в продажу</small><b>${pct(m.crSale)}</b></div></div>`;
   }
   html += `</div>`;
 
@@ -830,7 +837,14 @@ function renderStats() {
     const mk = today().slice(0, 7);
     const full = rnp(state.clients, state.legacy, { from: `${mk}-01`, to: today(), people, aliases });
     const n = daysInMonth(mk);
-    const plan = people ? [...people].reduce((sum, id) => sum + (state.settings.personPlans?.[id] || 0), 0) : state.settings.monthPlan || 0;
+    const countPlan = people ? [...people].reduce((sum, id) => sum + (state.settings.personPlans?.[id] || 0), 0) : state.settings.salesPlan || 0;
+    if (countPlan) {
+      html += cumulative(Array.from({ length: n }, (_, i) => {
+        const d = `${mk}-${String(i + 1).padStart(2, "0")}`;
+        return { label: fmtDay(d), value: full.days[d]?.sales || 0, future: d > today() };
+      }), { plan: countPlan, fmt: (v) => String(Math.round(v)), title: `Продажи за ${monthName(mk)}, шт · план ${countPlan}` });
+    }
+    const plan = people ? 0 : state.settings.monthPlan || 0;
     html += cumulative(Array.from({ length: n }, (_, i) => {
       const d = `${mk}-${String(i + 1).padStart(2, "0")}`;
       return { label: fmtDay(d), value: full.days[d]?.salesSum || 0, future: d > today() };
@@ -843,7 +857,7 @@ function renderStats() {
   const ranking = Object.entries(rnp(state.clients, state.legacy, { ...range, aliases }).byPerson).sort((a, b) => b[1].salesSum - a[1].salesSum);
   if (ranking.length) {
     const max = Math.max(1, ...ranking.map(([, m]) => m.salesSum));
-    html += `<h2>Рейтинг менеджеров</h2><div class="list leader">${ranking.map(([id, m], i) => `<div class="hbar" data-sperson="${id}"><div class="hbar-top"><span>${["🥇", "🥈", "🥉"][i] || "•"} ${esc(userName(id))}</span><b>${rub(m.salesSum)}</b></div><div class="bar-track"><i style="width:${(m.salesSum / max) * 100}%"></i></div><div class="sub">продаж ${m.sales} · проведено ${m.held}/${m.scheduled} · доходимость ${pct(m.crHeld)} · CR ${pct(m.crSale)} · чек ${m.avgCheck ? compact(m.avgCheck) : "—"}${state.settings.personPlans?.[id] && state.period === "month" ? ` · план ${Math.round((m.salesSum / state.settings.personPlans[id]) * 100)}%` : ""}</div></div>`).join("")}</div>`;
+    html += `<h2>Рейтинг менеджеров</h2><div class="list leader">${ranking.map(([id, m], i) => `<div class="hbar" data-sperson="${id}"><div class="hbar-top"><span>${["🥇", "🥈", "🥉"][i] || "•"} ${esc(userName(id))}</span><b>${rub(m.salesSum)}</b></div><div class="bar-track"><i style="width:${(m.salesSum / max) * 100}%"></i></div><div class="sub">продаж ${m.sales} · проведено ${m.held}/${m.scheduled} · доходимость ${pct(m.crHeld)} · CR ${pct(m.crSale)} · чек ${m.avgCheck ? compact(m.avgCheck) : "—"}${state.settings.personPlans?.[id] && state.period === "month" ? ` · план ${m.sales}/${state.settings.personPlans[id]}` : ""}</div></div>`).join("")}</div>`;
   }
 
   // Таблица РнП как в Google-таблице
@@ -1144,8 +1158,9 @@ function renderSettings() {
       <label class="field"><span>Лидоруб</span><input data-rate="lidorub" inputmode="decimal" value="${s.rates.lidorub}"></label></div>
       <div class="sub">МОП/РОП/лидоруб — от (чистая − налог), как в таблице.</div></div>
     <h2>План на месяц</h2><div class="card">
-      <label class="field"><span>Отдел продаж, ₽</span><input id="plan" inputmode="numeric" value="${s.monthPlan || ""}" placeholder="например 2000000"></label>
-      ${closers().map((u) => `<label class="field"><span>${esc(u.name)}, ₽ продаж</span><input data-pplan="${u.id}" inputmode="numeric" value="${s.personPlans?.[u.id] || ""}"></label>`).join("")}
+      <label class="field"><span>Отдел продаж, продаж в месяц</span><input id="splan" inputmode="numeric" value="${s.salesPlan || ""}" placeholder="20"></label>
+      <label class="field"><span>Отдел продаж, ₽ (по желанию)</span><input id="plan" inputmode="numeric" value="${s.monthPlan || ""}" placeholder="например 1500000"></label>
+      ${closers().map((u) => `<label class="field"><span>${esc(u.name)}, продаж в месяц</span><input data-pplan="${u.id}" inputmode="numeric" value="${s.personPlans?.[u.id] || ""}"></label>`).join("")}
       ${lidorubs().map((u) => `<label class="field"><span>${esc(u.name)}, записей на созвон</span><input data-pplan="${u.id}" inputmode="numeric" value="${s.personPlans?.[u.id] || ""}"></label>`).join("")}
       <div class="sub">У каждого на «Сегодня» — полоса плана, где должен быть к этому дню, прогноз и сколько нужно в день.</div></div>
     ${legacyNames.length ? `<h2>Люди из старых таблиц</h2><div class="card">${legacyNames.map((n) => `<label class="field"><span>«${esc(n)}» в таблицах — это</span><select data-alias="${esc(n)}"><option value="">— не связан —</option>${people.map((u) => `<option value="${u.id}" ${s.aliases?.[n] === u.id ? "selected" : ""}>${esc(u.name)} · ${ROLES[u.role]}</option>`).join("")}</select></label>`).join("")}<div class="sub">Свяжи — и история из РнП и ведомости ляжет на человека.</div></div>` : ""}
@@ -1159,7 +1174,7 @@ function renderSettings() {
     try {
       const personPlans = {};
       for (const el of $app.querySelectorAll("[data-pplan]")) if (el.value) personPlans[el.dataset.pplan] = el.value;
-      const res = await api("PUT", "/settings", { rates, monthPlan: document.getElementById("plan").value, personPlans, aliases });
+      const res = await api("PUT", "/settings", { rates, monthPlan: document.getElementById("plan").value, salesPlan: document.getElementById("splan").value, personPlans, aliases });
       state.settings = res.settings;
       toast("Сохранено");
     } catch (e) {
