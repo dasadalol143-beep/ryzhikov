@@ -21,7 +21,7 @@ test("matches the spreadsheet formula on @Diman0004", () => {
       centrofin: { status: "applied", amount: 2520, cost: 20 }, fastmoney: { status: "rejected", amount: 2440, cost: 20 },
     },
   };
-  const m = leadMoney(lead, DEFAULT_OFFERS, DEFAULT_SETTINGS);
+  const m = leadMoney(lead, DEFAULT_OFFERS, { ...DEFAULT_SETTINGS, taxRate: 6, partnerShare: 15 }); // ставки, по которым считалась таблица
   near(m.income, 62475);
   near(m.costs, 2973);
   near(m.tax, 3748.5);
@@ -36,6 +36,7 @@ test("active lead: potential = in work + untouched active offers; payout reduces
     { id: "b", amount: 5000, active: true },
     { id: "c", amount: 7000, active: false },
     { id: "d", amount: 3000, active: true },
+    { id: "e", amount: 4000, active: true, category: "mfo" },
   ];
   const lead = {
     stage: "offers",

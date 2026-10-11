@@ -64,7 +64,7 @@ test("lead lifecycle, offer statuses and manager isolation", async () => {
   const state = await admin("GET", "/state");
   assert.equal(state.status, 200);
   assert.equal(state.body.me.role, "admin");
-  assert.equal(state.body.settings.partnerShare, 15);
+  assert.equal(state.body.settings.partnerShare, 20);
   assert.ok(state.body.offers.find((o) => o.id === "zaymer" && o.category === "mfo" && o.cost === 20));
 
   assert.equal((await manager("POST", "/leads", { source: "x" })).status, 400);
@@ -112,8 +112,8 @@ test("settings and import (upsert by telegram)", async () => {
   const manager = client(handle, { id: 2, first_name: "Слава" });
 
   assert.equal((await manager("PUT", "/settings", { partnerShare: 20 })).status, 403);
-  const s = await admin("PUT", "/settings", { partnerShare: 20, taxRate: 500 });
-  assert.deepEqual(s.body, { taxRate: 6, partnerShare: 20, partnerName: "Дамир" });
+  const s = await admin("PUT", "/settings", { partnerShare: 25, taxRate: 500 });
+  assert.deepEqual(s.body, { taxRate: 7, partnerShare: 25, partnerName: "Дамир" });
 
   assert.equal((await manager("POST", "/import", { leads: [] })).status, 403);
   const first = await admin("POST", "/import", {

@@ -129,9 +129,10 @@ function renderDashboard() {
   state.leads.forEach((l) => (counts[l.stage] = (counts[l.stage] || 0) + 1));
   const max = Math.max(1, ...Object.values(counts));
 
+  // Сначала те, у кого деньги уже в работе (заявки, открытые счета), потом по потолку.
   const toPush = withMoney
-    .filter((x) => x.m.potential > 0)
-    .sort((a, b) => b.m.potential - a.m.potential)
+    .filter((x) => x.m.inWork > 0)
+    .sort((a, b) => b.m.inWork - a.m.inWork)
     .slice(0, 10);
 
   $app.innerHTML = `
@@ -140,7 +141,7 @@ function renderDashboard() {
       <div class="card stat accent"><div class="label">Чистая выручка</div><div class="value">${rub(t.net)}</div></div>
       <div class="card stat"><div class="label">ЦД выполнено, ждём засчёта</div><div class="value">${rub(t.waiting)}</div></div>
       <div class="card stat"><div class="label">Заявки и открытые счета</div><div class="value">${rub(t.inWork)}</div></div>
-      <div class="card stat"><div class="label">Недокрут (потенциал)</div><div class="value money-orange">${rub(t.potential)}</div></div>
+      <div class="card stat"><div class="label">Потолок: все РКО по активным лидам</div><div class="value money-orange">${rub(t.potential)}</div></div>
     </div>
 
     <h2>Отчётный лист</h2>
@@ -162,11 +163,11 @@ function renderDashboard() {
         .join("")}
     </div>
 
-    <h2>Кого докрутить в первую очередь</h2>
+    <h2>Кого докрутить в первую очередь · деньги в работе</h2>
     ${
       toPush.length
-        ? `<div class="list">${toPush.map(({ l, m }) => leadRow(l, `<span class="money-orange">+${rub(m.potential)}</span>`)).join("")}</div>`
-        : `<div class="card empty">Пока пусто. Добавь первого лида во вкладке «Лиды».</div>`
+        ? `<div class="list">${toPush.map(({ l, m }) => leadRow(l, `<span class="money-orange">${rub(m.inWork)}</span>`)).join("")}</div>`
+        : `<div class="card empty">Нет заявок в работе. Заведи заявки по лидам во вкладке «Лиды».</div>`
     }`;
 }
 

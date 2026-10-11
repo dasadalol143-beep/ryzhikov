@@ -16,7 +16,8 @@ export function leadMoney(lead, offers, settings) {
   if (active) {
     for (const o of offers) {
       const lo = lead.offers?.[o.id];
-      if (o.active && (!lo || lo.status === "none")) r.untouched += lo ? lo.amount : o.amount;
+      // МФО одобряют не всем — в недокрут их берём, только когда они уже в работе.
+      if (o.active && o.category !== "mfo" && (!lo || lo.status === "none")) r.untouched += lo ? lo.amount : o.amount;
     }
   }
 
