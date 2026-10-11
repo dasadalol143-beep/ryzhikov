@@ -109,3 +109,67 @@ test("relay: 'Теме: …' goes to Tema, his reply comes back to the author; '
   await say(1, "всем: планёрка в 11");
   for (const id of ["501", "502", "503"]) assert.ok(sent.some((m) => m.chat === id && /планёрка в 11/.test(m.text)));
 });
+
+test("closer pastes the CRM report block in the bot: saved to the card, status by button; export sends files", async () => {
+  const { store, sent, say, api } = await setup();
+  const block = `@Germanvtg Герман
+Потребность/запрос клиента: открутить себя, партнерки, как находить лидов
+Род деятельности: работает в стоматологии, учится
+О чем глобально мечтает (главная боль): машину хочет, свободно себя чувствовать
+Провел презентацию по тарифам: Да
+Основное возражение: боялся рассрочки, принцип не брать в долг
+Следующий шаг, договоренности: 9 октября подписание 100к ренессанс
+Предложил оплатить: Да`;
+  await say(501, block);
+  const [c] = await store.all("client");
+  assert.equal(c.telegram, "@Germanvtg");
+  const call = c.calls[0];
+  assert.equal(call.outcome, "held");
+  assert.equal(call.mopId, "501");
+  assert.match(call.report.dream, /машину хочет/);
+  assert.equal(call.report.presented, true);
+  const kb = JSON.parse(sent.at(-1).markup).inline_keyboard;
+  assert.equal(kb[0][0].callback_data, `rs:${c.id}:paid`);
+  // нажал «Оплатил» — сумма 100к взята из текста отчёта, оплата ушла в ведомость
+  const { createHandler } = await import("../src/api.mjs");
+  const { webhookSecret } = await import("../src/telegram.mjs");
+  void createHandler;
+  const secret = await webhookSecret("123:abc");
+  const handle = (await import("../src/api.mjs")).createHandler({ store, env: { BOT_TOKEN: "123:abc", OWNER_IDS: "1", APP_URL: "https://team.test/" }, fetch: async () => new Response(JSON.stringify({ ok: true, result: { message_id: 9 } })) });
+  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ callback_query: { id: "q", from: { id: 501 }, data: `rs:${c.id}:paid`, message: { message_id: 5, chat: { id: 501 }, text: "📝 Отчёт сохранён\nСледующий шаг: подписание 100к ренессанс" } } }) }));
+  assert.equal((await store.get("client", c.id)).status, "paid");
+  assert.equal((await store.all("payment"))[0].tariff, 100000);
+
+  const before = sent.length;
+  await say(1, "/export");
+  const docs = sent.slice(before).filter((m) => m.method === "sendDocument").length;
+  assert.equal(docs, 3); // база, ведомость, бэкап
+  await say(501, "/export");
+  assert.equal(sent.slice(before).filter((m) => m.method === "sendDocument" && m.chat === "501").length, 1); // менеджеру — без денег
+  void api;
+});
+
+test("CRM sheet rows import: merge by nick, legacy calls don't inflate RnP", async () => {
+  const { store, api } = await setup();
+  const { crmRowsToClients, parseCsv } = await import("../public/lib/report.js");
+  const { rnp } = await import("../public/lib/stats.js");
+  await api(1, "POST", "/clients", { name: "Ромчик", telegram: "poopkek" });
+  const csv = `Дата диагностики,Имя,Ник в телеграм,Статус,Диагностика проведена,ИТОГ ДИАГНОСТИКИ,ДАЛЬНЕЙШИЕ ШАГИ
+06.10.26,Ромчик,@poopkek,Оплатил,TRUE,"Потребность/запрос клиента: разобраться в нише
+Предложил оплатить: Да","снимаем самозапрет, рассрок на 100к"
+07.10.26,Дима,@Tanjiro2002,Игнор,TRUE,,нет договорённостей`;
+  const rows = crmRowsToClients(parseCsv(csv), { mopId: "502" });
+  const r = (await api(1, "POST", "/import", { clients: rows })).body;
+  assert.deepEqual([r.clients, r.merged], [1, 1]);
+  const all = await store.all("client");
+  assert.equal(all.length, 2);
+  const rom = all.find((c) => c.telegram === "@poopkek");
+  assert.equal(rom.status, "paid");
+  assert.equal(rom.nextSteps, "снимаем самозапрет, рассрок на 100к");
+  assert.match(rom.calls[0].report.need, /разобраться/);
+  assert.equal(rnp(all, {}).total.held, 0);
+  // повторный импорт не задваивает
+  await api(1, "POST", "/import", { clients: rows });
+  assert.equal((await store.all("client")).length, 2);
+  assert.equal((await store.all("client")).find((c) => c.telegram === "@poopkek").calls.length, 1);
+});

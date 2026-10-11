@@ -5,6 +5,7 @@ import {
   DEFAULT_PAY_LINKS, pace, daysInMonth,
 } from "./lib/model.js";
 import { rnp, lidorubStats, periodRange } from "./lib/stats.js";
+import { parseReportText, parseCsv, crmRowsToClients } from "./lib/report.js";
 import { columns, cumulative, funnel as funnelChart, shareBar, sparkline, bindCharts, compact } from "./charts.js";
 
 const tg = window.Telegram?.WebApp;
@@ -226,7 +227,7 @@ function clientRow(c, { sub = "", right = "", extra = "" } = {}) {
   const call = currentCall(c);
   const defSub = `${statusBadge(c.status)}${c.mopId ? `<span class="sub">· ${esc(userName(c.mopId))}</span>` : ""}`;
   const defRight = call ? `<b class="mono">${mskKey(Date.parse(call.at)) === today() ? mskTime(Date.parse(call.at)) : fmtDay(mskKey(Date.parse(call.at)))}</b>` : "";
-  return `<div class="row" data-open="${c.id}">${avatar(clientTitle(c), c.id)}<div class="grow"><div class="title">${esc(clientTitle(c))}${c.name && c.telegram ? ` <span class="sub" style="display:inline;font-weight:400">${esc(c.telegram)}</span>` : ""}</div><div class="sub">${sub || defSub}</div>${extra}</div><div class="right">${right || defRight}</div></div>`;
+  return `<div class="row" data-open="${c.id}">${avatar(clientTitle(c), c.id)}<div class="grow"><div class="title">${esc(clientTitle(c))}${c.name && c.telegram ? ` <span class="sub" style="display:inline;font-weight:400">${esc(c.telegram)}</span>` : ""}</div><div class="sub">${sub || defSub}</div>${c.nextSteps && !extra ? `<div class="sub next-line">➡️ ${esc(c.nextSteps.slice(0, 90))}</div>` : ""}${extra}</div><div class="right">${right || defRight}</div></div>`;
 }
 
 function callRow(c, call) {
@@ -437,6 +438,8 @@ function renderClient(c) {
     </div>${c.payLinkId ? `<div class="sub" style="margin-top:10px">💳 Отправлена ссылка: <b>${esc(linkById(c.payLinkId)?.label || c.payLinkId)}</b></div>` : ""}</div>`;
 
   if (needsReport(c)) html += `<button class="big-cta warn" data-report-open="${c.id}"><span>📝</span><div>Заполнить отчёт после диагностики<small>потребность, боль, возражение, договорённости</small></div></button>`;
+  else if (state.me.role !== "lidorub") html += `<button class="big-cta" data-report-new="${c.id}"><span>📝</span><div>Итог диагностики<small>как в CRM-таблице: можно вставить свой текст целиком</small></div></button>`;
+  html += `<div class="card" style="margin-bottom:10px"><label class="field" style="margin:0"><span>➡️ Дальнейшие шаги</span><textarea data-f="nextSteps" style="min-height:52px" placeholder="пересозвон 24.10 в 20:00, ждём снятия самозапрета…">${esc(c.nextSteps || "")}</textarea></label></div>`;
 
   if (call) {
     const at = Date.parse(call.at);
@@ -466,7 +469,7 @@ function renderClient(c) {
     html += `<h2>Созвоны и отчёты</h2><div class="list">${callsDone
       .map((x) => {
         const rep = x.report;
-        return `<div class="card" style="border-radius:0"><div class="hbar-top"><b>${fmtWhen(Date.parse(x.at))}</b><span class="sub">${x.outcome === "held" ? "✅ проведён" : "❌ НДЗ"} · ${esc(userName(x.mopId))}</span></div>${rep ? `<div class="report-view">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}<div class="sub">Презентация тарифов: ${rep.presented ? "да" : "нет"} · Предложил оплатить: ${rep.offeredPay ? "да" : "нет"}</div></div>` : x.outcome === "held" ? `<button class="link" data-report-open="${c.id}">Заполнить отчёт →</button>` : ""}</div>`;
+        return `<div class="card" style="border-radius:0"><div class="hbar-top"><b>${fmtWhen(Date.parse(x.at))}</b><span class="sub">${x.outcome === "held" ? "✅ проведён" : "❌ НДЗ"} · ${esc(userName(x.mopId))}</span></div>${rep ? `<div class="report-view">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}<div class="sub">Презентация тарифов: ${ynText(rep.presented)} · Предложил оплатить: ${ynText(rep.offeredPay)}</div>${rep.extra ? `<div>${esc(rep.extra)}</div>` : ""}</div>` : x.outcome === "held" ? `<button class="link" data-report-open="${c.id}">Заполнить отчёт →</button>` : ""}</div>`;
       })
       .join("")}</div>`;
   }
@@ -537,6 +540,8 @@ function openPayLinks(c) {
     };
   });
 }
+
+const ynText = (v) => (v === true ? "да" : v === false ? "нет" : v || "—");
 
 // ---------- шторки: новый лид, запись на созвон, отчёт, сумма ----------
 function openNewClient() {
@@ -638,23 +643,28 @@ function openBooking(c, day = null) {
   openSheet("", draw);
 }
 
-function openReport(c) {
+function openReport(c, { fresh = false } = {}) {
   if (!c) return;
-  const held = [...(c.calls || [])].reverse().find((x) => x.outcome === "held" && !x.reportAt) || [...(c.calls || [])].reverse().find((x) => x.outcome === "held");
-  if (!held) return alertDialog("Сначала отметь, что созвон проведён");
-  const rep = held.report || {};
+  const held = fresh ? null : [...(c.calls || [])].reverse().find((x) => x.outcome === "held" && !x.reportAt) || [...(c.calls || [])].reverse().find((x) => x.outcome === "held" && !x.legacy);
+  if (!held && !fresh) return openReport(c, { fresh: true });
+  const rep = held?.report || {};
   let status = null;
   let presented = rep.presented ?? null;
   let offered = rep.offeredPay ?? null;
+  const mopChoices = closers();
   openSheet(
-    `<div class="sheet-title">Отчёт после диагностики</div><div class="sub" style="margin:0 4px 10px">${esc(clientTitle(c))} · ${fmtWhen(Date.parse(held.at))}</div>
+    `<div class="sheet-title">Итог диагностики</div><div class="sub" style="margin:0 4px 10px">${esc(clientTitle(c))}${held ? ` · ${fmtWhen(Date.parse(held.at))}` : ""}</div>
+    ${held ? "" : `<div class="card" style="margin-bottom:8px"><div class="two"><label class="field"><span>Дата диагностики</span><input type="date" id="r-date" value="${today()}"></label><label class="field"><span>Менеджер</span><select id="r-mop">${mopChoices.map((u) => `<option value="${u.id}" ${u.id === (state.me.role === "mop" ? state.me.id : c.mopId) ? "selected" : ""}>${esc(u.name)}</option>`).join("")}</select></label></div></div>`}
+    <details class="card paste" style="margin-bottom:8px"><summary class="link">📋 Вставить отчёт текстом (как в таблице)</summary><textarea id="r-paste" style="min-height:120px;margin-top:8px" placeholder="Потребность/запрос клиента: …&#10;Род деятельности: …&#10;О чем глобально мечтает (главная боль): …&#10;Провел презентацию по тарифам: Да&#10;Основное возражение: …&#10;Следующий шаг, договоренности: …&#10;Предложил оплатить: Да"></textarea><button class="btn small block" id="r-parse">Разложить по полям</button></details>
     <div class="card">${REPORT_FIELDS.map((f) => `<label class="field"><span>${f.label}</span><textarea data-r="${f.id}" style="min-height:56px">${esc(rep[f.id] || "")}</textarea></label>`).join("")}
+      <label class="field"><span>Ещё (заметки, ник, КИ, долги…)</span><textarea data-r="extra" style="min-height:44px">${esc(rep.extra || "")}</textarea></label>
       <div class="sheet-label">Провёл презентацию по тарифам</div><div class="yn" data-yn="presented"><button class="chip ${presented === true ? "active" : ""}" data-v="1">Да</button><button class="chip ${presented === false ? "active" : ""}" data-v="0">Нет</button></div>
       <div class="sheet-label">Предложил оплатить</div><div class="yn" data-yn="offered"><button class="chip ${offered === true ? "active" : ""}" data-v="1">Да</button><button class="chip ${offered === false ? "active" : ""}" data-v="0">Нет</button></div>
     </div>
     <div class="sheet-label">Итоговый статус</div>
     <div class="chips tight" id="r-status">${AFTER_CALL.map((s) => `<button class="chip" data-s="${s}">${statusLabel(s)}</button>`).join("")}</div>
     <div id="r-extra"></div>
+    <div class="card" style="margin-top:8px"><label class="field" style="margin:0"><span>➡️ Дальнейшие шаги</span><textarea id="r-next-steps" style="min-height:48px">${esc(c.nextSteps || "")}</textarea></label></div>
     <button class="btn block" id="r-save">Сохранить отчёт</button>`,
     (sh) => {
       const extra = sh.querySelector("#r-extra");
@@ -662,6 +672,24 @@ function openReport(c) {
         const needSum = ["paid", "prepaid", "thinking", "resched", "refuse_bank"].includes(status);
         const label = { paid: "Сумма оплаты (тариф)", prepaid: "Сумма предоплаты", thinking: "Сумма потенциала (тариф)", resched: "Сумма потенциала (тариф)", refuse_bank: "На какую сумму не одобрили" }[status];
         extra.innerHTML = `${needSum ? `<div class="card" style="margin-top:10px"><label class="field"><span>${label}</span><input id="r-sum" inputmode="numeric" value="${status === "prepaid" ? "" : c.wantedSum || ""}" placeholder="100000"></label>${status === "prepaid" ? `<label class="field"><span>Полный тариф</span><input id="r-wanted" inputmode="numeric" value="${c.wantedSum || ""}"></label>` : ""}</div>` : ""}${status === "resched" ? `<div class="card" style="margin-top:8px"><label class="field"><span>Новый созвон (МСК)</span><input type="datetime-local" id="r-next"></label></div>` : ""}`;
+      };
+      sh.querySelector("#r-parse").onclick = () => {
+        const r = parseReportText(sh.querySelector("#r-paste").value);
+        for (const el of sh.querySelectorAll("[data-r]")) if (r[el.dataset.r]) el.value = r[el.dataset.r];
+        const setYn = (g, v) => {
+          for (const x of sh.querySelectorAll(`[data-yn="${g}"] .chip`)) x.classList.toggle("active", (v === true && x.dataset.v === "1") || (v === false && x.dataset.v === "0"));
+        };
+        presented = r.presented;
+        offered = r.offeredPay;
+        setYn("presented", r.presented);
+        setYn("offered", r.offeredPay);
+        if (typeof r.presented === "string" || typeof r.offeredPay === "string") {
+          const ex = sh.querySelector('[data-r="extra"]');
+          ex.value = [ex.value, typeof r.presented === "string" ? `Презентация: ${r.presented}` : "", typeof r.offeredPay === "string" ? `Предложил оплатить: ${r.offeredPay}` : ""].filter(Boolean).join("\n");
+        }
+        sh.querySelector("details.paste").open = false;
+        haptic();
+        toast("Разложил по полям — проверь и выбери статус");
       };
       sh.querySelector("#r-status").onclick = (e) => {
         const b = e.target.closest("[data-s]");
@@ -681,9 +709,11 @@ function openReport(c) {
       }
       sh.querySelector("#r-save").onclick = async () => {
         if (!status) return alertDialog("Выбери итоговый статус — без него CRM не обновится");
-        const report = { presented: !!presented, offeredPay: !!offered };
+        const report = { presented, offeredPay: offered };
         for (const el of sh.querySelectorAll("[data-r]")) report[el.dataset.r] = el.value;
-        const body = { type: "report", callId: held.id, report, status, sum: sh.querySelector("#r-sum")?.value };
+        const body = { type: "report", report, status, sum: sh.querySelector("#r-sum")?.value, nextSteps: sh.querySelector("#r-next-steps").value };
+        if (held) body.callId = held.id;
+        else Object.assign(body, { newCall: true, date: new Date(Date.parse(`${sh.querySelector("#r-date").value}T12:00:00+03:00`)).toISOString(), mopId: sh.querySelector("#r-mop")?.value });
         if (status === "paid") body.wantedSum = body.sum;
         if (sh.querySelector("#r-wanted")) body.wantedSum = sh.querySelector("#r-wanted").value;
         const next = sh.querySelector("#r-next")?.value;
@@ -940,6 +970,7 @@ function renderMore() {
       ${item("links", "💳", "Ссылки на оплату", `${payLinks().length} шт · Т-Банк, Ресурс развития, Продамус`)}
       ${item("team", "🧑‍🤝‍🧑", "Команда", `${state.users.filter((u) => u.active !== false).length} в команде${state.pending.length ? ` · заявок ${state.pending.length}` : ""}`)}
       ${item("rules", "📘", "Регламент отдела продаж", "кто что делает и когда")}
+      <div class="row" data-export><div class="icon">📦</div><div class="grow"><div class="title">Выгрузить базу</div><div class="sub">Excel-файл в бота${money() ? " + ведомость и полный бэкап" : ""}</div></div><div class="right sub">›</div></div>
       ${money() ? item("settings", "⚙️", "Настройки", "проценты, план, перенос из таблиц") : ""}
     </div>`;
 }
@@ -1165,6 +1196,9 @@ function renderSettings() {
       <div class="sub">У каждого на «Сегодня» — полоса плана, где должен быть к этому дню, прогноз и сколько нужно в день.</div></div>
     ${legacyNames.length ? `<h2>Люди из старых таблиц</h2><div class="card">${legacyNames.map((n) => `<label class="field"><span>«${esc(n)}» в таблицах — это</span><select data-alias="${esc(n)}"><option value="">— не связан —</option>${people.map((u) => `<option value="${u.id}" ${s.aliases?.[n] === u.id ? "selected" : ""}>${esc(u.name)} · ${ROLES[u.role]}</option>`).join("")}</select></label>`).join("")}<div class="sub">Свяжи — и история из РнП и ведомости ляжет на человека.</div></div>` : ""}
     <button class="btn block" id="set-save">Сохранить</button>
+    <h2>Импорт CRM-таблицы (листы «Тема», «Дима»)</h2><div class="card"><div class="sub">Google Таблица → лист менеджера → Файл → Скачать → CSV. Выбери, чей лист, и загрузи файл. Клиенты склеятся по нику, отчёты лягут в карточки, повторный импорт не задвоит.</div>
+      <div class="chips tight" id="crm-mop">${closers().map((u, i) => `<button class="chip ${i === 0 ? "active" : ""}" data-v="${u.id}">${esc(u.name)}</button>`).join("")}</div>
+      <label class="btn block ghost" style="text-align:center">Выбрать CSV листа<input type="file" id="crm-file" accept=".csv,text/csv,text/plain" hidden></label></div>
     ${state.me.role === "owner" ? `<h2>Перенос из Google-таблиц</h2><div class="card"><div class="sub">РнП с 29.07, лидоруб Алексей, зарплатная ведомость август–октябрь. Файл history.json — в личке от Claude, в репозиторий не кладём: там деньги. Повторный импорт ничего не дублирует.</div><label class="btn block ghost" style="text-align:center">Выбрать файл history.json<input type="file" id="import" accept=".json,application/json" hidden></label></div>` : ""}`;
   document.getElementById("set-save").onclick = async () => {
     const rates = {};
@@ -1181,6 +1215,27 @@ function renderSettings() {
       alertDialog(e.message);
     }
   };
+  let crmMop = closers()[0]?.id || null;
+  document.getElementById("crm-mop")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-v]");
+    if (!b) return;
+    crmMop = b.dataset.v;
+    for (const x of document.querySelectorAll("#crm-mop .chip")) x.classList.toggle("active", x === b);
+  });
+  document.getElementById("crm-file")?.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const clients = crmRowsToClients(parseCsv(await file.text()), { mopId: crmMop });
+    if (!clients.length) return alertDialog("Не нашёл строк. Нужен CSV листа с заголовком «Дата диагностики».");
+    if (!(await confirmDialog(`Нашёл ${clients.length} клиентов (${clients.filter((c) => c.calls[0].report).length} с отчётом). Загрузить в базу ${userName(crmMop)}?`))) return;
+    try {
+      const res = await api("POST", "/import", { clients });
+      await load();
+      alertDialog(`Готово: новых ${res.clients}, склеено с существующими ${res.merged}.`);
+    } catch (err) {
+      alertDialog(err.message);
+    }
+  });
   document.getElementById("import")?.addEventListener("change", async (e) => {
     try {
       const file = e.target.files[0];
@@ -1208,7 +1263,7 @@ function renderRules() {
 $app.addEventListener("click", async (e) => {
   const lt = e.target.closest(".link-row .title");
   if (lt && isBoss() && state.more === "links") return openLinkEdit(linkById(lt.closest(".link-row").querySelector("[data-copy]").dataset.copy));
-  const t = e.target.closest("button, [data-open], [data-more], [data-pay], [data-user], [data-person], [data-sperson]");
+  const t = e.target.closest("button, [data-open], [data-more], [data-pay], [data-user], [data-person], [data-sperson], [data-export]");
   if (!t) return;
   const d = t.dataset;
   if (d.link) {
@@ -1239,6 +1294,16 @@ $app.addEventListener("click", async (e) => {
     return openBooking(clientById(d.book));
   }
   if (d.reportOpen) return openReport(clientById(d.reportOpen));
+  if (d.reportNew) return openReport(clientById(d.reportNew), { fresh: true });
+  if (d.export !== undefined) {
+    toast("Готовлю выгрузку…");
+    try {
+      const r = await api("POST", "/export");
+      return alertDialog(`Отправил в бота: ${r.clients} клиентов${r.payments ? `, ${r.payments} оплат и полный бэкап` : ""}. Открой чат с ботом.`);
+    } catch (e) {
+      return alertDialog(e.message);
+    }
+  }
   if (d.paylinks) return openPayLinks(clientById(d.paylinks));
   if (d.copy || d.share) {
     const l = linkById(d.copy || d.share);

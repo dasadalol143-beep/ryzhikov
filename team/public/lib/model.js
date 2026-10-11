@@ -134,7 +134,7 @@ export const clientTitle = (c) => c.name || c.telegram || "Без имени";
 export const ndzCount = (c) => (c.calls || []).filter((x) => x.outcome === "ndz").length;
 
 // Созвон прошёл, а отчёта нет — главный долг диагноста по регламенту.
-export const needsReport = (c) => (c.calls || []).some((x) => x.outcome === "held" && !x.reportAt);
+export const needsReport = (c) => (c.calls || []).some((x) => x.outcome === "held" && !x.reportAt && !x.legacy);
 
 // Дожим: «Думает»/«Перенос без даты»/«НДЗ» без нового созвона — касания каждый день, 3 подряд.
 export function followupState(c, now = Date.now()) {

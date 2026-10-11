@@ -6,6 +6,7 @@ import {
 import { rnp } from "../public/lib/stats.js";
 import { parseBooking, parseWindows, parseRelay } from "./nlp.mjs";
 import { addFeed } from "./notify.mjs";
+import { isReportText, parseReportText } from "../public/lib/report.js";
 import { dispatch } from "./notify.mjs";
 import { DEFAULT_PAY_LINKS } from "../public/lib/model.js";
 
@@ -15,6 +16,7 @@ export const BOT_COMMANDS = [
   { command: "tomorrow", description: "Созвоны на завтра" },
   { command: "windows", description: "Свободные окна диагностов на завтра" },
   { command: "links", description: "Ссылки на оплату" },
+  { command: "export", description: "Выгрузить базу (Excel + бэкап)" },
 ];
 
 export const BOT_HELP = [
@@ -30,6 +32,8 @@ export const BOT_HELP = [
   "💬 <b>Написать человеку</b>: <code>Теме: перезвони Глебу</code>, <code>всем: планёрка в 11</code> — отвечают реплаем, ответ придёт тебе.",
   "📋 /today, /tomorrow — мои созвоны и задачи",
   "💳 /links — ссылки на оплату",
+  "📝 <b>Итог диагностики</b> — пришли свой обычный блок «Потребность/запрос клиента: …» с @ником клиента, сохраню в карточку и спрошу статус.",
+  "📦 /export — вся база в Excel (руководству ещё ведомость и полный бэкап).",
   "↪️ Перешли мне сообщение клиента — заведу лида.",
   "",
   "⏰ Сам напомню диагносту за 2 часа, за час и за 15 минут до созвона, после — спрошу «пришёл или НДЗ».",
@@ -102,6 +106,13 @@ export async function handleUpdate(update, { store, env, tg, appUrl }) {
   if (/^\/tomorrow/.test(text) || /^завтра\??$/i.test(text)) {
     return reply(dayCalls(me, clients, addDaysKey(mskKey(now), 1), usersMap) || "На завтра созвонов нет", { inline_keyboard: [[openApp(appUrl)]] });
   }
+  if (/^\/export/.test(text) || /^(выгрузка|выгрузи|бэкап)/i.test(text)) {
+    const { sendExport } = await import("./export.mjs");
+    const res = await sendExport({ store, tg, to: me.id, withMoney: ["owner", "rop"].includes(me.role) });
+    return reply(`✅ Выгрузил: ${res.clients} клиентов${["owner", "rop"].includes(me.role) ? `, ${res.payments} оплат` : ""}.`);
+  }
+  if (isReportText(text)) return handleReportMessage(text, { me, clients, store, tg, appUrl, reply, usersMap, settings, env, users });
+
   if (/^\/links/.test(text) || /^ссылк/i.test(text)) {
     const want = Number((text.match(/(\d{2,3})\s*к?/) || [])[1]) * 1000 || null;
     const links = (settings.payLinks?.length ? settings.payLinks : DEFAULT_PAY_LINKS).filter((l) => !want || l.amount === want);
@@ -158,6 +169,33 @@ async function relay(from, to, text, { store, tg, reply, appUrl, answer = false,
     if (!silent) await reply(`⚠️ Не дошло до ${h(to.name)}: он ещё не нажал Start у бота (или заблокировал его).`);
     return false;
   }
+}
+
+// Итог диагностики текстом из чата → отчёт в карточке, потом кнопки статуса.
+async function handleReportMessage(text, { me, clients, store, tg, appUrl, reply, usersMap, settings, env, users }) {
+  const team = new Set(users.map((u) => (u.username || "").toLowerCase()).filter(Boolean));
+  const nick = (text.match(/@([A-Za-z][\w]{3,31})/g) || []).map((n) => n.slice(1)).find((n) => !team.has(n.toLowerCase()));
+  if (!nick) return reply("Чей это отчёт? Добавь @ник клиента в сообщение и пришли ещё раз.");
+  const { blankClient, log, applyAction } = await import("./api.mjs");
+  let c = clients.find((x) => x.telegram?.toLowerCase() === `@${nick}`.toLowerCase());
+  let created = false;
+  if (!c) {
+    c = blankClient(me.id);
+    Object.assign(c, { telegram: `@${nick}` });
+    log(c, me.id, "Клиент создан из отчёта в боте");
+    created = true;
+  }
+  const r = parseReportText(text.replace(new RegExp(`@${nick}`, "g"), ""));
+  const pending = (c.calls || []).some((x) => x.outcome === "held" && !x.reportAt);
+  const ctx = { by: me.id, store, users: usersMap, settings, notes: [] };
+  await applyAction(c, { type: "report", report: r, newCall: !pending, date: new Date().toISOString(), mopId: ["mop", "rop"].includes(me.role) ? me.id : c.mopId || me.id }, ctx);
+  c.updatedAt = new Date().toISOString();
+  await store.put("client", c.id, c);
+  const S = [["paid", "💰 Оплатил"], ["prepaid", "💵 Предоплата"], ["thinking", "🤔 Думает"], ["resched", "🔁 Перенос"], ["refuse_bank", "🏦 Отказ банки"], ["refuse_personal", "✋ Отказ личн."], ["ignore", "🙈 Игнор"], ["invalid", "🚫 Невалид"]];
+  const kb = [];
+  for (let i = 0; i < S.length; i += 2) kb.push(S.slice(i, i + 2).map(([s, l]) => ({ text: l, callback_data: `rs:${c.id}:${s}` })));
+  kb.push([openApp(appUrl, "Открыть карточку", `?client=${c.id}`)]);
+  return reply(`📝 <b>Отчёт сохранён</b> — ${who(c)}${created ? " (новый клиент)" : ""}\n${r.need ? `Запрос: ${h(r.need.slice(0, 120))}\n` : ""}${r.dream ? `Боль: ${h(r.dream.slice(0, 120))}\n` : ""}\n<b>Итоговый статус?</b>`, { inline_keyboard: kb });
 }
 
 // Свободные окна: 10:00–21:00 по часу, занятые — с именем клиента.
@@ -241,6 +279,22 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
     const tail = action === "held" ? "\n\n✅ Проведён. Заполни отчёт — без него созвон не закрыт." : `\n\n❌ ${statusLabel(c.status)}. Клиент ушёл в дожим.`;
     const kb = { inline_keyboard: [[openApp(appUrl, action === "held" ? "Заполнить отчёт" : "Открыть карточку", `?client=${c.id}${action === "held" ? "&report=1" : ""}`)]] };
     await tg.editMessage(cb.message.chat.id, cb.message.message_id, `${cb.message.text || ""}${tail}`, kb).catch(() => {});
+    return;
+  }
+  if (action === "rs") {
+    const status = callId;
+    const { applyAction } = await import("./api.mjs");
+    const settings = (await store.get("meta", "settings")) || {};
+    const usersMap = Object.fromEntries(users.map((u) => [u.id, u]));
+    const sumFromText = Number(((cb.message?.text || "").match(/(\d{2,3})\s?к(?![а-я])/i) || [])[1]) * 1000 || null;
+    const ctx = { by: me.id, store, users: usersMap, settings, notes: [] };
+    await applyAction(c, { type: "status", status, sum: sumFromText || c.wantedSum || 0 }, ctx);
+    c.updatedAt = new Date().toISOString();
+    await store.put("client", c.id, c);
+    await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
+    await answer(`Статус: ${statusLabel(status)}`);
+    const needSum = ["paid", "prepaid", "thinking", "resched", "refuse_bank"].includes(status) && !c.wantedSum && !sumFromText;
+    await tg.editMessage(cb.message.chat.id, cb.message.message_id, `${h(cb.message.text || "")}\n\n✅ Статус: <b>${statusLabel(status)}</b>${needSum ? "\n⚠️ Сумма не указана — впиши тариф в карточке." : ""}`, { inline_keyboard: [[openApp(appUrl, "Открыть карточку", `?client=${c.id}`)]] }).catch(() => {});
     return;
   }
   if (action === "uncall") {
@@ -356,6 +410,11 @@ export async function runMorning({ store, env, tg, appUrl, now = Date.now() }) {
   const y = rnp(clients, legacy, { from: yesterday, to: yesterday, aliases: settings.aliases }).total;
   const month = monthSummary(payments, mskKey(now).slice(0, 7), settings.rates);
   const results = [];
+  // По понедельникам — бэкап базы собственнику, чтобы ничего не пропало.
+  if (new Date(now + 3 * 3600_000).getUTCDay() === 1) {
+    const { sendExport } = await import("./export.mjs");
+    for (const u of users.filter((x) => x.role === "owner")) await sendExport({ store, tg, to: u.id, withMoney: true, now }).catch(() => {});
+  }
   for (const u of users) {
     const plan = dayPlan(u, clients, now);
     let text = `☀️ <b>Доброе утро, ${h(u.name || "")}!</b>`;

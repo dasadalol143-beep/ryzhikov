@@ -156,5 +156,5 @@ test("morning digest goes to everyone with a role", async () => {
   await api(1, "POST", "/users", { id: "50", role: "mop", name: "Тема" });
   const res = await runMorning({ store, env, tg, appUrl: "/" });
   assert.deepEqual(res.map((r) => r.id).sort(), ["1", "50"]);
-  assert.match(sent.find((s) => s.chat === "1").text, /Вчера/);
+  assert.match(sent.find((s) => s.chat === "1" && s.text).text, /Вчера/);
 });

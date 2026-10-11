@@ -101,6 +101,7 @@ function applyFields(c, body) {
   if ("info" in body) c.info = str(body.info, 3000);
   if ("wantedSum" in body) c.wantedSum = money(body.wantedSum);
   if ("lidorubId" in body) c.lidorubId = body.lidorubId ? String(body.lidorubId) : null;
+  if ("nextSteps" in body) c.nextSteps = str(body.nextSteps, 2000);
 }
 
 // Смена статуса + события для РнП. sum — сумма продажи/предоплаты/потенциала/отказа.
@@ -192,12 +193,27 @@ export async function applyAction(c, body, ctx) {
     return;
   }
   if (type === "report") {
-    const call = (body.callId && c.calls.find((x) => x.id === body.callId)) || [...c.calls].reverse().find((x) => x.outcome === "held");
+    let call = (body.callId && c.calls.find((x) => x.id === body.callId)) || [...c.calls].reverse().find((x) => x.outcome === "held" && !x.reportAt) || null;
+    // Созвон не назначали в приложении (как раньше в таблице) — заводим проведённый созвон на дату диагностики.
+    if (!call && body.newCall) {
+      const at = isoOrNull(body.date) || nowIso();
+      const mopId = String(body.mopId || c.mopId || by);
+      if (!(c.events || []).some((e) => e.t === "handed" && e.mop === mopId)) event(c, "handed", by, { mop: mopId });
+      const cur = currentCall(c);
+      if (cur) Object.assign(cur, { outcome: "moved", movedAt: nowIso() });
+      call = { id: randomUUID().slice(0, 8), at, mopId, setAt: nowIso(), setBy: by, outcome: "held", outcomeAt: at, outcomeBy: by, notified: { h2: at, h1: at, m15: at, after: at } };
+      c.calls.push(call);
+      c.mopId = mopId;
+    }
+    if (!call) call = [...c.calls].reverse().find((x) => x.outcome === "held");
     if (!call) throw Object.assign(new Error("Сначала отметь, что созвон проведён"), { status: 400 });
     const report = {};
-    for (const f of REPORT_FIELDS) report[f.id] = str(body.report?.[f.id], 1500);
-    report.presented = !!body.report?.presented;
-    report.offeredPay = !!body.report?.offeredPay;
+    for (const f of REPORT_FIELDS) report[f.id] = str(body.report?.[f.id], 3000);
+    const yn = (v) => (v === true || v === false ? v : typeof v === "string" && v.trim() ? str(v, 200) : null);
+    report.presented = yn(body.report?.presented);
+    report.offeredPay = yn(body.report?.offeredPay);
+    report.extra = str(body.report?.extra, 3000);
+    if ("nextSteps" in body) c.nextSteps = str(body.nextSteps, 2000);
     call.report = report;
     call.reportAt = nowIso();
     if ("wantedSum" in body) c.wantedSum = money(body.wantedSum);
@@ -405,9 +421,20 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         return json({ ok: true });
       }
 
+      // выгрузка базы в личку через бота
+      if (path === "/export" && req.method === "POST") {
+        if (!tg) return json({ error: "Бот не подключён" }, 400);
+        const { sendExport } = await import("./export.mjs");
+        try {
+          return json(await sendExport({ store, tg, to: me.id, withMoney: money_ }));
+        } catch (e) {
+          return json({ error: "Не дошло: нажми Start у бота и попробуй ещё раз" }, 400);
+        }
+      }
+
       // импорт истории из Google-таблиц (seed/*.json)
       if (path === "/import" && req.method === "POST") {
-        if (me.role !== "owner") return json({ error: "forbidden" }, 403);
+        if (!money_) return json({ error: "forbidden" }, 403);
         const res = await importSeed(store, body);
         return json(res);
       }
@@ -452,8 +479,36 @@ export async function importSeed(store, body) {
     out.legacy = true;
   }
   if (Array.isArray(body.clients)) {
-    await store.putMany("client", body.clients.filter((c) => c.id));
-    out.clients = body.clients.length;
+    // Клиенты из CRM-таблицы: склеиваем с уже заведёнными по нику, созвоны из таблицы добавляем без дублей.
+    const existing = await store.all("client");
+    const byNick = new Map(existing.filter((c) => c.telegram).map((c) => [c.telegram.toLowerCase(), c]));
+    const aliases = (await loadSettings(store)).aliases || {};
+    const changed = new Map();
+    out.merged = 0;
+    for (const raw of body.clients.slice(0, 5000)) {
+      const mopId = raw.mopId || aliases[raw.mopAlias] || null;
+      const calls = (raw.calls || []).map((x) => ({ ...x, mopId: x.mopId || mopId }));
+      const key = raw.telegram?.toLowerCase();
+      const hit = (key && (changed.get(key) || byNick.get(key))) || null;
+      if (hit) {
+        for (const call of calls) if (!hit.calls.some((x) => x.id === call.id || (x.legacy && x.at === call.at))) hit.calls.push(call);
+        hit.calls.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+        if (!hit.nextSteps && raw.nextSteps) hit.nextSteps = raw.nextSteps;
+        if (!hit.name && raw.name) hit.name = raw.name;
+        if (!hit.mopId && mopId) hit.mopId = mopId;
+        // Статус из таблицы берём, только если в приложении клиент ещё «новый» или пришёл из таблицы
+        if (raw.status && (hit.status === "new" || hit.fromSheet) && STATUS_IDS.includes(raw.status)) hit.status = raw.status;
+        changed.set(key, hit);
+        out.merged++;
+      } else {
+        const c = { ...blankClient("import"), ...raw, id: raw.id || randomUUID(), mopId, calls, status: STATUS_IDS.includes(raw.status) ? raw.status : "new", history: [{ at: nowIso(), by: "import", text: "Перенесён из CRM-таблицы" }] };
+        delete c.mopAlias;
+        changed.set(key || c.id, c);
+        if (key) byNick.set(key, c);
+        out.clients++;
+      }
+    }
+    await store.putMany("client", [...changed.values()]);
   }
   return out;
 }

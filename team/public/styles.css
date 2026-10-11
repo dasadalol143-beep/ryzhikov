@@ -431,3 +431,6 @@ div.row:active { background: var(--bg2); }
 .pct { font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: 999px; background: var(--bg2); color: var(--hint); }
 .leader .bar-track { height: 8px; }
 .leader .bar-track > i { background: var(--c1); }
+.next-line { color: var(--text) !important; opacity: .75; }
+details.paste summary { list-style: none; cursor: pointer; padding: 2px 0; }
+details.paste summary::-webkit-details-marker { display: none; }

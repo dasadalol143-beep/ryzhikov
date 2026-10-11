@@ -47,6 +47,8 @@ export function rnpEvents(clients, legacy = {}, aliases = {}) {
       if (e.t === "potential") push(e.mop, day, "potential"), push(e.mop, day, "potentialSum", Number(e.sum) || 0);
     }
     for (const call of c.calls || []) {
+      // Созвоны из CRM-таблицы уже посчитаны в РнП-истории — не задваиваем.
+      if (call.legacy) continue;
       const day = mskKey(Date.parse(call.at));
       // Перенесли заранее — созвона в этот день не было, в «назначено» не идёт.
       if (call.outcome === "moved" && Date.parse(call.movedAt || call.at) < Date.parse(call.at)) continue;
