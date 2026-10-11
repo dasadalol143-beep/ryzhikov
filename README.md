@@ -27,7 +27,7 @@ CRM для лидов по РКО, МФО и картам. Повторяет л
 1. [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages → Create → Import a repository** → подключи GitHub → выбери этот репозиторий и ветку с кодом. Остальные поля оставь по умолчанию: деплой сделает `npx wrangler deploy`, а база KV создастся сама.
 2. В созданном воркере: **Settings → Variables and Secrets → Add** → тип **Secret**, имя `BOT_TOKEN`, значение — токен бота.
 3. Админы и менеджеры задаются в `wrangler.toml` (`ADMIN_IDS`, `MANAGER_IDS`), любое изменение выкатывается автоматически после пуша.
-4. В BotFather: `/mybots` → бот → **Bot Settings → Menu Button** → адрес воркера (`https://ryzhikov-crm.<аккаунт>.workers.dev`).
+4. В BotFather: `/mybots` → бот → **Bot Settings → Menu Button** → адрес воркера (`https://ryzhikov.<аккаунт>.workers.dev`).
 
 ## Запуск на Netlify (запасной вариант)
 
