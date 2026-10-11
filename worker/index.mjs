@@ -1,5 +1,7 @@
 // Cloudflare Workers: /api/* обрабатывает та же логика, что и Netlify Function, статика — из public/.
-import { createHandler } from "../lib/core.mjs";
+import { createHandler, loadAll, recipientsOf } from "../lib/core.mjs";
+import { runDaily } from "../lib/report.mjs";
+import { telegram } from "../lib/telegram.mjs";
 
 function kvStore(kv) {
   return {
@@ -25,5 +27,20 @@ export default {
       return createHandler({ store: kvStore(env.CRM), env })(req);
     }
     return env.ASSETS.fetch(req);
+  },
+
+  // Каждое утро: сводка в бота всем с доступом, по понедельникам ещё и бэкап админам.
+  async scheduled(event, env, ctx) {
+    const { offers, settings, leads, access } = await loadAll(kvStore(env.CRM));
+    const results = await runDaily({
+      tg: telegram(env.BOT_TOKEN),
+      recipients: recipientsOf(env, access),
+      leads,
+      offers,
+      settings,
+      appUrl: env.APP_URL,
+      now: event.scheduledTime,
+    });
+    console.log(JSON.stringify(results));
   },
 };

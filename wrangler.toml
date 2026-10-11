@@ -13,7 +13,12 @@ binding = "ASSETS"
 [[kv_namespaces]]
 binding = "CRM"
 
+# Утренняя сводка: 05:57 UTC = 08:57 по Москве.
+[triggers]
+crons = ["57 5 * * *"]
+
 [vars]
+APP_URL = "https://ryzhikov.dasadalol143.workers.dev/"
 ADMIN_IDS = "1971711686,1036213497"
 MANAGER_IDS = ""
 

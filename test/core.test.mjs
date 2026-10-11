@@ -198,3 +198,59 @@ test("access from the app: stranger lands in pending, admin grants a role", asyn
   await admin("PUT", "/access", { id: 777, role: null });
   assert.equal((await damir("GET", "/state")).status, 403);
 });
+
+test("history, next step, reminder and automatic stage", async () => {
+  const handle = createHandler({ store: memoryStore(), env });
+  const damir = client(handle, { id: 1, first_name: "Дамир" });
+  const lead = (await damir("POST", "/leads", { telegram: "@x" })).body;
+  assert.equal(lead.history[0].text, "Лид создан");
+
+  let l = (await damir("PATCH", `/leads/${lead.id}`, { offers: { vtb: { status: "applied" } } })).body;
+  assert.equal(l.stage, "in_work");
+  l = (await damir("PATCH", `/leads/${lead.id}`, { offers: { alfa: { status: "paid" } } })).body;
+  assert.equal(l.stage, "offers");
+  assert.deepEqual(l.history.slice(0, 2).map((h) => h.text), ["Этап: Докрутка", "Альфа — РКО: Засчитано"]);
+  assert.equal(l.history[0].by, "Дамир");
+
+  l = (await damir("PATCH", `/leads/${lead.id}`, { nextStep: "Дожать ЦД по ВТБ", remindAt: "2026-10-14" })).body;
+  assert.equal(l.remindAt, "2026-10-14");
+  assert.equal(l.history[0].text, "Напоминание на 14.10.2026: Дожать ЦД по ВТБ");
+  assert.equal((await damir("PATCH", `/leads/${lead.id}`, { remindAt: "завтра" })).body.remindAt, "2026-10-14");
+  assert.equal((await damir("PATCH", `/leads/${lead.id}`, { remindAt: "" })).body.remindAt, "");
+});
+
+test("backup goes to the admin's Telegram chat", async () => {
+  const calls = [];
+  const fakeFetch = async (url, init) => {
+    calls.push({ method: url.split("/").pop(), chat: init.body.get("chat_id"), file: init.body.get("document")?.name });
+    return new Response(JSON.stringify({ ok: true, result: {} }));
+  };
+  const handle = createHandler({ store: memoryStore(), env, fetch: fakeFetch });
+  const admin = client(handle, { id: 1, first_name: "Пётр" });
+  await admin("POST", "/leads", { telegram: "@x" });
+  const res = await admin("POST", "/backup");
+  assert.deepEqual(res.body, { ok: true, leads: 1 });
+  assert.deepEqual(calls.map((c) => c.method), ["sendDocument", "sendDocument", "sendDocument"]);
+  assert.equal(calls[0].chat, "1");
+  assert.match(calls[0].file, /^crm-backup-\d{4}-\d{2}-\d{2}\.json$/);
+  assert.equal((await client(handle, { id: 2, first_name: "M" })("POST", "/backup")).status, 403);
+});
+
+test("import keeps spreadsheet offers undated; backup re-import keeps real dates", async () => {
+  const store = memoryStore();
+  const handle = createHandler({ store, env });
+  const admin = client(handle, { id: 1, first_name: "Пётр" });
+  await admin("POST", "/import", { leads: [
+    { telegram: "@old", offers: { alfa: { status: "paid", amount: 11000 } } },
+    { telegram: "@backup", offers: { vtb: { status: "paid", amount: 7000, changedAt: "2026-10-01T10:00:00.000Z" } } },
+  ] });
+  const leads = (await admin("GET", "/state")).body.leads;
+  assert.equal(leads.find((l) => l.telegram === "@old").offers.alfa.changedAt, undefined);
+  assert.equal(leads.find((l) => l.telegram === "@backup").offers.vtb.changedAt, "2026-10-01T10:00:00.000Z");
+
+  // лид из старого импорта: дата = момент создания → убирается при чтении
+  const t = "2026-10-11T19:30:00.000Z";
+  await store.setJSON("leads/00000000-0000-0000-0000-000000000001", { id: "00000000-0000-0000-0000-000000000001", telegram: "@legacy", stage: "offers", ownerId: 1, createdAt: t, updatedAt: t, offers: { alfa: { status: "paid", amount: 1, changedAt: "2026-10-11T19:30:00.120Z" } } });
+  const legacy = (await admin("GET", "/state")).body.leads.find((l) => l.telegram === "@legacy");
+  assert.equal(legacy.offers.alfa.changedAt, undefined);
+});
