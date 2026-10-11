@@ -439,3 +439,16 @@ mark.hl { background: linear-gradient(90deg, rgba(212, 166, 74, .38), rgba(243, 
 .soul { margin-top: 16px; padding: 18px 20px; border: 1px dashed rgba(212, 166, 74, .55); background: rgba(10, 6, 16, .75); max-width: 560px; }
 .soul > b { display: block; margin-bottom: 6px; font-family: var(--f-d); font-weight: 400; text-transform: uppercase; font-size: 16px; color: var(--gold-hi); }
 .soul p { font-size: 15px !important; }
+
+/* словарик и блок «кому достаются деньги» */
+.dict { margin-top: 22px; padding: 20px 22px; border: 1px solid var(--line); background: rgba(10, 6, 16, .8); }
+.dict > b { display: block; margin-bottom: 12px; font-family: var(--f-d); font-weight: 400; text-transform: uppercase; font-size: 16px; color: var(--gold-hi); }
+.dict dl { display: grid; gap: 10px; }
+.dict dt { font-weight: 800; color: var(--ivory); font-size: 15px; }
+.dict dd { margin: 2px 0 0; font-size: 14.5px; line-height: 1.55; color: var(--mute); }
+.who { margin-top: 14px; padding: 20px 22px; border-left: 3px solid var(--gold); background: rgba(10, 6, 16, .82); }
+.who > b { display: block; margin-bottom: 8px; font-family: var(--f-d); font-weight: 400; text-transform: uppercase; font-size: 17px; color: var(--gold-hi); }
+.who p { font-size: 15.5px !important; }
+.who p + p { margin-top: 10px; }
+.ref > div { grid-template-columns: 1fr; }
+.ref i b { color: var(--gold-hi); }
