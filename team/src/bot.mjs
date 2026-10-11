@@ -342,7 +342,13 @@ function callButtons(stage, c, call, appUrl) {
 
 // Раз в минуту: что пора отправить. Отправленное помечаем в созвоне — дублей не будет.
 export async function runReminders({ store, env, tg, appUrl, now = Date.now() }) {
-  const clients = await store.all("client");
+  // Один раз после обновления: проиндексировать клиентов, сохранённых до появления индекса
+  if (store.watch && !(await store.get("meta", "watch_v1"))) {
+    const { needsWatch } = await import("./store.mjs");
+    for (const c of await store.all("client")) if (needsWatch(c)) await store.watch(c.id, true);
+    await store.put("meta", "watch_v1", { at: new Date().toISOString() });
+  }
+  const clients = await store.watched();
   const users = await activeUsers(store, env);
   const sent = [];
   for (const c of clients) {
