@@ -5,7 +5,7 @@ import { handleUpdate, BOT_COMMANDS } from "./bot.mjs";
 import { dispatch } from "./notify.mjs";
 import {
   ROLES, STATUS_IDS, SOURCES, REPORT_FIELDS, AFTER_CALL, DEFAULT_RATES, FOLLOWUP_TOUCHES,
-  canSeeMoney, DEFAULT_PAY_LINKS, currentCall, ndzCount, clientTitle, statusLabel, fmtWhen,
+  canSeeMoney, DEFAULT_PAY_LINKS, cleanRanges, rangesText, mskKey, addDaysKey, currentCall, ndzCount, clientTitle, statusLabel, fmtWhen,
 } from "../public/lib/model.js";
 
 export const json = (data, status = 200) =>
@@ -308,7 +308,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           await linkPeople(store);
           await store.put("meta", "linked", { sig, at: nowIso() });
         }
-        const [clients, legacy, pending, feed, settingsNow] = await Promise.all([store.all("client"), store.get("meta", "legacy"), store.all("pending"), store.recent("feed", 120), loadSettings(store)]);
+        const [clients, legacy, pending, feed, settingsNow, windows] = await Promise.all([store.all("client"), store.get("meta", "legacy"), store.all("pending"), store.recent("feed", 120), loadSettings(store), loadWindows(store)]);
         return json({
           me,
           users: Object.values(users),
@@ -317,6 +317,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           settings: settingsNow,
           legacy: legacy || {},
           payments: money_ ? await store.all("payment") : null,
+          windows,
           // Лента: руководству — всё, остальным — адресованное им и про их клиентов (без денег ведомости).
           feed: ["owner", "rop"].includes(me.role) ? feed : feed.filter((f) => (f.to || []).includes(me.id) || f.by === me.id),
           serverNow: Date.now(),
@@ -387,6 +388,12 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           }
         }
         return json({ error: "not_found" }, 404);
+      }
+
+      // окна диагностов: ставит любой из команды (лидоруб — диагносту, диагност — себе)
+      if (path === "/windows" && req.method === "PUT") {
+        const res = await setWindows(store, { by: me, users, ...body });
+        return json({ ...res, windows: await loadWindows(store) });
       }
 
       if (path === "/settings" && req.method === "PUT") {
@@ -582,4 +589,28 @@ async function ensureWebhook(store, env, fetchImpl, hookUrl) {
   await tg.setWebhook(hookUrl, await webhookSecret(env.BOT_TOKEN));
   await tg.setMyCommands(BOT_COMMANDS).catch(() => {});
   await store.put("meta", "webhook", { url: hookUrl, v: 3, at: nowIso() });
+}
+
+// ---------- окна ----------
+export async function loadWindows(store, now = Date.now()) {
+  const from = addDaysKey(mskKey(now), -7);
+  return (await store.all("window")).filter((w) => w.day >= from && w.ranges?.length);
+}
+
+// { mopId, days: ["2026-10-13", …], ranges: [{ from, to }] } — пустые ranges = закрыть окна на эти дни.
+export async function setWindows(store, { by, users, mopId, days, ranges, silent = false }) {
+  const mop = users[String(mopId)];
+  if (!mop || !["mop", "rop"].includes(mop.role)) throw Object.assign(new Error("Окна ставятся диагносту (менеджеру ОП или РОПу)"), { status: 400 });
+  const list = [...new Set((Array.isArray(days) ? days : [days]).filter(isDay))].slice(0, 31);
+  if (!list.length) throw Object.assign(new Error("Выбери день"), { status: 400 });
+  const clean = cleanRanges(ranges);
+  if (Array.isArray(ranges) && ranges.length && !clean.length) throw Object.assign(new Error("Проверь время: «с» должно быть раньше «до»"), { status: 400 });
+  const items = list.map((day) => ({ id: `${mop.id}:${day}`, mopId: mop.id, day, ranges: clean, by: by.id, at: nowIso() }));
+  for (const w of items) clean.length ? await store.put("window", w.id, w) : await store.del("window", w.id);
+  if (!silent && by.id !== mop.id) {
+    const { addFeed } = await import("./notify.mjs");
+    const dd = list.map((d) => `${d.slice(8)}.${d.slice(5, 7)}`).join(", ");
+    await addFeed(store, { type: "comment", text: clean.length ? `🕐 ${by.name} открыл окна ${mop.name}: ${dd} · ${rangesText(clean)}` : `🕐 ${by.name} закрыл окна ${mop.name}: ${dd}`, by: by.id, to: [mop.id] });
+  }
+  return { mop, days: list, ranges: clean };
 }

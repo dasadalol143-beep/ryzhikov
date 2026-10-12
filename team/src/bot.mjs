@@ -4,11 +4,12 @@ import {
   ROLES, isClosed, currentCall, clientTitle, mskKey, mskTime, fmtWhen, needsReport, followupState, statusLabel, monthSummary, addDaysKey, weekday,
 } from "../public/lib/model.js";
 import { rnp } from "../public/lib/stats.js";
-import { parseBooking, parseBookings, parseWindows, parseRelay } from "./nlp.mjs";
+import { parseBooking, parseBookings, parseWindows, parseRelay, parseSetWindows } from "./nlp.mjs";
 import { addFeed } from "./notify.mjs";
 import { isReportText, parseReportText } from "../public/lib/report.js";
 import { dispatch } from "./notify.mjs";
-import { DEFAULT_PAY_LINKS, REPORT_FIELDS, AFTER_CALL } from "../public/lib/model.js";
+import { DEFAULT_PAY_LINKS, REPORT_FIELDS, AFTER_CALL, daySlots, rangesText, toMin } from "../public/lib/model.js";
+import { loadWindows } from "./api.mjs";
 
 const AI_STATUS_SET = new Set(["held", "ndz", "paid", "prepaid", "thinking", "resched", "refuse_bank", "refuse_personal", "ignore", "invalid"]);
 
@@ -33,7 +34,7 @@ export const BOT_HELP = [
   "• <code>запиши Олега на созвон в пятницу 18:30 к Диме +79001234567</code>",
   "Диагност сразу получит уведомление. Нет такого клиента — заведу.",
   "",
-  "🕐 <b>Окна</b>: <code>окна завтра</code>, <code>окна в пятницу у Темы</code>",
+  "🕐 <b>Окна</b>: посмотреть — <code>окна завтра</code>; открыть — <code>окна Тёме завтра с 18 до 21</code>; закрыть — <code>закрой окна Теме завтра</code>",
   "💬 <b>Написать человеку</b>: <code>Теме: перезвони Глебу</code>, <code>всем: планёрка в 11</code> — отвечают реплаем, ответ придёт тебе.",
   "✔️ <b>Статус одной строкой</b>: <code>@ivan пришёл</code>, <code>@ivan ндз</code>, <code>@ivan оплатил 100к</code>, <code>@ivan думает 80к</code>, <code>@ivan отказ банки</code>",
   "📋 /today, /tomorrow — мои созвоны и задачи",
@@ -174,8 +175,19 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
     return reply(`💳 <b>Ссылки на оплату</b>\n\n${body}\n\nОтправил ссылку — отметь в карточке клиента «💳 Ссылка»: при оплате чистая сама подставится в ведомость.`);
   }
 
+  // «окна Тёме завтра с 18 до 21» — открыть окна (любой из команды)
+  const setW = !ask && parseSetWindows(text, closers, { now, sender: ["mop", "rop"].includes(me.role) ? me : null });
+  if (setW) {
+    if (!setW.mop) return reply(`Кому окна? ${closers.map((u) => h(u.name)).join(" / ") || "Сначала добавь диагностов в приложении"}\nПример: <code>окна Тёме завтра с 18 до 21</code>`);
+    const { setWindows } = await import("./api.mjs");
+    await setWindows(store, { by: me, users: usersMap, mopId: setW.mop.id, days: [setW.day], ranges: setW.ranges });
+    const wins = await loadWindows(store);
+    if (setW.mop.id !== me.id) await tg.sendMessage(setW.mop.id, `🕐 <b>${h(me.name)} ${setW.ranges.length ? `открыл тебе окна` : "закрыл тебе окна"}</b> на ${setW.day.slice(8)}.${setW.day.slice(5, 7)}${setW.ranges.length ? `: ${rangesText(setW.ranges)}` : ""}`).catch(() => {});
+    return reply(`✅ ${setW.ranges.length ? "Окна открыты" : "Окна закрыты"}\n\n${windowsText(setW.day, [setW.mop], clients, wins)}`, { inline_keyboard: [[openApp(appUrl, "Окна в приложении", "?tab=calendar")]] });
+  }
+
   const win = /^\/windows/.test(text) ? { day: addDaysKey(mskKey(now), 1), mop: null } : !ask && parseWindows(text, closers, now);
-  if (win) return reply(windowsText(win.day, win.mop ? [win.mop] : closers, clients));
+  if (win) return reply(windowsText(win.day, win.mop ? [win.mop] : closers, clients, await loadWindows(store)));
 
   // Один или несколько созвонов одним сообщением: «Теме в 18 с Антоном, Диме в 19 @ivan»
   const many = ask ? [] : parseBookings(text, closers, { now, sender: ["mop", "rop"].includes(me.role) ? me : null });
@@ -318,6 +330,15 @@ async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, 
         if (call.mopId !== me.id) await tg.sendMessage(call.mopId, `🚫 <b>Созвон отменён</b>: ${fmtWhen(Date.parse(call.at))} — ${who(c)} (${h(me.name)})`).catch(() => {});
         return reply(`🚫 Отменил созвон ${fmtWhen(Date.parse(call.at))} — ${who(c)}${call.mopId !== me.id ? `. ${h(usersMap[call.mopId]?.name || "")} в курсе.` : ""}`);
       }
+      if (name === "set_windows") {
+        const mop = closers.find((u) => u.name === inp.mop);
+        if (!mop) return reply("Кому окна? Назови диагноста.");
+        const { setWindows } = await import("./api.mjs");
+        const res = await setWindows(store, { by: me, users: usersMap, mopId: mop.id, days: inp.dates || [], ranges: inp.ranges || [] });
+        const dd = res.days.map((d) => `${d.slice(8)}.${d.slice(5, 7)}`).join(", ");
+        if (mop.id !== me.id) await tg.sendMessage(mop.id, `🕐 <b>${h(me.name)} ${res.ranges.length ? "открыл тебе окна" : "закрыл тебе окна"}</b>: ${dd}${res.ranges.length ? ` · ${rangesText(res.ranges)}` : ""}`).catch(() => {});
+        return reply(`🕐 ${res.ranges.length ? "Окна открыты" : "Окна закрыты"} — <b>${h(mop.name)}</b>: ${dd}${res.ranges.length ? ` · ${rangesText(res.ranges)}` : ""}`, { inline_keyboard: [[openApp(appUrl, "Окна в приложении", "?tab=calendar")]] });
+      }
       if (name === "send_message") {
         if (!inp.text) return;
         const others = users.filter((u) => u.id !== me.id);
@@ -328,7 +349,8 @@ async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, 
       return reply(`⚠️ ${h(e.message)}`);
     }
   };
-  const res = await chat(text, { me, users, clients, legacy, settings, store, env, now, client: env.__aiClient || null, act });
+  const windows = await loadWindows(store);
+  const res = await chat(text, { me, users, clients, legacy, settings, windows, store, env, now, client: env.__aiClient || null, act });
   if (!res) return false;
   if (res.error) {
     if (res.error === "refusal") return reply("С этим не помогу 🙅 Давай по работе.");
@@ -397,15 +419,22 @@ function busyOf(mopId, day, clients) {
   for (const c of clients) for (const call of c.calls || []) if (call.mopId === mopId && !["moved", "ndz"].includes(call.outcome) && mskKey(Date.parse(call.at)) === day) out.push({ time: mskTime(Date.parse(call.at)), c });
   return out.sort((a, b) => a.time.localeCompare(b.time));
 }
-export function windowsText(day, mops, clients) {
+// Окна дня: заданные окна диагностов со свободными/занятыми слотами; окон нет — как раньше, по часу 10–21.
+export function windowsText(day, mops, clients, windows = []) {
   const now = Date.now();
   const parts = mops.map((m) => {
     const busy = busyOf(m.id, day, clients);
+    const w = windows.find((x) => x.mopId === m.id && x.day === day);
+    if (w?.ranges?.length) {
+      const slots = daySlots(day, w.ranges, busy, now);
+      const free = slots.filter((x) => x.state === "free").map((x) => x.time);
+      return `<b>${h(m.name)}</b> · окно ${rangesText(w.ranges)}\n${slots.filter((x) => x.state === "busy").map((x) => `🔴 ${x.time} — ${who(x.item.c)}${x.inWindow ? "" : " (вне окна)"}`).join("\n")}${slots.some((x) => x.state === "busy") ? "\n" : ""}🟢 свободно: ${free.join(", ") || "нет"}`;
+    }
     const taken = new Set(busy.map((b) => b.time.slice(0, 2)));
     const free = SLOTS.filter((s) => !taken.has(s.slice(0, 2)) && Date.parse(`${day}T${s}:00+03:00`) > now);
-    return `<b>${h(m.name)}</b>\n${busy.length ? busy.map((b) => `🔴 ${b.time} — ${who(b.c)}`).join("\n") + "\n" : ""}🟢 свободно: ${free.join(", ") || "нет"}`;
+    return `<b>${h(m.name)}</b> · окна не заданы\n${busy.length ? busy.map((b) => `🔴 ${b.time} — ${who(b.c)}`).join("\n") + "\n" : ""}⚪️ не занято: ${free.join(", ") || "нет"}`;
   });
-  return `🕐 <b>Окна на ${day.slice(8)}.${day.slice(5, 7)} (${weekday(day)})</b>\n\n${parts.join("\n\n") || "Нет диагностов в команде"}`;
+  return `🕐 <b>Окна на ${day.slice(8)}.${day.slice(5, 7)} (${weekday(day)})</b>\n\n${parts.join("\n\n") || "Нет диагностов в команде"}\n\n<i>Открыть окна: «окна Тёме завтра с 18 до 21» или в приложении → Окна.</i>`;
 }
 
 function dayCalls(user, clients, day, usersMap) {
@@ -447,6 +476,7 @@ async function handleBookings(items, { me, text, clients, closers, store, tg, ap
   const done = [];
   const skipped = [];
   const taken = [];
+  const wins = await loadWindows(store);
   for (const b of items) {
     const label = `${b.time}${b.mop ? ` ${h(b.mop.name)}` : ""}${b.nick || b.name ? ` — ${h(b.nick ? `@${b.nick}` : b.name)}` : ""}`;
     if (!b.mop) {
@@ -490,14 +520,17 @@ async function handleBookings(items, { me, text, clients, closers, store, tg, ap
     await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
     const call = c.calls.at(-1);
     taken.push({ mop: b.mop.id, at: b.at, c });
-    done.push({ c, call, b, created, past: b.at < now });
+    const w = wins.find((x) => x.mopId === b.mop.id && x.day === day);
+    const m = toMin(mskTime(b.at));
+    const outside = w && !w.ranges.some((r) => toMin(r.from) <= m && m < toMin(r.to));
+    done.push({ c, call, b, created, past: b.at < now, outside: outside ? rangesText(w.ranges) : "" });
   }
   if (!done.length) return reply(`Ничего не внёс 🤔\n${skipped.map((x) => `• ${x}`).join("\n")}\n\nПример: <code>завтра: Теме в 18 с Антоном @anton, Диме в 19:30 Иван</code>`);
   const batchId = Math.random().toString(36).slice(2, 10);
   await store.put("batch", batchId, { id: batchId, by: me.id, items: done.map((d) => ({ clientId: d.c.id, callId: d.call.id })), at: new Date().toISOString() });
   const lines = done
     .sort((x, y) => x.b.at - y.b.at)
-    .map((d) => `• ${fmtWhen(d.b.at)} · <b>${h(d.b.mop.name)}</b> — ${who(d.c)}${d.created ? " 🆕" : ""}${d.past ? " ⏱ уже прошёл — отметь итог" : ""}`);
+    .map((d) => `• ${fmtWhen(d.b.at)} · <b>${h(d.b.mop.name)}</b> — ${who(d.c)}${d.created ? " 🆕" : ""}${d.past ? " ⏱ уже прошёл — отметь итог" : ""}${d.outside ? ` ⚠️ вне окна (${d.outside})` : ""}`);
   const notified = [...new Set(done.filter((d) => d.b.mop.id !== me.id).map((d) => d.b.mop.name))];
   const kb = [];
   for (const d of done.filter((x) => x.past)) kb.push([{ text: `✅ ${d.b.time} пришёл`, callback_data: `held:${d.c.id}:${d.call.id}` }, { text: `❌ ${d.b.time} НДЗ`, callback_data: `ndz:${d.c.id}:${d.call.id}` }]);
@@ -517,7 +550,7 @@ async function handleBooking(book, { me, text, clients, closers, store, tg, appU
   if (!book.nick && !book.name && !book.phone) return reply(`Кого записать? Добавь @ник или имя клиента:\n${example}`);
   // Пересечение: у диагноста уже созвон в этот час
   const clash = busyOf(mop.id, mskKey(book.at), clients).find((b) => Math.abs(Date.parse(`${mskKey(book.at)}T${b.time}:00+03:00`) - book.at) < 45 * 60_000);
-  if (clash) return reply(`⛔️ У ${h(mop.name)} уже созвон в ${clash.time} — ${who(clash.c)}.\n\n${windowsText(mskKey(book.at), [mop], clients)}`);
+  if (clash) return reply(`⛔️ У ${h(mop.name)} уже созвон в ${clash.time} — ${who(clash.c)}.\n\n${windowsText(mskKey(book.at), [mop], clients, await loadWindows(store))}`);
 
   const { blankClient, log, applyAction } = await import("./api.mjs");
   const nick = book.nick ? `@${book.nick}` : "";

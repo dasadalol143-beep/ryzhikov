@@ -2,7 +2,7 @@
 // смотрит карточки и цифры, а действия (записать созвон, статус, отчёт, комментарий, сообщение команде)
 // выполняет тот же код, что и обычные команды. Нет секрета ANTHROPIC_API_KEY — ИИ выключен.
 import Anthropic from "@anthropic-ai/sdk";
-import { ROLES, REPORT_FIELDS, isClosed, mskKey, mskTime, addDaysKey, weekday, statusLabel, pace, fmtWhen } from "../public/lib/model.js";
+import { ROLES, REPORT_FIELDS, isClosed, mskKey, mskTime, addDaysKey, weekday, statusLabel, pace, fmtWhen, daySlots, rangesText } from "../public/lib/model.js";
 import { rnp, lidorubStats, periodRange } from "../public/lib/stats.js";
 
 export const AI_MODEL = "claude-haiku-5-5";
@@ -31,6 +31,7 @@ const SYSTEM = `Ты — ассистент отдела продаж «Кома
 - Итог по клиенту (пришёл / НДЗ / оплатил / предоплата / думает / перенос / отказ банки / отказ по личным / игнор / невалид) → set_status. «100к» = 100000.
 - Отчёт после диагностики своими словами → save_report (разложи по полям, чего нет — null; итог, если назван, — в status).
 - Заметка, договорённость, «запиши что…» по клиенту → add_comment.
+- Окна — когда диагност готов брать созвоны. «Окна Тёме завтра с 18 до 21», «Дима всю неделю свободен с 12 до 15» → set_windows. Записывая на созвон, предлагай свободные слоты из окон (в контексте); если просят время вне окна — запиши, но скажи об этом.
 - Новый лид без созвона → create_lead. Отменить созвон → cancel_call. Перенести — book_calls на новое время (старый закроется сам).
 - Передать что-то человеку или всем → send_message (текст от первого лица автора).
 Клиента указывай @ником без @, телефоном или именем — как в контексте. Сомневаешься, кто это, — сначала client_info или list_clients.
@@ -56,6 +57,7 @@ export function aiTools({ closers, team }) {
     { name: "add_comment", description: "Добавить комментарий/заметку в карточку клиента. Все, кто ведёт клиента, получат уведомление.", input_schema: obj({ client: clientRef, text: { type: "string" } }) },
     { name: "create_lead", description: "Завести нового лида без записи на созвон.", input_schema: obj({ name: nullable("string"), nick: nullable("string", { description: "без @" }), phone: nullable("string"), info: nullable("string", { description: "что известно о клиенте" }) }) },
     { name: "cancel_call", description: "Отменить ближайший назначенный созвон клиента.", input_schema: obj({ client: clientRef }) },
+    { name: "set_windows", description: "Открыть или закрыть окна диагноста (когда он готов брать созвоны) на один или несколько дней. Пустой ranges — закрыть окна на эти дни. «С 18 до 21» = from 18:00, to 21:00.", input_schema: obj({ mop: { type: "string", enum: mops.length ? mops : ["—"] }, dates: { type: "array", items: { type: "string", description: "YYYY-MM-DD" } }, ranges: { type: "array", items: obj({ from: { type: "string", description: "HH:MM" }, to: { type: "string", description: "HH:MM" } }) } }) },
     { name: "send_message", description: "Передать сообщение члену команды от имени автора или всем.", input_schema: obj({ to: { type: "string", enum: [...team.map((u) => u.name), "всем"] }, text: { type: "string" } }) },
     { name: "client_info", description: "Карточка клиента: контакты, статус, созвоны, отчёты, история, комментарии.", input_schema: obj({ client: clientRef }) },
     { name: "list_clients", description: "Список клиентов по статусу и/или диагносту (до 40).", input_schema: obj({ status: nullable("string", { enum: ["new", "in_work", "ndz", "resched", "thinking", "prepaid", "paid", "refuse_personal", "refuse_bank", "ignore", "invalid", null] }), mop: nullable("string", { enum: [...mops, null] }) }) },
@@ -82,7 +84,7 @@ function statsText({ users, clients, legacy, settings, from, to }) {
 }
 
 // Срез базы для ИИ. Денег ведомости тут нет вообще.
-export function snapshot({ me, users, clients, legacy = {}, settings = {}, now = Date.now() }) {
+export function snapshot({ me, users, clients, legacy = {}, settings = {}, windows = [], now = Date.now() }) {
   const today = mskKey(now);
   const name = namer(users);
   const closers = users.filter((u) => ["mop", "rop"].includes(u.role));
@@ -109,6 +111,18 @@ export function snapshot({ me, users, clients, legacy = {}, settings = {}, now =
   calls.sort((a, b) => (a.day + a.t).localeCompare(b.day + b.t));
   const outcome = { held: "пришёл", ndz: "НДЗ", moved: "перенесён/отменён" };
   out.push(`\nСозвоны сегодня и завтра:\n${calls.map((x) => `  ${x.day === today ? "сегодня" : "завтра"} ${x.t} — ${name(x.call.mopId)} — ${cname(x.c)}${x.call.outcome ? ` (${outcome[x.call.outcome] || x.call.outcome}${x.call.outcome === "held" && !x.call.reportAt ? ", нет отчёта" : ""})` : ""}`).join("\n") || "  нет"}`);
+  const wl = [];
+  for (let i = 0; i < 7; i++) {
+    const day = addDaysKey(today, i);
+    for (const m of closers) {
+      const w = windows.find((x) => x.mopId === m.id && x.day === day);
+      if (!w?.ranges?.length) continue;
+      const busy = clients.flatMap((c) => (c.calls || []).filter((x) => x.mopId === m.id && !["moved", "ndz"].includes(x.outcome) && mskKey(Date.parse(x.at)) === day).map((x) => ({ time: mskTime(Date.parse(x.at)) })));
+      const sl = daySlots(day, w.ranges, busy, now);
+      wl.push(`  ${day} (${weekday(day)}) ${m.name}: окно ${rangesText(w.ranges)}; свободно ${sl.filter((x) => x.state === "free").map((x) => x.time).join(", ") || "нет"}; занято ${sl.filter((x) => x.state === "busy").map((x) => x.time).join(", ") || "—"}`);
+    }
+  }
+  out.push(`\nОкна диагностов на 7 дней:\n${wl.join("\n") || "  не заданы"}`);
   const noReport = [];
   for (const c of clients) for (const call of c.calls || []) if (call.outcome === "held" && !call.reportAt && !call.legacy) noReport.push(`${name(call.mopId)} — ${cname(c)}`);
   if (noReport.length) out.push(`Без отчёта после созвона: ${noReport.slice(0, 20).join("; ")}`);
@@ -196,7 +210,7 @@ async function recall(store, userId, now) {
 
 // Разговор с ИИ. act(name, input) выполняет действие и возвращает итог строкой.
 // → { text } | { error, detail } | null (ИИ выключен)
-export async function chat(text, { me, users, clients, legacy = {}, settings = {}, store, env, now = Date.now(), client = null, act }) {
+export async function chat(text, { me, users, clients, legacy = {}, settings = {}, windows = [], store, env, now = Date.now(), client = null, act }) {
   if (!env.ANTHROPIC_API_KEY && !client) return null;
   const use = await usage(store, now);
   if (use.n >= (Number(env.AI_DAILY_LIMIT) || DAILY_LIMIT)) return { error: "limit" };
@@ -208,7 +222,7 @@ export async function chat(text, { me, users, clients, legacy = {}, settings = {
   const data = { users, clients, legacy, settings };
   const messages = [
     ...(await recall(store, me.id, now)),
-    { role: "user", content: `<контекст>\n${snapshot({ me, users, clients, legacy, settings, now })}\n</контекст>\n\n${me.name}: ${text.slice(0, 3000)}` },
+    { role: "user", content: `<контекст>\n${snapshot({ me, users, clients, legacy, settings, windows, now })}\n</контекст>\n\n${me.name}: ${text.slice(0, 3000)}` },
   ];
   let cost = 0;
   let tokens = 0;

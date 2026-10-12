@@ -187,3 +187,49 @@ export function pace(done, plan, today) {
   const daysLeft = total - day + 1;
   return { done, plan, expected, forecast, left, perDay: daysLeft ? Math.ceil(left / daysLeft) : left, perDayRaw: daysLeft ? left / daysLeft : left, daysLeft, ahead: done - expected, pct: plan ? done / plan : null, dayPct: day / total };
 }
+
+// ---------- окна диагностов ----------
+// Окно — когда диагност готов брать созвоны: { mopId, day, ranges: [{ from: "18:00", to: "21:00" }] }.
+// Созвон ~час: «18–21» = слоты 18:00, 19:00, 20:00. Занят, если созвон ближе 45 минут.
+export const SLOT_MIN = 60;
+export const toMin = (t) => (/^\d{1,2}:\d{2}$/.test(t || "") ? Number(t.split(":")[0]) * 60 + Number(t.split(":")[1]) : null);
+export const fromMin = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+export const rangesText = (ranges = []) => ranges.map((r) => `${r.from}–${r.to}`).join(", ");
+
+export function cleanRanges(ranges) {
+  const out = [];
+  for (const r of Array.isArray(ranges) ? ranges : []) {
+    const a = toMin(r?.from);
+    const b = toMin(r?.to);
+    if (a === null || b === null || b <= a || b > 24 * 60) continue;
+    out.push([a, b]);
+  }
+  out.sort((x, y) => x[0] - y[0]);
+  const merged = [];
+  for (const [a, b] of out) {
+    const last = merged.at(-1);
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+    else merged.push([a, b]);
+  }
+  return merged.map(([a, b]) => ({ from: fromMin(a), to: fromMin(b) }));
+}
+
+// Слоты дня: окна + созвоны вне окон. busy: [{ time: "HH:MM", ...любые данные }]
+// → [{ time, inWindow, state: "free" | "busy" | "past", item }]
+export function daySlots(day, ranges, busy = [], now = Date.now()) {
+  const marks = new Set();
+  for (const r of ranges || []) for (let m = toMin(r.from); m + SLOT_MIN <= toMin(r.to); m += SLOT_MIN) marks.add(m);
+  for (const b of busy) if (toMin(b.time) !== null) marks.add(toMin(b.time));
+  const taken = [...busy].map((b) => ({ ...b, m: toMin(b.time) }));
+  const out = [];
+  for (const m of [...marks].sort((a, b) => a - b)) {
+    const exact = taken.find((b) => b.m === m);
+    // Свободная отметка окна, рядом с которой уже стоит созвон (18:30 рядом с 19:00) — не показываем отдельно.
+    const near = !exact && taken.find((b) => Math.abs(b.m - m) < 45);
+    if (near) continue;
+    const ts = Date.parse(`${day}T${fromMin(m)}:00+03:00`);
+    const inWindow = (ranges || []).some((r) => toMin(r.from) <= m && m < toMin(r.to));
+    out.push({ time: fromMin(m), inWindow, state: exact ? "busy" : ts < now ? "past" : "free", item: exact || null });
+  }
+  return out;
+}

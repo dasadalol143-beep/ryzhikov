@@ -49,7 +49,16 @@ test("lidorub books a call in plain text, closer gets notified, clashes are refu
   assert.match(sent.at(-1).text, /к кому\?/);
 
   await say(503, "окна завтра у Темы");
-  assert.match(sent.at(-1).text, /🔴 15:00[\s\S]*свободно: 10:00/);
+  assert.match(sent.at(-1).text, /🔴 15:00[\s\S]*не занято: 10:00/);
+
+  // лидоруб открывает Теме окна — свободные слоты считаются от них, Тема получает сообщение
+  await say(503, "окна Тёме завтра с 14 до 18");
+  assert.match(sent.find((m) => m.chat === "501" && /открыл тебе окна/.test(m.text)).text, /14:00–18:00/);
+  assert.match(sent.filter((m) => m.chat === "503").at(-1).text, /Окна открыты[\s\S]*окно 14:00–18:00[\s\S]*🔴 15:00[\s\S]*свободно: 14:00, 16:00, 17:00/);
+  const st = (await api(503, "GET", "/state")).body;
+  assert.equal(st.windows.length, 1);
+  await say(503, "созвон завтра в 19 к Тёме @late_one Олег");
+  assert.match(sent.filter((m) => m.chat === "503").at(-1).text, /вне окна \(14:00–18:00\)/);
 
   // лента: Тема видит событие про свой созвон
   const feed = (await api(501, "GET", "/state")).body.feed;
@@ -372,4 +381,30 @@ test("AI: memory, lookups, report, cancel, retry dedupe, budget stop, /ai status
   delete env.AI_MONTHLY_BUDGET;
   await tell(1, "/ai");
   assert.match(sent.at(-1).text, /ИИ работает[\s\S]*Голосовые: подключены[\s\S]*потрачено \$0\.0\d/);
+});
+
+test("windows API: anyone sets a closer's windows, bad input refused, AI opens windows too", async () => {
+  const { store, sent, api } = await setup();
+  const d1 = new Date(Date.now() + 3 * 3600_000 + 86400_000).toISOString().slice(0, 10);
+  const d2 = new Date(Date.now() + 3 * 3600_000 + 2 * 86400_000).toISOString().slice(0, 10);
+  const r = await api(503, "PUT", "/windows", { mopId: "501", days: [d1, d2], ranges: [{ from: "18:00", to: "21:00" }, { from: "20:00", to: "22:00" }] });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.ranges, [{ from: "18:00", to: "22:00" }]); // пересечения склеены
+  assert.equal(r.body.windows.length, 2);
+  assert.equal((await api(501, "GET", "/state")).body.feed.some((f) => /открыл окна Тема/.test(f.text)), true);
+  assert.equal((await api(503, "PUT", "/windows", { mopId: "503", days: [d1], ranges: [{ from: "18:00", to: "21:00" }] })).status, 400); // лидоруб — не диагност
+  assert.equal((await api(503, "PUT", "/windows", { mopId: "501", days: [d1], ranges: [{ from: "21:00", to: "18:00" }] })).status, 400);
+  const cleared = await api(501, "PUT", "/windows", { mopId: "501", days: [d2], ranges: [] });
+  assert.deepEqual(cleared.body.windows.map((w) => w.day), [d1]);
+
+  // ИИ: «Дима завтра свободен с 12 до 15» → set_windows
+  const { createHandler } = await import("../src/api.mjs");
+  const aiClient = { messages: { create: async () => ({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "w", name: "set_windows", input: { mop: "Дима", dates: [d1], ranges: [{ from: "12:00", to: "15:00" }] } }], usage: {} }) } };
+  const env = { BOT_TOKEN: "123:abc", OWNER_IDS: "1", APP_URL: "https://team.test/", ANTHROPIC_API_KEY: "x", __aiClient: aiClient };
+  const fetchImpl = async (url, init) => (sent.push({ chat: init.body.get("chat_id"), text: init.body.get("text") }), new Response(JSON.stringify({ ok: true, result: { message_id: sent.length } })));
+  const handle = createHandler({ store, env, fetch: fetchImpl });
+  const secret = await webhookSecret("123:abc");
+  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: 9, message: { from: { id: 503, first_name: "X" }, chat: { id: 503, type: "private" }, text: "Димон завтра свободен с полудня до трёх" } }) }));
+  assert.ok((await store.all("window")).some((w) => w.mopId === "502" && w.ranges[0].from === "12:00"));
+  assert.match(sent.find((m) => m.chat === "502").text, /открыл тебе окна/);
 });

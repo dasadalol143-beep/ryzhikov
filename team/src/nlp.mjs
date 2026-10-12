@@ -213,6 +213,24 @@ export function parseWindows(text, users, now = Date.now()) {
   return { day, mop: findUserInText(text, users) };
 }
 
+// «окна Тёме завтра с 18 до 21», «у Димы окно в пятницу 12-14 и 18-20», «закрой окна Теме завтра» → поставить окна.
+export function parseSetWindows(text, users, { now = Date.now(), sender = null } = {}) {
+  const src = String(text || "").replace(/ё/g, "е");
+  if (!/окн/i.test(src)) return null;
+  const close = /(закр|убер|удал|отмен|сним)\S*\s+(?:вс[её]\s+)?окн/i.test(src);
+  const ranges = [];
+  for (const r of src.matchAll(/(?:^|[^\d:.])(?:с\s*)?(\d{1,2})(?:[:.](\d{2}))?\s*(?:до|-|–|—|по)\s*(\d{1,2})(?:[:.](\d{2}))?(?![\d.:])/gi)) {
+    const a = +r[1], b = +r[3];
+    if (a > 23 || b > 24 || b <= a) continue;
+    ranges.push({ from: `${String(a).padStart(2, "0")}:${r[2] || "00"}`, to: `${String(b).padStart(2, "0")}:${r[4] || "00"}` });
+  }
+  if (!close && !ranges.length) return null;
+  let mop = findUserInText(src, users);
+  if (!mop && sender && users.some((u) => u.id === sender.id)) mop = sender;
+  const day = dayOf(src.replace(/\d{1,2}(?:[:.]\d{2})?\s*(?:до|-|–|—|по)\s*\d{1,2}(?:[:.]\d{2})?/g, " "), now) || dayOf("сегодня", now);
+  return { mop, day, ranges: close ? [] : ranges };
+}
+
 // «Теме: перезвони клиенту», «напиши Диме что …», «всем: планерка в 11» → кому и что.
 export function parseRelay(text, users) {
   const all = text.match(/^\s*(всем|команде|команда)\s*[:,—-]?\s*([\s\S]+)/i);

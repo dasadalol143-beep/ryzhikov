@@ -2,7 +2,7 @@ import {
   ROLES, STATUSES, SOURCES, REPORT_FIELDS, AFTER_CALL, FOLLOWUP_TOUCHES, DEFAULT_RATES,
   statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState,
   mskKey, mskTime, mskMidnight, addDaysKey, fmtDay, weekday, fmtWhen, monthName, payrollRow, monthSummary,
-  DEFAULT_PAY_LINKS, pace, daysInMonth,
+  DEFAULT_PAY_LINKS, pace, daysInMonth, daySlots, rangesText, cleanRanges, toMin, fromMin,
 } from "./lib/model.js";
 import { rnp, lidorubStats, periodRange } from "./lib/stats.js";
 import { parseReportText, parseCsv, crmRowsToClients } from "./lib/report.js";
@@ -12,7 +12,18 @@ const tg = window.Telegram?.WebApp;
 tg?.ready();
 tg?.expand();
 // Тема графиков следует за Telegram (свои шаги палитры для тёмного фона).
-const applyTheme = () => (document.documentElement.dataset.theme = tg?.colorScheme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
+const applyTheme = () => {
+  // Вне Telegram (браузер) скрипт Telegram всегда говорит «light» — там берём системную тему.
+  const theme = tg?.initData ? tg.colorScheme : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  document.documentElement.dataset.theme = theme;
+  // Шапка и фон Telegram — в цвет приложения, без белой полосы сверху.
+  const bg = theme === "dark" ? "#0f1013" : "#f3f3f0";
+  try {
+    tg?.setHeaderColor?.(bg);
+    tg?.setBackgroundColor?.(bg);
+    tg?.setBottomBarColor?.(bg);
+  } catch {}
+};
 applyTheme();
 tg?.onEvent?.("themeChanged", applyTheme);
 
@@ -32,6 +43,7 @@ const state = {
   legacy: {},
   payments: null,
   feed: [],
+  windows: [],
   statsPerson: "all",
   tab: "today",
   clientId: null,
@@ -135,16 +147,37 @@ function openSheet(html, onMount) {
 const closeSheet = () => document.querySelector(".sheet-wrap")?.remove();
 
 // ---------- аватар ----------
-const AVATAR_COLORS = [["#ff8a65", "#e8505b"], ["#4fc3f7", "#2481cc"], ["#81c784", "#2e9e5b"], ["#ba68c8", "#7a4fd0"], ["#ffb74d", "#d97f00"], ["#4db6ac", "#00897b"], ["#f06292", "#c2185b"], ["#7986cb", "#3949ab"]];
+// Спокойный аватар: мягкая подложка и инициалы одного тона, тон — от имени.
+const AVATAR_HUES = [12, 28, 152, 172, 200, 222, 246, 268, 292, 330];
 function avatar(name, seed, size = 40) {
   const clean = String(name || "?").replace(/^@/, "");
   const parts = clean.split(/\s+/).filter(Boolean);
   const initials = (parts.length > 1 ? parts[0][0] + parts[1][0] : clean.slice(0, 2)).toUpperCase();
   let hsh = 0;
   for (const ch of String(seed || clean)) hsh = (hsh * 31 + ch.charCodeAt(0)) >>> 0;
-  const [a, b] = AVATAR_COLORS[hsh % AVATAR_COLORS.length];
-  return `<div class="avatar" style="width:${size}px;height:${size}px;font-size:${Math.round(size * 0.38)}px;background:linear-gradient(135deg,${a},${b})">${esc(initials)}</div>`;
+  return `<div class="avatar" style="--h:${AVATAR_HUES[hsh % AVATAR_HUES.length]};width:${size}px;height:${size}px;font-size:${Math.round(size * 0.36)}px">${esc(initials)}</div>`;
 }
+
+// Линейные иконки (24×24, обводка 1.8) — вместо эмодзи в интерфейсе.
+const ICONS = {
+  bell: '<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9"/><path d="M10.3 20.5a1.9 1.9 0 0 0 3.4 0"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  note: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+  user: '<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.7-5.6 7-5.6s6.2 2 7 5.6"/>',
+  wallet: '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12.5h2M3 9.5h18"/>',
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  edit: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/>',
+  send: '<path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5z"/>',
+  chat: '<path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/>',
+  phone: '<path d="M5 4h3.5l1.5 4-2 1.5a11 11 0 0 0 6.5 6.5l1.5-2 4 1.5V19a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+  cal: '<rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/>',
+  card: '<rect x="3" y="5.5" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h3"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.4 3.3-5.5 6.5-5.5s5.9 2.1 6.5 5.5"/><path d="M16 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.2 2.5 3.5 5.2"/>',
+  book: '<path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19"/>',
+  box: '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+};
+const icon = (name, size = 20) => `<svg class="ic" viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">${ICONS[name] || ""}</svg>`;
 
 // ---------- данные ----------
 async function load() {
@@ -159,10 +192,15 @@ async function load() {
       legacy: data.legacy || {},
       payments: data.payments,
       feed: data.feed || [],
+      windows: data.windows || [],
     });
     $tabs.hidden = false;
     // Ссылки из бота: ?client=ID&report=1
     const q = new URLSearchParams(location.search);
+    if (q.get("tab") && !state.deepLinked && ["today", "clients", "calendar", "stats", "more"].includes(q.get("tab"))) {
+      state.deepLinked = true;
+      state.tab = q.get("tab");
+    }
     if (q.get("client") && clientById(q.get("client")) && !state.deepLinked) {
       state.deepLinked = true;
       state.tab = "clients";
@@ -242,7 +280,7 @@ function clientRow(c, { sub = "", right = "", extra = "" } = {}) {
   const call = currentCall(c);
   const defSub = `${statusBadge(c.status)}${c.mopId ? `<span class="sub">· ${esc(userName(c.mopId))}</span>` : ""}`;
   const defRight = call ? `<b class="mono">${mskKey(Date.parse(call.at)) === today() ? mskTime(Date.parse(call.at)) : fmtDay(mskKey(Date.parse(call.at)))}</b>` : "";
-  return `<div class="row" data-open="${c.id}">${avatar(clientTitle(c), c.id)}<div class="grow"><div class="title">${esc(clientTitle(c))}${c.name && c.telegram ? ` <span class="sub" style="display:inline;font-weight:400">${esc(c.telegram)}</span>` : ""}</div><div class="sub">${sub || defSub}</div>${c.nextSteps && !extra ? `<div class="sub next-line">➡️ ${esc(c.nextSteps.slice(0, 90))}</div>` : ""}${extra}</div><div class="right">${right || defRight}</div></div>`;
+  return `<div class="row" data-open="${c.id}">${avatar(clientTitle(c), c.id)}<div class="grow"><div class="title">${esc(clientTitle(c))}${c.name && c.telegram ? ` <span class="sub" style="display:inline;font-weight:400">${esc(c.telegram)}</span>` : ""}</div><div class="sub">${sub || defSub}</div>${c.nextSteps && !extra ? `<div class="sub next-line">→ ${esc(c.nextSteps.slice(0, 90))}</div>` : ""}${extra}</div><div class="right">${right || defRight}</div></div>`;
 }
 
 function callRow(c, call) {
@@ -251,15 +289,17 @@ function callRow(c, call) {
   const cls = at - now < 15 * 60_000 && now - at < 60 * 60_000 ? "now" : at < now ? "past" : "";
   const passed = now >= at;
   const btns = passed && !call.outcome
-    ? `<div class="quick"><button class="qbtn g-won" data-held="${c.id}" data-call="${call.id}">✅ Пришёл</button><button class="qbtn g-ndz" data-ndz="${c.id}" data-call="${call.id}">❌ НДЗ</button>${c.chatUrl ? `<button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">💬 Чат</button>` : ""}</div>`
-    : c.chatUrl ? `<div class="quick"><button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">💬 Чат</button>${c.telegram ? `<button class="qbtn g-lead" data-link="${esc(tgUrl(c.telegram))}">✉️ Написать</button>` : ""}</div>` : "";
-  const outcome = call.outcome === "held" ? (call.reportAt ? "✅ проведён" : "✅ проведён · нет отчёта") : call.outcome === "ndz" ? "❌ НДЗ" : "";
+    ? `<div class="quick"><button class="qbtn g-won" data-held="${c.id}" data-call="${call.id}">Пришёл</button><button class="qbtn g-ndz" data-ndz="${c.id}" data-call="${call.id}">НДЗ</button>${c.chatUrl ? `<button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>` : ""}</div>`
+    : c.chatUrl ? `<div class="quick"><button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>${c.telegram ? `<button class="qbtn g-lead" data-link="${esc(tgUrl(c.telegram))}">Написать</button>` : ""}</div>` : "";
+  const outcome = call.outcome === "held" ? (call.reportAt ? "проведён" : "проведён · нет отчёта") : call.outcome === "ndz" ? "НДЗ" : "";
   return `<div class="tl-row ${cls}" data-open="${c.id}"><div class="tl-time">${mskTime(at)}<small>${fmtDay(mskKey(at))}</small></div><div class="tl-body"><div class="title">${esc(clientTitle(c))}</div><div class="sub">${statusBadge(c.status)}<span class="sub">· ${esc(userName(call.mopId))}${outcome ? ` · ${outcome}` : ""}</span></div>${c.info ? `<div class="sub">${esc(c.info.slice(0, 90))}</div>` : ""}${btns}</div></div>`;
 }
 
 function section(title, items, { empty = "", action = "" } = {}) {
   if (!items.length && !empty) return "";
-  return `<div class="list-head"><h2 style="margin:0">${title}</h2>${action}</div>${items.length ? `<div class="list">${items.join("")}</div>` : `<div class="card empty small">${empty}</div>`}`;
+  // «Созвоны сегодня · 4» → число серым
+  const t = String(title).replace(/\s·\s(\d+)$/, ' <span class="cnt">$1</span>');
+  return `<div class="list-head"><h2>${t}</h2>${action}</div>${items.length ? `<div class="list">${items.join("")}</div>` : `<div class="card empty small">${empty}</div>`}`;
 }
 
 // Все созвоны дня: [{c, call}]
@@ -304,7 +344,7 @@ function renderToday() {
   const fresh = state.clients.filter((c) => c.status === "new" && (role !== "lidorub" || !c.lidorubId || c.lidorubId === me.id));
 
   const unread = unreadFeed();
-  let html = `<div class="hero"><div class="hero-top"><div><div class="hero-hi">${hello}</div><div class="hero-date">${esc(dateLine)} · ${esc(ROLES[role])}</div></div><div class="hero-actions"><button class="icon-btn" data-feed>🔔${unread ? `<em>${unread > 9 ? "9+" : unread}</em>` : ""}</button>${role !== "mop" ? `<button class="btn small light" data-new>＋ Лид</button>` : ""}</div></div>`;
+  let html = `<div class="hero"><div class="hero-top"><div><div class="hero-hi">${hello}</div><div class="hero-date">${esc(dateLine)} · ${esc(ROLES[role])}</div></div><div class="hero-actions"><button class="icon-btn" data-feed aria-label="Лента">${icon("bell", 18)}${unread ? `<em>${unread > 9 ? "9+" : unread}</em>` : ""}</button>${role !== "mop" ? `<button class="btn small light" data-new>+ Лид</button>` : ""}</div></div>`;
   const mk = today().slice(0, 7);
   if (role === "lidorub") {
     const t = lidorubStats(state.clients, state.legacy, { from: today(), to: today(), people: new Set([me.id]), aliases: aliasesFor() }).total;
@@ -321,7 +361,7 @@ function renderToday() {
     const rubPlan = role === "mop" ? 0 : state.settings.monthPlan || 0;
     const nSales = (n) => `${n} ${plural(n, "продажа", "продажи", "продаж")}`;
     if (countPlan) {
-      html += `<div class="hero-label">${role === "mop" ? "Мои продажи" : "Продажи"} · ${monthName(mk)} · ${rub(m.salesSum)}</div><div class="hero-value">${m.sales} <span style="font-size:20px;opacity:.75">из ${countPlan}</span></div>`;
+      html += `<div class="hero-label">${role === "mop" ? "Мои продажи" : "Продажи"} · ${monthName(mk)} · ${rub(m.salesSum)}</div><div class="hero-value">${m.sales} <span style="font-size:22px;opacity:.55">/ ${countPlan}</span></div>`;
       html += paceBlock(pace(m.sales, countPlan, today()), (v) => String(v), "продаж ", nSales);
     } else {
       html += `<div class="hero-label">${role === "mop" ? "Мои продажи" : "Продажи"} · ${monthName(mk)}</div><div class="hero-value">${rub(m.salesSum)}</div>`;
@@ -332,34 +372,34 @@ function renderToday() {
   html += `</div>`;
 
   // Долги — наверху, жёстко
-  if (reportsOwed.length) html += `<button class="big-cta warn" data-open="${reportsOwed[0].id}" data-report="1"><span>📝</span><div>Нет отчёта после созвона: ${reportsOwed.length}<small>${esc(reportsOwed.slice(0, 3).map(clientTitle).join(", "))} — регламент: сразу после звонка</small></div></button>`;
-  if (role === "lidorub") html += `<button class="big-cta" data-new><span>🪓</span><div>Новый лид<small>квалифицировать, отправить ЛМ, записать на созвон</small></div></button>`;
+  if (reportsOwed.length) html += `<button class="big-cta warn" data-open="${reportsOwed[0].id}" data-report="1"><span>${icon("note")}</span><div>Нет отчёта после созвона: ${reportsOwed.length}<small>${esc(reportsOwed.slice(0, 3).map(clientTitle).join(", "))} — регламент: сразу после звонка</small></div></button>`;
+  if (role === "lidorub") html += `<button class="big-cta" data-new><span>${icon("plus")}</span><div>Новый лид<small>квалифицировать, отправить ЛМ, записать на созвон</small></div></button>`;
 
   if (isBoss()) html += teamToday();
 
-  html += section(`📞 Созвоны сегодня · ${todays.length}`, todays.map(({ c, call }) => callRow(c, call)), { empty: role === "lidorub" ? "Сегодня никого не записано — время рубить лидов 🪓" : "Созвонов на сегодня нет" });
-  if (unmarked.length) html += section(`⚠️ Не отмечен итог · ${unmarked.length}`, unmarked.map(({ c, call }) => callRow(c, call)));
+  html += section(`Созвоны сегодня · ${todays.length}`, todays.map(({ c, call }) => callRow(c, call)), { empty: role === "lidorub" ? "Сегодня пока никого не записал. Свободные окна — во вкладке «Окна»." : "Созвонов на сегодня нет" });
+  if (unmarked.length) html += section(`Не отмечен итог · ${unmarked.length}`, unmarked.map(({ c, call }) => callRow(c, call)));
   if (role !== "lidorub" && follow.length) {
-    html += section(`🔁 Дожим — касание сегодня · ${follow.length}`, follow.map((c) => {
+    html += section(`Дожим — касание сегодня · ${follow.length}`, follow.map((c) => {
       const f = followupState(c, now);
       return clientRow(c, {
-        extra: `<div class="quick"><button class="qbtn g-work" data-touch="${c.id}">Написал — тишина</button><button class="qbtn g-won" data-touch-ok="${c.id}">Ответил</button>${c.telegram ? `<button class="qbtn g-lead" data-link="${esc(tgUrl(c.telegram))}">✉️</button>` : ""}</div>`,
+        extra: `<div class="quick"><button class="qbtn g-work" data-touch="${c.id}">Написал — тишина</button><button class="qbtn g-won" data-touch-ok="${c.id}">Ответил</button>${c.telegram ? `<button class="qbtn g-lead" data-link="${esc(tgUrl(c.telegram))}">Написать</button>` : ""}</div>`,
         right: `<div class="touches">${Array.from({ length: FOLLOWUP_TOUCHES }, (_, i) => `<i class="${i < f.touches ? "on" : ""}"></i>`).join("")}</div>`,
       });
     }));
   }
   if (role !== "mop" && fresh.length) {
-    html += section(`🆕 Новые без созвона · ${fresh.length}`, fresh.slice(0, 30).map((c) =>
+    html += section(`Новые без созвона · ${fresh.length}`, fresh.slice(0, 30).map((c) =>
       clientRow(c, {
         sub: `${statusBadge(c.status)}<span class="sub">· ${esc(c.source)}${c.lidorubId ? ` · ${esc(userName(c.lidorubId))}` : ""}</span>`,
-        extra: `<div class="quick">${(c.events || []).some((e) => e.t === "lm") ? `<span class="qmore">ЛМ ✓</span>` : `<button class="qbtn g-hot" data-lm="${c.id}">ЛМ отправлен</button>`}<button class="qbtn g-work" data-book="${c.id}">📅 На созвон</button><button class="qbtn g-lost" data-invalid="${c.id}">Невалид</button></div>`,
+        extra: `<div class="quick">${(c.events || []).some((e) => e.t === "lm") ? `<span class="qmore">ЛМ ✓</span>` : `<button class="qbtn g-hot" data-lm="${c.id}">ЛМ отправлен</button>`}<button class="qbtn g-work" data-book="${c.id}">На созвон</button><button class="qbtn g-lost" data-invalid="${c.id}">Невалид</button></div>`,
       }),
     ));
   }
   if (tomorrow.length) html += section(`Завтра · ${tomorrow.length}`, tomorrow.map(({ c, call }) => callRow(c, call)));
   if (money() && state.payments) {
     const pend = state.payments.filter((p) => !p.verified);
-    if (pend.length) html += `<button class="big-cta" data-more="payroll" style="margin-top:14px"><span>💰</span><div>Оплаты ждут проверки: ${pend.length}<small>внеси чистую сумму после комиссии и поставь «верифицировано»</small></div></button>`;
+    if (pend.length) html += `<button class="big-cta" data-more="payroll" style="margin-top:14px"><span>${icon("wallet")}</span><div>Оплаты ждут проверки: ${pend.length}<small>внеси чистую сумму после комиссии и поставь «верифицировано»</small></div></button>`;
   }
   $app.innerHTML = html;
 }
@@ -446,21 +486,21 @@ function renderClient(c) {
   const callsDone = (c.calls || []).filter((x) => x.outcome && x.outcome !== "moved").reverse();
   let html = `<div class="lead-card"><div class="lead-head">${avatar(clientTitle(c), c.id, 52)}<div class="grow" style="min-width:0"><h1>${esc(clientTitle(c))}</h1><div class="sub">${statusBadge(c.status)} ${c.telegram && c.name ? esc(c.telegram) : ""}</div></div></div>
     <div class="actions">
-      ${c.telegram ? `<button class="action" data-link="${esc(tgUrl(c.telegram))}"><span>✉️</span>Написать</button>` : ""}
-      ${c.chatUrl ? `<button class="action" data-link="${esc(c.chatUrl)}"><span>💬</span>Чат</button>` : ""}
-      ${c.phone ? `<a class="action" href="tel:${esc(c.phone)}"><span>📞</span>Позвонить</a>` : ""}
-      <button class="action" data-book="${c.id}"><span>📅</span>${call ? "Перенести" : "Созвон"}</button>
-      <button class="action" data-paylinks="${c.id}"><span>💳</span>Ссылка</button>
+      ${c.telegram ? `<button class="action" data-link="${esc(tgUrl(c.telegram))}"><span>${icon("send")}</span>Написать</button>` : ""}
+      ${c.chatUrl ? `<button class="action" data-link="${esc(c.chatUrl)}"><span>${icon("chat")}</span>Чат</button>` : ""}
+      ${c.phone ? `<a class="action" href="tel:${esc(c.phone)}"><span>${icon("phone")}</span>Позвонить</a>` : ""}
+      <button class="action" data-book="${c.id}"><span>${icon("cal")}</span>${call ? "Перенести" : "Созвон"}</button>
+      <button class="action" data-paylinks="${c.id}"><span>${icon("card")}</span>Ссылка</button>
     </div>${c.payLinkId ? `<div class="sub" style="margin-top:10px">💳 Отправлена ссылка: <b>${esc(linkById(c.payLinkId)?.label || c.payLinkId)}</b></div>` : ""}</div>`;
 
-  if (needsReport(c)) html += `<button class="big-cta warn" data-report-open="${c.id}"><span>📝</span><div>Заполнить отчёт после диагностики<small>потребность, боль, возражение, договорённости</small></div></button>`;
-  else if (state.me.role !== "lidorub") html += `<button class="big-cta" data-report-new="${c.id}"><span>📝</span><div>Итог диагностики<small>как в CRM-таблице: можно вставить свой текст целиком</small></div></button>`;
-  html += `<div class="card" style="margin-bottom:10px"><label class="field" style="margin:0"><span>➡️ Дальнейшие шаги</span><textarea data-f="nextSteps" style="min-height:52px" placeholder="пересозвон 24.10 в 20:00, ждём снятия самозапрета…">${esc(c.nextSteps || "")}</textarea></label></div>`;
+  if (needsReport(c)) html += `<button class="big-cta warn" data-report-open="${c.id}"><span>${icon("note")}</span><div>Заполнить отчёт после диагностики<small>потребность, боль, возражение, договорённости</small></div></button>`;
+  else if (state.me.role !== "lidorub") html += `<button class="big-cta" data-report-new="${c.id}"><span>${icon("note")}</span><div>Итог диагностики<small>как в CRM-таблице: можно вставить свой текст целиком</small></div></button>`;
+  html += `<div class="card" style="margin-bottom:10px"><label class="field" style="margin:0"><span>Дальнейшие шаги</span><textarea data-f="nextSteps" style="min-height:52px" placeholder="пересозвон 24.10 в 20:00, ждём снятия самозапрета…">${esc(c.nextSteps || "")}</textarea></label></div>`;
 
   if (call) {
     const at = Date.parse(call.at);
     html += `<h2>Созвон</h2><div class="card"><div class="title">${fmtWhen(at)} МСК</div><div class="sub">Диагност: ${esc(userName(call.mopId))}${call.setBy ? ` · записал ${esc(userName(call.setBy))}` : ""}</div>
-      ${now >= at - 30 * 60_000 ? `<div class="quick"><button class="qbtn g-won" data-held="${c.id}" data-call="${call.id}">✅ Пришёл, провёл</button><button class="qbtn g-ndz" data-ndz="${c.id}" data-call="${call.id}">❌ НДЗ</button></div>` : `<div class="sub" style="margin-top:6px">Бот напомнит диагносту за 2 часа, за час и за 15 минут.</div>`}</div>`;
+      ${now >= at - 30 * 60_000 ? `<div class="quick"><button class="qbtn g-won" data-held="${c.id}" data-call="${call.id}">Пришёл, провёл</button><button class="qbtn g-ndz" data-ndz="${c.id}" data-call="${call.id}">НДЗ</button></div>` : `<div class="sub" style="margin-top:6px">Бот напомнит диагносту за 2 часа, за час и за 15 минут.</div>`}</div>`;
   }
 
   if (f) {
@@ -485,7 +525,7 @@ function renderClient(c) {
     html += `<h2>Созвоны и отчёты</h2><div class="list">${callsDone
       .map((x) => {
         const rep = x.report;
-        return `<div class="card" style="border-radius:0"><div class="hbar-top"><b>${fmtWhen(Date.parse(x.at))}</b><span class="sub">${x.outcome === "held" ? "✅ проведён" : "❌ НДЗ"} · ${esc(userName(x.mopId))}</span></div>${rep ? `<div class="report-view">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}<div class="sub">Презентация тарифов: ${ynText(rep.presented)} · Предложил оплатить: ${ynText(rep.offeredPay)}</div>${rep.extra ? `<div>${esc(rep.extra)}</div>` : ""}</div>` : x.outcome === "held" ? `<button class="link" data-report-open="${c.id}">Заполнить отчёт →</button>` : ""}</div>`;
+        return `<div class="card" style="border-radius:0"><div class="hbar-top"><b>${fmtWhen(Date.parse(x.at))}</b><span class="sub">${x.outcome === "held" ? "проведён" : "НДЗ"} · ${esc(userName(x.mopId))}</span></div>${rep ? `<div class="report-view">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}<div class="sub">Презентация тарифов: ${ynText(rep.presented)} · Предложил оплатить: ${ynText(rep.offeredPay)}</div>${rep.extra ? `<div>${esc(rep.extra)}</div>` : ""}</div>` : x.outcome === "held" ? `<button class="link" data-report-open="${c.id}">Заполнить отчёт →</button>` : ""}</div>`;
       })
       .join("")}</div>`;
   }
@@ -626,15 +666,20 @@ function openBooking(c, day = null) {
   const draw = (sh) => {
     const busy = new Set(callsOn(pickDay, (call) => call.mopId === mop && !call.outcome).map(({ call }) => mskTime(Date.parse(call.at))));
     const days = Array.from({ length: 10 }, (_, i) => addDaysKey(today(), i));
+    const w = winOf(mop, pickDay);
+    // Есть окна — показываем их слоты (свободные зелёным), нет — часовую сетку 10–21.
+    const grid = w
+      ? daySlots(pickDay, w.ranges, busyOn(mop, pickDay)).filter((x) => x.state !== "busy" || x.inWindow).map((x) => `<button class="slot ${x.state === "free" ? "free" : "busy"} ${time === x.time ? "active" : ""}" data-time="${x.time}">${x.time}</button>`).join("")
+      : SLOT_HOURS.map((t) => `<button class="slot ${busy.has(t) || Date.parse(`${pickDay}T${t}:00+03:00`) < Date.now() ? "busy" : ""} ${time === t ? "active" : ""}" data-time="${t}">${t}</button>`).join("");
     sh.innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">Созвон с ${esc(clientTitle(c))}</div>
       ${cur ? `<div class="sub" style="margin:0 4px 10px">Сейчас: ${fmtWhen(Date.parse(cur.at))} — будет перенесён</div>` : ""}
       <div class="sheet-label">Диагност</div>
       <div class="chips tight">${closers().map((u) => `<button class="chip ${u.id === mop ? "active" : ""}" data-mop="${u.id}">${esc(u.name)}</button>`).join("") || `<span class="sub">Добавь менеджеров в «Ещё → Команда»</span>`}</div>
       <div class="sheet-label">День</div>
-      <div class="days">${days.map((d) => `<button class="day ${d === pickDay ? "active" : ""}" data-day="${d}"><small>${weekday(d)}</small><b>${d.slice(8)}</b><i>${callsOn(d, (call) => call.mopId === mop && !call.outcome).length || ""}</i></button>`).join("")}</div>
-      <div class="sheet-label">Время (МСК) — зачёркнуто = у диагноста уже созвон</div>
-      <div class="slots">${SLOT_HOURS.map((t) => `<button class="slot ${busy.has(t) || Date.parse(`${pickDay}T${t}:00+03:00`) < Date.now() ? "busy" : ""} ${time === t ? "active" : ""}" data-time="${t}">${t}</button>`).join("")}</div>
-      <label class="field" style="margin-top:10px"><span>Другое время</span><input type="time" id="b-time" value="${time && !SLOT_HOURS.includes(time) ? time : ""}"></label>
+      <div class="days">${days.map((d) => `<button class="day ${d === pickDay ? "active" : ""}" data-day="${d}"><small>${weekday(d)}</small><b>${d.slice(8)}</b><i class="${winOf(mop, d) ? "win" : callsOn(d, (call) => call.mopId === mop && !call.outcome).length ? "has" : ""}"></i></button>`).join("")}</div>
+      <div class="sheet-label">${w ? `Окно ${rangesText(w.ranges)} · зелёное — свободно` : "Окна не заданы · зачёркнуто — уже созвон"}</div>
+      <div class="slots">${grid || `<span class="sub">В окне всё занято — выбери другое время ниже</span>`}</div>
+      <label class="field" style="margin-top:10px"><span>Другое время</span><input type="time" id="b-time" value="${time && !SLOT_HOURS.includes(time) && !w ? time : ""}"></label>
       <button class="btn block" id="b-save" ${mop && time ? "" : "disabled"}>${time ? `Записать на ${fmtDay(pickDay)} в ${time}` : "Выбери время"}</button>`;
     sh.onclick = (e) => {
       const b = e.target.closest("[data-mop],[data-day],[data-time]");
@@ -653,7 +698,7 @@ function openBooking(c, day = null) {
       const at = new Date(Date.parse(`${pickDay}T${time}:00+03:00`)).toISOString();
       if (busy.has(time) && !(await confirmDialog("У диагноста уже есть созвон в это время. Всё равно записать?"))) return;
       closeSheet();
-      await act(c.id, { type: "call", at, mopId: mop }, `Записан: ${fmtDay(pickDay)} в ${time} к ${userName(mop)}`);
+      await act(c.id, { type: "call", at, mopId: mop }, `Записан: ${userName(mop)} · ${fmtDay(pickDay)}, ${time}`);
     };
   };
   openSheet("", draw);
@@ -680,7 +725,7 @@ function openReport(c, { fresh = false } = {}) {
     <div class="sheet-label">Итоговый статус</div>
     <div class="chips tight" id="r-status">${AFTER_CALL.map((s) => `<button class="chip" data-s="${s}">${statusLabel(s)}</button>`).join("")}</div>
     <div id="r-extra"></div>
-    <div class="card" style="margin-top:8px"><label class="field" style="margin:0"><span>➡️ Дальнейшие шаги</span><textarea id="r-next-steps" style="min-height:48px">${esc(c.nextSteps || "")}</textarea></label></div>
+    <div class="card" style="margin-top:8px"><label class="field" style="margin:0"><span>Дальнейшие шаги</span><textarea id="r-next-steps" style="min-height:48px">${esc(c.nextSteps || "")}</textarea></label></div>
     <button class="btn block" id="r-save">Сохранить отчёт</button>`,
     (sh) => {
       const extra = sh.querySelector("#r-extra");
@@ -773,21 +818,172 @@ function celebrate(sum) {
   setTimeout(() => wrap.remove(), 1800);
 }
 
-// ---------- СОЗВОНЫ (окна) ----------
+// ---------- ОКНА ----------
+// Окно — когда диагност берёт созвоны. Ставит любой: лидоруб — диагносту, диагност — себе.
+const winOf = (mopId, day) => state.windows.find((w) => w.mopId === mopId && w.day === day);
+const busyOn = (mopId, day) => callsOn(day, (call) => call.mopId === mopId && call.outcome !== "ndz").map(({ c, call }) => ({ time: mskTime(Date.parse(call.at)), c, call }));
+const hShort = (t) => (t.endsWith(":00") ? String(Number(t.slice(0, 2))) : t);
+const rangesShort = (ranges = []) => ranges.map((r) => `${hShort(r.from)}–${hShort(r.to)}`).join(" · ");
+const dayDot = (d) => (state.windows.some((w) => w.day === d) ? "win" : callsOn(d).length ? "has" : "");
+
+function winCard(u, day) {
+  const w = winOf(u.id, day);
+  const busy = busyOn(u.id, day);
+  const slots = daySlots(day, w?.ranges || [], busy);
+  const free = slots.filter((x) => x.state === "free").length;
+  const head = `<div class="win-head">${avatar(u.name, u.id, 38)}<div class="grow"><div class="title">${esc(u.name)} ${w ? `<span class="win-free ${free ? "" : "none"}">${free ? `свободно ${free}` : "всё занято"}</span>` : ""}</div><div class="sub">${w ? `окна ${rangesShort(w.ranges)}` : "окна не заданы"}${busy.length ? ` · ${busy.length} ${plural(busy.length, "созвон", "созвона", "созвонов")}` : ""}</div></div><button class="icon-act" data-winedit="${u.id}" aria-label="Окна">${icon("edit", 18)}</button></div>`;
+  if (!slots.length) return `<div class="win-card">${head}<div class="win-empty"><span class="sub">Окон и созвонов нет</span><button class="btn small ghost" data-winedit="${u.id}">+ Окно</button></div></div>`;
+  const cells = slots.map((sl) => {
+    if (sl.state === "busy") {
+      const { c, call } = sl.item;
+      return `<button class="wslot busy ${sl.inWindow || !w ? "" : "out"} ${call.outcome === "held" ? "held" : ""}" data-open="${c.id}"><b>${sl.time}</b><small>${esc(clientTitle(c))}</small></button>`;
+    }
+    if (sl.state === "past") return `<div class="wslot past"><b>${sl.time}</b><small>прошло</small></div>`;
+    return `<button class="wslot free" data-slot="${u.id}|${day}|${sl.time}"><b>${sl.time}</b><small>свободно</small></button>`;
+  });
+  return `<div class="win-card">${head}<div class="wslots">${cells.join("")}</div></div>`;
+}
+
 function renderCalendar() {
-  const days = Array.from({ length: 14 }, (_, i) => addDaysKey(today(), i - 3));
-  const list = callsOn(state.calDay);
-  const byMop = {};
-  for (const x of list) (byMop[x.call.mopId] ||= []).push(x);
-  let html = `<h1>Окна для звонков</h1><div class="sub" style="margin:0 4px 10px">Время московское. Тап по клиенту — карточка.</div>
-    <div class="days">${days.map((d) => `<button class="day ${d === state.calDay ? "active" : ""}" data-cal="${d}"><small>${d === today() ? "сег" : weekday(d)}</small><b>${d.slice(8)}</b><i>${callsOn(d).length || ""}</i></button>`).join("")}</div>`;
-  const mopIds = [...new Set([...closers().map((u) => u.id), ...Object.keys(byMop)])];
-  for (const id of mopIds) {
-    const items = byMop[id] || [];
-    html += section(`${esc(userName(id))} · ${items.length}`, items.map(({ c, call }) => callRow(c, call)), { empty: "Свободен весь день" });
-  }
-  if (!mopIds.length) html += `<div class="card empty">Добавь менеджеров ОП в «Ещё → Команда», и здесь появятся их окна.</div>`;
+  const days = Array.from({ length: 16 }, (_, i) => addDaysKey(today(), i - 2));
+  const day = state.calDay;
+  const people = closers();
+  let html = `<div class="list-head" style="margin:4px 0 2px"><h1 style="margin:0 4px">Окна</h1><button class="btn small" data-winedit="">+ Окна</button></div>
+    <div class="page-sub">Когда диагносты берут созвоны. Тап по свободному слоту — запись.</div>
+    <div class="days">${days.map((d) => `<button class="day ${d === day ? "active" : ""}" data-cal="${d}"><small>${d === today() ? "сег" : weekday(d)}</small><b>${d.slice(8)}</b><i class="${dayDot(d)}"></i></button>`).join("")}</div>
+    <div class="legend-row"><span><i class="free"></i>свободный слот</span><span><i class="busy"></i>созвон</span><span>${fmtDay(day)}, ${weekday(day)}</span></div>`;
+  for (const u of people) html += winCard(u, day);
+  if (!people.length) html += `<div class="card empty">Добавь менеджеров ОП в «Ещё → Команда», и здесь появятся их окна.</div>`;
+  const list = callsOn(day);
+  if (list.length) html += section(`Созвоны дня · ${list.length}`, list.map(({ c, call }) => callRow(c, call)));
   $app.innerHTML = html;
+}
+
+// Шторка «Окна диагноста»: человек, дни (можно несколько), часы.
+const WIN_HOURS = Array.from({ length: 17 }, (_, i) => fromMin((7 + i) * 60)); // 07:00…23:00
+const WIN_PRESETS = [["10:00", "14:00"], ["14:00", "18:00"], ["18:00", "21:00"], ["12:00", "21:00"]];
+function openWindows(mopId) {
+  let mop = mopId || (["mop", "rop"].includes(state.me.role) ? state.me.id : closers()[0]?.id);
+  if (!mop) return alertDialog("Сначала добавь диагностов в «Ещё → Команда».");
+  const start = state.calDay >= today() ? state.calDay : today();
+  const days = new Set([start]);
+  const load = () => (winOf(mop, [...days][0])?.ranges || [{ from: "18:00", to: "21:00" }]).map((r) => ({ ...r }));
+  let ranges = load();
+  const opt = (v, list) => list.map((t) => `<option ${t === v ? "selected" : ""}>${t}</option>`).join("");
+  const draw = (sh) => {
+    const list = Array.from({ length: 14 }, (_, i) => addDaysKey(today(), i));
+    const existing = [...days].some((d) => winOf(mop, d));
+    sh.innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">Окна диагноста</div>
+      <div class="chips tight" style="margin-top:0">${closers().map((u) => `<button class="chip ${u.id === mop ? "active" : ""}" data-wmop="${u.id}">${esc(u.name)}</button>`).join("")}</div>
+      <div class="sheet-label">Дни · можно выбрать несколько</div>
+      <div class="days">${list.map((d) => `<button class="day multi ${days.has(d) ? "active" : ""}" data-wday="${d}"><small>${d === today() ? "сег" : weekday(d)}</small><b>${d.slice(8)}</b><i class="${winOf(mop, d) ? "win" : ""}"></i></button>`).join("")}</div>
+      <div class="chips tight" style="margin-top:-4px"><button class="chip" data-wquick="week">Пн–Пт</button><button class="chip" data-wquick="all7">7 дней подряд</button><button class="chip" data-wquick="one">Только ${fmtDay(start)}</button></div>
+      <div class="sheet-label">Время по Москве</div>
+      ${ranges.map((r, i) => `<div class="range-row"><select data-rfrom="${i}">${opt(r.from, WIN_HOURS)}</select><span class="dash">—</span><select data-rto="${i}">${opt(r.to, WIN_HOURS)}</select>${ranges.length > 1 ? `<button class="x" data-rdel="${i}" aria-label="Убрать">×</button>` : ""}</div>`).join("")}
+      <div class="presets">${WIN_PRESETS.map(([a, b]) => `<button class="chip" data-preset="${a}|${b}">${a.slice(0, 2)}–${b.slice(0, 2)}</button>`).join("")}<button class="chip" data-radd>+ ещё окно</button></div>
+      <button class="btn block" id="w-save">Открыть окна · ${days.size} ${plural(days.size, "день", "дня", "дней")}</button>
+      ${existing ? `<button class="btn block ghost" id="w-clear" style="color:var(--bad)">Закрыть окна на выбранные дни</button>` : ""}`;
+  };
+  const save = async (sh, clear) => {
+    const body = { mopId: mop, days: [...days].sort(), ranges: clear ? [] : ranges };
+    if (!clear && !cleanRanges(ranges).length) return alertDialog("Проверь время: «с» должно быть раньше «до».");
+    try {
+      const res = await api("PUT", "/windows", body);
+      state.windows = res.windows;
+      haptic("medium");
+      closeSheet();
+      if (!days.has(state.calDay)) state.calDay = body.days[0];
+      render();
+      toast(clear ? "Окна закрыты" : `Окна открыты: ${userName(mop)} · ${rangesText(res.ranges)}`);
+    } catch (e) {
+      alertDialog(e.message);
+    }
+  };
+  openSheet("", (sh) => {
+    draw(sh);
+    sh.onchange = (e) => {
+      const t = e.target;
+      if (t.dataset.rfrom) ranges[+t.dataset.rfrom].from = t.value;
+      if (t.dataset.rto) ranges[+t.dataset.rto].to = t.value;
+    };
+    sh.onclick = (e) => {
+      const b = e.target.closest("button");
+      if (!b) return;
+      const d = b.dataset;
+      if (b.id === "w-save") return save(sh, false);
+      if (b.id === "w-clear") return save(sh, true);
+      if (d.wmop) (mop = d.wmop), (ranges = load());
+      if (d.wday) {
+        if (days.has(d.wday) && days.size > 1) days.delete(d.wday);
+        else days.add(d.wday);
+      }
+      if (d.wquick) {
+        days.clear();
+        for (let i = 0; i < 14 && days.size < (d.wquick === "one" ? 1 : d.wquick === "all7" ? 7 : 5); i++) {
+          const k = addDaysKey(start, i);
+          const wd = new Date(`${k}T12:00:00Z`).getUTCDay();
+          if (d.wquick !== "week" || (wd >= 1 && wd <= 5)) days.add(k);
+        }
+      }
+      if (d.preset) {
+        const [a, z] = d.preset.split("|");
+        ranges = [{ from: a, to: z }];
+      }
+      if (d.radd !== undefined) ranges.push({ from: "18:00", to: "21:00" });
+      if (d.rdel !== undefined) ranges.splice(+d.rdel, 1);
+      haptic();
+      draw(sh);
+    };
+  });
+}
+
+// Свободный слот → кого записать: из открытых клиентов или новый.
+function openSlotBook(mopId, day, time) {
+  const at = new Date(Date.parse(`${day}T${time}:00+03:00`)).toISOString();
+  let q = "";
+  const pool = () => state.clients
+    .filter((c) => !isClosed(c.status) && !currentCall(c))
+    .filter((c) => !q || [c.name, c.telegram, c.phone, c.info].join(" ").toLowerCase().includes(q))
+    .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))
+    .slice(0, 30);
+  const book = async (c) => {
+    closeSheet();
+    await act(c.id, { type: "call", at, mopId }, `Записан: ${userName(mopId)} · ${fmtDay(day)}, ${time}`);
+  };
+  const listHtml = () => pool().map((c) => `<div class="row" data-pick="${c.id}">${avatar(clientTitle(c), c.id, 34)}<div class="grow"><div class="title">${esc(clientTitle(c))}</div><div class="sub">${statusBadge(c.status)}${c.lidorubId ? `<span class="sub">· ${esc(userName(c.lidorubId))}</span>` : ""}</div></div></div>`).join("") || `<div class="empty small">Никого не нашёл — заведи нового ниже</div>`;
+  openSheet(
+    `<div class="sheet-title">${esc(userName(mopId))} · ${time}</div><div class="sub" style="margin:-6px 2px 12px">${fmtDay(day)}, ${weekday(day)} · кого записать?</div>
+    <input id="sb-q" placeholder="Поиск: имя, @ник, телефон" autocomplete="off">
+    <div class="sheet-label">Без созвона</div><div class="list pick-list" id="sb-list">${listHtml()}</div>
+    <div class="sheet-label">Или новый клиент</div>
+    <div class="card"><label class="field"><span>Имя</span><input id="sb-name" placeholder="Антон"></label><div class="two"><label class="field"><span>Telegram</span><input id="sb-tg" placeholder="@nick"></label><label class="field"><span>Телефон</span><input id="sb-phone" inputmode="tel"></label></div></div>
+    <button class="btn block" id="sb-new">Создать и записать на ${time}</button>`,
+    (sh) => {
+      sh.querySelector("#sb-q").oninput = (e) => {
+        q = e.target.value.trim().toLowerCase();
+        sh.querySelector("#sb-list").innerHTML = listHtml();
+      };
+      sh.querySelector("#sb-list").onclick = (e) => {
+        const r = e.target.closest("[data-pick]");
+        if (r) book(clientById(r.dataset.pick));
+      };
+      sh.querySelector("#sb-new").onclick = async () => {
+        const body = { name: sh.querySelector("#sb-name").value, telegram: sh.querySelector("#sb-tg").value, phone: sh.querySelector("#sb-phone").value, source: SOURCES[0], lidorubId: state.me.role === "lidorub" ? state.me.id : null };
+        if (!body.name.trim() && !body.telegram.trim() && !body.phone.trim()) return alertDialog("Нужно имя, @ник или телефон.");
+        try {
+          const res = await api("POST", "/clients", body);
+          replaceClient(res.client);
+          await book(res.client);
+        } catch (e) {
+          if (e.status === 409 && e.data?.client) {
+            replaceClient(e.data.client);
+            return book(e.data.client);
+          }
+          alertDialog(e.message);
+        }
+      };
+    },
+  );
 }
 
 // ---------- РнП ----------
@@ -977,17 +1173,17 @@ function renderMore() {
   if (state.more === "feed") return renderFeed();
   if (state.more === "links") return renderLinks();
   state.more = null;
-  const item = (id, icon, title, sub) => `<div class="row" data-more="${id}"><div class="icon">${icon}</div><div class="grow"><div class="title">${title}</div><div class="sub">${sub}</div></div><div class="right sub">›</div></div>`;
+  const item = (id, ic, title, sub) => `<div class="row" data-more="${id}"><div class="icon">${ic}</div><div class="grow"><div class="title">${title}</div><div class="sub">${sub}</div></div><div class="right sub">›</div></div>`;
   const pend = (state.payments || []).filter((p) => !p.verified).length;
   $app.innerHTML = `<div class="lead-card"><div class="lead-head">${avatar(state.me.name, state.me.id, 52)}<div class="grow"><h1>${esc(state.me.name)}</h1><div class="sub">${esc(ROLES[state.me.role])}</div></div></div></div>
     <div class="list">
-      ${money() ? item("payroll", "💰", "Зарплатная ведомость", pend ? `ждут проверки: ${pend}` : "выручка, чистая, вознаграждения") : ""}
-      ${item("feed", "🔔", "Лента событий", unreadFeed() ? `новых: ${unreadFeed()}` : "созвоны, продажи, НДЗ, комментарии")}
-      ${item("links", "💳", "Ссылки на оплату", `${payLinks().length} шт · Т-Банк, Ресурс развития, Продамус`)}
-      ${item("team", "🧑‍🤝‍🧑", "Команда", `${state.users.filter((u) => u.active !== false).length} в команде${state.pending.length ? ` · заявок ${state.pending.length}` : ""}`)}
-      ${item("rules", "📘", "Регламент отдела продаж", "кто что делает и когда")}
-      <div class="row" data-export><div class="icon">📦</div><div class="grow"><div class="title">Выгрузить базу</div><div class="sub">Excel-файл в бота${money() ? " + ведомость и полный бэкап" : ""}</div></div><div class="right sub">›</div></div>
-      ${money() ? item("settings", "⚙️", "Настройки", "проценты, план, перенос из таблиц") : ""}
+      ${money() ? item("payroll", icon("wallet"), "Зарплатная ведомость", pend ? `ждут проверки: ${pend}` : "выручка, чистая, вознаграждения") : ""}
+      ${item("feed", icon("bell"), "Лента событий", unreadFeed() ? `новых: ${unreadFeed()}` : "созвоны, продажи, НДЗ, комментарии")}
+      ${item("links", icon("card"), "Ссылки на оплату", `${payLinks().length} шт · Т-Банк, Ресурс развития, Продамус`)}
+      ${item("team", icon("users"), "Команда", `${state.users.filter((u) => u.active !== false).length} в команде${state.pending.length ? ` · заявок ${state.pending.length}` : ""}`)}
+      ${item("rules", icon("book"), "Регламент отдела продаж", "кто что делает и когда")}
+      <div class="row" data-export><div class="icon">${icon("box")}</div><div class="grow"><div class="title">Выгрузить базу</div><div class="sub">Excel-файл в бота${money() ? " + ведомость и полный бэкап" : ""}</div></div><div class="right sub">›</div></div>
+      ${money() ? item("settings", icon("gear"), "Настройки", "проценты, план, перенос из таблиц") : ""}
     </div>`;
 }
 
@@ -1362,6 +1558,11 @@ $app.addEventListener("click", async (e) => {
   if (d.pfilter) return (state.person = d.pfilter), render();
   if (d.person) return (state.tab = "clients"), (state.person = d.person), (state.filter = "active"), render();
   if (d.cal) return (state.calDay = d.cal), render();
+  if (d.winedit !== undefined) return openWindows(d.winedit);
+  if (d.slot) {
+    const [m, dd, tt] = d.slot.split("|");
+    return openSlotBook(m, dd, tt);
+  }
   if (d.period) return (state.period = d.period), render();
   if (d.sview) return (state.statsView = d.sview), (state.statsPerson = "all"), render();
   if (d.sperson) return (state.statsPerson = d.sperson), render();
