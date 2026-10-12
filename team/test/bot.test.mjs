@@ -261,3 +261,55 @@ test("status in one line by @nick: held, paid with sum, no-show", async () => {
   await say(501, "@nobody_here ндз");
   assert.match(sent.at(-1).text, /Не нашёл/);
 });
+
+test("AI fallback: unparsed phrase → booking, status, message, answer; questions don't get relayed", async () => {
+  const { store, sent, say, api } = await setup();
+  const asks = [];
+  let next = [];
+  const aiClient = { messages: { create: async (req) => (asks.push(req), { stop_reason: next.length ? "tool_use" : "end_turn", content: next.length ? next : [{ type: "text", text: "У Димы 0 продаж за месяц." }] }) } };
+  const { createHandler } = await import("../src/api.mjs");
+  // ИИ включён: подменяем клиента Anthropic через env
+  const env = { BOT_TOKEN: "123:abc", OWNER_IDS: "1", APP_URL: "https://team.test/", ANTHROPIC_API_KEY: "test", __aiClient: aiClient };
+  const fetchImpl = async (url, init) => {
+    sent.push({ method: url.split("/").pop(), chat: init.body.get("chat_id"), text: init.body.get("text"), markup: init.body.get("reply_markup") });
+    return new Response(JSON.stringify({ ok: true, result: { message_id: sent.length } }));
+  };
+  const handle = createHandler({ store, env, fetch: fetchImpl });
+  const secret = await webhookSecret("123:abc");
+  const tell = (fromId, text) => handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ message: { from: { id: fromId, first_name: "X" }, chat: { id: fromId, type: "private" }, text } }) }));
+
+  // вопрос с именем менеджера — не пересылается Диме, а уходит ИИ
+  await tell(1, "сколько продаж у Димы?");
+  assert.equal(asks.length, 1);
+  assert.equal(asks[0].model, "claude-haiku-5-5");
+  assert.match(asks[0].messages[0].content, /Диагносты: .*Тема/);
+  assert.ok(!sent.some((m) => m.chat === "502"));
+  assert.match(sent.at(-1).text, /У Димы 0 продаж/);
+
+  const tomorrow = new Date(Date.now() + 3 * 3600_000 + 86400_000).toISOString().slice(0, 10);
+  next = [{ type: "tool_use", id: "t1", name: "book_calls", input: { items: [
+    { mop: "Тема", date: tomorrow, time: "18:00", client_name: "Антон", client_nick: null, phone: null },
+    { mop: "Дима", date: tomorrow, time: "19:00", client_name: "Миша", client_nick: "misha_k", phone: null },
+  ] } }];
+  await tell(503, "Тёмычу одного на завтра к шести Антона, а Димону Мишу @misha_k к семи");
+  const clients = await store.all("client");
+  assert.equal(clients.length, 2);
+  assert.ok(sent.some((m) => m.chat === "501" && /Новый созвон/.test(m.text)));
+  assert.ok(sent.some((m) => m.chat === "502" && /Новый созвон/.test(m.text)));
+  assert.match(sent.filter((m) => m.chat === "503").at(-1).text, /Внёс в CRM: 2 созвона/);
+
+  next = [{ type: "tool_use", id: "t2", name: "set_status", input: { client: "misha_k", status: "thinking", sum: 80000 } }];
+  await tell(502, "Миша подумает до пятницы, хочет за восемьдесят");
+  assert.equal((await store.all("client")).find((c) => c.telegram === "@misha_k").status, "thinking");
+
+  next = [{ type: "tool_use", id: "t3", name: "send_message", input: { to: "Тема", text: "Антон просил перенести на час позже" } }];
+  await tell(503, "передай тёмычу что антон просил перенести на час позже");
+  assert.match(sent.find((m) => m.chat === "501" && /пишет тебе/.test(m.text)).text, /перенести на час позже/);
+
+  // без ключа ИИ не зовётся, справка как раньше
+  delete env.ANTHROPIC_API_KEY;
+  next = [];
+  await tell(1, "что там по плану?");
+  assert.equal(asks.length, 4);
+  assert.match(sent.at(-1).text, /Что я умею/);
+});

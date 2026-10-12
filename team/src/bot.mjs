@@ -39,6 +39,9 @@ export const BOT_HELP = [
   "📦 /export — вся база в Excel (руководству ещё ведомость и полный бэкап).",
   "↪️ Перешли мне сообщение клиента — заведу лида.",
   "",
+  "🎙 <b>Голосовые</b> — наговори созвон, статус или отчёт, расшифрую и внесу.",
+  "🧠 Если подключён ИИ — пиши как угодно и спрашивай: <code>сколько у Димы продаж за неделю?</code>, <code>кто не сдал отчёт?</code>",
+  "",
   "⏰ Сам напомню диагносту за 2 часа, за час и за 15 минут до созвона, после — спрошу «пришёл или НДЗ».",
 ].join("\n");
 
@@ -80,7 +83,16 @@ export async function handleUpdate(update, { store, env, tg, appUrl }) {
     me.name = me.name === "Собственник" ? tgName : me.name;
     await store.put("user", me.id, { ...me, botStarted: true, username: msg.from.username || me.username || "" });
   }
-  const text = (msg.text || msg.caption || "").trim();
+  let text = (msg.text || msg.caption || "").trim();
+  // Голосовое / кружок → текст (Whisper в Cloudflare), дальше как обычное сообщение.
+  const voice = msg.voice || msg.audio || msg.video_note;
+  if (voice && !text) {
+    const { transcribe } = await import("./ai.mjs");
+    tg.sendChatAction?.(msg.chat.id).catch(() => {});
+    text = (await transcribe(voice, { env, tg }).catch(() => null)) || "";
+    if (!text) return reply(env.AI ? "Не разобрал голосовое 🙏 Скажи ещё раз чётче или напиши текстом." : "Голосовые пока не подключены — напиши текстом.");
+    await reply(`🎙 <i>${h(text)}</i>`);
+  }
   const now = Date.now();
   const clients = await store.all("client");
   const closers = users.filter((u) => ["mop", "rop"].includes(u.role));
@@ -140,22 +152,7 @@ export async function handleUpdate(update, { store, env, tg, appUrl }) {
   if (st) {
     const c = clients.find((x) => x.telegram?.toLowerCase() === `@${st.nick}`.toLowerCase());
     if (!c) return reply(`Не нашёл @${h(st.nick)} в CRM. Сначала запиши на созвон или перешли его сообщение — заведу.`);
-    const { applyAction } = await import("./api.mjs");
-    const ctx = { by: me.id, store, users: usersMap, settings, notes: [] };
-    try {
-      if (st.action === "held" || st.action === "ndz") {
-        const open = (c.calls || []).filter((x) => !x.outcome).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0];
-        if (!open) return reply(`У ${who(c)} нет назначенного созвона. Запиши: <code>сегодня у Димы в 14:00 был созвон с @${h(st.nick)}</code>`);
-        await applyAction(c, { type: st.action, callId: open.id }, ctx);
-      } else await applyAction(c, { type: "status", status: st.action, sum: st.sum || c.wantedSum || 0 }, ctx);
-    } catch (e) {
-      return reply(`⚠️ ${h(e.message)}`);
-    }
-    c.updatedAt = new Date().toISOString();
-    await store.put("client", c.id, c);
-    await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
-    const kb = [[openApp(appUrl, st.action === "held" ? "Заполнить отчёт" : "Карточка", `?client=${c.id}${st.action === "held" ? "&report=1" : ""}`)]];
-    return reply(`✅ ${who(c)} → <b>${st.action === "held" ? "созвон проведён" : statusLabel(c.status)}</b>${st.sum ? ` · ${rub(st.sum)}` : ""}${st.action === "held" ? "\nТеперь итог диагностики: пришли блок «Потребность/запрос клиента: …» с @ником или заполни в приложении." : ""}`, { inline_keyboard: kb });
+    return applyStatus(c, st, { me, store, tg, appUrl, reply, usersMap, settings, env });
   }
 
   // Ответ реплаем на пересланное ботом сообщение — обратно автору
@@ -166,17 +163,87 @@ export async function handleUpdate(update, { store, env, tg, appUrl }) {
   }
 
   // «Теме: перезвони Глебу», «всем: планёрка в 11»
-  const rel = text && parseRelay(text, users.filter((u) => u.id !== me.id));
-  if (rel?.all) {
-    const to = users.filter((u) => u.id !== me.id);
-    const ok = [];
-    for (const u of to) if (await relay(me, u, rel.text, { store, tg, appUrl, silent: true })) ok.push(u.name);
-    await addFeed(store, { type: "comment", text: `📣 ${me.name} → всем: ${rel.text}`, by: me.id, to: to.map((u) => u.id) });
-    return reply(`📣 Отправил: ${ok.map(h).join(", ") || "никому — ещё никто не запустил бота"}`);
-  }
+  // С ИИ «сколько продаж у Димы?» — вопрос, а не сообщение Диме: правилом ловим только «Диме: …».
+  const aiOn = Boolean(env.ANTHROPIC_API_KEY);
+  const others = users.filter((u) => u.id !== me.id);
+  const rel = text && (!aiOn || /^\s*\S+(?:\s\S+)?\s*:/.test(text)) && parseRelay(text, others);
+  if (rel?.all) return relayAll(me, others, rel.text, { store, tg, appUrl, reply });
   if (rel?.to) return relay(me, rel.to, rel.text, { store, tg, reply, appUrl });
 
+  if (aiOn && text && !text.startsWith("/")) {
+    const done = await handleAI(text, { me, users, clients, closers, store, tg, appUrl, reply, usersMap, settings, env, msg, now });
+    if (done) return;
+  }
+
   return reply(`Привет, ${h(me.name)}! Роль: <b>${ROLES[me.role]}</b>.\n\n${BOT_HELP}`, { inline_keyboard: [[openApp(appUrl)]] });
+}
+
+// Статус клиента из бота: «пришёл / НДЗ» закрывают ближайший созвон, остальное — статус карточки.
+async function applyStatus(c, st, { me, store, tg, appUrl, reply, usersMap, settings, env }) {
+  const { applyAction } = await import("./api.mjs");
+  const ctx = { by: me.id, store, users: usersMap, settings, notes: [] };
+  try {
+    if (st.action === "held" || st.action === "ndz") {
+      const open = (c.calls || []).filter((x) => !x.outcome).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0];
+      if (!open) return reply(`У ${who(c)} нет назначенного созвона. Запиши: <code>сегодня у Димы в 14:00 был созвон с ${h(c.telegram || c.name || "клиента")}</code>`);
+      await applyAction(c, { type: st.action, callId: open.id }, ctx);
+    } else await applyAction(c, { type: "status", status: st.action, sum: st.sum || c.wantedSum || 0 }, ctx);
+  } catch (e) {
+    return reply(`⚠️ ${h(e.message)}`);
+  }
+  c.updatedAt = new Date().toISOString();
+  await store.put("client", c.id, c);
+  await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
+  const kb = [[openApp(appUrl, st.action === "held" ? "Заполнить отчёт" : "Карточка", `?client=${c.id}${st.action === "held" ? "&report=1" : ""}`)]];
+  return reply(`✅ ${who(c)} → <b>${st.action === "held" ? "созвон проведён" : statusLabel(c.status)}</b>${st.sum ? ` · ${rub(st.sum)}` : ""}${st.action === "held" ? "\nТеперь итог диагностики: пришли блок «Потребность/запрос клиента: …» с @ником или заполни в приложении." : ""}`, { inline_keyboard: kb });
+}
+
+async function relayAll(me, to, text, { store, tg, appUrl, reply }) {
+  const ok = [];
+  for (const u of to) if (await relay(me, u, text, { store, tg, appUrl, silent: true })) ok.push(u.name);
+  await addFeed(store, { type: "comment", text: `📣 ${me.name} → всем: ${text}`, by: me.id, to: to.map((u) => u.id) });
+  return reply(`📣 Отправил: ${ok.map(h).join(", ") || "никому — ещё никто не запустил бота"}`);
+}
+
+// ИИ разбирает то, что не поняли правила, и выполняет действия тем же кодом, что и команды.
+async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, reply, usersMap, settings, env, msg, now, aiClient = null }) {
+  const { askAI, findClient } = await import("./ai.mjs");
+  tg.sendChatAction?.(msg.chat.id).catch(() => {});
+  const legacy = (await store.get("meta", "legacy")) || {};
+  const res = await askAI(text, { me, users, clients, legacy, settings, store, env, now, client: aiClient || env.__aiClient || null });
+  if (!res) return false;
+  if (res.error) {
+    if (me.role === "owner" && res.error !== "refusal") {
+      const why = { limit: "дневной лимит запросов исчерпан (AI_DAILY_LIMIT)", key: "ключ ANTHROPIC_API_KEY не подходит", balance: "на балансе Anthropic закончились деньги" }[res.error] || `ошибка API: ${h(res.detail || "")}`;
+      await reply(`⚠️ ИИ не ответил: ${why}. Пока работаю на обычных командах.`);
+    }
+    return false;
+  }
+  if (res.text) await reply(h(res.text));
+  for (const call of res.calls) {
+    const inp = call.input || {};
+    if (call.name === "book_calls") {
+      const items = (inp.items || []).map((it) => {
+        const time = /^\d{1,2}:\d{2}$/.test(it.time || "") ? it.time.padStart(5, "0") : null;
+        const at = time && /^\d{4}-\d{2}-\d{2}$/.test(it.date || "") ? Date.parse(`${it.date}T${time}:00+03:00`) : NaN;
+        const nick = (it.client_nick || "").replace(/^@/, "").trim();
+        return { at, day: it.date, time, mop: closers.find((u) => u.name === it.mop) || null, nick: /^[A-Za-z][\w]{3,31}$/.test(nick) ? nick : null, name: (it.client_name || "").trim(), phone: (it.phone || "").replace(/[^\d+]/g, ""), text };
+      }).filter((b) => Number.isFinite(b.at));
+      if (items.length) await handleBookings(items, { me, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env });
+    } else if (call.name === "set_status") {
+      const { c, list } = findClient(clients, inp.client);
+      if (!c) {
+        await reply(list.length > 1 ? `Таких клиентов несколько: ${list.slice(0, 5).map(who).join(", ")}. Напиши @ник.` : `Не нашёл «${h(inp.client)}» в CRM. Напиши @ник клиента.`);
+        continue;
+      }
+      await applyStatus(c, { action: inp.status, sum: Number(inp.sum) || 0 }, { me, store, tg, appUrl, reply, usersMap, settings, env });
+    } else if (call.name === "send_message") {
+      const others = users.filter((u) => u.id !== me.id);
+      if (inp.to === "всем") await relayAll(me, others, inp.text, { store, tg, appUrl, reply });
+      else await relay(me, others.find((u) => u.name === inp.to), inp.text, { store, tg, reply, appUrl });
+    }
+  }
+  return Boolean(res.text || res.calls.length);
 }
 
 // Сообщение члену команды от имени бота. Ответ реплаем вернётся автору.
