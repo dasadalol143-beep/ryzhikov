@@ -36,8 +36,10 @@ const resolver = (aliases = {}) => (name) => aliases[name] || `legacy:${name}`;
 // Все события РнП: [{ person, day, field, value }]. person — id менеджера ОП.
 export function rnpEvents(clients, legacy = {}, aliases = {}) {
   const out = [];
-  const push = (person, day, field, value = 1) => person && day && out.push({ person, day, field, value });
+  let cid = null; // какой карточке принадлежит событие — для расшифровки цифр РнП
+  const push = (person, day, field, value = 1) => person && day && out.push({ person, day, field, value, client: cid });
   for (const c of clients) {
+    cid = c.id;
     for (const e of c.events || []) {
       const day = mskKey(Date.parse(e.at));
       if (e.t === "handed") push(e.mop, day, "leads");
@@ -51,11 +53,13 @@ export function rnpEvents(clients, legacy = {}, aliases = {}) {
       if (call.legacy) continue;
       const day = mskKey(Date.parse(call.at));
       // Перенесли заранее — созвона в этот день не было, в «назначено» не идёт.
-      if (call.outcome === "moved" && Date.parse(call.movedAt || call.at) < Date.parse(call.at)) continue;
+      if (call.outcome === "moved" && (call.cancelled || Date.parse(call.movedAt || call.at) < Date.parse(call.at))) continue;
+      // Отменённую запись (не перенос) в «назначено» тоже не считаем.
       push(call.mopId, day, "scheduled");
       if (call.outcome === "held") push(call.mopId, day, "held");
     }
   }
+  cid = null;
   const who = resolver(aliases);
   for (const [name, days] of Object.entries(legacy.rnp || {})) {
     for (const [day, row] of Object.entries(days)) for (const f of RNP_FIELDS) if (row[f]) push(who(name), day, f, row[f]);

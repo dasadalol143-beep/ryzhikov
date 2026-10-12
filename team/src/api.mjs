@@ -12,12 +12,19 @@ export const json = (data, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { "content-type": "application/json; charset=utf-8" } });
 
 const str = (v, max = 500) => (typeof v === "string" ? v.trim().slice(0, max) : typeof v === "number" ? String(v) : "");
+// «68 950,50», «68.950», «99.99», «100 000 ₽» → число. Последние «,» или «.» с 1–2 цифрами — копейки, остальные — разделители тысяч.
 export const money = (v) => {
-  const n = Math.round(Number(String(v ?? "").replace(",", ".").replace(/[\s₽р.]/g, "")) * 100) / 100;
+  let t = String(v ?? "").replace(/[\s\u00a0₽]|руб\.?|р\.?$/gi, "");
+  const k = t.match(/^(\d+(?:[.,]\d+)?)к$/i);
+  if (k) return Math.min(Math.round(Number(k[1].replace(",", ".")) * 1000), 100_000_000);
+  const dec = t.match(/[.,](\d{1,2})$/);
+  if (dec) t = `${t.slice(0, -dec[0].length).replace(/[.,]/g, "")}.${dec[1]}`;
+  else t = t.replace(/[.,]/g, "");
+  const n = Math.round(Number(t) * 100) / 100;
   return Number.isFinite(n) && n >= 0 ? Math.min(n, 100_000_000) : 0;
 };
 const normTelegram = (v) => {
-  const s = str(v, 64).replace(/^https?:\/\/t\.me\//i, "").replace(/\s/g, "");
+  const s = str(v, 64).replace(/^(?:https?:\/\/)?(?:www\.)?t(?:elegram)?\.me\//i, "").replace(/[/?#].*$/, "").replace(/\s/g, "");
   if (!s) return "";
   return s.startsWith("@") || /^\+?\d/.test(s) ? s : `@${s}`;
 };
@@ -88,6 +95,76 @@ export function blankClient(by) {
 export const log = (c, by, text) => {
   c.history = [{ at: nowIso(), by, text }, ...(c.history || [])].slice(0, 60);
 };
+// ---------- дубли ----------
+// Один @ник и один телефон — один клиент. Ключи без регистра и без «@», телефон — последние 10 цифр.
+export const nickKey = (t) => String(t || "").trim().replace(/^(?:https?:\/\/)?(?:www\.)?t(?:elegram)?\.me\//i, "").replace(/^@/, "").replace(/[/?#].*$/, "").toLowerCase();
+export const phoneKey = (p) => {
+  const d = String(p || "").replace(/\D/g, "");
+  return d.length >= 10 ? d.slice(-10) : "";
+};
+export function findDup(clients, { telegram, phone }, exceptId = null) {
+  const n = nickKey(telegram);
+  const ph = phoneKey(phone);
+  return clients.find((x) => x.id !== exceptId && ((n && !/^\+?\d/.test(n) && nickKey(x.telegram) === n) || (ph && phoneKey(x.phone) === ph))) || null;
+}
+
+// Склеить дубль `from` в `to`: созвоны (без повторов по времени), события, история, пустые поля.
+export function mergeInto(to, from, by) {
+  const near = (a, b) => Math.abs(Date.parse(a.at) - Date.parse(b.at)) < 45 * 60_000;
+  for (const call of from.calls || []) {
+    const same = to.calls.find((x) => near(x, call) && x.mopId === call.mopId);
+    if (!same) to.calls.push(call);
+    else if (!same.outcome && call.outcome) Object.assign(same, { outcome: call.outcome, outcomeAt: call.outcomeAt, outcomeBy: call.outcomeBy });
+    if (same && call.report && !same.report) Object.assign(same, { report: call.report, reportAt: call.reportAt });
+  }
+  to.calls.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  to.events = [...(to.events || []), ...(from.events || []).filter((e) => !(to.events || []).some((x) => x.t === e.t && x.at === e.at))];
+  for (const f of ["name", "telegram", "phone", "chatUrl", "lidorubId", "mopId", "nextSteps", "payLinkId"]) if (!to[f] && from[f]) to[f] = from[f];
+  if (from.info && !(to.info || "").includes(from.info)) to.info = [to.info, from.info].filter(Boolean).join("\n");
+  if (!to.wantedSum && from.wantedSum) to.wantedSum = from.wantedSum;
+  // Статус — у кого дальше по воронке (оплата важнее «нового»).
+  // Статус — самый свежий из двух (оплата важнее всего).
+  if (from.status === "paid" || (to.status !== "paid" && (from.statusAt || "") > (to.statusAt || ""))) Object.assign(to, { status: from.status, statusAt: from.statusAt });
+  to.history = [{ at: nowIso(), by, text: `Склеен с дублем ${clientTitle(from)}` }, ...(to.history || []), ...(from.history || [])].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 80);
+  to.updatedAt = nowIso();
+  return to;
+}
+
+// Дубли по одному @нику склеиваем сами (старые данные и гонки, когда двое завели одного клиента).
+export async function autoMergeDups(store) {
+  const clients = await store.all("client");
+  const groups = new Map();
+  for (const c of clients) {
+    const k = nickKey(c.telegram);
+    if (!k || /^\+?\d/.test(k)) continue;
+    (groups.get(k) || groups.set(k, []).get(k)).push(c);
+  }
+  let merged = 0;
+  for (const list of groups.values()) {
+    if (list.length < 2) continue;
+    list.sort((a, b) => (a.createdAt || "").localeCompare(b.createdAt || ""));
+    const [keep, ...rest] = list;
+    for (const d of rest) {
+      mergeInto(keep, d, "system");
+      await moveToTrash(store, d, "system", `дубль ${keep.telegram}`);
+      merged++;
+    }
+    await store.put("client", keep.id, keep);
+    await repointPayments(store, rest.map((d) => d.id), keep.id);
+  }
+  return merged;
+}
+
+async function moveToTrash(store, c, by, reason = "") {
+  await store.put("trash", c.id, { ...c, deletedAt: nowIso(), deletedBy: by, deleteReason: reason });
+  await store.del("client", c.id);
+}
+async function repointPayments(store, fromIds, toId) {
+  const hit = (await store.all("payment")).filter((p) => fromIds.includes(p.clientId));
+  for (const p of hit) p.clientId = toId;
+  if (hit.length) await store.putMany("payment", hit);
+}
+
 const event = (c, t, by, extra = {}) => {
   c.events = [...(c.events || []), { t, at: nowIso(), by, ...extra }];
 };
@@ -109,13 +186,28 @@ async function setStatus(c, status, { by, sum, store, settings, notes }) {
   if (!STATUS_IDS.includes(status) || status === c.status) return;
   const mop = c.mopId;
   const amount = money(sum) || c.wantedSum || 0;
+  const wasPaid = c.status === "paid";
   c.status = status;
   c.statusAt = nowIso();
   c.touches = [];
+  // Ошибочно нажали «Оплатил» и поправили — продажа уходит из РнП, неверифицированный черновик — из ведомости.
+  if (wasPaid && status !== "paid") {
+    const i = (c.events || []).map((e) => e.t).lastIndexOf("paid");
+    if (i >= 0) c.events.splice(i, 1);
+    if (store) {
+      const drafts = (await store.all("payment")).filter((p) => p.clientId === c.id && !p.verified);
+      for (const p of drafts) await store.del("payment", p.id);
+      if (drafts.length) log(c, by, `Черновик оплаты убран из ведомости (${drafts.length})`);
+    }
+  }
   if (status === "paid") {
     event(c, "paid", by, { mop, sum: amount });
     // Продажа сразу падает в ведомость черновиком — РОП вносит чистую сумму и верифицирует.
-    if (store) {
+    const draft = store && (await store.all("payment")).find((p) => p.clientId === c.id && !p.verified);
+    if (draft) {
+      Object.assign(draft, { tariff: amount, mopId: mop, lidorubId: c.lidorubId, net: draft.net ?? netFromLink(settings, c.payLinkId, amount) });
+      await store.put("payment", draft.id, draft);
+    } else if (store) {
       const p = {
         id: randomUUID(),
         date: new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10),
@@ -142,7 +234,8 @@ async function setStatus(c, status, { by, sum, store, settings, notes }) {
   if (status === "invalid") event(c, "invalid", by);
   if (["paid", "refuse_personal", "refuse_bank", "ignore", "invalid", "archive"].includes(status)) {
     // Закрытому клиенту созвоны не нужны.
-    for (const call of c.calls) if (!call.outcome) Object.assign(call, { outcome: "moved", movedAt: nowIso() });
+    // Время созвона прошло, а «пришёл» не нажали — раз есть решение, созвон был.
+    for (const call of c.calls) if (!call.outcome) Object.assign(call, ["paid", "refuse_personal", "refuse_bank"].includes(status) && Date.parse(call.at) <= Date.now() ? { outcome: "held", outcomeAt: nowIso(), outcomeBy: by, reportAt: call.reportAt || null } : { outcome: "moved", movedAt: nowIso(), cancelled: true });
   }
   const shown = status === "prepaid" ? money(sum) : amount;
   log(c, by, `Статус → ${statusLabel(status)}${shown && ["paid", "prepaid", "thinking", "resched", "refuse_bank"].includes(status) ? ` · ${shown.toLocaleString("ru-RU")} ₽` : ""}`);
@@ -157,11 +250,43 @@ export async function applyAction(c, body, ctx) {
     const at = isoOrNull(body.at);
     const mopId = body.mopId ? String(body.mopId) : c.mopId;
     if (!at || !mopId) throw Object.assign(new Error("Нужны время и менеджер"), { status: 400 });
+    // Тот же созвон второй раз (голосом, ботом, ИИ, двойным тапом) — не плодим копию.
+    const t = Date.parse(at);
+    // НДЗ не в счёт: не пришёл — переназначить можно хоть на то же время.
+    const same = (c.calls || []).find((x) => (!x.outcome || x.outcome === "held") && Math.abs(Date.parse(x.at) - t) < 45 * 60_000);
+    // «Созвон уже был» по клиенту, у которого в этот день уже отмечен проведённый созвон, — это он же.
+    const pastSameDay = t < Date.now() && (c.calls || []).find((x) => x.outcome === "held" && mskKey(Date.parse(x.at)) === mskKey(t));
+    // Открытый созвон рядом по времени и время другое — это перенос того же созвона, не новый.
+    if (same && !same.outcome && Math.abs(Date.parse(same.at) - t) >= 60_000) {
+      const prev = same.at;
+      const prevMop = same.mopId;
+      Object.assign(same, { at, mopId, notified: {}, setAt: nowIso(), setBy: by });
+      if (!(c.events || []).some((e) => e.t === "handed" && e.mop === mopId)) event(c, "handed", by, { mop: mopId });
+      c.mopId = mopId;
+      notes.push({ t: "call", at, mop: mopId, moved: prev, prevMop });
+      log(c, by, `Созвон перенесён на ${fmtWhen(t)} МСК`);
+      ctx.call = same;
+      return same;
+    }
+    const dupCall = same || pastSameDay;
+    if (dupCall) {
+      if (!dupCall.outcome && dupCall.mopId !== mopId) {
+        notes.push({ t: "call", at: dupCall.at, mop: mopId, moved: dupCall.at, prevMop: dupCall.mopId });
+        dupCall.mopId = mopId;
+        c.mopId = mopId;
+        log(c, by, `Созвон ${fmtWhen(Date.parse(dupCall.at))} передан ${users?.[mopId]?.name || "другому диагносту"}`);
+      }
+      ctx.call = dupCall;
+      ctx.duplicateCall = true;
+      return dupCall;
+    }
     const cur = currentCall(c);
     if (cur) Object.assign(cur, { outcome: "moved", movedAt: nowIso() });
     // Первый раз отдали этому менеджеру — это «лид в работе» в РнП.
     if (!(c.events || []).some((e) => e.t === "handed" && e.mop === mopId)) event(c, "handed", by, { mop: mopId });
-    c.calls.push({ id: randomUUID().slice(0, 8), at, mopId, setAt: nowIso(), setBy: by, outcome: null, notified: {} });
+    const call = { id: randomUUID().slice(0, 8), at, mopId, setAt: nowIso(), setBy: by, outcome: null, notified: {} };
+    c.calls.push(call);
+    ctx.call = call;
     notes.push({ t: "call", at, mop: mopId, moved: cur ? cur.at : null, prevMop: cur?.mopId || null });
     c.mopId = mopId;
     if (!["paid"].includes(c.status)) {
@@ -170,6 +295,14 @@ export async function applyAction(c, body, ctx) {
       c.touches = [];
     }
     log(c, by, `Созвон назначен на ${fmtWhen(Date.parse(at))} МСК`);
+    return;
+  }
+  if (type === "uncall") {
+    const call = (body.callId && c.calls.find((x) => x.id === body.callId)) || currentCall(c);
+    if (!call || call.outcome) throw Object.assign(new Error("Нет назначенного созвона"), { status: 400 });
+    Object.assign(call, { outcome: "moved", movedAt: nowIso(), cancelled: true });
+    if (!c.calls.some((x) => !x.outcome) && c.status === "in_work") c.status = "new";
+    log(c, by, `Запись на ${fmtWhen(Date.parse(call.at))} отменена`);
     return;
   }
   if (type === "held" || type === "ndz") {
@@ -194,6 +327,18 @@ export async function applyAction(c, body, ctx) {
   }
   if (type === "report") {
     let call = (body.callId && c.calls.find((x) => x.id === body.callId)) || [...c.calls].reverse().find((x) => x.outcome === "held" && !x.reportAt) || null;
+    // Назначенный созвон уже начался, а «пришёл» не нажали — отчёт и есть отметка, что провели.
+    const cur = currentCall(c);
+    if (!call && cur && Date.parse(cur.at) <= Date.now() + 15 * 60_000) {
+      Object.assign(cur, { outcome: "held", outcomeAt: nowIso(), outcomeBy: by });
+      log(c, by, "Созвон проведён");
+      call = cur;
+    }
+    // Исправляют уже сохранённый отчёт этого дня — тот же созвон, не новый.
+    if (!call) {
+      const day = mskKey(Date.parse(isoOrNull(body.date) || nowIso()));
+      call = [...c.calls].reverse().find((x) => x.outcome === "held" && mskKey(Date.parse(x.at)) === day) || null;
+    }
     // Созвон не назначали в приложении (как раньше в таблице) — заводим проведённый созвон на дату диагностики.
     if (!call && body.newCall) {
       const at = isoOrNull(body.date) || nowIso();
@@ -217,9 +362,17 @@ export async function applyAction(c, body, ctx) {
     call.report = report;
     call.reportAt = nowIso();
     if ("wantedSum" in body) c.wantedSum = money(body.wantedSum);
+    // Тариф из договорённостей («подписание 100к ренессанс»), если в карточке ещё пусто. Запрос/боль не смотрим.
+    if (!c.wantedSum) {
+      const m = `${report.nextStep} ${report.extra}`.match(/(\d{2,3})\s?к(?![а-я])|(\d{2,3}[\s.]\d{3})\s*(?:₽|р|руб)/i);
+      if (m) c.wantedSum = m[1] ? Number(m[1]) * 1000 : money(m[2]);
+    }
     if (AFTER_CALL.includes(body.status)) await setStatus(c, body.status, { by, sum: body.sum, store, settings, notes });
     log(c, by, "Отчёт после диагностики");
-    if (body.status === "resched" && isoOrNull(body.nextAt)) await applyAction(c, { type: "call", at: body.nextAt, mopId: call.mopId }, ctx);
+    if (body.status === "resched" && isoOrNull(body.nextAt)) {
+      await applyAction(c, { type: "call", at: body.nextAt, mopId: call.mopId }, ctx);
+      c.status = "resched";
+    }
     return;
   }
   if (type === "status") {
@@ -308,6 +461,12 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           await linkPeople(store);
           await store.put("meta", "linked", { sig, at: nowIso() });
         }
+        // Склейка дублей — не чаще раза в 10 минут (бесплатный лимит чтений D1).
+        const dd = await store.get("meta", "dedupe-at");
+        if (!dd || Date.now() - Date.parse(dd.at) > 10 * 60_000) {
+          await store.put("meta", "dedupe-at", { id: "dedupe-at", at: nowIso() });
+          await autoMergeDups(store).catch(() => 0);
+        }
         const [clients, legacy, pending, feed, settingsNow, windows] = await Promise.all([store.all("client"), store.get("meta", "legacy"), store.all("pending"), store.recent("feed", 120), loadSettings(store), loadWindows(store)]);
         return json({
           me,
@@ -331,10 +490,8 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         applyFields(c, body);
         if (!c.lidorubId && me.role === "lidorub") c.lidorubId = me.id;
         if (!c.name && !c.telegram && !c.phone) return json({ error: "Нужно имя, ник или телефон" }, 400);
-        if (c.telegram) {
-          const dup = (await store.all("client")).find((x) => x.telegram && x.telegram.toLowerCase() === c.telegram.toLowerCase());
-          if (dup) return json({ error: "duplicate", client: dup }, 409);
-        }
+        const dup = findDup(await store.all("client"), c);
+        if (dup) return json({ error: `Такой клиент уже есть: ${clientTitle(dup)}`, duplicate: true, client: dup }, 409);
         log(c, by, "Клиент создан");
         const ctx = { by, store, users, settings, notes: [] };
         if (body.call?.at) await applyAction(c, { type: "call", ...body.call }, ctx);
@@ -346,14 +503,39 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       if (cm) {
         const c = await store.get("client", cm[1]);
         if (!c) return json({ error: "not_found" }, 404);
+        // Удалить может руководство и тот, кто ведёт клиента (завёл, лидоруб, диагност). Удалённое лежит в корзине.
+        const mine = money_ || [c.createdBy, c.mopId, c.lidorubId].includes(by);
         if (req.method === "DELETE") {
-          if (!money_) return json({ error: "forbidden" }, 403);
-          await store.del("client", c.id);
+          if (!mine) return json({ error: "Удалить может тот, кто ведёт клиента, или руководство" }, 403);
+          await moveToTrash(store, c, by, "удалён вручную");
+          const { addFeed } = await import("./notify.mjs");
+          await addFeed(store, { type: "comment", text: `🗑 ${me.name} удалил клиента ${clientTitle(c)}`, by, to: [c.mopId, c.lidorubId].filter(Boolean), clientId: null });
           return json({ ok: true });
         }
+        if (!cm[2] && req.method === "POST" && body.mergeFrom) {
+          const other = await store.get("client", String(body.mergeFrom));
+          if (!other || other.id === c.id) return json({ error: "Дубль не найден" }, 404);
+          if (!mine && ![other.createdBy, other.mopId, other.lidorubId].includes(by)) return json({ error: "forbidden" }, 403);
+          mergeInto(c, other, by);
+          await store.put("client", c.id, c);
+          await moveToTrash(store, other, by, `склеен с ${clientTitle(c)}`);
+          await repointPayments(store, [other.id], c.id);
+          return json({ client: c, removed: other.id, payments: money_ ? await store.all("payment") : null });
+        }
+        if (req.method === "PATCH" && ("telegram" in body || "phone" in body)) {
+          const next = { telegram: "telegram" in body ? normTelegram(body.telegram) : c.telegram, phone: "phone" in body ? str(body.phone, 40) : c.phone };
+          const dup = findDup(await store.all("client"), next, c.id);
+          if (dup) return json({ error: `Этот ${"telegram" in body ? "ник" : "телефон"} уже у клиента ${clientTitle(dup)} — открой его или склей дубли`, duplicate: true, client: dup }, 409);
+        }
         const ctx = { by, store, users, settings, notes: [] };
-        if (cm[2] && req.method === "POST") await applyAction(c, body, ctx);
-        else if (req.method === "PATCH") {
+        // Продажу ставит руководство или диагност клиента — чтобы не было «чужих» продаж в ведомости.
+        if (cm[2] && body.type === "status" && ["paid", "prepaid"].includes(body.status) && !money_ && c.mopId && c.mopId !== by) return json({ error: `Оплату отмечает диагност клиента (${users[c.mopId]?.name || "менеджер"}) или руководство` }, 403);
+        // Лидоруба клиента меняет руководство (от этого зависят его 2%); свободное поле можно заполнить.
+        if (req.method === "PATCH" && "lidorubId" in body && !money_ && c.lidorubId && String(body.lidorubId || "") !== c.lidorubId) return json({ error: "Лидоруба у клиента меняет Петя или Андрей" }, 403);
+        if (cm[2] && req.method === "POST") {
+          await applyAction(c, body, ctx);
+          if (ctx.duplicateCall) return json({ error: `У клиента уже есть этот созвон: ${fmtWhen(Date.parse(ctx.call.at))}`, client: c }, 409);
+        } else if (req.method === "PATCH") {
           applyFields(c, body);
           log(c, by, "Изменены данные");
         } else return json({ error: "not_found" }, 404);
@@ -545,7 +727,13 @@ export async function importSeed(store, body) {
   const out = { payments: 0, legacy: false, clients: 0 };
   if (Array.isArray(body.payments)) {
     const items = body.payments.filter((p) => p.id && isDay(p.date)).map((p) => ({ net: null, verified: false, ...p, tariff: money(p.tariff), net: p.net === null ? null : money(p.net) }));
-    for (const p of items) if (!p.paid) p.paid = seedPaid(p);
+    // Повторный импорт не сбрасывает то, что уже проверено и выплачено в приложении.
+    const have = new Map((await store.all("payment")).map((p) => [p.id, p]));
+    for (const p of items) {
+      const old = have.get(p.id);
+      if (old) Object.assign(p, { verified: old.verified, net: old.net, paid: old.paid, verifiedBy: old.verifiedBy, mopId: old.mopId || p.mopId, clientId: old.clientId || p.clientId });
+      if (!p.paid) p.paid = seedPaid(p);
+    }
     await store.putMany("payment", items);
     out.payments = items.length;
   }

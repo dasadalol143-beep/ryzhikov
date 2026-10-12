@@ -9,7 +9,8 @@ import { addFeed } from "./notify.mjs";
 import { isReportText, parseReportText } from "../public/lib/report.js";
 import { dispatch } from "./notify.mjs";
 import { DEFAULT_PAY_LINKS, REPORT_FIELDS, AFTER_CALL, daySlots, rangesText, toMin } from "../public/lib/model.js";
-import { loadWindows } from "./api.mjs";
+import { loadWindows, findDup, nickKey } from "./api.mjs";
+const byNick = (clients, nick) => (nick ? clients.find((x) => nickKey(x.telegram) === nickKey(nick)) : null);
 
 const AI_STATUS_SET = new Set(["held", "ndz", "paid", "prepaid", "thinking", "resched", "refuse_bank", "refuse_personal", "ignore", "invalid"]);
 
@@ -139,12 +140,32 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
 
   // Пересланное сообщение клиента → новый лид
   const fwd = msg.forward_origin;
+  // Переслали свой же отчёт после диагностики — это отчёт, а не новый лид.
+  if ((fwd || msg.forward_from) && isReportText(text)) return handleReportMessage(text, { me, clients, store, tg, appUrl, reply, usersMap, settings, env, users });
   if (fwd || msg.forward_from || msg.forward_sender_name) {
     const su = fwd?.sender_user || msg.forward_from;
     const nick = su?.username ? `@${su.username}` : "";
     const name = su ? [su.first_name, su.last_name].filter(Boolean).join(" ") : fwd?.sender_user_name || msg.forward_sender_name || "";
-    const dup = nick && clients.find((c) => c.telegram?.toLowerCase() === nick.toLowerCase());
-    if (dup) return reply(`Уже есть: <b>${who(dup)}</b> — ${statusLabel(dup.status)}`, { inline_keyboard: [[openApp(appUrl, "Открыть карточку", `?client=${dup.id}`)]] });
+    const dup = byNick(clients, nick) || findDup(clients, { phone: (text.match(/\+?\d[\d\s()-]{9,}\d/) || [])[0] || "" });
+    if (dup) {
+      // Ещё сообщение от того же клиента — дописываем в инфо, а не заводим второго.
+      if (text && !(dup.info || "").includes(text.slice(0, 200))) {
+        dup.info = [dup.info, text.slice(0, 1000)].filter(Boolean).join("\n");
+        dup.updatedAt = nowIso();
+        await store.put("client", dup.id, dup);
+      }
+      return reply(`Уже есть: <b>${who(dup)}</b> — ${statusLabel(dup.status)}. Сообщение дописал в карточку.`, { inline_keyboard: [[openApp(appUrl, "Открыть карточку", `?client=${dup.id}`)]] });
+    }
+    // Скрытый аккаунт: несколько пересланных подряд от одного человека — одна карточка (за сутки).
+    if (!nick && name) {
+      const recent = clients.find((x) => !x.telegram && x.createdBy === me.id && x.name === name.slice(0, 120) && Date.now() - Date.parse(x.createdAt) < 86400_000);
+      if (recent) {
+        recent.info = [recent.info, text.slice(0, 1000)].filter(Boolean).join("\n");
+        recent.updatedAt = nowIso();
+        await store.put("client", recent.id, recent);
+        return reply(`Дописал в карточку <b>${who(recent)}</b> (тот же отправитель).`, { inline_keyboard: [[openApp(appUrl, "Открыть карточку", `?client=${recent.id}`)]] });
+      }
+    }
     const { blankClient, log } = await import("./api.mjs");
     const c = blankClient(me.id);
     Object.assign(c, { name: name.slice(0, 120), telegram: nick, info: text.slice(0, 1000), lidorubId: me.role === "lidorub" ? me.id : null });
@@ -204,7 +225,7 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
   // «@ivan оплатил 100к», «@ivan ндз», «@ivan пришел», «@ivan думает 80к», «@ivan отказ банки»
   const st = !ask && parseStatusCommand(text);
   if (st) {
-    const c = clients.find((x) => x.telegram?.toLowerCase() === `@${st.nick}`.toLowerCase());
+    const c = byNick(clients, st.nick);
     if (!c) return reply(`Не нашёл @${h(st.nick)} в CRM. Сначала запиши на созвон или перешли его сообщение — заведу.`);
     return applyStatus(c, st, { me, store, tg, appUrl, reply, usersMap, settings, env });
   }
@@ -314,7 +335,8 @@ async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, 
       }
       if (name === "create_lead") {
         const nick = nickOf(inp.nick);
-        const dup = nick && clients.find((x) => x.telegram?.toLowerCase() === `@${nick}`.toLowerCase());
+        const { findDup } = await import("./api.mjs");
+        const dup = findDup(clients, { telegram: nick || "", phone: inp.phone || "" });
         if (dup) return reply(`Уже есть: <b>${who(dup)}</b> — ${statusLabel(dup.status)}`);
         if (!nick && !inp.name && !inp.phone) return reply("Кого завести? Нужно имя, @ник или телефон.");
         const c = blankClient(me.id);
@@ -329,9 +351,7 @@ async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, 
         if (!c) return;
         const call = (c.calls || []).filter((x) => !x.outcome).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0];
         if (!call) return reply(`У ${who(c)} нет назначенного созвона.`);
-        Object.assign(call, { outcome: "moved", movedAt: nowIso() });
-        if (!c.calls.some((x) => !x.outcome)) c.status = "new";
-        log(c, me.id, "Запись на созвон отменена");
+        await applyAction(c, { type: "uncall", callId: call.id }, ctx);
         await save(c, ctx);
         if (call.mopId !== me.id) await tg.sendMessage(call.mopId, `🚫 <b>Созвон отменён</b>: ${fmtWhen(Date.parse(call.at))} — ${who(c)} (${h(me.name)})`).catch(() => {});
         return reply(`🚫 Отменил созвон ${fmtWhen(Date.parse(call.at))} — ${who(c)}${call.mopId !== me.id ? `. ${h(usersMap[call.mopId]?.name || "")} в курсе.` : ""}`);
@@ -397,7 +417,7 @@ async function handleReportMessage(text, { me, clients, store, tg, appUrl, reply
   const nick = (text.match(/@([A-Za-z][\w]{3,31})/g) || []).map((n) => n.slice(1)).find((n) => !team.has(n.toLowerCase()));
   if (!nick) return reply("Чей это отчёт? Добавь @ник клиента в сообщение и пришли ещё раз.");
   const { blankClient, log, applyAction } = await import("./api.mjs");
-  let c = clients.find((x) => x.telegram?.toLowerCase() === `@${nick}`.toLowerCase());
+  let c = byNick(clients, nick);
   let created = false;
   if (!c) {
     c = blankClient(me.id);
@@ -500,10 +520,11 @@ async function handleBookings(items, { me, text, clients, closers, store, tg, ap
     const day = mskKey(b.at);
     const busy = [...busyOf(b.mop.id, day, clients).map((x) => ({ t: Date.parse(`${day}T${x.time}:00+03:00`), c: x.c })), ...taken.filter((x) => x.mop === b.mop.id).map((x) => ({ t: x.at, c: x.c }))];
     const nick = b.nick ? `@${b.nick}` : "";
+    // По нику/телефону — точно он. По одному имени — только если у того нет назначенного созвона:
+    // «Антон к Диме в 15» и «Антон к Тёме в 18» — два разных Антона, а не перенос.
     let c =
-      (nick && clients.find((x) => x.telegram?.toLowerCase() === nick.toLowerCase())) ||
-      (b.phone && clients.find((x) => x.phone?.replace(/\D/g, "").endsWith(b.phone.replace(/\D/g, "").slice(-10)))) ||
-      (!nick && !b.phone && b.name && clients.find((x) => !isClosed(x.status) && x.name?.toLowerCase() === b.name.toLowerCase())) ||
+      findDup(clients, { telegram: nick, phone: b.phone }) ||
+      (!nick && !b.phone && b.name && clients.find((x) => !isClosed(x.status) && !x.telegram && x.name?.toLowerCase() === b.name.toLowerCase() && !currentCall(x) && !taken.some((t) => t.c.id === x.id))) ||
       null;
     const clash = busy.find((x) => Math.abs(x.t - b.at) < 45 * 60_000 && x.c.id !== c?.id);
     if (clash) {
@@ -524,7 +545,11 @@ async function handleBookings(items, { me, text, clients, closers, store, tg, ap
     await store.put("client", c.id, c);
     for (const n of ctx.notes) if (n.t === "call") n.text = items.length > 1 ? b.text : text;
     await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
-    const call = c.calls.at(-1);
+    const call = ctx.call || c.calls.at(-1);
+    if (ctx.duplicateCall) {
+      skipped.push(`${label}: у ${who(c)} уже есть этот созвон (${fmtWhen(Date.parse(call.at))}${call.outcome ? `, ${call.outcome === "held" ? "проведён" : "НДЗ"}` : ""}) — второй не создаю`);
+      continue;
+    }
     taken.push({ mop: b.mop.id, at: b.at, c });
     const w = wins.find((x) => x.mopId === b.mop.id && x.day === day);
     const m = toMin(mskTime(b.at));
@@ -560,7 +585,7 @@ async function handleBooking(book, { me, text, clients, closers, store, tg, appU
 
   const { blankClient, log, applyAction } = await import("./api.mjs");
   const nick = book.nick ? `@${book.nick}` : "";
-  let c = (nick && clients.find((x) => x.telegram?.toLowerCase() === nick.toLowerCase())) || (book.phone && clients.find((x) => x.phone?.replace(/\D/g, "").endsWith(book.phone.replace(/\D/g, "").slice(-10)))) || null;
+  let c = findDup(clients, { telegram: nick, phone: book.phone });
   let created = false;
   if (!c) {
     c = blankClient(me.id);
@@ -575,7 +600,8 @@ async function handleBooking(book, { me, text, clients, closers, store, tg, appU
   // Исходную фразу — диагносту целиком: там бывают детали, которых нет в карточке.
   for (const n of ctx.notes) if (n.t === "call") n.text = text;
   await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
-  const call = c.calls.at(-1);
+  const call = ctx.call || c.calls.at(-1);
+  if (ctx.duplicateCall) return reply(`У ${who(c)} уже есть этот созвон: ${fmtWhen(Date.parse(call.at))} — второй не создаю.`, { inline_keyboard: [[openApp(appUrl, "Карточка", `?client=${c.id}`)]] });
   return reply(
     `✅ <b>Записал${created ? " нового клиента" : ""}</b>\n👤 ${who(c)}\n📅 ${fmtWhen(book.at)} МСК · ${h(mop.name)}${mop.id !== me.id ? "\n\n" + h(mop.name) + " получил уведомление." : ""}`,
     { inline_keyboard: [[openApp(appUrl, "Карточка", `?client=${c.id}`), { text: "Отменить", callback_data: `uncall:${c.id}:${call.id}` }]] },
@@ -611,9 +637,9 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
       const cl = await store.get("client", it.clientId);
       const call = cl?.calls.find((x) => x.id === it.callId);
       if (!call || call.outcome) continue;
-      Object.assign(call, { outcome: "moved", movedAt: new Date().toISOString() });
-      if (!cl.calls.some((x) => !x.outcome)) cl.status = "new";
-      cl.history = [{ at: new Date().toISOString(), by: me.id, text: "Запись на созвон отменена" }, ...(cl.history || [])];
+      const { applyAction } = await import("./api.mjs");
+      await applyAction(cl, { type: "uncall", callId: call.id }, { by: me.id, store });
+      cl.updatedAt = nowIso();
       await store.put("client", cl.id, cl);
       await tg.sendMessage(call.mopId, `❌ Отменён созвон ${fmtWhen(Date.parse(call.at))} — ${who(cl)}`).catch(() => {});
       n++;
@@ -628,10 +654,15 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
   const { applyAction } = await import("./api.mjs");
   if (action === "held" || action === "ndz") {
     const call = c.calls.find((x) => x.id === callId);
-    if (call?.outcome) return answer("Уже отмечено");
-    await applyAction(c, { type: action, callId }, { by: me.id, store });
+    if (!call) return answer("Созвон уже перенесён — открой карточку");
+    if (call.outcome) return answer("Уже отмечено");
+    const settings = (await store.get("meta", "settings")) || {};
+    const usersMap = Object.fromEntries(users.map((u) => [u.id, u]));
+    const ctx = { by: me.id, store, users: usersMap, settings, notes: [] };
+    await applyAction(c, { type: action, callId }, ctx);
     c.updatedAt = nowIso();
     await store.put("client", c.id, c);
+    await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
     await answer(action === "held" ? "Отмечено: созвон проведён" : `Отмечено: ${statusLabel(c.status)}`);
     const tail = action === "held" ? "\n\n✅ Проведён. Заполни отчёт — без него созвон не закрыт." : `\n\n❌ ${statusLabel(c.status)}. Клиент ушёл в дожим.`;
     const kb = { inline_keyboard: [[openApp(appUrl, action === "held" ? "Заполнить отчёт" : "Открыть карточку", `?client=${c.id}${action === "held" ? "&report=1" : ""}`)]] };
@@ -643,7 +674,8 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
     const { applyAction } = await import("./api.mjs");
     const settings = (await store.get("meta", "settings")) || {};
     const usersMap = Object.fromEntries(users.map((u) => [u.id, u]));
-    const sumFromText = Number(((cb.message?.text || "").match(/(\d{2,3})\s?к(?![а-я])/i) || [])[1]) * 1000 || null;
+    // Сумму из текста отчёта не берём («выйти на 300к в месяц» — это не тариф): только тариф из карточки.
+    const sumFromText = null;
     const ctx = { by: me.id, store, users: usersMap, settings, notes: [] };
     await applyAction(c, { type: "status", status, sum: sumFromText || c.wantedSum || 0 }, ctx);
     c.updatedAt = new Date().toISOString();
@@ -657,9 +689,8 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
   if (action === "uncall") {
     const call = c.calls.find((x) => x.id === callId);
     if (!call || call.outcome) return answer("Уже неактуально");
-    Object.assign(call, { outcome: "moved", movedAt: new Date().toISOString() });
-    if (!c.calls.some((x) => !x.outcome)) c.status = "new";
-    c.history = [{ at: new Date().toISOString(), by: me.id, text: "Запись на созвон отменена" }, ...(c.history || [])];
+    await applyAction(c, { type: "uncall", callId: call.id }, { by: me.id, store });
+    c.updatedAt = nowIso();
     await store.put("client", c.id, c);
     await answer("Запись отменена");
     await tg.editMessage(cb.message.chat.id, cb.message.message_id, `❌ <s>${h(cb.message.text || "")}</s>\nЗапись отменена`).catch(() => {});
@@ -740,7 +771,15 @@ export async function runReminders({ store, env, tg, appUrl, now = Date.now() })
         .then(() => sent.push(`report:${c.id}`))
         .catch(() => {});
     }
-    if (dirty) await store.put("client", c.id, c);
+    if (dirty) {
+      // Пока слали в Telegram, карточку могли поменять (отметили «пришёл», отчёт) — пишем только отметки напоминаний.
+      const fresh = (await store.get("client", c.id)) || c;
+      for (const call of fresh.calls || []) {
+        const mine = (c.calls || []).find((x) => x.id === call.id);
+        if (mine?.notified) call.notified = { ...(call.notified || {}), ...mine.notified };
+      }
+      await store.put("client", fresh.id, fresh);
+    }
   }
   return sent;
 }
