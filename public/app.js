@@ -9,7 +9,7 @@ tg?.expand();
 const AUTH_ERRORS = {
   no_bot_token: "На сервере не задан токен бота (BOT_TOKEN в Cloudflare).",
   bad_signature: "Токен бота на сервере не совпадает с ботом. Проверь BOT_TOKEN в Cloudflare.",
-  no_init_data: "Открой приложение кнопкой CRM в боте Telegram.",
+  no_init_data: "Telegram не передал данные входа. Открой CRM кнопкой «CRM» внизу чата с ботом. Если открываешь с компьютера — обнови Telegram Desktop до последней версии.",
   expired: "Сессия устарела — закрой и открой приложение заново.",
 };
 const ROLE_LABELS = { admin: "Админ", manager: "Менеджер" };
@@ -66,10 +66,25 @@ const alertDialog = (text) => (tg?.showAlert ? tg.showAlert(text) : window.alert
 const confirmDialog = (text) =>
   new Promise((resolve) => (tg?.showConfirm ? tg.showConfirm(text, resolve) : resolve(window.confirm(text))));
 
+// Подпись Telegram: из SDK, а если он не загрузился — прямо из адреса, который передаёт Telegram.
+function initData() {
+  if (tg?.initData) return tg.initData;
+  try {
+    const fromHash = new URLSearchParams(location.hash.slice(1)).get("tgWebAppData");
+    if (fromHash) {
+      sessionStorage.setItem("tgWebAppData", fromHash);
+      return fromHash;
+    }
+    return sessionStorage.getItem("tgWebAppData") || "";
+  } catch {
+    return "";
+  }
+}
+
 async function api(method, path, body) {
   const res = await fetch(`/api${path}`, {
     method,
-    headers: { "content-type": "application/json", authorization: `tma ${tg?.initData || ""}` },
+    headers: { "content-type": "application/json", authorization: `tma ${initData()}` },
     body: body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => ({}));
