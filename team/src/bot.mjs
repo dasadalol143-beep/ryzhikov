@@ -864,9 +864,10 @@ export async function runPayoutReminder({ store, env, tg, appUrl, now = Date.now
   if (msk.getUTCDay() !== 1 || msk.getUTCHours() < 10) return null;
   const today = mskKey(now);
   if ((await store.get("meta", "payout-remind"))?.day === today) return null;
-  await store.put("meta", "payout-remind", { id: "payout-remind", day: today, at: new Date(now).toISOString() });
   const msg = await payoutMessage({ store, env, now, forOwner: true });
+  // Нечего платить (или ведомость ещё не загружена) — не «сжигаем» понедельник, проверим через минуту.
   if (!msg.total) return { sent: 0 };
+  await store.put("meta", "payout-remind", { id: "payout-remind", day: today, at: new Date(now).toISOString() });
   const owners = (await activeUsers(store, env)).filter((u) => u.role === "owner");
   let sent = 0;
   for (const u of owners) await tg.sendMessage(u.id, msg.text, msg.markup(appUrl)).then(() => sent++).catch(() => {});
