@@ -297,6 +297,19 @@ export async function applyAction(c, body, ctx) {
     log(c, by, `Созвон назначен на ${fmtWhen(Date.parse(at))} МСК`);
     return;
   }
+  // Лишний созвон (дубль, ошибка) — убрать из карточки, РнП пересчитается.
+  if (type === "dropcall") {
+    const i = c.calls.findIndex((x) => x.id === body.callId);
+    if (i < 0) throw Object.assign(new Error("Созвон не найден"), { status: 404 });
+    const [call] = c.calls.splice(i, 1);
+    if (call.outcome === "ndz" && /^ndz\d$/.test(c.status)) {
+      const n = c.calls.filter((x) => x.outcome === "ndz").length;
+      c.status = n ? `ndz${Math.min(n, 3)}` : "in_work";
+      c.events = (c.events || []).filter((e, k, arr) => !(e.t === "ndz" && k === arr.map((x) => x.t).lastIndexOf("ndz")));
+    }
+    log(c, by, `Убран лишний созвон ${fmtWhen(Date.parse(call.at))}${call.outcome === "held" ? " (проведён)" : call.outcome === "ndz" ? " (НДЗ)" : ""}`);
+    return;
+  }
   if (type === "uncall") {
     const call = (body.callId && c.calls.find((x) => x.id === body.callId)) || currentCall(c);
     if (!call || call.outcome) throw Object.assign(new Error("Нет назначенного созвона"), { status: 400 });

@@ -561,3 +561,22 @@ test("audit fixes: kopecks, wrong «Оплатил» rollback, two different А�
   await handleUpdate({ callback_query: { id: "z", from: { id: 501 }, data: `ndz:${k.id}:${cc.id}`, message: { chat: { id: 501 }, message_id: 3, text: "пришёл?" } } }, { store, env: { OWNER_IDS: "1" }, tg, appUrl: "https://t/" });
   assert.ok(sent.slice(before).some((m) => m.chat === "503" && /НДЗ/.test(m.text || "")));
 });
+
+test("dropcall removes a duplicate held/NDZ call and fixes status", async () => {
+  const { api, store } = await setup();
+  const k = (await api(503, "POST", "/clients", { name: "Никита" })).body.client;
+  const at = new Date(Date.now() - 2 * 3600_000).toISOString();
+  await api(503, "POST", `/clients/${k.id}/action`, { type: "call", at, mopId: "501" });
+  await api(501, "POST", `/clients/${k.id}/action`, { type: "held" });
+  // испорченная карточка, как в бою до защиты: второй созвон на то же время с НДЗ
+  const bad = await store.get("client", k.id);
+  bad.calls.push({ id: "dup1", at, mopId: "501", outcome: "ndz" });
+  bad.status = "ndz1";
+  bad.events.push({ t: "ndz", at, mop: "501" });
+  await store.put("client", bad.id, bad);
+  const c = (await api(501, "POST", `/clients/${k.id}/action`, { type: "dropcall", callId: "dup1" })).body.client;
+  assert.equal(c.calls.length, 1);
+  assert.equal(c.calls[0].outcome, "held");
+  assert.equal(c.status, "in_work");
+  assert.equal(c.events.filter((e) => e.t === "ndz").length, 0);
+});

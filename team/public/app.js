@@ -578,7 +578,7 @@ function renderClient(c) {
     html += `<h2>Созвоны и итоги</h2><div class="list">${callsDone
       .map((x) => {
         const rep = x.report;
-        return `<div class="card" style="border-radius:0;box-shadow:none"><div class="hbar-top"><b>${fmtWhen(Date.parse(x.at))}</b><span class="stt ${x.outcome === "held" ? "g-won" : "g-ndz"}">${x.outcome === "held" ? "проведён" : "НДЗ"}</span></div><div class="sub">Диагност: ${esc(userName(x.mopId))}</div>${rep ? `<div class="report-view">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}<div class="sub">Презентация тарифов: ${ynText(rep.presented)} · Предложил оплатить: ${ynText(rep.offeredPay)}</div>${rep.extra ? `<div>${esc(rep.extra)}</div>` : ""}</div><button class="link" data-report-open="${c.id}">Изменить итог</button>` : x.outcome === "held" ? `<button class="link" data-report-open="${c.id}">Заполнить итог →</button>` : ""}</div>`;
+        return `<div class="card" style="border-radius:0;box-shadow:none"><div class="hbar-top"><b>${fmtWhen(Date.parse(x.at))}</b><span class="stt ${x.outcome === "held" ? "g-won" : "g-ndz"}">${x.outcome === "held" ? "проведён" : "НДЗ"}</span></div><div class="sub">Диагност: ${esc(userName(x.mopId))}${canEdit(c) ? ` · <button class="link" style="font-size:13px;color:var(--hint)" data-dropcall="${c.id}" data-call="${x.id}">убрать созвон</button>` : ""}</div>${rep ? `<div class="report-view">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}<div class="sub">Презентация тарифов: ${ynText(rep.presented)} · Предложил оплатить: ${ynText(rep.offeredPay)}</div>${rep.extra ? `<div>${esc(rep.extra)}</div>` : ""}</div><button class="link" data-report-open="${c.id}">Изменить итог</button>` : x.outcome === "held" ? `<button class="link" data-report-open="${c.id}">Заполнить итог →</button>` : ""}</div>`;
       })
       .join("")}</div>`;
   }
@@ -1702,6 +1702,10 @@ $app.addEventListener("click", async (e) => {
     const input = document.getElementById("comment");
     if (!input.value.trim()) return;
     return act(d.comment, { type: "comment", text: input.value });
+  }
+  if (d.dropcall) {
+    if (!(await confirmDialog("Убрать этот созвон из карточки? Используй для дублей и ошибок — РнП пересчитается."))) return;
+    return act(d.dropcall, { type: "dropcall", callId: d.call }, "Созвон убран");
   }
   if (d.uncall) {
     if (!(await confirmDialog("Отменить запись на созвон?"))) return;
