@@ -274,3 +274,50 @@ test("quick entry: add costs and payouts in parts, offer due date, phone", async
   assert.equal(l.payout, 1500);
   assert.equal((await damir("PATCH", `/leads/${lead.id}`, { offers: { zaymer: { dueAt: "потом" } } })).body.offers.zaymer.dueAt, "2026-10-16");
 });
+
+test("no duplicates when list() lags: import twice, bot and app use the index", async () => {
+  const store = memoryStore();
+  // list() «отстаёт»: не видит ничего нового, как KV в другом дата-центре
+  const laggy = { ...store, list: async () => [] };
+  const handle = createHandler({ store: laggy, env });
+  const admin = client(handle, { id: 1, first_name: "Пётр" });
+  const file = { leads: [{ telegram: "@Yannecci", offers: { alfa: { status: "paid", amount: 14000 } } }, { telegram: "@V1dar851" }] };
+  assert.deepEqual((await admin("POST", "/import", file)).body, { created: 2, updated: 0 });
+  assert.deepEqual((await admin("POST", "/import", file)).body, { created: 0, updated: 2 });
+});
+
+test("merge duplicates keeps the freshest offer statuses and history", async () => {
+  const store = memoryStore();
+  const handle = createHandler({ store, env });
+  const admin = client(handle, { id: 1, first_name: "Пётр" });
+  const t = "2026-10-12T10:00:00.000Z";
+  const mk = (id, extra) => store.setJSON(`leads/${id}`, { id, telegram: "@Yannecci", fio: "", stage: "offers", ownerId: 1, createdAt: t, updatedAt: t, offers: {}, history: [], ...extra });
+  await mk("00000000-0000-0000-0000-00000000000a", { fio: "Соловьёва", offers: { vtb: { status: "opened", amount: 7000, changedAt: "2026-10-12T11:00:00Z" } } });
+  await mk("00000000-0000-0000-0000-00000000000b", { phone: "+79990000000", offers: { vtb: { status: "paid", amount: 7000, changedAt: "2026-10-12T12:00:00Z" }, ozon: { status: "done", amount: 11000 } }, history: [{ at: "2026-10-12T12:00:00Z", by: "Дамир", text: "ВТБ — РКО: Засчитано" }] });
+  await mk("00000000-0000-0000-0000-00000000000c", {});
+  await mk("00000000-0000-0000-0000-00000000000d", { telegram: "@other" });
+
+  const r = (await admin("POST", "/dedupe")).body;
+  assert.deepEqual(r, { groups: 1, removed: 2 });
+  const leads = (await admin("GET", "/state")).body.leads;
+  assert.equal(leads.length, 2);
+  const y = leads.find((l) => l.telegram === "@Yannecci");
+  assert.deepEqual([y.fio, y.phone, y.offers.vtb.status, y.offers.ozon.status], ["Соловьёва", "+79990000000", "paid", "done"]);
+  assert.ok(y.history.some((h) => h.text === "ВТБ — РКО: Засчитано"));
+  assert.match(y.history[0].text, /Объединены дубли \(3 шт\.\)/);
+  assert.equal((await client(handle, { id: 2, first_name: "M" })("POST", "/dedupe")).status, 403);
+});
+
+test("custom offer from the lead card is appended to the catalog", async () => {
+  const handle = createHandler({ store: memoryStore(), env });
+  const damir = client(handle, { id: 2, first_name: "Слава" }); // менеджеру тоже можно
+  const res = await damir("POST", "/offers", { name: "Совкомбанк — РКО", category: "rko", partner: "RKO Group", amount: 9000 });
+  assert.equal(res.status, 201);
+  assert.match(res.body.offer.id, /^o_/);
+  assert.equal(res.body.offers.length, 53);
+  const again = await damir("POST", "/offers", { name: "совкомбанк — ркО" });
+  assert.equal(again.body.existed, true);
+  const lead = (await damir("POST", "/leads", { telegram: "@x" })).body;
+  const l = (await damir("PATCH", `/leads/${lead.id}`, { offers: { [res.body.offer.id]: { status: "applied" } } })).body;
+  assert.deepEqual([l.offers[res.body.offer.id].status, l.offers[res.body.offer.id].amount], ["applied", 9000]);
+});

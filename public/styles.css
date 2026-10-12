@@ -274,3 +274,16 @@ div.row:active { background: var(--bg2); }
 .bot-howto .step span { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--btn); color: var(--btn-text); font-weight: 700; display: flex; align-items: center; justify-content: center; }
 .bot-howto code { background: var(--bg2); padding: 1px 6px; border-radius: 6px; font-size: 13px; }
 .card.baseline { border: 1.5px dashed var(--btn); margin-bottom: 4px; }
+
+/* свои окна вместо системных alert/confirm/prompt */
+.dialog-wrap { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.4); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.dialog { background: var(--bg); border-radius: 18px; padding: 18px; width: 100%; max-width: 360px; box-shadow: 0 20px 50px rgba(0,0,0,.3); }
+.dialog-text { font-size: 15px; line-height: 1.4; white-space: pre-line; }
+.dialog-input { margin-top: 12px; background: var(--bg2); }
+.dialog-btns { display: flex; gap: 8px; margin-top: 14px; }
+.dialog-btns .btn { flex: 1; }
+.dialog .btn.ghost { background: var(--bg2); }
+.inline-add { display: flex; gap: 8px; margin-top: 8px; }
+.inline-add input { background: var(--bg2); padding: 8px 10px; }
+.new-offer { margin: 8px 0 4px; }
+.dup-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; border: 1.5px solid var(--orange); }

@@ -3,8 +3,10 @@ import { STAGE_LABELS, STATUS_LABELS, STATUS_SHORT, CATEGORY_LABELS } from "./la
 import { worklist, paidEvents, todayKey, addDays, daysSince, netOf, networkReport, networkOf } from "./insights.js";
 
 const tg = window.Telegram?.WebApp;
-tg?.ready();
-tg?.expand();
+try {
+  tg?.ready();
+  tg?.expand();
+} catch {}
 
 const AUTH_ERRORS = {
   no_bot_token: "На сервере не задан токен бота (BOT_TOKEN в Cloudflare).",
@@ -42,7 +44,13 @@ const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const rub = (n) => `${Math.round(n || 0).toLocaleString("ru-RU")} ₽`;
 const short = (n) => (Math.abs(n) >= 1000 ? `${Math.round(n / 100) / 10}к` : String(Math.round(n)));
-const haptic = (type = "light") => tg?.HapticFeedback?.impactOccurred(type);
+// Любой вызов Telegram API может бросить исключение на старых/десктопных клиентах — глушим.
+const safe = (fn) => {
+  try {
+    fn();
+  } catch {}
+};
+const haptic = (type = "light") => safe(() => tg?.HapticFeedback?.impactOccurred(type));
 const money = (lead) => leadMoney(lead, state.offers, state.settings);
 const leadTitle = (l) => l.telegram || l.fio || "Без имени";
 const isAdmin = () => state.me?.role === "admin";
@@ -62,9 +70,36 @@ function toast(text) {
   document.body.append(el);
   setTimeout(() => el.remove(), 2000);
 }
-const alertDialog = (text) => (tg?.showAlert ? tg.showAlert(text) : window.alert(text));
-const confirmDialog = (text) =>
-  new Promise((resolve) => (tg?.showConfirm ? tg.showConfirm(text, resolve) : resolve(window.confirm(text))));
+// Свои окна вместо alert/confirm/prompt: системные окна во встроенном браузере Telegram
+// на части устройств не открываются и намертво подвешивают страницу.
+function dialog({ text, input = null, ok = "OK", cancel = null }) {
+  return new Promise((resolve) => {
+    document.querySelector(".dialog-wrap")?.remove();
+    const wrap = document.createElement("div");
+    wrap.className = "dialog-wrap";
+    wrap.innerHTML = `<div class="dialog">
+      <div class="dialog-text">${esc(text)}</div>
+      ${input ? `<input class="dialog-input" type="${input.type || "text"}" inputmode="${input.type === "number" ? "decimal" : "text"}" placeholder="${esc(input.placeholder || "")}">` : ""}
+      <div class="dialog-btns">${cancel ? `<button class="btn ghost" data-r="0">${esc(cancel)}</button>` : ""}<button class="btn" data-r="1">${esc(ok)}</button></div>
+    </div>`;
+    document.body.append(wrap);
+    const field = wrap.querySelector(".dialog-input");
+    field?.focus();
+    const done = (yes) => {
+      wrap.remove();
+      resolve(input ? (yes ? field.value : null) : yes);
+    };
+    wrap.querySelectorAll("[data-r]").forEach((b) => (b.onclick = () => done(b.dataset.r === "1")));
+    field?.addEventListener("keydown", (e) => e.key === "Enter" && done(true));
+  });
+}
+const alertDialog = (text) => dialog({ text });
+const confirmDialog = (text) => dialog({ text, ok: "Да", cancel: "Отмена" });
+const askAmount = async (text) => {
+  const v = await dialog({ text, input: { type: "number", placeholder: "Сумма, ₽" }, ok: "Готово", cancel: "Отмена" });
+  const n = Number(String(v ?? "").replace(",", ".").replace(/\s/g, ""));
+  return n > 0 ? n : 0;
+};
 
 // Подпись Telegram: из SDK, а если он не загрузился — прямо из адреса, который передаёт Telegram.
 function initData() {
@@ -94,8 +129,10 @@ async function api(method, path, body) {
 
 function openTelegram(nick) {
   const url = `https://t.me/${nick.replace(/^@/, "")}`;
-  if (tg?.openTelegramLink) tg.openTelegramLink(url);
-  else window.open(url, "_blank");
+  try {
+    if (tg?.openTelegramLink) return tg.openTelegramLink(url);
+  } catch {}
+  window.open(url, "_blank");
 }
 
 // ---------- bottom sheet ----------
@@ -180,7 +217,7 @@ const section = (icon, title, items, renderItem, { empty, filter, max = 5 } = {}
 
 // ---------- routing ----------
 function render() {
-  tg?.BackButton[state.leadId || state.more ? "show" : "hide"]();
+  safe(() => tg?.BackButton[state.leadId || state.more ? "show" : "hide"]());
   $tabs.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.tab === state.tab));
   if (state.leadId) return renderLead();
   if (state.tab === "today") return renderToday();
@@ -323,9 +360,33 @@ function filterLeads() {
   return list.sort(sorters[state.sort]);
 }
 
+const dupCount = () => {
+  const seen = new Map();
+  for (const l of state.leads) {
+    const k = (l.telegram || "").toLowerCase();
+    if (k) seen.set(k, (seen.get(k) || 0) + 1);
+  }
+  return [...seen.values()].filter((n) => n > 1).reduce((t, n) => t + n - 1, 0);
+};
+
+async function mergeDuplicates(btn) {
+  if (!(await confirmDialog("Объединить дубли? По каждому нику останется одна карточка: статусы офферов берутся самые свежие, история склеивается, копии удаляются."))) return;
+  if (btn) btn.disabled = true;
+  try {
+    const r = await api("POST", "/dedupe");
+    await reload();
+    alertDialog(`Готово: объединено ${r.groups}, удалено копий: ${r.removed}`);
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    toast(`Ошибка: ${e.message}`);
+  }
+}
+
 function renderLeads() {
   const list = filterLeads();
+  const dups = isAdmin() ? dupCount() : 0;
   $app.innerHTML = `
+    ${dups ? `<div class="card dup-banner"><div><b>Найдены дубли: ${dups}</b><div class="sub">Одни и те же ники заведены несколько раз</div></div><button class="btn small" id="mergeDups">Объединить</button></div>` : ""}
     <div class="toolbar">
       <input id="q" type="search" placeholder="🔍 Ник, ФИО, телефон, источник" value="${esc(state.query)}" autocomplete="off">
       <button class="btn round" id="addLead" aria-label="Новый лид">＋</button>
@@ -344,6 +405,7 @@ function renderLeads() {
     state.query = $q.value;
     document.getElementById("leadList").innerHTML = leadListHtml(filterLeads());
   });
+  document.getElementById("mergeDups")?.addEventListener("click", (e) => mergeDuplicates(e.target));
   document.getElementById("sort").onchange = (e) => {
     state.sort = e.target.value;
     renderLeads();
@@ -493,9 +555,9 @@ function renderLead() {
 
   document.getElementById("write")?.addEventListener("click", () => openTelegram(lead.telegram));
   document.getElementById("tpl").onclick = () => templatesSheet(lead);
-  document.getElementById("pay").onclick = () => {
-    const v = Number((window.prompt(`Сколько выплатили лиду, ₽?${lead.payout ? ` Уже выплачено ${rub(lead.payout)}.` : ""}`) || "").replace(",", "."));
-    if (v > 0) saveLead(lead.id, { addPayout: v }, `💵 Выплата +${rub(v)}`);
+  document.getElementById("pay").onclick = async () => {
+    const v = await askAmount(`Сколько выплатили лиду?${lead.payout ? ` Уже выплачено ${rub(lead.payout)}.` : ""}`);
+    if (v) saveLead(lead.id, { addPayout: v }, `💵 Выплата +${rub(v)}`);
   };
   $app.querySelectorAll("[data-stage]").forEach((b) => (b.onclick = () => b.dataset.stage !== lead.stage && saveLead(lead.id, { stage: b.dataset.stage })));
   const $next = document.getElementById("nextStep");
@@ -552,8 +614,8 @@ function offerSheet(lead, offerId, opts) {
       <div class="sub" style="margin:2px 4px 6px">Добавить затрату (комиссия, тариф, маскировка):</div>
       <div class="chips tight">
         ${COST_STEPS.map((c) => `<button class="chip" data-addcost="${c}">+${c}</button>`).join("")}
-        <button class="chip" data-addcost="?">+ своя</button>
       </div>
+      <div class="inline-add"><input id="oCostAdd" type="number" inputmode="decimal" placeholder="Своя сумма, ₽"><button class="btn small" id="oCostAddBtn">＋ Добавить</button></div>
     </div>
 
     <div class="sheet-label">Партнёрская сеть</div>
@@ -591,13 +653,11 @@ function offerSheet(lead, offerId, opts) {
       );
       el.querySelector("#oAmount").onchange = (e) => save({ amount: e.target.value }, "Ставка сохранена");
       el.querySelector("#oCost").onchange = (e) => save({ cost: e.target.value }, "Затраты сохранены");
-      el.querySelectorAll("[data-addcost]").forEach(
-        (b) =>
-          (b.onclick = () => {
-            const v = b.dataset.addcost === "?" ? Number((window.prompt("Сколько добавить к затратам, ₽?") || "").replace(",", ".")) : +b.dataset.addcost;
-            if (v > 0) save({ addCost: v }, `Затраты +${v} ₽`);
-          }),
-      );
+      el.querySelectorAll("[data-addcost]").forEach((b) => (b.onclick = () => save({ addCost: +b.dataset.addcost }, `Затраты +${b.dataset.addcost} ₽`)));
+      el.querySelector("#oCostAddBtn").onclick = () => {
+        const v = Number(el.querySelector("#oCostAdd").value.replace(",", "."));
+        if (v > 0) save({ addCost: v }, `Затраты +${v} ₽`);
+      };
       el.querySelector("#oNet").onchange = (e) => save({ network: e.target.value === (o.partner || "") ? "" : e.target.value }, "Сеть сохранена");
       el.querySelector("#oRecv")?.addEventListener("click", () => save({ received: !lo.received }, lo.received ? "Отметка снята" : "💰 Отмечено: деньги пришли"));
       const $c = el.querySelector("#oComment");
@@ -658,7 +718,7 @@ function templatesSheet(lead) {
 // Салют на засчёт: деньги должны радовать.
 function celebrate(amount) {
   haptic("heavy");
-  tg?.HapticFeedback?.notificationOccurred?.("success");
+  safe(() => tg?.HapticFeedback?.notificationOccurred?.("success"));
   const box = document.createElement("div");
   box.className = "confetti";
   for (let i = 0; i < 18; i++) {
@@ -683,6 +743,18 @@ function addOfferSheet(lead) {
   openSheet(
     `<h2 class="sheet-title">Добавить оффер</h2>
     <div class="sub" style="margin:-6px 4px 10px">Тап — заявка заведена. Статус потом меняется в один тап.</div>
+    <button class="btn ghost block" id="newOfferToggle">＋ Новый оффер — которого нет в списке</button>
+    <div class="card new-offer" id="newOffer" hidden>
+      <label class="field"><span>Название</span><input id="noName" placeholder="Например: Совкомбанк — РКО"></label>
+      <div class="chips tight" id="noCat">${Object.entries(CATEGORY_LABELS).map(([c, l], i) => `<button class="chip ${i === 0 ? "active" : ""}" data-cat="${c}">${l}</button>`).join("")}</div>
+      <div class="two" style="margin-top:8px">
+        <label class="field"><span>Ставка, ₽</span><input id="noAmount" type="number" inputmode="decimal" placeholder="0"></label>
+        <label class="field"><span>Сеть</span><input id="noNet" list="noNets" placeholder="RKO Group…"></label>
+      </div>
+      <datalist id="noNets">${[...new Set(state.offers.map((x) => x.partner).filter(Boolean))].map((x) => `<option value="${esc(x)}">`).join("")}</datalist>
+      <button class="btn block" id="noSave">Создать и добавить лиду</button>
+      <div class="sub" style="margin-top:6px">Оффер попадёт в общий каталог — потом его можно выбрать и другим лидам.</div>
+    </div>
     ${cats
       .map(
         (c) => `<h2>${CATEGORY_LABELS[c]}</h2><div class="offer-grid">${free(c)
@@ -690,7 +762,31 @@ function addOfferSheet(lead) {
           .join("")}</div>`,
       )
       .join("") || `<div class="card empty">Все офферы уже в работе</div>`}`,
-    (el) =>
+    (el) => {
+      el.querySelector("#newOfferToggle").onclick = (e) => {
+        el.querySelector("#newOffer").hidden = false;
+        e.target.hidden = true;
+        el.querySelector("#noName").focus();
+      };
+      let cat = "rko";
+      el.querySelectorAll("[data-cat]").forEach((b) => (b.onclick = () => {
+        cat = b.dataset.cat;
+        el.querySelectorAll("[data-cat]").forEach((x) => x.classList.toggle("active", x === b));
+      }));
+      el.querySelector("#noSave").onclick = async (e) => {
+        const name = el.querySelector("#noName").value.trim();
+        if (!name) return toast("Напиши название оффера");
+        e.target.disabled = true;
+        try {
+          const r = await api("POST", "/offers", { name, category: cat, amount: el.querySelector("#noAmount").value, partner: el.querySelector("#noNet").value });
+          state.offers = r.offers;
+          closeSheet();
+          saveLead(lead.id, { offers: { [r.offer.id]: { status: "applied" } } }, `${r.offer.name}: заявка заведена${r.existed ? " (оффер уже был в каталоге)" : ""}`);
+        } catch (err) {
+          e.target.disabled = false;
+          toast(`Ошибка: ${err.message}`);
+        }
+      };
       el.querySelectorAll("[data-add]").forEach(
         (b) =>
           (b.onclick = () => {
@@ -698,7 +794,8 @@ function addOfferSheet(lead) {
             const o = offerById(b.dataset.add);
             saveLead(lead.id, { offers: { [o.id]: { status: "applied" } } }, `${o.name.replace(/ — РКО$/, "")}: заявка заведена`);
           }),
-      ),
+      );
+    },
   );
 }
 
@@ -917,6 +1014,9 @@ function renderData() {
       <div class="sub" style="margin:4px 0 10px">Бот пришлёт тебе в чат 3 файла: полный бэкап (его можно загрузить обратно), таблицу лидов с деньгами и таблицу всех офферов — открываются в Excel и Google Таблицах.</div>
       <button class="btn block" id="backup">Прислать файлы</button>
     </div>
+    <h2>Дубли</h2>
+    <div class="card"><div class="sub" style="margin-bottom:8px">${dupCount() ? `Сейчас дублей: <b>${dupCount()}</b>.` : "Дублей нет."} Объединение склеит карточки с одинаковым ником.</div>
+      <button class="btn ghost block" id="dedupe" ${dupCount() ? "" : "disabled"}>Объединить дубли</button></div>
     <h2>Импорт лидов</h2>
     <div class="card">
       <div class="sub" style="margin-bottom:8px">Файл бэкапа или импорта (.json). Лиды с тем же Telegram обновятся, новые добавятся.</div>
@@ -939,7 +1039,11 @@ function renderData() {
     e.target.disabled = false;
     e.target.textContent = "Прислать файлы";
   };
+  document.getElementById("dedupe").onclick = (e) => mergeDuplicates(e.target);
+  let importing = false;
   const runImport = async (text) => {
+    if (importing) return toast("Импорт уже идёт, подожди");
+    importing = true;
     try {
       let parsed;
       try {
@@ -955,6 +1059,8 @@ function renderData() {
       alertDialog(`Импорт готов: новых ${r.created}, обновлено ${r.updated}`);
     } catch (err) {
       alertDialog(`Импорт не удался: ${err.message}`);
+    } finally {
+      importing = false;
     }
   };
   document.getElementById("importFile").onchange = (e) => {
@@ -1360,12 +1466,12 @@ $tabs.addEventListener("click", (e) => {
   if (btn) go({ tab: btn.dataset.tab, leadId: null, more: null, network: null });
 });
 
-tg?.BackButton.onClick(() => {
+safe(() => tg?.BackButton.onClick(() => {
   if (document.querySelector(".sheet-wrap")) return closeSheet();
   if (state.leadId) return go({ leadId: null });
   if (state.network) return go({ network: null });
   go({ more: null });
-});
+}));
 
 async function reload() {
   const data = await api("GET", "/state");
