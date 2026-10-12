@@ -233,3 +233,44 @@ export function daySlots(day, ranges, busy = [], now = Date.now()) {
   }
   return out;
 }
+
+// ---------- выплаты команде ----------
+// МОПу Петя платит сразу после продажи, РОПу и лидорубу — по понедельникам.
+// У оплаты p.paid = { mop: "2026-10-12", rop: null, lidorub: null } — когда кому выплачено.
+export const PAYOUT_ROLES = { rop: "РОП", lidorub: "Лидоруб", mop: "МОП" };
+
+// Кому сколько не выплачено (только верифицированные — у них есть чистая).
+// mopOf(p) — id менеджера оплаты (учитывает имена из таблицы).
+export function payoutsOwed(payments, users, rates = DEFAULT_RATES, { roles = ["rop", "lidorub", "mop"], mopOf = (p) => p.mopId } = {}) {
+  const active = users.filter((u) => u.active !== false);
+  const rop = active.find((u) => u.role === "rop");
+  const lrs = active.filter((u) => u.role === "lidorub");
+  const groups = {};
+  const pending = [];
+  for (const p of payments) {
+    if (!p.verified) {
+      pending.push(p);
+      continue;
+    }
+    const row = payrollRow(p, rates);
+    for (const role of roles) {
+      if (p.paid?.[role] || !row[role]) continue;
+      const person = role === "mop" ? mopOf(p) : role === "rop" ? rop?.id : lrs.some((u) => u.id === p.lidorubId) ? p.lidorubId : lrs[0]?.id;
+      if (!person) continue;
+      const g = (groups[`${role}:${person}`] ||= { role, personId: person, total: 0, items: [] });
+      // Как в таблице: каждая строка — в целых рублях, итог — сумма строк.
+      const amount = Math.round(row[role]);
+      g.total += amount;
+      g.items.push({ p, amount });
+    }
+  }
+  const order = { rop: 0, lidorub: 1, mop: 2 };
+  for (const g of Object.values(groups)) g.items.sort((a, b) => a.p.date.localeCompare(b.p.date));
+  return { groups: Object.values(groups).sort((a, b) => order[a.role] - order[b.role]), pending: pending.sort((a, b) => a.date.localeCompare(b.date)) };
+}
+
+// Ближайший понедельник выплат (сегодня, если понедельник).
+export function nextPayday(today) {
+  const wd = new Date(`${today}T12:00:00Z`).getUTCDay();
+  return addDaysKey(today, (8 - wd) % 7);
+}

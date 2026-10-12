@@ -408,3 +408,47 @@ test("windows API: anyone sets a closer's windows, bad input refused, AI opens w
   assert.ok((await store.all("window")).some((w) => w.mopId === "502" && w.ranges[0].from === "12:00"));
   assert.match(sent.find((m) => m.chat === "502").text, /открыл тебе окна/);
 });
+
+test("payouts: Monday reminder to owner — РОП and лидоруб by client, «Выплатил» marks paid and notifies", async () => {
+  const { store, sent, api } = await setup();
+  await api(1, "POST", "/users", { id: "504", role: "rop", name: "Андрей" });
+  const P = (id, date, tariff, net, mop, verified = true, clientName = "") => ({ id, date, tariff, net, verified, mopAlias: mop, clientName });
+  await api(1, "POST", "/import", { payments: [
+    P("seed-tema-32", "2026-10-04", 100000, 69000, "Тема", true, "Даня"),
+    P("seed-dima-4", "2026-10-05", 70000, 49840, "Дима", true, "Егор @TypaGO4ER"),
+    P("seed-tema-33", "2026-10-09", 100000, 69000, "Тема", true, "Герман"),
+    P("seed-tema-onlyfals", "2026-10-11", 25500, null, "Тема", false, "Саня @onlyfals"),
+  ] });
+  const { runPayoutReminder } = await import("../src/bot.mjs");
+  const { telegram } = await import("../src/telegram.mjs");
+  const tg = telegram("123:abc", async (url, init) => (sent.push({ chat: init.body.get("chat_id"), text: init.body.get("text"), markup: init.body.get("reply_markup") }), new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }))));
+  const env = { OWNER_IDS: "1" };
+  const monday = Date.parse("2026-10-12T17:40:00Z"); // 20:40 МСК
+  assert.equal(await runPayoutReminder({ store, env, tg, appUrl: "https://t/", now: Date.parse("2026-10-13T09:00:00Z") }), null); // вторник — нет
+  const r = await runPayoutReminder({ store, env, tg, appUrl: "https://t/", now: monday });
+  assert.equal(r.sent, 1);
+  const msg = sent.at(-1);
+  assert.equal(msg.chat, "1");
+  // 04.10 уже выплачено всем; 05.10 и 09.10 — РОПу 1 390,54 + 1 925,1 = 3 315,64; лидорубу 927,02 + 1 283,4 = 2 210,42
+  assert.match(msg.text, /РОП Андрей — 3[\s ]316 ₽[\s\S]*Егор @TypaGO4ER · Дима · 70[\s ]000 ₽ → <b>1[\s ]391 ₽[\s\S]*Лидоруб Леха — 2[\s ]210 ₽/);
+  assert.match(msg.text, /Не входят[\s\S]*Саня @onlyfals/);
+  assert.doesNotMatch(msg.text, /Даня/);
+  assert.match(msg.markup, /po:rop:504/);
+  assert.equal(await runPayoutReminder({ store, env, tg, appUrl: "https://t/", now: monday + 60_000 }), null); // один раз в день
+
+  // «Выплатил Андрею» из бота
+  const { handleUpdate } = await import("../src/bot.mjs");
+  await handleUpdate({ callback_query: { id: "cb", from: { id: 1 }, data: "po:rop:504", message: { chat: { id: 1 }, message_id: 5 } } }, { store, env, tg, appUrl: "https://t/" });
+  assert.match(sent.find((m) => m.chat === "504").text, /выплатил тебе 3[\s ]316 ₽[\s\S]*Егор/);
+  const st = (await api(1, "GET", "/state")).body;
+  assert.equal(st.payouts.length, 1);
+  assert.equal(st.payments.find((p) => p.id === "seed-tema-33").paid.rop, "2026-10-12".slice(0, 4) + st.payments.find((p) => p.id === "seed-tema-33").paid.rop.slice(4));
+  assert.equal(st.payments.find((p) => p.id === "seed-tema-33").paid.lidorub, null);
+  // лидоруб ещё ждёт; РОП не может отмечать выплаты
+  assert.equal((await api(504, "POST", "/payouts", { role: "lidorub", personId: "503" })).status, 403);
+  const done = await api(1, "POST", "/payouts", { role: "lidorub", personId: "503" });
+  assert.equal(done.body.payout.amount, 2210); // 927 + 1 283, как в таблице
+  // отмена возвращает долг
+  await api(1, "POST", `/payouts/${done.body.payout.id}/undo`);
+  assert.equal((await api(1, "GET", "/state")).body.payments.find((p) => p.id === "seed-dima-4").paid.lidorub, null);
+});

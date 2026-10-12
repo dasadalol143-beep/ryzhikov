@@ -20,6 +20,7 @@ export const BOT_COMMANDS = [
   { command: "windows", description: "Свободные окна диагностов на завтра" },
   { command: "links", description: "Ссылки на оплату" },
   { command: "export", description: "Выгрузить базу (Excel + бэкап)" },
+  { command: "payouts", description: "Кому сколько выплатить (руководство)" },
   { command: "ai", description: "Проверка ИИ и расход (руководство)" },
 ];
 
@@ -157,6 +158,11 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
   }
   if (/^\/tomorrow/.test(text) || /^завтра\??$/i.test(text)) {
     return reply(dayCalls(me, clients, addDaysKey(mskKey(now), 1), usersMap) || "На завтра созвонов нет", { inline_keyboard: [[openApp(appUrl)]] });
+  }
+  if (/^\/payouts/.test(text) || /^(выплаты|кому выплатить|кому платить)\??$/i.test(text)) {
+    if (!["owner", "rop"].includes(me.role)) return reply("Выплаты видят только Петя и Андрей.");
+    const msgP = await payoutMessage({ store, env, now, forOwner: me.role === "owner" });
+    return reply(msgP.text, msgP.markup(appUrl));
   }
   if (/^\/export/.test(text) || /^(выгрузка|выгрузи|бэкап)/i.test(text)) {
     const { sendExport } = await import("./export.mjs");
@@ -582,6 +588,21 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
   const me = users.find((u) => u.id === String(cb.from.id));
   const answer = (text) => tg.answerCallback(cb.id, text).catch(() => {});
   if (!me) return answer("Нет доступа");
+  if (action === "po") {
+    // po:<role>:<personId> — «Выплатил» из понедельничного напоминания
+    if (me.role !== "owner") return answer("Выплаты отмечает Петя");
+    const { markPayout, loadSettings } = await import("./api.mjs");
+    const usersMap = Object.fromEntries(users.map((u) => [u.id, u]));
+    try {
+      const res = await markPayout(store, { by: me, users: usersMap, settings: await loadSettings(store), role: clientId, personId: callId, tg });
+      await answer(`Отмечено: ${res.payout.name} ${rub(res.payout.amount)}`);
+      const fresh = await payoutMessage({ store, env, forOwner: true });
+      await tg.editMessage(cb.message.chat.id, cb.message.message_id, `${fresh.text}\n\n✅ <i>Выплачено ${h(res.payout.name)}: ${rub(res.payout.amount)}</i>`, fresh.markup(appUrl)).catch(() => {});
+    } catch (e) {
+      await answer(e.message);
+    }
+    return;
+  }
   if (action === "ub") {
     const batch = await store.get("batch", clientId);
     if (!batch) return answer("Уже неактуально");
@@ -803,3 +824,51 @@ export async function runEvening({ store, env, tg, appUrl, now = Date.now() }) {
 }
 
 export { fmtWhen, currentCall, clientTitle };
+
+// ---------- выплаты команде ----------
+// Кому сколько заплатить: РОПу и лидорубу (по понедельникам). МОПу Петя платит сразу — в напоминании не показываем.
+export async function payoutMessage({ store, env, now = Date.now(), forOwner = true }) {
+  const { ensurePayoutFlags, loadSettings, mopResolver } = await import("./api.mjs");
+  const { payoutsOwed, PAYOUT_ROLES } = await import("../public/lib/model.js");
+  const [payments, settings, users] = await Promise.all([ensurePayoutFlags(store), loadSettings(store), activeUsers(store, env)]);
+  const name = (id) => users.find((u) => u.id === id)?.name || String(id || "").replace(/^legacy:/, "");
+  const mopOf = mopResolver(settings);
+  const { groups, pending } = payoutsOwed(payments, users, settings.rates, { roles: ["rop", "lidorub"], mopOf });
+  const today = mskKey(now);
+  const dd = (d) => `${d.slice(8)}.${d.slice(5, 7)}`;
+  const total = groups.reduce((sum, g) => sum + g.total, 0);
+  const parts = [`💸 <b>Выплаты команде · ${weekday(today)} ${dd(today)}</b>`];
+  if (!groups.length) parts.push("\nРОПу и лидорубу ничего не должны 👌");
+  for (const g of groups) {
+    parts.push(`\n<b>${PAYOUT_ROLES[g.role]} ${h(name(g.personId))} — ${rub(g.total)}</b> (${g.items.length} опл.)`);
+    for (const it of g.items) parts.push(`• ${dd(it.p.date)} ${h(it.p.clientName || "оплата")} · ${h(name(mopOf(it.p)))} · ${rub(it.p.tariff)} → <b>${rub(it.amount)}</b>`);
+  }
+  if (groups.length > 1) parts.push(`\n<b>Итого: ${rub(total)}</b>`);
+  if (pending.length) parts.push(`\n⚠️ Не входят — нет чистой суммы (Андрею верифицировать):\n${pending.map((p) => `• ${dd(p.date)} ${h(p.clientName || "оплата")} · ${h(name(mopOf(p)))} · ${rub(p.tariff)}`).join("\n")}`);
+  return {
+    text: parts.join("\n"),
+    total,
+    groups,
+    markup: (appUrl) => ({
+      inline_keyboard: [
+        ...(forOwner ? groups.map((g) => [{ text: `✅ ${name(g.personId)} — выплатил ${rub(g.total)}`, callback_data: `po:${g.role}:${g.personId}` }]) : []),
+        [openApp(appUrl, "Выплаты в приложении", "?tab=more&more=payouts")],
+      ],
+    }),
+  };
+}
+
+// Понедельник, после 10:00 МСК — один раз собственнику: кому сколько заплатить.
+export async function runPayoutReminder({ store, env, tg, appUrl, now = Date.now() }) {
+  const msk = new Date(now + 3 * 3600_000);
+  if (msk.getUTCDay() !== 1 || msk.getUTCHours() < 10) return null;
+  const today = mskKey(now);
+  if ((await store.get("meta", "payout-remind"))?.day === today) return null;
+  await store.put("meta", "payout-remind", { id: "payout-remind", day: today, at: new Date(now).toISOString() });
+  const msg = await payoutMessage({ store, env, now, forOwner: true });
+  if (!msg.total) return { sent: 0 };
+  const owners = (await activeUsers(store, env)).filter((u) => u.role === "owner");
+  let sent = 0;
+  for (const u of owners) await tg.sendMessage(u.id, msg.text, msg.markup(appUrl)).then(() => sent++).catch(() => {});
+  return { sent, total: msg.total };
+}

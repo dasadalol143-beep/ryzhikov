@@ -2,7 +2,7 @@ import {
   ROLES, STATUSES, SOURCES, REPORT_FIELDS, AFTER_CALL, FOLLOWUP_TOUCHES, DEFAULT_RATES,
   statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState,
   mskKey, mskTime, mskMidnight, addDaysKey, fmtDay, weekday, fmtWhen, monthName, payrollRow, monthSummary,
-  DEFAULT_PAY_LINKS, pace, daysInMonth, daySlots, rangesText, cleanRanges, toMin, fromMin,
+  DEFAULT_PAY_LINKS, pace, daysInMonth, payoutsOwed, nextPayday, PAYOUT_ROLES, daySlots, rangesText, cleanRanges, toMin, fromMin,
 } from "./lib/model.js";
 import { rnp, lidorubStats, periodRange } from "./lib/stats.js";
 import { parseReportText, parseCsv, crmRowsToClients } from "./lib/report.js";
@@ -44,6 +44,7 @@ const state = {
   payments: null,
   feed: [],
   windows: [],
+  payouts: [],
   statsPerson: "all",
   tab: "today",
   clientId: null,
@@ -166,6 +167,7 @@ const ICONS = {
   user: '<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.7-5.6 7-5.6s6.2 2 7 5.6"/>',
   wallet: '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12.5h2M3 9.5h18"/>',
   clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  check: '<circle cx="12" cy="12" r="8.5"/><path d="m8.5 12.2 2.4 2.4 4.6-5"/>',
   edit: '<path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/>',
   send: '<path d="M21 3 10.5 13.5M21 3l-6.5 18-4-7.5L3 9.5z"/>',
   chat: '<path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/>',
@@ -193,6 +195,7 @@ async function load() {
       payments: data.payments,
       feed: data.feed || [],
       windows: data.windows || [],
+      payouts: data.payouts || [],
     });
     $tabs.hidden = false;
     // Ссылки из бота: ?client=ID&report=1
@@ -200,6 +203,7 @@ async function load() {
     if (q.get("tab") && !state.deepLinked && ["today", "clients", "calendar", "stats", "more"].includes(q.get("tab"))) {
       state.deepLinked = true;
       state.tab = q.get("tab");
+      if (q.get("more")) state.more = q.get("more");
     }
     if (q.get("client") && clientById(q.get("client")) && !state.deepLinked) {
       state.deepLinked = true;
@@ -397,6 +401,7 @@ function renderToday() {
     ));
   }
   if (tomorrow.length) html += section(`Завтра · ${tomorrow.length}`, tomorrow.map(({ c, call }) => callRow(c, call)));
+  if (state.me.role === "owner" && owedTotal()) html += `<button class="big-cta" data-more="payouts" style="margin-top:14px"><span>${icon("send")}</span><div>К выплате команде: ${rub(owedTotal())}<small>РОП и лидоруб · ${payDayText()}</small></div></button>`;
   if (money() && state.payments) {
     const pend = state.payments.filter((p) => !p.verified);
     if (pend.length) html += `<button class="big-cta" data-more="payroll" style="margin-top:14px"><span>${icon("wallet")}</span><div>Оплаты ждут проверки: ${pend.length}<small>внеси чистую сумму после комиссии и поставь «верифицировано»</small></div></button>`;
@@ -1172,11 +1177,13 @@ function renderMore() {
   if (state.more === "rules") return renderRules();
   if (state.more === "feed") return renderFeed();
   if (state.more === "links") return renderLinks();
+  if (state.more === "payouts" && money()) return renderPayouts();
   state.more = null;
   const item = (id, ic, title, sub) => `<div class="row" data-more="${id}"><div class="icon">${ic}</div><div class="grow"><div class="title">${title}</div><div class="sub">${sub}</div></div><div class="right sub">›</div></div>`;
   const pend = (state.payments || []).filter((p) => !p.verified).length;
   $app.innerHTML = `<div class="lead-card"><div class="lead-head">${avatar(state.me.name, state.me.id, 52)}<div class="grow"><h1>${esc(state.me.name)}</h1><div class="sub">${esc(ROLES[state.me.role])}</div></div></div></div>
     <div class="list">
+      ${money() ? item("payouts", icon("send"), "Выплаты команде", owedTotal() ? `к выплате ${rub(owedTotal())} · ${payDayText()}` : "всё выплачено") : ""}
       ${money() ? item("payroll", icon("wallet"), "Зарплатная ведомость", pend ? `ждут проверки: ${pend}` : "выручка, чистая, вознаграждения") : ""}
       ${item("feed", icon("bell"), "Лента событий", unreadFeed() ? `новых: ${unreadFeed()}` : "созвоны, продажи, НДЗ, комментарии")}
       ${item("links", icon("card"), "Ссылки на оплату", `${payLinks().length} шт · Т-Банк, Ресурс развития, Продамус`)}
@@ -1185,6 +1192,35 @@ function renderMore() {
       <div class="row" data-export><div class="icon">${icon("box")}</div><div class="grow"><div class="title">Выгрузить базу</div><div class="sub">Excel-файл в бота${money() ? " + ведомость и полный бэкап" : ""}</div></div><div class="right sub">›</div></div>
       ${money() ? item("settings", icon("gear"), "Настройки", "проценты, план, перенос из таблиц") : ""}
     </div>`;
+}
+
+// ---------- ВЫПЛАТЫ ----------
+// МОПу — сразу после продажи, РОПу и лидорубу — по понедельникам. Считаются только верифицированные оплаты.
+const owed = (roles = ["rop", "lidorub", "mop"]) => payoutsOwed(normPayments(), state.users, state.settings.rates, { roles });
+const owedTotal = () => (state.payments ? owed(["rop", "lidorub"]).groups.reduce((s, g) => s + g.total, 0) : 0);
+const payDayText = () => {
+  const d = nextPayday(today());
+  return d === today() ? "сегодня понедельник" : `понедельник ${fmtDay(d)}`;
+};
+function renderPayouts() {
+  const { groups, pending } = owed();
+  const weekly = groups.filter((g) => g.role !== "mop");
+  const mops = groups.filter((g) => g.role === "mop");
+  const owner = state.me.role === "owner";
+  const sum = (list) => list.reduce((s, g) => s + g.total, 0);
+  const card = (g) => `<div class="pay-card"><div class="win-head">${avatar(userName(g.personId), g.personId, 40)}<div class="grow"><div class="title">${esc(userName(g.personId))}</div><div class="sub">${PAYOUT_ROLES[g.role]} · ${g.items.length} ${plural(g.items.length, "оплата", "оплаты", "оплат")}</div></div><b class="pay-sum">${rub(g.total)}</b></div>
+    <details class="pay-items"><summary class="link">За что</summary><div class="list">${g.items.map((it) => `<div class="row" style="min-height:0;cursor:default"><div class="grow"><div class="title">${esc(it.p.clientName || "оплата")}</div><div class="sub">${fmtDay(it.p.date)} · ${esc(userName(it.p.mopId))} · ${rub(it.p.tariff)} · чистая ${short(it.p.net)}</div></div><div class="right"><b>${rub(it.amount)}</b></div></div>`).join("")}</div></details>
+    ${owner ? `<button class="btn block" data-payout="${g.role}|${g.personId}">Выплатил · ${rub(g.total)}</button>` : ""}</div>`;
+  let html = `<h1>Выплаты</h1><div class="page-sub">МОПу — сразу после продажи, РОПу и лидорубу — по понедельникам. Считаем только верифицированные оплаты.</div>
+    <div class="hero"><div class="hero-label">К выплате РОПу и лидорубу · ${payDayText()}</div><div class="hero-value">${rub(sum(weekly))}</div>
+    <div class="hero-stats">${weekly.map((g) => `<div><small>${PAYOUT_ROLES[g.role]} ${esc(userName(g.personId))}</small><b>${short(g.total)}</b></div>`).join("") || `<div><small>всё выплачено</small><b>0</b></div>`}${mops.length ? `<div><small>МОПам не отмечено</small><b>${short(sum(mops))}</b></div>` : ""}</div></div>`;
+  html += weekly.length ? `<div class="list-head"><h2>Понедельник</h2></div>${weekly.map(card).join("")}` : `<div class="card empty small">РОПу и лидорубу всё выплачено</div>`;
+  if (mops.length) html += `<div class="list-head"><h2>МОПы — не отмечено</h2></div><div class="sub" style="margin:-4px 4px 8px">Ты платишь МОПу сразу — отметь, чтобы не висело.</div>${mops.map(card).join("")}`;
+  if (pending.length) html += section(`Не входят — нет чистой суммы · ${pending.length}`, pending.map(payRow));
+  if (state.payouts.length) {
+    html += section("История выплат", state.payouts.map((x) => `<div class="row" style="cursor:default">${avatar(x.name || userName(x.personId), x.personId, 34)}<div class="grow"><div class="title">${esc(x.name || userName(x.personId))} · ${rub(x.amount)}</div><div class="sub">${PAYOUT_ROLES[x.role]} · ${x.items.length} опл. · ${fmtWhen(Date.parse(x.at))}</div></div>${owner ? `<button class="link" data-payout-undo="${x.id}">Отменить</button>` : ""}</div>`));
+  }
+  $app.innerHTML = html;
 }
 
 function renderPayroll() {
@@ -1212,14 +1248,16 @@ function renderPayroll() {
       <div class="row total"><div class="grow">Остаётся чистыми</div><div class="right">${rub(t.left)}</div></div>
     </div>
     ${s.pending.count ? `<div class="sub" style="margin:8px 4px">Не верифицировано в этом месяце: ${s.pending.count} на ${rub(s.pending.tariff)} — в итоги не входят.</div>` : ""}`;
-  if (pending.length) html += section(`⚠️ Ждут проверки · ${pending.length}`, pending.map(payRow));
+  if (pending.length) html += section(`Ждут проверки · ${pending.length}`, pending.map(payRow));
   html += section(`Оплаты · ${monthName(state.payMonth)}`, inMonth.map(payRow), { empty: "Оплат нет" });
   $app.innerHTML = html;
 }
 const line = (label, v, hint = "", bold = false) => `<div class="row" style="min-height:0;cursor:default"><div class="grow">${bold ? `<b>${label}</b>` : label}${hint ? ` <span class="sub" style="display:inline">${hint}</span>` : ""}</div><div class="right ${v < 0 ? "" : "money-green"}">${v < 0 ? "−" : ""}${rub(Math.abs(v))}</div></div>`;
 function payRow(p) {
   const c = p.net !== null && p.net !== undefined ? payrollRow(p, state.settings.rates) : null;
-  return `<div class="row" data-pay="${p.id}"><div class="icon">${p.verified ? "✅" : "⏳"}</div><div class="grow"><div class="title">${rub(p.tariff)}${p.clientName ? ` · ${esc(p.clientName)}` : ""}</div><div class="sub">${fmtDay(p.date)} · ${esc(userName(p.mopId))}${c ? ` · чистая ${short(c.net)} · комиссия ${c.commissionPct}%` : " · нет чистой суммы"}</div></div><div class="right">${c ? `<span class="sub">МОП</span><br><b>${rub(c.mop)}</b>` : ""}</div></div>`;
+  const all = p.paid?.mop && p.paid?.rop && p.paid?.lidorub;
+  const marks = p.verified ? `<span class="paymarks">${["mop", "rop", "lidorub"].map((r) => `<i class="${p.paid?.[r] ? "on" : ""}">${PAYOUT_ROLES[r]}</i>`).join("")}</span>` : "";
+  return `<div class="row ${all ? "paid-all" : ""}" data-pay="${p.id}"><div class="icon">${p.verified ? icon(all ? "check" : "clock") : icon("clock")}</div><div class="grow"><div class="title">${rub(p.tariff)}${p.clientName ? ` · ${esc(p.clientName)}` : ""}</div><div class="sub">${fmtDay(p.date)} · ${esc(userName(p.mopId))}${c ? ` · чистая ${short(c.net)} · комиссия ${c.commissionPct}%` : " · нет чистой суммы"}</div>${marks}</div><div class="right">${c ? `<span class="sub">МОП</span><br><b>${rub(c.mop)}</b>` : ""}</div></div>`;
 }
 
 function openPayment(p) {
@@ -1573,6 +1611,28 @@ $app.addEventListener("click", async (e) => {
     return window.scrollTo(0, 0);
   }
   if (d.pmonth) return (state.payMonth = d.pmonth), render();
+  if (d.payout) {
+    const [role, personId] = d.payout.split("|");
+    const g = owed([role]).groups.find((x) => x.personId === personId);
+    if (!g || !(await confirmDialog(`${userName(personId)} (${PAYOUT_ROLES[role]}): отметить выплату ${rub(g.total)} за ${g.items.length} опл.? Придёт сообщение в бота.`))) return;
+    try {
+      const res = await api("POST", "/payouts", { role, personId, ids: g.items.map((it) => it.p.id) });
+      state.payments = res.payments;
+      state.payouts = res.payouts;
+      haptic("medium");
+      toast(`Выплачено: ${userName(personId)} ${rub(res.payout.amount)}`);
+      return render();
+    } catch (e) {
+      return alertDialog(e.message);
+    }
+  }
+  if (d.payoutUndo) {
+    if (!(await confirmDialog("Отменить отметку о выплате?"))) return;
+    const res = await api("POST", `/payouts/${d.payoutUndo}/undo`);
+    state.payments = res.payments;
+    state.payouts = res.payouts;
+    return render();
+  }
   if (d.payNew !== undefined) return openPayment(null);
   if (d.pay) return openPayment(normPayments().find((p) => p.id === d.pay));
   if (d.userNew !== undefined) return openUser("", false);
