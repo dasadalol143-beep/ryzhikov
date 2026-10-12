@@ -158,3 +158,10 @@ test("morning digest goes to everyone with a role", async () => {
   assert.deepEqual(res.map((r) => r.id).sort(), ["1", "50"]);
   assert.match(sent.find((s) => s.chat === "1" && s.text).text, /Вчера/);
 });
+
+test("an infinitive verb is never a client name", async () => {
+  const { parseBooking, parseBookings } = await import("../src/nlp.mjs");
+  const users = [{ id: "3", role: "mop", name: "Дмитрий Сайгин" }];
+  assert.equal(parseBooking("Поставить звонок Диме 20:00", users).name, "");
+  assert.equal(parseBookings("Поставить звонок Диме 20:00 с Антоном", users)[0].name, "Антон");
+});

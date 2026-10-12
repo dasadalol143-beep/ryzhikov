@@ -263,7 +263,12 @@ export async function aiStatus({ store, env, users = [], now = Date.now(), clien
   const day = Number(mskKey(now).slice(8, 10));
   const dim = new Date(Date.UTC(+use.month.slice(0, 4), +use.month.slice(5, 7), 0)).getUTCDate();
   const lines = [];
-  if (!env.ANTHROPIC_API_KEY && !client) lines.push("🔴 ИИ выключен: нет секрета ANTHROPIC_API_KEY в Cloudflare.");
+  if (!env.ANTHROPIC_API_KEY && !client) {
+    lines.push("🔴 ИИ выключен: воркер не видит секрет ANTHROPIC_API_KEY.");
+    // Только имена, без значений: видно, если секрет назвали иначе.
+    const near = Object.keys(env).filter((k) => /anthrop|claude|api|key|secret|token/i.test(k) && k !== "BOT_TOKEN");
+    lines.push(near.length ? `Похожие переменные в воркере: ${near.join(", ")} — переименуй в ANTHROPIC_API_KEY.` : "В воркере нет ни одной похожей переменной — секрет добавлен не туда (другой воркер или «Build variables»).");
+  }
   else {
     try {
       const ai = client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 0, timeout: 15_000 });
