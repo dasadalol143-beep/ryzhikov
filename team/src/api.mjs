@@ -577,9 +577,9 @@ export async function importSeed(store, body) {
 
 async function ensureWebhook(store, env, fetchImpl, hookUrl) {
   const saved = await store.get("meta", "webhook");
-  if (saved?.url === hookUrl && saved?.v === 2) return;
+  if (saved?.url === hookUrl && saved?.v === 3) return;
   const tg = telegram(env.BOT_TOKEN, fetchImpl);
   await tg.setWebhook(hookUrl, await webhookSecret(env.BOT_TOKEN));
   await tg.setMyCommands(BOT_COMMANDS).catch(() => {});
-  await store.put("meta", "webhook", { url: hookUrl, v: 2, at: nowIso() });
+  await store.put("meta", "webhook", { url: hookUrl, v: 3, at: nowIso() });
 }

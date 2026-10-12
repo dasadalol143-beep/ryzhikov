@@ -313,3 +313,63 @@ test("AI fallback: unparsed phrase → booking, status, message, answer; questio
   assert.equal(asks.length, 4);
   assert.match(sent.at(-1).text, /Что я умею/);
 });
+
+test("AI: memory, lookups, report, cancel, retry dedupe, budget stop, /ai status", async () => {
+  const { store, sent } = await setup();
+  const asks = [];
+  const script = [];
+  const aiClient = { messages: { create: async (req) => (asks.push(structuredClone(req)), script.shift() || { stop_reason: "end_turn", content: [{ type: "text", text: "ок" }], usage: { input_tokens: 5000, output_tokens: 100 } }) } };
+  const env = { BOT_TOKEN: "123:abc", OWNER_IDS: "1", APP_URL: "https://team.test/", ANTHROPIC_API_KEY: "test", __aiClient: aiClient, AI: {} };
+  const fetchImpl = async (url, init) => {
+    sent.push({ method: url.split("/").pop(), chat: init.body.get("chat_id"), text: init.body.get("text") });
+    return new Response(JSON.stringify({ ok: true, result: { message_id: sent.length } }));
+  };
+  const handle = createHandler({ store, env, fetch: fetchImpl });
+  const secret = await webhookSecret("123:abc");
+  let uid = 1000;
+  const tell = (fromId, text, update_id = ++uid) => handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id, message: { from: { id: fromId, first_name: "X" }, chat: { id: fromId, type: "private" }, text } }) }));
+  const tool = (name, input, id = "t") => ({ stop_reason: "tool_use", content: [{ type: "tool_use", id, name, input }], usage: { input_tokens: 5000, output_tokens: 80 } });
+
+  // ИИ спрашивает карточку, получает её и отвечает; во втором сообщении помнит первый обмен
+  await tell(503, "созвон завтра в 15 к Тёме @ivan_x Иван"); // правило, без ИИ
+  assert.equal(asks.length, 0);
+  script.push(tool("client_info", { client: "Иван" }), { stop_reason: "end_turn", content: [{ type: "text", text: "Иван записан к Теме на завтра 15:00." }], usage: { input_tokens: 6000, output_tokens: 40 } });
+  await tell(503, "когда у Ивана созвон?");
+  assert.equal(asks.length, 2);
+  assert.match(asks[1].messages.at(-1).content[0].content, /@ivan_x Иван[\s\S]*Тема[\s\S]*назначен/);
+  assert.match(sent.at(-1).text, /записан к Теме/);
+  script.push(tool("cancel_call", { client: "ivan_x" }));
+  await tell(503, "отмени его");
+  const hist = asks[2].messages;
+  assert.equal(hist[0].role, "user");
+  assert.match(hist[0].content, /созвон завтра в 15/);
+  assert.match(hist[1].content, /Внёс в CRM/);
+  assert.match(hist[3].content, /записан к Теме/);
+  const [c] = await store.all("client");
+  assert.equal(c.calls[0].outcome, "moved");
+  assert.ok(sent.some((m) => m.chat === "501" && /Созвон отменён/.test(m.text)));
+
+  // отчёт своими словами
+  script.push(tool("save_report", { client: "ivan_x", need: "выйти на 100к в месяц", occupation: "курьер", dream: "съехать от родителей", objection: "нет денег", nextStep: "созвон в пятницу", status: "thinking", sum: 80000 }));
+  await tell(501, "провёл ивана, курьер, хочет 100к в месяц, мечтает съехать от родителей, говорит денег нет, думает до пятницы, 80к");
+  const c2 = (await store.all("client"))[0];
+  assert.equal(c2.status, "thinking");
+  assert.equal(c2.calls.at(-1).report.occupation, "курьер");
+
+  // повтор того же апдейта от Telegram не обрабатывается второй раз
+  const n = asks.length;
+  await tell(1, "что по плану?", 77);
+  await tell(1, "что по плану?", 77);
+  assert.equal(asks.length, n + 1);
+
+  // бюджет месяца исчерпан → ИИ не зовём, собственнику объясняем
+  env.AI_MONTHLY_BUDGET = "0.001";
+  await tell(1, "сколько продаж?");
+  assert.equal(asks.length, n + 1);
+  assert.match(sent.at(-1).text, /месячный бюджет/);
+
+  // /ai: проверка ключа и расход
+  delete env.AI_MONTHLY_BUDGET;
+  await tell(1, "/ai");
+  assert.match(sent.at(-1).text, /ИИ работает[\s\S]*Голосовые: подключены[\s\S]*потрачено \$0\.0\d/);
+});
