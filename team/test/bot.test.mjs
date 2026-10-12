@@ -39,17 +39,26 @@ test("lidorub books a call in plain text, closer gets notified, clashes are refu
   assert.match(c.calls[0].at, /T12:00:00/); // 15:00 МСК
   const toTema = sent.find((m) => m.chat === "501");
   assert.match(toTema.text, /Новый созвон/);
-  assert.match(sent.find((m) => m.chat === "503").text, /Записал нового клиента/);
+  assert.match(sent.find((m) => m.chat === "503").text, /Внёс в CRM: 1 созвон[\s\S]*🆕[\s\S]*Уведомил: Тема/);
 
   await say(503, "запиши Олега на созвон завтра в 15:20 к Теме");
-  assert.match(sent.at(-1).text, /уже созвон в 15:00/);
+  assert.match(sent.at(-1).text, /Ничего не внёс[\s\S]*уже 15:00/);
   assert.equal((await store.all("client")).length, 1);
 
   await say(503, "созвон завтра в 15 @petr_y");
-  assert.match(sent.at(-1).text, /К кому записать/);
+  assert.match(sent.at(-1).text, /к кому\?/);
 
   await say(503, "окна завтра у Темы");
-  assert.match(sent.at(-1).text, /🔴 15:00[\s\S]*свободно: 10:00/);
+  assert.match(sent.at(-1).text, /🔴 15:00[\s\S]*не занято: 10:00/);
+
+  // лидоруб открывает Теме окна — свободные слоты считаются от них, Тема получает сообщение
+  await say(503, "окна Тёме завтра с 14 до 18");
+  assert.match(sent.find((m) => m.chat === "501" && /открыл тебе окна/.test(m.text)).text, /14:00–18:00/);
+  assert.match(sent.filter((m) => m.chat === "503").at(-1).text, /Окна открыты[\s\S]*окно 14:00–18:00[\s\S]*🔴 15:00[\s\S]*свободно: 14:00, 16:00, 17:00/);
+  const st = (await api(503, "GET", "/state")).body;
+  assert.equal(st.windows.length, 1);
+  await say(503, "созвон завтра в 19 к Тёме @late_one Олег");
+  assert.match(sent.filter((m) => m.chat === "503").at(-1).text, /вне окна \(14:00–18:00\)/);
 
   // лента: Тема видит событие про свой созвон
   const feed = (await api(501, "GET", "/state")).body.feed;
@@ -92,7 +101,7 @@ test("owner's exact phrase: 'поставил лида Теме на 19:00 … @
   assert.match(c.calls[0].at, /T16:00:00/); // 19:00 МСК
   const toTema = sent.find((m) => m.chat === "501");
   assert.match(toTema.text, /Новый созвон[\s\S]*19:00[\s\S]*напомни прямо сейчас/);
-  assert.match(sent.find((m) => m.chat === "1").text, /Записал нового клиента[\s\S]*Тема получил уведомление/);
+  assert.match(sent.find((m) => m.chat === "1").text, /Внёс в CRM[\s\S]*Уведомил: Тема/);
   // имя собственника из Telegram, а не «Собственник»
   assert.equal((await store.get("user", "1")).name, "X");
 });
@@ -200,4 +209,246 @@ test("history links itself to a teammate added after the import", async () => {
   // и у самого Матвея на экране — его клиенты и продажи
   const mine = (await api(520, "GET", "/state")).body;
   assert.equal(mine.clients.filter((c) => c.mopId === "520").length, 1);
+});
+
+test("several calls in one message: each booked, each closer notified, clash skipped, cancel all", async () => {
+  const { store, sent, say } = await setup();
+  await say(503, "Внеси в CRM на завтра: Тема, два звонка: один с Антоном в 18:00, второй с Мишей @misha_k в 19:00. Диме на 20:00 Олег +79001234567");
+  const all = await store.all("client");
+  assert.equal(all.length, 3);
+  const by = Object.fromEntries(all.map((c) => [c.name || c.telegram, c.calls[0]]));
+  assert.equal(by["Антон"].mopId, "501");
+  assert.match(by["Антон"].at, /T15:00:00/); // 18:00 МСК
+  assert.equal(by["Миша"].mopId, "501");
+  assert.equal(all.find((c) => c.telegram === "@misha_k").name, "Миша");
+  assert.equal(by["Олег"].mopId, "502");
+  assert.equal(all.find((c) => c.name === "Олег").phone, "+79001234567");
+  assert.equal(sent.filter((m) => m.chat === "501" && /Новый созвон/.test(m.text)).length, 2);
+  assert.equal(sent.filter((m) => m.chat === "502" && /Новый созвон/.test(m.text)).length, 1);
+  const summary = sent.find((m) => m.chat === "503" && /Внёс в CRM/.test(m.text));
+  assert.match(summary.text, /3 созвона/);
+
+  // пересечение у Темы в 18:30 — пропускаем, остальное вносим
+  await say(503, "завтра Теме в 18:30 с Глебом, Диме в 12:00 с Ваней");
+  const s2 = sent.filter((m) => m.chat === "503").at(-1);
+  assert.match(s2.text, /Внёс в CRM: 1 созвон[\s\S]*Не внёс[\s\S]*уже 18:00/);
+
+  // отменить всё из первого сообщения
+  const { webhookSecret } = await import("../src/telegram.mjs");
+  const { createHandler } = await import("../src/api.mjs");
+  const ub = JSON.parse(summary.markup).inline_keyboard.at(-1).at(-1).callback_data;
+  const handle = createHandler({ store, env: { BOT_TOKEN: "123:abc", OWNER_IDS: "1" }, fetch: async () => new Response(JSON.stringify({ ok: true, result: {} })) });
+  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": await webhookSecret("123:abc") }, body: JSON.stringify({ callback_query: { id: "q", from: { id: 503 }, data: ub, message: { message_id: 1, chat: { id: 503 }, text: "x" } } }) }));
+  const open = (await store.all("client")).flatMap((c) => c.calls).filter((x) => !x.outcome);
+  assert.equal(open.length, 1); // остался только Ваня у Димы
+});
+
+test("a call that already happened today gets booked with held/no-show buttons", async () => {
+  const { store, sent, say } = await setup();
+  const t = new Date(Date.now() + 3 * 3600_000 - 2 * 3600_000); // 2 часа назад по МСК
+  const hhmm = t.toISOString().slice(11, 16);
+  if (t.toISOString().slice(0, 10) !== new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10)) return; // около полуночи — пропускаем
+  await say(501, `сегодня в ${hhmm} был созвон с @past_guy`);
+  const [c] = await store.all("client");
+  assert.equal(c.calls[0].mopId, "501"); // написал сам менеджер — значит, его созвон
+  const m = sent.filter((x) => x.chat === "501").at(-1);
+  assert.match(m.text, /уже прошёл — отметь итог/);
+  assert.match(JSON.parse(m.markup).inline_keyboard[0][0].callback_data, /^held:/);
+});
+
+test("status in one line by @nick: held, paid with sum, no-show", async () => {
+  const { store, sent, say } = await setup();
+  await say(503, "завтра Теме в 15:00 с Глебом @gleb_one");
+  await say(501, "@gleb_one пришел");
+  let c = (await store.all("client"))[0];
+  assert.equal(c.calls[0].outcome, "held");
+  await say(501, "@gleb_one оплатил 100к");
+  c = (await store.all("client"))[0];
+  assert.equal(c.status, "paid");
+  assert.equal((await store.all("payment"))[0].tariff, 100000);
+  assert.ok(sent.some((m) => m.chat === "1" && /Продажа/.test(m.text)));
+  await say(501, "@nobody_here ндз");
+  assert.match(sent.at(-1).text, /Не нашёл/);
+});
+
+test("AI fallback: unparsed phrase → booking, status, message, answer; questions don't get relayed", async () => {
+  const { store, sent, say, api } = await setup();
+  const asks = [];
+  let next = [];
+  const aiClient = { messages: { create: async (req) => (asks.push(req), { stop_reason: next.length ? "tool_use" : "end_turn", content: next.length ? next : [{ type: "text", text: "У Димы 0 продаж за месяц." }] }) } };
+  const { createHandler } = await import("../src/api.mjs");
+  // ИИ включён: подменяем клиента Anthropic через env
+  const env = { BOT_TOKEN: "123:abc", OWNER_IDS: "1", APP_URL: "https://team.test/", ANTHROPIC_API_KEY: "test", __aiClient: aiClient };
+  const fetchImpl = async (url, init) => {
+    sent.push({ method: url.split("/").pop(), chat: init.body.get("chat_id"), text: init.body.get("text"), markup: init.body.get("reply_markup") });
+    return new Response(JSON.stringify({ ok: true, result: { message_id: sent.length } }));
+  };
+  const handle = createHandler({ store, env, fetch: fetchImpl });
+  const secret = await webhookSecret("123:abc");
+  const tell = (fromId, text) => handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ message: { from: { id: fromId, first_name: "X" }, chat: { id: fromId, type: "private" }, text } }) }));
+
+  // вопрос с именем менеджера — не пересылается Диме, а уходит ИИ
+  await tell(1, "сколько продаж у Димы?");
+  assert.equal(asks.length, 1);
+  assert.equal(asks[0].model, "claude-haiku-5-5");
+  assert.match(asks[0].messages[0].content, /Диагносты: .*Тема/);
+  assert.ok(!sent.some((m) => m.chat === "502"));
+  assert.match(sent.at(-1).text, /У Димы 0 продаж/);
+
+  const tomorrow = new Date(Date.now() + 3 * 3600_000 + 86400_000).toISOString().slice(0, 10);
+  next = [{ type: "tool_use", id: "t1", name: "book_calls", input: { items: [
+    { mop: "Тема", date: tomorrow, time: "18:00", client_name: "Антон", client_nick: null, phone: null },
+    { mop: "Дима", date: tomorrow, time: "19:00", client_name: "Миша", client_nick: "misha_k", phone: null },
+  ] } }];
+  await tell(503, "Тёмычу одного на завтра к шести Антона, а Димону Мишу @misha_k к семи");
+  const clients = await store.all("client");
+  assert.equal(clients.length, 2);
+  assert.ok(sent.some((m) => m.chat === "501" && /Новый созвон/.test(m.text)));
+  assert.ok(sent.some((m) => m.chat === "502" && /Новый созвон/.test(m.text)));
+  assert.match(sent.filter((m) => m.chat === "503").at(-1).text, /Внёс в CRM: 2 созвона/);
+
+  next = [{ type: "tool_use", id: "t2", name: "set_status", input: { client: "misha_k", status: "thinking", sum: 80000 } }];
+  await tell(502, "Миша подумает до пятницы, хочет за восемьдесят");
+  assert.equal((await store.all("client")).find((c) => c.telegram === "@misha_k").status, "thinking");
+
+  next = [{ type: "tool_use", id: "t3", name: "send_message", input: { to: "Тема", text: "Антон просил перенести на час позже" } }];
+  await tell(503, "передай тёмычу что антон просил перенести на час позже");
+  assert.match(sent.find((m) => m.chat === "501" && /пишет тебе/.test(m.text)).text, /перенести на час позже/);
+
+  // без ключа ИИ не зовётся, справка как раньше
+  delete env.ANTHROPIC_API_KEY;
+  next = [];
+  await tell(1, "что там по плану?");
+  assert.equal(asks.length, 4);
+  assert.match(sent.at(-1).text, /Что я умею/);
+});
+
+test("AI: memory, lookups, report, cancel, retry dedupe, budget stop, /ai status", async () => {
+  const { store, sent } = await setup();
+  const asks = [];
+  const script = [];
+  const aiClient = { messages: { create: async (req) => (asks.push(structuredClone(req)), script.shift() || { stop_reason: "end_turn", content: [{ type: "text", text: "ок" }], usage: { input_tokens: 5000, output_tokens: 100 } }) } };
+  const env = { BOT_TOKEN: "123:abc", OWNER_IDS: "1", APP_URL: "https://team.test/", ANTHROPIC_API_KEY: "test", __aiClient: aiClient, AI: {} };
+  const fetchImpl = async (url, init) => {
+    sent.push({ method: url.split("/").pop(), chat: init.body.get("chat_id"), text: init.body.get("text") });
+    return new Response(JSON.stringify({ ok: true, result: { message_id: sent.length } }));
+  };
+  const handle = createHandler({ store, env, fetch: fetchImpl });
+  const secret = await webhookSecret("123:abc");
+  let uid = 1000;
+  const tell = (fromId, text, update_id = ++uid) => handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id, message: { from: { id: fromId, first_name: "X" }, chat: { id: fromId, type: "private" }, text } }) }));
+  const tool = (name, input, id = "t") => ({ stop_reason: "tool_use", content: [{ type: "tool_use", id, name, input }], usage: { input_tokens: 5000, output_tokens: 80 } });
+
+  // ИИ спрашивает карточку, получает её и отвечает; во втором сообщении помнит первый обмен
+  await tell(503, "созвон завтра в 15 к Тёме @ivan_x Иван"); // правило, без ИИ
+  assert.equal(asks.length, 0);
+  script.push(tool("client_info", { client: "Иван" }), { stop_reason: "end_turn", content: [{ type: "text", text: "Иван записан к Теме на завтра 15:00." }], usage: { input_tokens: 6000, output_tokens: 40 } });
+  await tell(503, "когда у Ивана созвон?");
+  assert.equal(asks.length, 2);
+  assert.match(asks[1].messages.at(-1).content[0].content, /@ivan_x Иван[\s\S]*Тема[\s\S]*назначен/);
+  assert.match(sent.at(-1).text, /записан к Теме/);
+  script.push(tool("cancel_call", { client: "ivan_x" }));
+  await tell(503, "отмени его");
+  const hist = asks[2].messages;
+  assert.equal(hist[0].role, "user");
+  assert.match(hist[0].content, /созвон завтра в 15/);
+  assert.match(hist[1].content, /Внёс в CRM/);
+  assert.match(hist[3].content, /записан к Теме/);
+  const [c] = await store.all("client");
+  assert.equal(c.calls[0].outcome, "moved");
+  assert.ok(sent.some((m) => m.chat === "501" && /Созвон отменён/.test(m.text)));
+
+  // отчёт своими словами
+  script.push(tool("save_report", { client: "ivan_x", need: "выйти на 100к в месяц", occupation: "курьер", dream: "съехать от родителей", objection: "нет денег", nextStep: "созвон в пятницу", status: "thinking", sum: 80000 }));
+  await tell(501, "провёл ивана, курьер, хочет 100к в месяц, мечтает съехать от родителей, говорит денег нет, думает до пятницы, 80к");
+  const c2 = (await store.all("client"))[0];
+  assert.equal(c2.status, "thinking");
+  assert.equal(c2.calls.at(-1).report.occupation, "курьер");
+
+  // повтор того же апдейта от Telegram не обрабатывается второй раз
+  const n = asks.length;
+  await tell(1, "что по плану?", 77);
+  await tell(1, "что по плану?", 77);
+  assert.equal(asks.length, n + 1);
+
+  // бюджет месяца исчерпан → ИИ не зовём, собственнику объясняем
+  env.AI_MONTHLY_BUDGET = "0.001";
+  await tell(1, "сколько продаж?");
+  assert.equal(asks.length, n + 1);
+  assert.match(sent.at(-1).text, /месячный бюджет/);
+
+  // /ai: проверка ключа и расход
+  delete env.AI_MONTHLY_BUDGET;
+  await tell(1, "/ai");
+  assert.match(sent.at(-1).text, /ИИ работает[\s\S]*Голосовые: подключены[\s\S]*потрачено \$0\.0\d/);
+});
+
+test("windows API: anyone sets a closer's windows, bad input refused, AI opens windows too", async () => {
+  const { store, sent, api } = await setup();
+  const d1 = new Date(Date.now() + 3 * 3600_000 + 86400_000).toISOString().slice(0, 10);
+  const d2 = new Date(Date.now() + 3 * 3600_000 + 2 * 86400_000).toISOString().slice(0, 10);
+  const r = await api(503, "PUT", "/windows", { mopId: "501", days: [d1, d2], ranges: [{ from: "18:00", to: "21:00" }, { from: "20:00", to: "22:00" }] });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.ranges, [{ from: "18:00", to: "22:00" }]); // пересечения склеены
+  assert.equal(r.body.windows.length, 2);
+  assert.equal((await api(501, "GET", "/state")).body.feed.some((f) => /открыл окна Тема/.test(f.text)), true);
+  assert.equal((await api(503, "PUT", "/windows", { mopId: "503", days: [d1], ranges: [{ from: "18:00", to: "21:00" }] })).status, 400); // лидоруб — не диагност
+  assert.equal((await api(503, "PUT", "/windows", { mopId: "501", days: [d1], ranges: [{ from: "21:00", to: "18:00" }] })).status, 400);
+  const cleared = await api(501, "PUT", "/windows", { mopId: "501", days: [d2], ranges: [] });
+  assert.deepEqual(cleared.body.windows.map((w) => w.day), [d1]);
+
+  // ИИ: «Дима завтра свободен с 12 до 15» → set_windows
+  const { createHandler } = await import("../src/api.mjs");
+  const aiClient = { messages: { create: async () => ({ stop_reason: "tool_use", content: [{ type: "tool_use", id: "w", name: "set_windows", input: { mop: "Дима", dates: [d1], ranges: [{ from: "12:00", to: "15:00" }] } }], usage: {} }) } };
+  const env = { BOT_TOKEN: "123:abc", OWNER_IDS: "1", APP_URL: "https://team.test/", ANTHROPIC_API_KEY: "x", __aiClient: aiClient };
+  const fetchImpl = async (url, init) => (sent.push({ chat: init.body.get("chat_id"), text: init.body.get("text") }), new Response(JSON.stringify({ ok: true, result: { message_id: sent.length } })));
+  const handle = createHandler({ store, env, fetch: fetchImpl });
+  const secret = await webhookSecret("123:abc");
+  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: 9, message: { from: { id: 503, first_name: "X" }, chat: { id: 503, type: "private" }, text: "Димон завтра свободен с полудня до трёх" } }) }));
+  assert.ok((await store.all("window")).some((w) => w.mopId === "502" && w.ranges[0].from === "12:00"));
+  assert.match(sent.find((m) => m.chat === "502").text, /открыл тебе окна/);
+});
+
+test("payouts: Monday reminder to owner — РОП and лидоруб by client, «Выплатил» marks paid and notifies", async () => {
+  const { store, sent, api } = await setup();
+  await api(1, "POST", "/users", { id: "504", role: "rop", name: "Андрей" });
+  const P = (id, date, tariff, net, mop, verified = true, clientName = "") => ({ id, date, tariff, net, verified, mopAlias: mop, clientName });
+  await api(1, "POST", "/import", { payments: [
+    P("seed-tema-32", "2026-10-04", 100000, 69000, "Тема", true, "Даня"),
+    P("seed-dima-4", "2026-10-05", 70000, 49840, "Дима", true, "Егор @TypaGO4ER"),
+    P("seed-tema-33", "2026-10-09", 100000, 69000, "Тема", true, "Герман"),
+    P("seed-tema-onlyfals", "2026-10-11", 25500, null, "Тема", false, "Саня @onlyfals"),
+  ] });
+  const { runPayoutReminder } = await import("../src/bot.mjs");
+  const { telegram } = await import("../src/telegram.mjs");
+  const tg = telegram("123:abc", async (url, init) => (sent.push({ chat: init.body.get("chat_id"), text: init.body.get("text"), markup: init.body.get("reply_markup") }), new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }))));
+  const env = { OWNER_IDS: "1" };
+  const monday = Date.parse("2026-10-12T17:40:00Z"); // 20:40 МСК
+  assert.equal(await runPayoutReminder({ store, env, tg, appUrl: "https://t/", now: Date.parse("2026-10-13T09:00:00Z") }), null); // вторник — нет
+  const r = await runPayoutReminder({ store, env, tg, appUrl: "https://t/", now: monday });
+  assert.equal(r.sent, 1);
+  const msg = sent.at(-1);
+  assert.equal(msg.chat, "1");
+  // 04.10 уже выплачено всем; 05.10 и 09.10 — РОПу 1 390,54 + 1 925,1 = 3 315,64; лидорубу 927,02 + 1 283,4 = 2 210,42
+  assert.match(msg.text, /РОП Андрей — 3[\s ]316 ₽[\s\S]*Егор @TypaGO4ER · Дима · 70[\s ]000 ₽ → <b>1[\s ]391 ₽[\s\S]*Лидоруб Леха — 2[\s ]210 ₽/);
+  assert.match(msg.text, /Не входят[\s\S]*Саня @onlyfals/);
+  assert.doesNotMatch(msg.text, /Даня/);
+  assert.match(msg.markup, /po:rop:504/);
+  assert.equal(await runPayoutReminder({ store, env, tg, appUrl: "https://t/", now: monday + 60_000 }), null); // один раз в день
+
+  // «Выплатил Андрею» из бота
+  const { handleUpdate } = await import("../src/bot.mjs");
+  await handleUpdate({ callback_query: { id: "cb", from: { id: 1 }, data: "po:rop:504", message: { chat: { id: 1 }, message_id: 5 } } }, { store, env, tg, appUrl: "https://t/" });
+  assert.match(sent.find((m) => m.chat === "504").text, /выплатил тебе 3[\s ]316 ₽[\s\S]*Егор/);
+  const st = (await api(1, "GET", "/state")).body;
+  assert.equal(st.payouts.length, 1);
+  assert.equal(st.payments.find((p) => p.id === "seed-tema-33").paid.rop, "2026-10-12".slice(0, 4) + st.payments.find((p) => p.id === "seed-tema-33").paid.rop.slice(4));
+  assert.equal(st.payments.find((p) => p.id === "seed-tema-33").paid.lidorub, null);
+  // лидоруб ещё ждёт; РОП не может отмечать выплаты
+  assert.equal((await api(504, "POST", "/payouts", { role: "lidorub", personId: "503" })).status, 403);
+  const done = await api(1, "POST", "/payouts", { role: "lidorub", personId: "503" });
+  assert.equal(done.body.payout.amount, 2210); // 927 + 1 283, как в таблице
+  // отмена возвращает долг
+  await api(1, "POST", `/payouts/${done.body.payout.id}/undo`);
+  assert.equal((await api(1, "GET", "/state")).body.payments.find((p) => p.id === "seed-dima-4").paid.lidorub, null);
 });

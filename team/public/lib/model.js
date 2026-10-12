@@ -187,3 +187,90 @@ export function pace(done, plan, today) {
   const daysLeft = total - day + 1;
   return { done, plan, expected, forecast, left, perDay: daysLeft ? Math.ceil(left / daysLeft) : left, perDayRaw: daysLeft ? left / daysLeft : left, daysLeft, ahead: done - expected, pct: plan ? done / plan : null, dayPct: day / total };
 }
+
+// ---------- окна диагностов ----------
+// Окно — когда диагност готов брать созвоны: { mopId, day, ranges: [{ from: "18:00", to: "21:00" }] }.
+// Созвон ~час: «18–21» = слоты 18:00, 19:00, 20:00. Занят, если созвон ближе 45 минут.
+export const SLOT_MIN = 60;
+export const toMin = (t) => (/^\d{1,2}:\d{2}$/.test(t || "") ? Number(t.split(":")[0]) * 60 + Number(t.split(":")[1]) : null);
+export const fromMin = (m) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+export const rangesText = (ranges = []) => ranges.map((r) => `${r.from}–${r.to}`).join(", ");
+
+export function cleanRanges(ranges) {
+  const out = [];
+  for (const r of Array.isArray(ranges) ? ranges : []) {
+    const a = toMin(r?.from);
+    const b = toMin(r?.to);
+    if (a === null || b === null || b <= a || b > 24 * 60) continue;
+    out.push([a, b]);
+  }
+  out.sort((x, y) => x[0] - y[0]);
+  const merged = [];
+  for (const [a, b] of out) {
+    const last = merged.at(-1);
+    if (last && a <= last[1]) last[1] = Math.max(last[1], b);
+    else merged.push([a, b]);
+  }
+  return merged.map(([a, b]) => ({ from: fromMin(a), to: fromMin(b) }));
+}
+
+// Слоты дня: окна + созвоны вне окон. busy: [{ time: "HH:MM", ...любые данные }]
+// → [{ time, inWindow, state: "free" | "busy" | "past", item }]
+export function daySlots(day, ranges, busy = [], now = Date.now()) {
+  const marks = new Set();
+  for (const r of ranges || []) for (let m = toMin(r.from); m + SLOT_MIN <= toMin(r.to); m += SLOT_MIN) marks.add(m);
+  for (const b of busy) if (toMin(b.time) !== null) marks.add(toMin(b.time));
+  const taken = [...busy].map((b) => ({ ...b, m: toMin(b.time) }));
+  const out = [];
+  for (const m of [...marks].sort((a, b) => a - b)) {
+    const exact = taken.find((b) => b.m === m);
+    // Свободная отметка окна, рядом с которой уже стоит созвон (18:30 рядом с 19:00) — не показываем отдельно.
+    const near = !exact && taken.find((b) => Math.abs(b.m - m) < 45);
+    if (near) continue;
+    const ts = Date.parse(`${day}T${fromMin(m)}:00+03:00`);
+    const inWindow = (ranges || []).some((r) => toMin(r.from) <= m && m < toMin(r.to));
+    out.push({ time: fromMin(m), inWindow, state: exact ? "busy" : ts < now ? "past" : "free", item: exact || null });
+  }
+  return out;
+}
+
+// ---------- выплаты команде ----------
+// МОПу Петя платит сразу после продажи, РОПу и лидорубу — по понедельникам.
+// У оплаты p.paid = { mop: "2026-10-12", rop: null, lidorub: null } — когда кому выплачено.
+export const PAYOUT_ROLES = { rop: "РОП", lidorub: "Лидоруб", mop: "МОП" };
+
+// Кому сколько не выплачено (только верифицированные — у них есть чистая).
+// mopOf(p) — id менеджера оплаты (учитывает имена из таблицы).
+export function payoutsOwed(payments, users, rates = DEFAULT_RATES, { roles = ["rop", "lidorub", "mop"], mopOf = (p) => p.mopId } = {}) {
+  const active = users.filter((u) => u.active !== false);
+  const rop = active.find((u) => u.role === "rop");
+  const lrs = active.filter((u) => u.role === "lidorub");
+  const groups = {};
+  const pending = [];
+  for (const p of payments) {
+    if (!p.verified) {
+      pending.push(p);
+      continue;
+    }
+    const row = payrollRow(p, rates);
+    for (const role of roles) {
+      if (p.paid?.[role] || !row[role]) continue;
+      const person = role === "mop" ? mopOf(p) : role === "rop" ? rop?.id : lrs.some((u) => u.id === p.lidorubId) ? p.lidorubId : lrs[0]?.id;
+      if (!person) continue;
+      const g = (groups[`${role}:${person}`] ||= { role, personId: person, total: 0, items: [] });
+      // Как в таблице: каждая строка — в целых рублях, итог — сумма строк.
+      const amount = Math.round(row[role]);
+      g.total += amount;
+      g.items.push({ p, amount });
+    }
+  }
+  const order = { rop: 0, lidorub: 1, mop: 2 };
+  for (const g of Object.values(groups)) g.items.sort((a, b) => a.p.date.localeCompare(b.p.date));
+  return { groups: Object.values(groups).sort((a, b) => order[a.role] - order[b.role]), pending: pending.sort((a, b) => a.date.localeCompare(b.date)) };
+}
+
+// Ближайший понедельник выплат (сегодня, если понедельник).
+export function nextPayday(today) {
+  const wd = new Date(`${today}T12:00:00Z`).getUTCDay();
+  return addDaysKey(today, (8 - wd) % 7);
+}

@@ -24,3 +24,10 @@ APP_URL = "https://ryzhikov-team.dasadalol143.workers.dev/"
 OWNER_IDS = "1971711686"
 
 # BOT_TOKEN — секрет: `npx wrangler secret put BOT_TOKEN` или в дашборде Cloudflare.
+
+# Workers AI — расшифровка голосовых (Whisper). Бесплатный дневной лимит Cloudflare, ключ не нужен.
+[ai]
+binding = "AI"
+
+# ИИ в чате бота (Claude): секрет ANTHROPIC_API_KEY в дашборде Cloudflare. Нет секрета — ИИ выключен.
+# Необязательно: AI_MODEL (по умолчанию claude-haiku-5-5), AI_DAILY_LIMIT (по умолчанию 300 запросов в день).

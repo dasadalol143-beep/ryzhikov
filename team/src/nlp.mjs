@@ -185,13 +185,13 @@ export function parseBooking(text, users, now = Date.now()) {
   const when = parseReminder(text, now, { force: true });
   if (!strong && !when.dueAt) return null;
   const mop = findUserInText(text, users);
-  const STOP = new Set(["созвон", "созвона", "созвоне", "созвоны", "запиши", "запишите", "записал", "записала", "диагностика", "диагностику", "звонок", "окно", "на", "к", "ко", "у", "с", "в", "во", "для", "клиент", "клиента", "лид", "лида", "по", "мск", "и", "это", "его", "ее", "лида", "лид", "лиду", "поставил", "поставила", "поставь", "поставлю", "назначил", "назначила", "назначь", "назначаю", "напомни", "напомнить", "прямо", "сейчас", "срочно", "пожалуйста", "ему", "ей", "плиз", "тоже", "уже", "а", "так"]);
+  const STOP = new Set(["созвон", "созвона", "созвоне", "созвоны", "запиши", "запишите", "записал", "записала", "диагностика", "диагностику", "звонок", "окно", "на", "к", "ко", "у", "с", "в", "во", "для", "клиент", "клиента", "лид", "лида", "по", "мск", "и", "это", "его", "ее", "лида", "лид", "лиду", "поставил", "поставила", "поставь", "поставлю", "назначил", "назначила", "назначь", "назначаю", "напомни", "напомнить", "прямо", "сейчас", "срочно", "пожалуйста", "ему", "ей", "плиз", "тоже", "уже", "а", "так", "поставить", "поставлю", "назначить", "записать", "запишу", "внести", "внесу", "закинь", "закинуть", "кинь", "звонки", "звонка", "созвониться", "новый", "нового", "новую", "человека", "челика", "чела", "можно", "нужно", "надо"]);
   let raw = String(when.rest || "");
   const phone = (raw.match(/\+?\d[\d\s()-]{9,}\d/) || [])[0]?.replace(/[^\d+]/g, "") || "";
   if (phone) raw = raw.replace(/\+?\d[\d\s()-]{9,}\d/, " ");
   const tokens = raw.split(/[^A-Za-zА-Яа-яЁё-]+/).filter(Boolean).filter((w) => {
     const n = norm(w);
-    return n.length > 1 && !STOP.has(n) && !(mop && findUserInText(n, [mop]));
+    return n.length > 1 && !STOP.has(n) && !VERB.test(n) && !(mop && findUserInText(n, [mop]));
   });
   const name = tokens.slice(0, 3).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
   return {
@@ -213,6 +213,24 @@ export function parseWindows(text, users, now = Date.now()) {
   return { day, mop: findUserInText(text, users) };
 }
 
+// «окна Тёме завтра с 18 до 21», «у Димы окно в пятницу 12-14 и 18-20», «закрой окна Теме завтра» → поставить окна.
+export function parseSetWindows(text, users, { now = Date.now(), sender = null } = {}) {
+  const src = String(text || "").replace(/ё/g, "е");
+  if (!/окн/i.test(src)) return null;
+  const close = /(закр|убер|удал|отмен|сним)\S*\s+(?:вс[её]\s+)?окн/i.test(src);
+  const ranges = [];
+  for (const r of src.matchAll(/(?:^|[^\d:.])(?:с\s*)?(\d{1,2})(?:[:.](\d{2}))?\s*(?:до|-|–|—|по)\s*(\d{1,2})(?:[:.](\d{2}))?(?![\d.:])/gi)) {
+    const a = +r[1], b = +r[3];
+    if (a > 23 || b > 24 || b <= a) continue;
+    ranges.push({ from: `${String(a).padStart(2, "0")}:${r[2] || "00"}`, to: `${String(b).padStart(2, "0")}:${r[4] || "00"}` });
+  }
+  if (!close && !ranges.length) return null;
+  let mop = findUserInText(src, users);
+  if (!mop && sender && users.some((u) => u.id === sender.id)) mop = sender;
+  const day = dayOf(src.replace(/\d{1,2}(?:[:.]\d{2})?\s*(?:до|-|–|—|по)\s*\d{1,2}(?:[:.]\d{2})?/g, " "), now) || dayOf("сегодня", now);
+  return { mop, day, ranges: close ? [] : ranges };
+}
+
 // «Теме: перезвони клиенту», «напиши Диме что …», «всем: планерка в 11» → кому и что.
 export function parseRelay(text, users) {
   const all = text.match(/^\s*(всем|команде|команда)\s*[:,—-]?\s*([\s\S]+)/i);
@@ -220,4 +238,122 @@ export function parseRelay(text, users) {
   const target = findUserInText(text.split(/[:\n]/)[0].slice(0, 60), users) || findUserInText(text, users);
   if (!target) return null;
   return { to: target, text: text.trim() };
+}
+
+// ---------- несколько созвонов одним сообщением ----------
+// «Тема, два звонка: один с Антоном в 18:00, второй с Мишей в 19:00. Диме на 20:00 @oleg_x Олег»
+// «сегодня звонок у Артема в 20.00 с Антоном @anton» → [{ at, mop, nick, name, phone }]
+const MONTH_AFTER = /^\s*(январ|феврал|март|апрел|ма[яй]|июн|июл|август|сентябр|октябр|ноябр|декабр|числ|минут|мин\b|дн|день|дня|недел|час(?:а|ов)?\s+назад)/i;
+function timeAnchors(t) {
+  const out = [];
+  const push = (idx, end, h, m, tail) => {
+    if (h > 23 || m > 59) return;
+    if (tail === "дня" || tail === "вечера") h = h < 12 ? h + 12 : h;
+    if (out.some((a) => idx < a.end && end > a.idx)) return;
+    out.push({ idx, end, h, m });
+  };
+  for (const r of t.matchAll(/(\d{1,2}):(\d{2})(?!\d)\s*(утра|дня|вечера|ночи)?/g)) push(r.index, r.index + r[0].length, +r[1], +r[2], r[3]);
+  for (const r of t.matchAll(/(^|[\s(])((?:в|на|к)\s*(\d{1,2})\.(\d{2}))(?![\d.])\s*(утра|дня|вечера|ночи)?/gi)) push(r.index + r[1].length, r.index + r[0].length, +r[3], +r[4], r[5]);
+  for (const r of t.matchAll(/(^|[\s(])((?:в|на|к)\s+(\d{1,2}))(?:\s*(?:час\S*|ч\b))?\s*(утра|дня|вечера|ночи)?(?=[\s,.;!?)]|$)/gi)) {
+    const after = t.slice(r.index + r[0].length);
+    if (MONTH_AFTER.test(after) || /^\.\d/.test(after)) continue;
+    push(r.index + r[1].length, r.index + r[0].length, +r[3], 0, r[4]);
+  }
+  return out.sort((a, b) => a.idx - b.idx);
+}
+
+function dayOf(text, now) {
+  const t = norm(text);
+  const base = new Date(now + 3 * 3600_000);
+  const key = (add) => new Date(Date.UTC(base.getUTCFullYear(), base.getUTCMonth(), base.getUTCDate() + add)).toISOString().slice(0, 10);
+  if (/послезавтра/.test(t)) return key(2);
+  if (/завтра/.test(t)) return key(1);
+  if (/сегодня/.test(t)) return key(0);
+  const wd = t.match(/(понедельник|вторник|сред[уа]|четверг|пятниц[уа]|суббот[уа]|воскресень[ея])/);
+  if (wd) {
+    const target = Object.entries(WEEKDAYS).find(([k]) => wd[1].startsWith(k))[1];
+    return key((target - base.getUTCDay() + 7) % 7);
+  }
+  const dm = t.match(/(?:^|[^\d.:])(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?(?![\d:])/);
+  if (dm && +dm[2] >= 1 && +dm[2] <= 12 && +dm[1] <= 31) return `${base.getUTCFullYear()}-${String(dm[2]).padStart(2, "0")}-${String(dm[1]).padStart(2, "0")}`;
+  const mm = t.match(/(\d{1,2})\s+(январ|феврал|март|апрел|ма[яй]|июн|июл|август|сентябр|октябр|ноябр|декабр)/);
+  if (mm) return `${base.getUTCFullYear()}-${String(MONTHS.findIndex((x) => mm[2].startsWith(x)) + 1).padStart(2, "0")}-${String(mm[1]).padStart(2, "0")}`;
+  return null;
+}
+
+// «с Антоном» → «Антон», «с Мишей» → «Миша», «с Андреем» → «Андрей»
+function nominative(w) {
+  const l = w.toLowerCase();
+  if (/ем$/.test(l) && /[аеиоуяю]ем$/.test(l)) return w.slice(0, -2) + "й";
+  if (/ом$/.test(l)) return w.slice(0, -2);
+  if (/[шжчщц]ей$/.test(l)) return w.slice(0, -2) + "а"; // Мишей → Миша, Сашей → Саша
+  if (/ей$/.test(l) && !/(алексей|сергей|андрей|матвей|тимофей)$/.test(l)) return w.slice(0, -2) + "я";
+  if (/ой$/.test(l)) return w.slice(0, -2) + "а";
+  return w;
+}
+
+// Глагол в неопределённой форме — не имя клиента: «Поставить звонок Диме 20:00».
+const VERB = /(?:ить|ать|ять|еть|уть|ыть|ться|тся)$/;
+const MULTI_STOP = new Set(["созвон", "созвона", "созвоне", "созвоны", "созвонов", "звонок", "звонка", "звонки", "звонков", "запиши", "запишите", "записал", "записала", "диагностика", "диагностику", "диагностики", "окно", "на", "к", "ко", "у", "с", "со", "в", "во", "для", "клиент", "клиента", "лид", "лида", "лиду", "по", "мск", "и", "а", "это", "его", "ее", "поставил", "поставила", "поставь", "назначил", "назначила", "назначь", "напомни", "прямо", "сейчас", "срочно", "пожалуйста", "ему", "ей", "тоже", "уже", "так", "внеси", "внесите", "внес", "в", "crm", "срм", "црм", "один", "одна", "два", "две", "три", "первый", "второй", "третий", "четвертый", "потом", "еще", "ещё", "сегодня", "завтра", "послезавтра", "утра", "дня", "вечера", "ночи", "часов", "часа", "час", "лидоруб", "у него", "будет", "есть", "стоит", "время", "мск", "по", "москве", "данные", "статистику", "такие", "такую", "вот", "типа", "ну", "короче", "нам", "мне", "надо", "нужно", "поставить", "поставлю", "назначить", "записать", "запишу", "внести", "внесу", "закинь", "закинуть", "кинь", "звонки", "звонка", "созвониться", "новый", "нового", "новую", "человека", "челика", "чела", "можно"]);
+
+export function parseBookings(text, users, { now = Date.now(), sender = null } = {}) {
+  const src = String(text || "").replace(/ё/g, "е").replace(/Ё/g, "Е");
+  const anchors = timeAnchors(src);
+  if (!anchors.length) return [];
+  // Слова про созвон — или «Тема: в 18:00 с Мишей» (менеджер + время + «с кем» / @ник)
+  const keyword = /созвон|звон|запиш|диагност|постав|назнач|внес|crm|срм|црм|окно/i.test(src);
+  const shape = findUserInText(src, users) && (/(^|\s)(с|со)\s+[А-ЯA-Z]/.test(src) || /@[A-Za-z]/.test(src));
+  if (!keyword && !shape) return [];
+  const globalDay = dayOf(src.replace(/\d{1,2}:\d{2}/g, " "), now) || dayOf("сегодня", now);
+  const hardStop = (s, from, to) => {
+    // последняя граница предложения/строки на отрезке
+    let cut = -1;
+    for (const r of s.slice(from, to).matchAll(/\n|;|(?<!\d)\.(?!\d)\s/g)) cut = from + r.index + r[0].length;
+    return cut;
+  };
+  const softStop = (s, from, to) => {
+    let cut = -1;
+    for (const r of s.slice(from, to).matchAll(/,|\n|;|(?<!\d)\.(?!\d)\s|\s(?:и|а|потом|еще|ещё)\s|\s(?=втор|трет|четверт)/gi)) cut = from + r.index + (r[0].trim() ? r[0].length : 0);
+    return cut;
+  };
+  const segs = anchors.map((a, i) => {
+    const prevEnd = i ? anchors[i - 1].end : 0;
+    let start = i ? softStop(src, prevEnd, a.idx) : hardStop(src, 0, a.idx);
+    if (start < 0) start = i ? a.idx : 0;
+    const next = anchors[i + 1];
+    let end = next ? softStop(src, a.end, next.idx) : src.length;
+    if (next && end < 0) end = next.idx;
+    if (!next) {
+      const h = src.slice(a.end).search(/\n\s*\n|;/);
+      if (h >= 0) end = a.end + h;
+    }
+    return { a, start, end, text: src.slice(start, end) };
+  });
+  const out = [];
+  for (const s of segs) {
+    let mop = findUserInText(s.text, users);
+    if (!mop) {
+      // ближайшее упоминание менеджера до этого отрезка: «Тема, два звонка: …, второй с Мишей в 19»
+      const before = src.slice(0, s.start).split(/[^A-Za-zА-Яа-яЕе0-9_]+/).reverse();
+      for (const w of before) if (w && (mop = findUserInText(w, users))) break;
+    }
+    if (!mop && sender && users.some((u) => u.id === sender.id)) mop = sender;
+    const day = dayOf(s.text.replace(/\d{1,2}:\d{2}/g, " "), now) || globalDay;
+    const at = Date.parse(`${day}T${String(s.a.h).padStart(2, "0")}:${String(s.a.m).padStart(2, "0")}:00+03:00`);
+    const nick = (s.text.match(/@([A-Za-z][\w]{3,31})/) || [])[1] || null;
+    const phoneRaw = (s.text.match(/\+?\d[\d\s()-]{9,}\d/) || [])[0];
+    const phone = phoneRaw ? phoneRaw.replace(/[^\d+]/g, "") : "";
+    let rest = s.text.replace(src.slice(s.a.idx, s.a.end), " ").replace(/@[A-Za-z][\w]{3,31}/g, " ");
+    if (phoneRaw) rest = rest.replace(phoneRaw, " ");
+    const words = rest.split(/[^A-Za-zА-Яа-яЕе-]+/).filter(Boolean);
+    const afterWith = rest.match(/(?:^|\s)(?:с|со)\s+([А-ЯA-Z][а-яa-z-]+)/);
+    const tokens = words.filter((w) => {
+      const n = norm(w);
+      return n.length > 1 && !MULTI_STOP.has(n) && !VERB.test(n) && !findUserInText(n, users) && !/^(понедельник|вторник|сред|четверг|пятниц|суббот|воскресен|январ|феврал|март|апрел|ма[яй]|июн|июл|август|сентябр|октябр|ноябр|декабр)/.test(n);
+    });
+    let name = afterWith ? nominative(afterWith[1]) : tokens.slice(0, 2).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+    if (afterWith && findUserInText(afterWith[1], users)) name = tokens.slice(0, 2).join(" ");
+    out.push({ at, day, time: `${String(s.a.h).padStart(2, "0")}:${String(s.a.m).padStart(2, "0")}`, mop, nick, name, phone, text: s.text.trim() });
+  }
+  return out;
 }

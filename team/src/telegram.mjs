@@ -21,6 +21,13 @@ export function telegram(botToken, fetchImpl = fetch) {
     setMyCommands: (commands) => call("setMyCommands", form({ commands })),
     sendDocument: (chatId, filename, content, mime, caption) =>
       call("sendDocument", form({ chat_id: chatId, caption, document: new File([content], filename, { type: mime }) })),
+    sendChatAction: (chatId, action = "typing") => call("sendChatAction", form({ chat_id: chatId, action })),
+    downloadFile: async (fileId) => {
+      const f = await call("getFile", form({ file_id: fileId }));
+      const res = await fetchImpl(`https://api.telegram.org/file/bot${botToken}/${f.file_path}`);
+      if (!res.ok) throw new Error("telegram file download failed");
+      return res.arrayBuffer();
+    },
   };
 }
 

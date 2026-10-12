@@ -5,7 +5,7 @@ import { handleUpdate, BOT_COMMANDS } from "./bot.mjs";
 import { dispatch } from "./notify.mjs";
 import {
   ROLES, STATUS_IDS, SOURCES, REPORT_FIELDS, AFTER_CALL, DEFAULT_RATES, FOLLOWUP_TOUCHES,
-  canSeeMoney, DEFAULT_PAY_LINKS, currentCall, ndzCount, clientTitle, statusLabel, fmtWhen,
+  canSeeMoney, DEFAULT_PAY_LINKS, payoutsOwed, payrollRow, PAYOUT_ROLES, cleanRanges, rangesText, mskKey, addDaysKey, currentCall, ndzCount, clientTitle, statusLabel, fmtWhen,
 } from "../public/lib/model.js";
 
 export const json = (data, status = 200) =>
@@ -308,7 +308,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           await linkPeople(store);
           await store.put("meta", "linked", { sig, at: nowIso() });
         }
-        const [clients, legacy, pending, feed, settingsNow] = await Promise.all([store.all("client"), store.get("meta", "legacy"), store.all("pending"), store.recent("feed", 120), loadSettings(store)]);
+        const [clients, legacy, pending, feed, settingsNow, windows] = await Promise.all([store.all("client"), store.get("meta", "legacy"), store.all("pending"), store.recent("feed", 120), loadSettings(store), loadWindows(store)]);
         return json({
           me,
           users: Object.values(users),
@@ -316,7 +316,9 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           clients,
           settings: settingsNow,
           legacy: legacy || {},
-          payments: money_ ? await store.all("payment") : null,
+          payments: money_ ? await ensurePayoutFlags(store) : null,
+          payouts: money_ ? (await store.recent("payout", 30)) : [],
+          windows,
           // Лента: руководству — всё, остальным — адресованное им и про их клиентов (без денег ведомости).
           feed: ["owner", "rop"].includes(me.role) ? feed : feed.filter((f) => (f.to || []).includes(me.id) || f.by === me.id),
           serverNow: Date.now(),
@@ -361,6 +363,20 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         return json({ client: c, payments: money_ ? await store.all("payment") : null });
       }
 
+      // выплаты команде: отмечает собственник (он платит), РОП видит
+      if (path === "/payouts" && req.method === "POST") {
+        if (me.role !== "owner") return json({ error: "Выплаты отмечает собственник" }, 403);
+        const tg = env.BOT_TOKEN ? telegram(env.BOT_TOKEN, fetchImpl) : null;
+        const res = await markPayout(store, { by: me, users, settings, role: body.role, personId: body.personId, ids: body.ids, tg });
+        return json({ ...res, payments: await store.all("payment"), payouts: await store.recent("payout", 30) });
+      }
+      const undo = path.match(/^\/payouts\/([\w-]+)\/undo$/);
+      if (undo && req.method === "POST") {
+        if (me.role !== "owner") return json({ error: "forbidden" }, 403);
+        await undoPayout(store, undo[1]);
+        return json({ payments: await store.all("payment"), payouts: await store.recent("payout", 30) });
+      }
+
       // ведомость — только собственник и РОП
       if (path.startsWith("/payments")) {
         if (!money_) return json({ error: "forbidden" }, 403);
@@ -387,6 +403,12 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           }
         }
         return json({ error: "not_found" }, 404);
+      }
+
+      // окна диагностов: ставит любой из команды (лидоруб — диагносту, диагност — себе)
+      if (path === "/windows" && req.method === "PUT") {
+        const res = await setWindows(store, { by: me, users, ...body });
+        return json({ ...res, windows: await loadWindows(store) });
       }
 
       if (path === "/settings" && req.method === "PUT") {
@@ -523,6 +545,7 @@ export async function importSeed(store, body) {
   const out = { payments: 0, legacy: false, clients: 0 };
   if (Array.isArray(body.payments)) {
     const items = body.payments.filter((p) => p.id && isDay(p.date)).map((p) => ({ net: null, verified: false, ...p, tariff: money(p.tariff), net: p.net === null ? null : money(p.net) }));
+    for (const p of items) if (!p.paid) p.paid = seedPaid(p);
     await store.putMany("payment", items);
     out.payments = items.length;
   }
@@ -577,9 +600,93 @@ export async function importSeed(store, body) {
 
 async function ensureWebhook(store, env, fetchImpl, hookUrl) {
   const saved = await store.get("meta", "webhook");
-  if (saved?.url === hookUrl && saved?.v === 2) return;
+  if (saved?.url === hookUrl && saved?.v === 4) return;
   const tg = telegram(env.BOT_TOKEN, fetchImpl);
   await tg.setWebhook(hookUrl, await webhookSecret(env.BOT_TOKEN));
   await tg.setMyCommands(BOT_COMMANDS).catch(() => {});
-  await store.put("meta", "webhook", { url: hookUrl, v: 2, at: nowIso() });
+  await store.put("meta", "webhook", { url: hookUrl, v: 4, at: nowIso() });
+}
+
+// ---------- окна ----------
+export async function loadWindows(store, now = Date.now()) {
+  const from = addDaysKey(mskKey(now), -7);
+  return (await store.all("window")).filter((w) => w.day >= from && w.ranges?.length);
+}
+
+// { mopId, days: ["2026-10-13", …], ranges: [{ from, to }] } — пустые ranges = закрыть окна на эти дни.
+export async function setWindows(store, { by, users, mopId, days, ranges, silent = false }) {
+  const mop = users[String(mopId)];
+  if (!mop || !["mop", "rop"].includes(mop.role)) throw Object.assign(new Error("Окна ставятся диагносту (менеджеру ОП или РОПу)"), { status: 400 });
+  const list = [...new Set((Array.isArray(days) ? days : [days]).filter(isDay))].slice(0, 31);
+  if (!list.length) throw Object.assign(new Error("Выбери день"), { status: 400 });
+  const clean = cleanRanges(ranges);
+  if (Array.isArray(ranges) && ranges.length && !clean.length) throw Object.assign(new Error("Проверь время: «с» должно быть раньше «до»"), { status: 400 });
+  const items = list.map((day) => ({ id: `${mop.id}:${day}`, mopId: mop.id, day, ranges: clean, by: by.id, at: nowIso() }));
+  for (const w of items) clean.length ? await store.put("window", w.id, w) : await store.del("window", w.id);
+  if (!silent && by.id !== mop.id) {
+    const { addFeed } = await import("./notify.mjs");
+    const dd = list.map((d) => `${d.slice(8)}.${d.slice(5, 7)}`).join(", ");
+    await addFeed(store, { type: "comment", text: clean.length ? `🕐 ${by.name} открыл окна ${mop.name}: ${dd} · ${rangesText(clean)}` : `🕐 ${by.name} закрыл окна ${mop.name}: ${dd}`, by: by.id, to: [mop.id] });
+  }
+  return { mop, days: list, ranges: clean };
+}
+
+// ---------- выплаты ----------
+// По зарплатной ведомости на 12.10: всё до 05.10 выплачено всем (зелёные строки),
+// с 05.10 МОПу выплачено сразу после продажи, РОПу и лидорубу — ждут понедельника.
+const PAID_UNTIL = "2026-10-05";
+export const seedPaid = (p) => (p.date < PAID_UNTIL ? { mop: p.date, rop: p.date, lidorub: p.date } : { mop: p.date, rop: null, lidorub: null });
+
+// Один раз: оплатам, заведённым до учёта выплат, проставляем, кому уже заплачено.
+export async function ensurePayoutFlags(store) {
+  const payments = await store.all("payment");
+  if ((await store.get("meta", "payouts-v1"))?.done) return payments;
+  const fix = payments.filter((p) => !p.paid);
+  for (const p of fix) p.paid = /^seed-/.test(p.id) ? seedPaid(p) : { mop: p.date, rop: null, lidorub: null };
+  if (fix.length) await store.putMany("payment", fix);
+  await store.put("meta", "payouts-v1", { id: "payouts-v1", done: true, at: nowIso(), fixed: fix.length });
+  return payments;
+}
+
+export const mopResolver = (settings) => (p) => p.mopId || settings?.aliases?.[p.mopAlias] || (p.mopAlias ? `legacy:${p.mopAlias}` : null);
+
+// Отметить выплату человеку: все его невыплаченные верифицированные оплаты (или ids).
+export async function markPayout(store, { by, users, settings, role, personId, ids = null, tg = null, now = Date.now() }) {
+  if (!PAYOUT_ROLES[role]) throw Object.assign(new Error("Кому выплата?"), { status: 400 });
+  const payments = await ensurePayoutFlags(store);
+  const { groups } = payoutsOwed(payments, Object.values(users), settings.rates, { roles: [role], mopOf: mopResolver(settings) });
+  const g = groups.find((x) => x.personId === String(personId));
+  if (!g) throw Object.assign(new Error("Этому человеку ничего не должны"), { status: 400 });
+  const pick = Array.isArray(ids) && ids.length ? g.items.filter((it) => ids.includes(it.p.id)) : g.items;
+  if (!pick.length) throw Object.assign(new Error("Нет оплат к выплате"), { status: 400 });
+  const day = new Date(now + 3 * 3600_000).toISOString().slice(0, 10);
+  for (const it of pick) it.p.paid = { ...(it.p.paid || {}), [role]: day };
+  await store.putMany("payment", pick.map((it) => it.p));
+  const amount = Math.round(pick.reduce((s, it) => s + it.amount, 0) * 100) / 100;
+  const id = `${Date.now()}-${role}-${personId}`;
+  const person = users[String(personId)];
+  const doc = { id, at: nowIso(), by: by.id, role, personId: String(personId), name: person?.name || "", amount, items: pick.map((it) => ({ id: it.p.id, date: it.p.date, client: it.p.clientName || "", amount: it.amount })) };
+  await store.put("payout", id, doc);
+  const { addFeed } = await import("./notify.mjs");
+  const rubs = (n) => `${Math.round(n).toLocaleString("ru-RU")} ₽`;
+  await addFeed(store, { type: "paid", text: `💸 ${by.name} выплатил ${person?.name || ""} (${PAYOUT_ROLES[role]}) ${rubs(amount)} за ${pick.length} опл.`, by: by.id, to: [String(personId)] });
+  // Получателю — в бота, за что именно деньги.
+  if (tg && person && person.id !== by.id) {
+    const lines = pick.map((it) => `• ${it.p.date.slice(8)}.${it.p.date.slice(5, 7)} ${it.p.clientName || "оплата"} — ${rubs(it.amount)}`).join("\n");
+    await tg.sendMessage(person.id, `💸 <b>${by.name} выплатил тебе ${rubs(amount)}</b>\n${PAYOUT_ROLES[role]} · ${pick.length} опл.\n${lines}`).catch(() => {});
+  }
+  return { payout: doc };
+}
+
+export async function undoPayout(store, id) {
+  const doc = await store.get("payout", id);
+  if (!doc) throw Object.assign(new Error("Выплата не найдена"), { status: 404 });
+  for (const it of doc.items) {
+    const p = await store.get("payment", it.id);
+    if (p?.paid?.[doc.role]) {
+      p.paid = { ...p.paid, [doc.role]: null };
+      await store.put("payment", p.id, p);
+    }
+  }
+  await store.del("payout", id);
 }

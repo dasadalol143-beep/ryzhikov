@@ -2,7 +2,7 @@
 import { createHandler } from "../src/api.mjs";
 import { d1Store } from "../src/store.mjs";
 import { telegram } from "../src/telegram.mjs";
-import { runReminders, runMorning, runEvening } from "../src/bot.mjs";
+import { runReminders, runMorning, runEvening, runPayoutReminder } from "../src/bot.mjs";
 
 export default {
   async fetch(req, env) {
@@ -16,5 +16,6 @@ export default {
     if (event.cron === "57 5 * * *") return console.log(JSON.stringify(await runMorning(ctx)));
     if (event.cron === "0 18 * * *") return console.log(JSON.stringify(await runEvening(ctx)));
     await runReminders(ctx);
+    await runPayoutReminder(ctx).catch((e) => console.log("payouts", e.message));
   },
 };
