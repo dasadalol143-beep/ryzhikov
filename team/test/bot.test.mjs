@@ -39,14 +39,14 @@ test("lidorub books a call in plain text, closer gets notified, clashes are refu
   assert.match(c.calls[0].at, /T12:00:00/); // 15:00 МСК
   const toTema = sent.find((m) => m.chat === "501");
   assert.match(toTema.text, /Новый созвон/);
-  assert.match(sent.find((m) => m.chat === "503").text, /Записал нового клиента/);
+  assert.match(sent.find((m) => m.chat === "503").text, /Внёс в CRM: 1 созвон[\s\S]*🆕[\s\S]*Уведомил: Тема/);
 
   await say(503, "запиши Олега на созвон завтра в 15:20 к Теме");
-  assert.match(sent.at(-1).text, /уже созвон в 15:00/);
+  assert.match(sent.at(-1).text, /Ничего не внёс[\s\S]*уже 15:00/);
   assert.equal((await store.all("client")).length, 1);
 
   await say(503, "созвон завтра в 15 @petr_y");
-  assert.match(sent.at(-1).text, /К кому записать/);
+  assert.match(sent.at(-1).text, /к кому\?/);
 
   await say(503, "окна завтра у Темы");
   assert.match(sent.at(-1).text, /🔴 15:00[\s\S]*свободно: 10:00/);
@@ -92,7 +92,7 @@ test("owner's exact phrase: 'поставил лида Теме на 19:00 … @
   assert.match(c.calls[0].at, /T16:00:00/); // 19:00 МСК
   const toTema = sent.find((m) => m.chat === "501");
   assert.match(toTema.text, /Новый созвон[\s\S]*19:00[\s\S]*напомни прямо сейчас/);
-  assert.match(sent.find((m) => m.chat === "1").text, /Записал нового клиента[\s\S]*Тема получил уведомление/);
+  assert.match(sent.find((m) => m.chat === "1").text, /Внёс в CRM[\s\S]*Уведомил: Тема/);
   // имя собственника из Telegram, а не «Собственник»
   assert.equal((await store.get("user", "1")).name, "X");
 });
@@ -200,4 +200,64 @@ test("history links itself to a teammate added after the import", async () => {
   // и у самого Матвея на экране — его клиенты и продажи
   const mine = (await api(520, "GET", "/state")).body;
   assert.equal(mine.clients.filter((c) => c.mopId === "520").length, 1);
+});
+
+test("several calls in one message: each booked, each closer notified, clash skipped, cancel all", async () => {
+  const { store, sent, say } = await setup();
+  await say(503, "Внеси в CRM на завтра: Тема, два звонка: один с Антоном в 18:00, второй с Мишей @misha_k в 19:00. Диме на 20:00 Олег +79001234567");
+  const all = await store.all("client");
+  assert.equal(all.length, 3);
+  const by = Object.fromEntries(all.map((c) => [c.name || c.telegram, c.calls[0]]));
+  assert.equal(by["Антон"].mopId, "501");
+  assert.match(by["Антон"].at, /T15:00:00/); // 18:00 МСК
+  assert.equal(by["Миша"].mopId, "501");
+  assert.equal(all.find((c) => c.telegram === "@misha_k").name, "Миша");
+  assert.equal(by["Олег"].mopId, "502");
+  assert.equal(all.find((c) => c.name === "Олег").phone, "+79001234567");
+  assert.equal(sent.filter((m) => m.chat === "501" && /Новый созвон/.test(m.text)).length, 2);
+  assert.equal(sent.filter((m) => m.chat === "502" && /Новый созвон/.test(m.text)).length, 1);
+  const summary = sent.find((m) => m.chat === "503" && /Внёс в CRM/.test(m.text));
+  assert.match(summary.text, /3 созвона/);
+
+  // пересечение у Темы в 18:30 — пропускаем, остальное вносим
+  await say(503, "завтра Теме в 18:30 с Глебом, Диме в 12:00 с Ваней");
+  const s2 = sent.filter((m) => m.chat === "503").at(-1);
+  assert.match(s2.text, /Внёс в CRM: 1 созвон[\s\S]*Не внёс[\s\S]*уже 18:00/);
+
+  // отменить всё из первого сообщения
+  const { webhookSecret } = await import("../src/telegram.mjs");
+  const { createHandler } = await import("../src/api.mjs");
+  const ub = JSON.parse(summary.markup).inline_keyboard.at(-1).at(-1).callback_data;
+  const handle = createHandler({ store, env: { BOT_TOKEN: "123:abc", OWNER_IDS: "1" }, fetch: async () => new Response(JSON.stringify({ ok: true, result: {} })) });
+  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": await webhookSecret("123:abc") }, body: JSON.stringify({ callback_query: { id: "q", from: { id: 503 }, data: ub, message: { message_id: 1, chat: { id: 503 }, text: "x" } } }) }));
+  const open = (await store.all("client")).flatMap((c) => c.calls).filter((x) => !x.outcome);
+  assert.equal(open.length, 1); // остался только Ваня у Димы
+});
+
+test("a call that already happened today gets booked with held/no-show buttons", async () => {
+  const { store, sent, say } = await setup();
+  const t = new Date(Date.now() + 3 * 3600_000 - 2 * 3600_000); // 2 часа назад по МСК
+  const hhmm = t.toISOString().slice(11, 16);
+  if (t.toISOString().slice(0, 10) !== new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10)) return; // около полуночи — пропускаем
+  await say(501, `сегодня в ${hhmm} был созвон с @past_guy`);
+  const [c] = await store.all("client");
+  assert.equal(c.calls[0].mopId, "501"); // написал сам менеджер — значит, его созвон
+  const m = sent.filter((x) => x.chat === "501").at(-1);
+  assert.match(m.text, /уже прошёл — отметь итог/);
+  assert.match(JSON.parse(m.markup).inline_keyboard[0][0].callback_data, /^held:/);
+});
+
+test("status in one line by @nick: held, paid with sum, no-show", async () => {
+  const { store, sent, say } = await setup();
+  await say(503, "завтра Теме в 15:00 с Глебом @gleb_one");
+  await say(501, "@gleb_one пришел");
+  let c = (await store.all("client"))[0];
+  assert.equal(c.calls[0].outcome, "held");
+  await say(501, "@gleb_one оплатил 100к");
+  c = (await store.all("client"))[0];
+  assert.equal(c.status, "paid");
+  assert.equal((await store.all("payment"))[0].tariff, 100000);
+  assert.ok(sent.some((m) => m.chat === "1" && /Продажа/.test(m.text)));
+  await say(501, "@nobody_here ндз");
+  assert.match(sent.at(-1).text, /Не нашёл/);
 });

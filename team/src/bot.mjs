@@ -1,10 +1,10 @@
 // Бот команды: напоминания о созвонах, отметки «пришёл / НДЗ» прямо из Telegram, утренняя сводка.
 import { escapeHtml as h } from "./telegram.mjs";
 import {
-  ROLES, currentCall, clientTitle, mskKey, mskTime, fmtWhen, needsReport, followupState, statusLabel, monthSummary, addDaysKey, weekday,
+  ROLES, isClosed, currentCall, clientTitle, mskKey, mskTime, fmtWhen, needsReport, followupState, statusLabel, monthSummary, addDaysKey, weekday,
 } from "../public/lib/model.js";
 import { rnp } from "../public/lib/stats.js";
-import { parseBooking, parseWindows, parseRelay } from "./nlp.mjs";
+import { parseBooking, parseBookings, parseWindows, parseRelay } from "./nlp.mjs";
 import { addFeed } from "./notify.mjs";
 import { isReportText, parseReportText } from "../public/lib/report.js";
 import { dispatch } from "./notify.mjs";
@@ -25,11 +25,14 @@ export const BOT_HELP = [
   "📅 <b>Записать на созвон</b> — пиши как человеку:",
   "• <code>созвон завтра в 15 к Тёме @ivan Иван</code>",
   "• <code>на завтра поставил лида Теме на 19:00 @nick</code>",
+  "• Несколько сразу: <code>завтра: Теме в 18 с Антоном @anton, в 19 с Мишей; Диме на 20:00 Олег</code>",
+  "• Созвон уже был, а в CRM его нет: <code>сегодня у Димы в 14:00 был созвон с @ivan</code> — внесу и спрошу итог.",
   "• <code>запиши Олега на созвон в пятницу 18:30 к Диме +79001234567</code>",
   "Диагност сразу получит уведомление. Нет такого клиента — заведу.",
   "",
   "🕐 <b>Окна</b>: <code>окна завтра</code>, <code>окна в пятницу у Темы</code>",
   "💬 <b>Написать человеку</b>: <code>Теме: перезвони Глебу</code>, <code>всем: планёрка в 11</code> — отвечают реплаем, ответ придёт тебе.",
+  "✔️ <b>Статус одной строкой</b>: <code>@ivan пришёл</code>, <code>@ivan ндз</code>, <code>@ivan оплатил 100к</code>, <code>@ivan думает 80к</code>, <code>@ivan отказ банки</code>",
   "📋 /today, /tomorrow — мои созвоны и задачи",
   "💳 /links — ссылки на оплату",
   "📝 <b>Итог диагностики</b> — пришли свой обычный блок «Потребность/запрос клиента: …» с @ником клиента, сохраню в карточку и спрошу статус.",
@@ -126,8 +129,34 @@ export async function handleUpdate(update, { store, env, tg, appUrl }) {
   const win = /^\/windows/.test(text) ? { day: addDaysKey(mskKey(now), 1), mop: null } : parseWindows(text, closers, now);
   if (win) return reply(windowsText(win.day, win.mop ? [win.mop] : closers, clients));
 
+  // Один или несколько созвонов одним сообщением: «Теме в 18 с Антоном, Диме в 19 @ivan»
+  const many = parseBookings(text, closers, { now, sender: ["mop", "rop"].includes(me.role) ? me : null });
+  if (many.length) return handleBookings(many, { me, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env });
   const book = parseBooking(text, closers, now);
   if (book) return handleBooking(book, { me, msg, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env });
+
+  // «@ivan оплатил 100к», «@ivan ндз», «@ivan пришел», «@ivan думает 80к», «@ivan отказ банки»
+  const st = parseStatusCommand(text);
+  if (st) {
+    const c = clients.find((x) => x.telegram?.toLowerCase() === `@${st.nick}`.toLowerCase());
+    if (!c) return reply(`Не нашёл @${h(st.nick)} в CRM. Сначала запиши на созвон или перешли его сообщение — заведу.`);
+    const { applyAction } = await import("./api.mjs");
+    const ctx = { by: me.id, store, users: usersMap, settings, notes: [] };
+    try {
+      if (st.action === "held" || st.action === "ndz") {
+        const open = (c.calls || []).filter((x) => !x.outcome).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0];
+        if (!open) return reply(`У ${who(c)} нет назначенного созвона. Запиши: <code>сегодня у Димы в 14:00 был созвон с @${h(st.nick)}</code>`);
+        await applyAction(c, { type: st.action, callId: open.id }, ctx);
+      } else await applyAction(c, { type: "status", status: st.action, sum: st.sum || c.wantedSum || 0 }, ctx);
+    } catch (e) {
+      return reply(`⚠️ ${h(e.message)}`);
+    }
+    c.updatedAt = new Date().toISOString();
+    await store.put("client", c.id, c);
+    await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
+    const kb = [[openApp(appUrl, st.action === "held" ? "Заполнить отчёт" : "Карточка", `?client=${c.id}${st.action === "held" ? "&report=1" : ""}`)]];
+    return reply(`✅ ${who(c)} → <b>${st.action === "held" ? "созвон проведён" : statusLabel(c.status)}</b>${st.sum ? ` · ${rub(st.sum)}` : ""}${st.action === "held" ? "\nТеперь итог диагностики: пришли блок «Потребность/запрос клиента: …» с @ником или заполни в приложении." : ""}`, { inline_keyboard: kb });
+  }
 
   // Ответ реплаем на пересланное ботом сообщение — обратно автору
   const replyTo = msg.reply_to_message && (await store.get("relay", `${msg.chat.id}:${msg.reply_to_message.message_id}`));
@@ -225,6 +254,97 @@ function dayCalls(user, clients, day, usersMap) {
   return `📅 <b>Созвоны ${day.slice(8)}.${day.slice(5, 7)} (${list.length})</b>\n${list.map(({ c, call }) => `• ${mskTime(Date.parse(call.at))} — ${who(c)}${boss ? ` · ${h(usersMap[call.mopId]?.name || "")}` : ""}`).join("\n")}`;
 }
 
+// Короткая команда статуса по @нику клиента.
+export function parseStatusCommand(text) {
+  const t = String(text || "").toLowerCase().replace(/ё/g, "е");
+  const nick = (text.match(/@([A-Za-z][\w]{3,31})/) || [])[1];
+  if (!nick || t.length > 200) return null;
+  const k = (re) => re.test(t);
+  let action = null;
+  if (k(/оплатил|купил|оплата прошла|продажа/)) action = "paid";
+  else if (k(/предоплат|бронь|забронировал/)) action = "prepaid";
+  else if (k(/отказ\S*\s+(?:по\s+)?банк|банк\S*\s+отказ|не одобрил/)) action = "refuse_bank";
+  else if (k(/невалид|неквал/)) action = "invalid";
+  else if (k(/отказ|не будет брать|не интересно/)) action = "refuse_personal";
+  else if (k(/игнор|пропал|не отвечает/)) action = "ignore";
+  else if (k(/(?:^|[^а-я])ндз(?![а-я])|не приш[её]л|не дош[её]л|не вышел/)) action = "ndz";
+  else if (k(/приш[её]л|дош[её]л|провел|провели|был на созвоне/)) action = "held";
+  else if (k(/думает|подумать/)) action = "thinking";
+  else if (k(/перенос/)) action = "resched";
+  if (!action) return null;
+  const m = t.match(/(\d{2,3})\s?к(?![а-я])|(\d{2,3}[\s.]?\d{3})\s*(?:р|руб|₽)?/);
+  const sum = m ? (m[1] ? +m[1] * 1000 : +m[2].replace(/\D/g, "")) : 0;
+  return { nick, action, sum };
+}
+
+// Пакет созвонов: каждый — в CRM, каждому менеджеру — уведомление, автору — сводка и «Отменить всё».
+async function handleBookings(items, { me, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env }) {
+  const { blankClient, log, applyAction } = await import("./api.mjs");
+  const now = Date.now();
+  const done = [];
+  const skipped = [];
+  const taken = [];
+  for (const b of items) {
+    const label = `${b.time}${b.mop ? ` ${h(b.mop.name)}` : ""}${b.nick || b.name ? ` — ${h(b.nick ? `@${b.nick}` : b.name)}` : ""}`;
+    if (!b.mop) {
+      skipped.push(`${label}: к кому? (${closers.map((u) => h(u.name)).join(" / ")})`);
+      continue;
+    }
+    if (!b.nick && !b.name && !b.phone) {
+      skipped.push(`${label}: с кем? добавь имя или @ник`);
+      continue;
+    }
+    if (b.at < now - 3 * 86400_000) {
+      skipped.push(`${label}: это было больше 3 дней назад`);
+      continue;
+    }
+    const day = mskKey(b.at);
+    const busy = [...busyOf(b.mop.id, day, clients).map((x) => ({ t: Date.parse(`${day}T${x.time}:00+03:00`), c: x.c })), ...taken.filter((x) => x.mop === b.mop.id).map((x) => ({ t: x.at, c: x.c }))];
+    const nick = b.nick ? `@${b.nick}` : "";
+    let c =
+      (nick && clients.find((x) => x.telegram?.toLowerCase() === nick.toLowerCase())) ||
+      (b.phone && clients.find((x) => x.phone?.replace(/\D/g, "").endsWith(b.phone.replace(/\D/g, "").slice(-10)))) ||
+      (!nick && !b.phone && b.name && clients.find((x) => !isClosed(x.status) && x.name?.toLowerCase() === b.name.toLowerCase())) ||
+      null;
+    const clash = busy.find((x) => Math.abs(x.t - b.at) < 45 * 60_000 && x.c.id !== c?.id);
+    if (clash) {
+      skipped.push(`${label}: у ${h(b.mop.name)} уже ${mskTime(clash.t)} — ${who(clash.c)}`);
+      continue;
+    }
+    let created = false;
+    if (!c) {
+      c = blankClient(me.id);
+      Object.assign(c, { name: b.name, telegram: nick, phone: b.phone, lidorubId: me.role === "lidorub" ? me.id : null });
+      log(c, me.id, "Клиент создан из бота");
+      clients.push(c);
+      created = true;
+    }
+    const ctx = { by: me.id, store, users: usersMap, settings, notes: [] };
+    await applyAction(c, { type: "call", at: new Date(b.at).toISOString(), mopId: b.mop.id }, ctx);
+    c.updatedAt = new Date().toISOString();
+    await store.put("client", c.id, c);
+    for (const n of ctx.notes) if (n.t === "call") n.text = items.length > 1 ? b.text : text;
+    await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
+    const call = c.calls.at(-1);
+    taken.push({ mop: b.mop.id, at: b.at, c });
+    done.push({ c, call, b, created, past: b.at < now });
+  }
+  if (!done.length) return reply(`Ничего не внёс 🤔\n${skipped.map((x) => `• ${x}`).join("\n")}\n\nПример: <code>завтра: Теме в 18 с Антоном @anton, Диме в 19:30 Иван</code>`);
+  const batchId = Math.random().toString(36).slice(2, 10);
+  await store.put("batch", batchId, { id: batchId, by: me.id, items: done.map((d) => ({ clientId: d.c.id, callId: d.call.id })), at: new Date().toISOString() });
+  const lines = done
+    .sort((x, y) => x.b.at - y.b.at)
+    .map((d) => `• ${fmtWhen(d.b.at)} · <b>${h(d.b.mop.name)}</b> — ${who(d.c)}${d.created ? " 🆕" : ""}${d.past ? " ⏱ уже прошёл — отметь итог" : ""}`);
+  const notified = [...new Set(done.filter((d) => d.b.mop.id !== me.id).map((d) => d.b.mop.name))];
+  const kb = [];
+  for (const d of done.filter((x) => x.past)) kb.push([{ text: `✅ ${d.b.time} пришёл`, callback_data: `held:${d.c.id}:${d.call.id}` }, { text: `❌ ${d.b.time} НДЗ`, callback_data: `ndz:${d.c.id}:${d.call.id}` }]);
+  kb.push([openApp(appUrl, "Созвоны в приложении"), { text: done.length > 1 ? "Отменить всё" : "Отменить", callback_data: `ub:${batchId}` }]);
+  return reply(
+    `✅ <b>Внёс в CRM: ${done.length} ${done.length === 1 ? "созвон" : done.length < 5 ? "созвона" : "созвонов"}</b>\n${lines.join("\n")}${notified.length ? `\n\n🔔 Уведомил: ${notified.map(h).join(", ")}. Напоминания придут за 2 ч, 1 ч и 15 мин.` : ""}${skipped.length ? `\n\n⚠️ Не внёс:\n${skipped.map((x) => `• ${x}`).join("\n")}` : ""}`,
+    { inline_keyboard: kb },
+  );
+}
+
 async function handleBooking(book, { me, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env }) {
   const example = "<code>созвон завтра в 15 к Тёме @ivan Иван</code>";
   if (book.needTime) return reply(`Во сколько? Напиши с временем, например:\n${example}`);
@@ -266,6 +386,26 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
   const me = users.find((u) => u.id === String(cb.from.id));
   const answer = (text) => tg.answerCallback(cb.id, text).catch(() => {});
   if (!me) return answer("Нет доступа");
+  if (action === "ub") {
+    const batch = await store.get("batch", clientId);
+    if (!batch) return answer("Уже неактуально");
+    let n = 0;
+    for (const it of batch.items) {
+      const cl = await store.get("client", it.clientId);
+      const call = cl?.calls.find((x) => x.id === it.callId);
+      if (!call || call.outcome) continue;
+      Object.assign(call, { outcome: "moved", movedAt: new Date().toISOString() });
+      if (!cl.calls.some((x) => !x.outcome)) cl.status = "new";
+      cl.history = [{ at: new Date().toISOString(), by: me.id, text: "Запись на созвон отменена" }, ...(cl.history || [])];
+      await store.put("client", cl.id, cl);
+      await tg.sendMessage(call.mopId, `❌ Отменён созвон ${fmtWhen(Date.parse(call.at))} — ${who(cl)}`).catch(() => {});
+      n++;
+    }
+    await store.del("batch", batch.id);
+    await answer(n ? `Отменено: ${n}` : "Уже неактуально");
+    await tg.editMessage(cb.message.chat.id, cb.message.message_id, `❌ <s>${h(cb.message.text || "")}</s>\nОтменено`).catch(() => {});
+    return;
+  }
   const c = await store.get("client", clientId);
   if (!c) return answer("Клиент не найден");
   const { applyAction } = await import("./api.mjs");
