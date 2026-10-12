@@ -381,6 +381,7 @@ const FOLDERS = [
   ["paid", "Оплатили", (c) => c.status === "paid"],
   ["bank", "Отказ по банкам → рекрутеру", (c) => c.status === "refuse_bank"],
   ["lost", "Отказ, игнор, невалид", (c) => ["refuse_personal", "ignore", "invalid"].includes(c.status)],
+  ["archive", "Архив (из окон)", (c) => c.status === "archive"],
   ["all", "Все", () => true],
 ];
 function filterClients() {

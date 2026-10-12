@@ -140,7 +140,7 @@ async function setStatus(c, status, { by, sum, store, settings, notes }) {
   if (status === "thinking" || status === "resched") event(c, "potential", by, { mop, sum: amount });
   if (status === "refuse_bank") event(c, "refuse_bank", by, { mop, sum: amount });
   if (status === "invalid") event(c, "invalid", by);
-  if (["paid", "refuse_personal", "refuse_bank", "ignore", "invalid"].includes(status)) {
+  if (["paid", "refuse_personal", "refuse_bank", "ignore", "invalid", "archive"].includes(status)) {
     // Закрытому клиенту созвоны не нужны.
     for (const call of c.calls) if (!call.outcome) Object.assign(call, { outcome: "moved", movedAt: nowIso() });
   }
@@ -503,7 +503,8 @@ export async function importSeed(store, body) {
         for (const call of calls) if (!hit.calls.some((x) => x.id === call.id || (x.legacy && x.at === call.at))) hit.calls.push(call);
         hit.calls.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
         if (raw.nextSteps && (!hit.nextSteps || hit.fromSheet)) hit.nextSteps = raw.nextSteps;
-        if (raw.info && !hit.info) hit.info = raw.info;
+        if (raw.chatUrl && !hit.chatUrl) hit.chatUrl = raw.chatUrl;
+        if (raw.info && !(hit.info || "").includes(raw.info)) hit.info = [hit.info, raw.info].filter(Boolean).join("\n");
         if (!hit.name && raw.name) hit.name = raw.name;
         if (!hit.mopId && mopId) hit.mopId = mopId;
         // Статус из таблицы берём, только если в приложении клиент ещё «новый» или пришёл из таблицы

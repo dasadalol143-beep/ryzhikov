@@ -26,11 +26,13 @@ export const STATUSES = [
   { id: "refuse_bank", label: "Отказ по банкам", group: "lost" },
   { id: "ignore", label: "Игнор", group: "lost" },
   { id: "invalid", label: "Невалид", group: "lost" },
+  // Был записан в «Окна для звонков», но в CRM-таблицу не попал — храним в базе, в работе не показываем.
+  { id: "archive", label: "Архив", group: "lost" },
 ];
 export const STATUS_IDS = STATUSES.map((s) => s.id);
 export const statusLabel = (id) => STATUSES.find((s) => s.id === id)?.label || id;
 export const statusGroup = (id) => STATUSES.find((s) => s.id === id)?.group || "lead";
-export const isClosed = (status) => ["paid", "refuse_personal", "refuse_bank", "ignore", "invalid"].includes(status);
+export const isClosed = (status) => ["paid", "refuse_personal", "refuse_bank", "ignore", "invalid", "archive"].includes(status);
 
 // Чем закончился созвон / что ставит диагност после созвона.
 export const AFTER_CALL = ["paid", "prepaid", "thinking", "resched", "refuse_personal", "refuse_bank"];
