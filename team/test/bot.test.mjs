@@ -173,3 +173,31 @@ test("CRM sheet rows import: merge by nick, legacy calls don't inflate RnP", asy
   assert.equal((await store.all("client")).length, 2);
   assert.equal((await store.all("client")).find((c) => c.telegram === "@poopkek").calls.length, 1);
 });
+
+test("history links itself to a teammate added after the import", async () => {
+  const { store, api } = await setup(); // Тема 501, Дима 502 уже есть
+  const { crmRowsToClients, parseCsv } = await import("../public/lib/report.js");
+  const { rnp } = await import("../public/lib/stats.js");
+  // импорт, когда Матвея (нового менеджера) ещё нет в команде
+  const rows = crmRowsToClients(parseCsv(`Дата диагностики,Имя,Ник в телеграм,Статус,Диагностика проведена,ИТОГ ДИАГНОСТИКИ,ДАЛЬНЕЙШИЕ ШАГИ
+06.10.26,Ромчик,@poopkek,Оплатил,TRUE,,ОПЛАТИЛ`), { mopAlias: "Матвей" });
+  await api(1, "POST", "/import", {
+    clients: rows,
+    legacy: { rnp: { "Матвей": { "2026-10-06": { leads: 1, scheduled: 1, held: 1, sales: 1, salesSum: 100000 } } } },
+    payments: [{ id: "p1", date: "2026-10-06", tariff: 100000, net: 69000, verified: true, mopAlias: "Матвей" }],
+  });
+  let st = (await api(1, "GET", "/state")).body;
+  assert.equal(st.clients[0].mopId, null);
+  // добавили Матвея — история сама переехала на него
+  await api(1, "POST", "/users", { id: "520", role: "mop", name: "Matvey" });
+  st = (await api(1, "GET", "/state")).body;
+  assert.equal(st.settings.aliases["Матвей"], "520");
+  assert.equal(st.clients[0].mopId, "520");
+  assert.equal(st.clients[0].calls[0].mopId, "520");
+  assert.equal((await store.get("payment", "p1")).mopId, "520");
+  const r = rnp(st.clients, st.legacy, { aliases: st.settings.aliases });
+  assert.equal(r.byPerson["520"].sales, 1);
+  // и у самого Матвея на экране — его клиенты и продажи
+  const mine = (await api(520, "GET", "/state")).body;
+  assert.equal(mine.clients.filter((c) => c.mopId === "520").length, 1);
+});

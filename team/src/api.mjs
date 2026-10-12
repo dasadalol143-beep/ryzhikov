@@ -302,13 +302,19 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       if (path === "/state" && req.method === "GET") {
         // Бот подключается сам при первом входе собственника.
         if (me.role === "owner" && env.BOT_TOKEN) await ensureWebhook(store, env, fetchImpl, `${url.origin}/api/tg`).catch(() => {});
-        const [clients, legacy, pending, feed] = await Promise.all([store.all("client"), store.get("meta", "legacy"), store.all("pending"), store.recent("feed", 120)]);
+        // Состав команды поменялся (кого-то добавили до этого обновления) — один раз привязываем историю
+        const sig = Object.values(users).filter((u) => u.active !== false).map((u) => `${u.id}:${u.role}`).sort().join(",");
+        if ((await store.get("meta", "linked"))?.sig !== sig) {
+          await linkPeople(store);
+          await store.put("meta", "linked", { sig, at: nowIso() });
+        }
+        const [clients, legacy, pending, feed, settingsNow] = await Promise.all([store.all("client"), store.get("meta", "legacy"), store.all("pending"), store.recent("feed", 120), loadSettings(store)]);
         return json({
           me,
           users: Object.values(users),
           pending: me.role === "owner" || me.role === "rop" ? pending : [],
           clients,
-          settings,
+          settings: settingsNow,
           legacy: legacy || {},
           payments: money_ ? await store.all("payment") : null,
           // Лента: руководству — всё, остальным — адресованное им и про их клиентов (без денег ведомости).
@@ -395,7 +401,8 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           payLinks: Array.isArray(body.payLinks) ? sanitizeLinks(body.payLinks) : cur.payLinks,
           aliases: body.aliases && typeof body.aliases === "object" ? Object.fromEntries(Object.entries(body.aliases).map(([k, v]) => [str(k, 40), str(String(v), 40)]).filter(([, v]) => v)) : cur.aliases,
         };
-        await store.put("meta", "settings", next);
+        await store.put("meta", "settings", { ...cur, ...next });
+        await linkPeople(store);
         return json({ settings: next });
       }
 
@@ -410,6 +417,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         const u = { id, name: str(body.name, 60) || prev.name || id, username: prev.username || "", role: body.role, active: body.active !== false, addedBy: by, addedAt: prev.addedAt || nowIso() };
         await store.put("user", id, u);
         await store.del("pending", id);
+        await linkPeople(store);
         return json({ user: u });
       }
       const um = path.match(/^\/users\/(\d+)$/);
@@ -436,6 +444,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       if (path === "/import" && req.method === "POST") {
         if (!money_) return json({ error: "forbidden" }, 403);
         const res = await importSeed(store, body);
+        res.linked = await linkPeople(store);
         return json(res);
       }
 
@@ -444,6 +453,49 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       return json({ error: e.message || "error" }, e.status || 500);
     }
   };
+}
+
+// Привязка истории к людям: в таблицах люди подписаны именами («Тема», «Дима», «Алексей»).
+// Как только человек есть в команде — находим его по имени и переписываем на него клиентов,
+// созвоны, оплаты и РнП. Запускается при добавлении человека, импорте и смене настроек.
+export async function linkPeople(store) {
+  const { findUserInText } = await import("./nlp.mjs");
+  const settings = await loadSettings(store);
+  const aliases = { ...(settings.aliases || {}) };
+  const users = (await store.all("user")).filter((u) => u.active !== false);
+  const closers = users.filter((u) => ["mop", "rop"].includes(u.role));
+  const lrs = users.filter((u) => u.role === "lidorub");
+  const [clients, payments, legacy] = await Promise.all([store.all("client"), store.all("payment"), store.get("meta", "legacy")]);
+  const want = new Map(); // имя → кандидаты
+  for (const n of Object.keys(legacy?.rnp || {})) want.set(n, closers);
+  for (const n of Object.keys(legacy?.lidorub || {})) want.set(n, lrs);
+  for (const p of payments) if (p.mopAlias) want.set(p.mopAlias, closers);
+  for (const c of clients) {
+    if (c.mopAlias) want.set(c.mopAlias, closers);
+    for (const x of c.calls || []) if (x.mopAlias) want.set(x.mopAlias, closers);
+  }
+  let aliasChanged = false;
+  for (const [name, cands] of want) {
+    if (aliases[name] && users.some((u) => u.id === aliases[name])) continue;
+    const u = findUserInText(name, cands);
+    if (u) (aliases[name] = u.id), (aliasChanged = true);
+  }
+  if (aliasChanged) await store.put("meta", "settings", { ...settings, aliases });
+  const changedClients = [];
+  for (const c of clients) {
+    let dirty = false;
+    for (const x of c.calls || []) {
+      const id = x.mopAlias && aliases[x.mopAlias];
+      if (id && x.mopId !== id) (x.mopId = id), (dirty = true);
+    }
+    const own = (c.mopAlias && aliases[c.mopAlias]) || [...(c.calls || [])].reverse().find((x) => x.mopId)?.mopId || null;
+    if (!c.mopId && own) (c.mopId = own), (dirty = true);
+    if (dirty) changedClients.push(c);
+  }
+  if (changedClients.length) await store.putMany("client", changedClients);
+  const changedPays = payments.filter((p) => p.mopAlias && aliases[p.mopAlias] && p.mopId !== aliases[p.mopAlias]).map((p) => ({ ...p, mopId: aliases[p.mopAlias] }));
+  if (changedPays.length) await store.putMany("payment", changedPays);
+  return { aliases, clients: changedClients.length, payments: changedPays.length };
 }
 
 function sanitizeLinks(list) {
@@ -513,7 +565,6 @@ export async function importSeed(store, body) {
         out.merged++;
       } else {
         const c = { ...blankClient("import"), ...raw, id: raw.id || randomUUID(), mopId, calls, status: STATUS_IDS.includes(raw.status) ? raw.status : "new", history: [{ at: nowIso(), by: "import", text: "Перенесён из CRM-таблицы" }] };
-        delete c.mopAlias;
         changed.set(key || c.id, c);
         if (key) byNick.set(key, c);
         out.clients++;
