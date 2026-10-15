@@ -452,3 +452,131 @@ test("payouts: Monday reminder to owner — РОП and лидоруб by client,
   await api(1, "POST", `/payouts/${done.body.payout.id}/undo`);
   assert.equal((await api(1, "GET", "/state")).body.payments.find((p) => p.id === "seed-dima-4").paid.lidorub, null);
 });
+
+test("no duplicates: same @nick/phone refused, old dups auto-merged, repeated call not doubled, delete/merge by owner of the lead", async () => {
+  const { store, sent, say, api } = await setup();
+  const a = (await api(503, "POST", "/clients", { name: "Антон", telegram: "@Anton_X" })).body.client;
+  // тот же ник в другом регистре / ссылкой — 409 с найденным клиентом
+  const dupNick = await api(501, "POST", "/clients", { name: "Антоха", telegram: "https://t.me/anton_x" });
+  assert.equal(dupNick.status, 409);
+  assert.equal(dupNick.body.client.id, a.id);
+  await api(503, "PATCH", `/clients/${a.id}`, { phone: "+7 900 123-45-67" });
+  assert.equal((await api(503, "POST", "/clients", { name: "Кто-то", phone: "89001234567" })).status, 409);
+  const b = (await api(503, "POST", "/clients", { name: "Боря", telegram: "@borya" })).body.client;
+  assert.equal((await api(503, "PATCH", `/clients/${b.id}`, { telegram: "anton_x" })).status, 409);
+
+  // старый дубль, который уже лежит в базе (завели до защиты), склеивается сам
+  const legacyDup = { ...b, id: "old-dup", telegram: "@ANTON_X", name: "", calls: [{ id: "x1", at: new Date(Date.now() + 86400_000).toISOString(), mopId: "501", outcome: null, notified: {} }], history: [], createdAt: new Date(Date.now() + 1000).toISOString() };
+  await store.put("client", legacyDup.id, legacyDup);
+  const st = (await api(1, "GET", "/state")).body;
+  const antons = st.clients.filter((c) => /anton_x/i.test(c.telegram));
+  assert.equal(antons.length, 1);
+  assert.equal(antons[0].calls.length, 1);
+  assert.ok(await store.get("trash", "old-dup"));
+
+  // повторная запись на то же время — тот же созвон; сдвиг на 30 минут — перенос, а не второй созвон
+  const at = new Date(Date.now() + 3 * 3600_000).toISOString();
+  await api(503, "POST", `/clients/${b.id}/action`, { type: "call", at, mopId: "501" });
+  let c = (await api(503, "POST", `/clients/${b.id}/action`, { type: "call", at, mopId: "501" })).body.client;
+  assert.equal(c.calls.filter((x) => x.outcome !== "moved").length, 1);
+  c = (await api(503, "POST", `/clients/${b.id}/action`, { type: "call", at: new Date(Date.parse(at) + 30 * 60_000).toISOString(), mopId: "501" })).body.client;
+  assert.equal(c.calls.length, 1);
+  assert.equal(Date.parse(c.calls[0].at), Date.parse(at) + 30 * 60_000);
+  // отмена записи
+  c = (await api(501, "POST", `/clients/${b.id}/action`, { type: "uncall" })).body.client;
+  assert.equal(c.calls[0].outcome, "moved");
+
+  // в боте «созвон с @borya был в …» по уже проведённому созвону не создаёт второй
+  const past = new Date(Date.now() - 2 * 3600_000);
+  await api(501, "POST", `/clients/${b.id}/action`, { type: "call", at: past.toISOString(), mopId: "501" });
+  await api(501, "POST", `/clients/${b.id}/action`, { type: "held" });
+  const hhmm = new Date(past.getTime() + 3 * 3600_000 + 60 * 60_000).toISOString().slice(11, 16);
+  if (Date.parse(`${new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10)}T${hhmm}:00+03:00`) < Date.now()) {
+    await say(501, `сегодня в ${hhmm} был созвон с @borya`);
+    assert.match(sent.filter((m) => m.chat === "501").at(-1).text, /уже есть этот созвон|Ничего не внёс/);
+    assert.equal((await store.get("client", b.id)).calls.filter((x) => x.outcome === "held").length, 1);
+  }
+
+  // склейка вручную (имя без ника) и удаление: лидоруб — своего клиента можно, чужого нельзя
+  const n1 = (await api(503, "POST", "/clients", { name: "Никита" })).body.client;
+  const n2 = (await api(503, "POST", "/clients", { name: "Никита", info: "Ютуб" })).body.client;
+  const merged = (await api(503, "POST", `/clients/${n1.id}`, { mergeFrom: n2.id })).body;
+  assert.equal(merged.removed, n2.id);
+  assert.match(merged.client.info, /Ютуб/);
+  const foreign = (await api(1, "POST", "/clients", { name: "Чужой" })).body.client;
+  assert.equal((await api(503, "DELETE", `/clients/${foreign.id}`)).status, 403);
+  assert.equal((await api(503, "DELETE", `/clients/${n1.id}`)).status, 200);
+  assert.ok(await store.get("trash", n1.id));
+
+  // пересланный боту свой отчёт — отчёт, а не новый лид
+  const before = (await store.all("client")).length;
+  await say(501, "Потребность/запрос клиента: выйти на доход\nРод деятельности: курьер\nПредложил оплатить: Да\n@borya", { forward_origin: { type: "user", sender_user: { id: 777, first_name: "Дима" } } });
+  assert.equal((await store.all("client")).length, before);
+});
+
+test("audit fixes: kopecks, wrong «Оплатил» rollback, two different Антонов, report doesn't add a call, NDZ from bot notifies", async () => {
+  const { money } = await import("../src/api.mjs");
+  assert.equal(money("68 950,50"), 68950.5);
+  assert.equal(money("99.99"), 99.99);
+  assert.equal(money("1.200.000"), 1200000);
+  assert.equal(money("100к"), 100000);
+
+  const { store, sent, say, api } = await setup();
+  // ошибочно «Оплатил» → поправили на «Думает»: ни продажи в РнП, ни черновика в ведомости
+  const g = (await api(503, "POST", "/clients", { name: "Глеб", telegram: "gleb_q" })).body.client;
+  await api(503, "POST", `/clients/${g.id}/action`, { type: "call", at: new Date(Date.now() - 3600_000).toISOString(), mopId: "501" });
+  await api(501, "POST", `/clients/${g.id}/action`, { type: "status", status: "paid", sum: 100000 });
+  assert.equal((await store.all("payment")).length, 1);
+  let c = (await api(501, "POST", `/clients/${g.id}/action`, { type: "status", status: "thinking", sum: 100000 })).body.client;
+  assert.equal((await store.all("payment")).length, 0);
+  assert.equal(c.events.filter((e) => e.t === "paid").length, 0);
+  assert.equal(c.calls[0].outcome, "held"); // время прошло, решение было — созвон отмечен проведённым
+  // лидоруб не может поставить «Оплатил» чужому диагносту
+  assert.equal((await api(503, "POST", `/clients/${g.id}/action`, { type: "status", status: "paid", sum: 100000 })).status, 403);
+
+  // отчёт по начавшемуся созвону — тот же созвон, не второй
+  c = (await api(501, "POST", `/clients/${g.id}/action`, { type: "report", newCall: true, report: { need: "доход" } })).body.client;
+  assert.equal(c.calls.length, 1);
+  assert.equal(c.calls[0].outcome, "held");
+  c = (await api(501, "POST", `/clients/${g.id}/action`, { type: "report", newCall: true, report: { need: "доход, исправил" } })).body.client;
+  assert.equal(c.calls.length, 1);
+  assert.match(c.calls[0].report.need, /исправил/);
+
+  // два разных Антона к разным диагностам по одному имени — два клиента, не перенос
+  const tomorrow = new Date(Date.now() + 3 * 3600_000 + 86400_000).toISOString().slice(0, 10);
+  void tomorrow;
+  await say(503, "завтра Диме в 15 с Антоном");
+  await say(503, "завтра Теме в 18 с Антоном");
+  const antons = (await store.all("client")).filter((x) => x.name === "Антон");
+  assert.equal(antons.length, 2);
+  assert.ok(antons.every((a) => a.calls.filter((x) => !x.outcome).length === 1));
+
+  // НДЗ кнопкой из напоминания — уведомление уходит лидорубу
+  const { handleUpdate } = await import("../src/bot.mjs");
+  const { telegram } = await import("../src/telegram.mjs");
+  const tg = telegram("123:abc", async (url, init) => (sent.push({ chat: init.body.get("chat_id"), text: init.body.get("text") }), new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }))));
+  const k = (await api(503, "POST", "/clients", { name: "Костя" })).body.client;
+  const cc = (await api(503, "POST", `/clients/${k.id}/action`, { type: "call", at: new Date(Date.now() - 20 * 60_000).toISOString(), mopId: "501" })).body.client.calls[0];
+  const before = sent.length;
+  await handleUpdate({ callback_query: { id: "z", from: { id: 501 }, data: `ndz:${k.id}:${cc.id}`, message: { chat: { id: 501 }, message_id: 3, text: "пришёл?" } } }, { store, env: { OWNER_IDS: "1" }, tg, appUrl: "https://t/" });
+  assert.ok(sent.slice(before).some((m) => m.chat === "503" && /НДЗ/.test(m.text || "")));
+});
+
+test("dropcall removes a duplicate held/NDZ call and fixes status", async () => {
+  const { api, store } = await setup();
+  const k = (await api(503, "POST", "/clients", { name: "Никита" })).body.client;
+  const at = new Date(Date.now() - 2 * 3600_000).toISOString();
+  await api(503, "POST", `/clients/${k.id}/action`, { type: "call", at, mopId: "501" });
+  await api(501, "POST", `/clients/${k.id}/action`, { type: "held" });
+  // испорченная карточка, как в бою до защиты: второй созвон на то же время с НДЗ
+  const bad = await store.get("client", k.id);
+  bad.calls.push({ id: "dup1", at, mopId: "501", outcome: "ndz" });
+  bad.status = "ndz1";
+  bad.events.push({ t: "ndz", at, mop: "501" });
+  await store.put("client", bad.id, bad);
+  const c = (await api(501, "POST", `/clients/${k.id}/action`, { type: "dropcall", callId: "dup1" })).body.client;
+  assert.equal(c.calls.length, 1);
+  assert.equal(c.calls[0].outcome, "held");
+  assert.equal(c.status, "in_work");
+  assert.equal(c.events.filter((e) => e.t === "ndz").length, 0);
+});
