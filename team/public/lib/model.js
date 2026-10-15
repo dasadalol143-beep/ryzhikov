@@ -136,7 +136,17 @@ export const clientTitle = (c) => c.name || c.telegram || "Без имени";
 export const ndzCount = (c) => (c.calls || []).filter((x) => x.outcome === "ndz").length;
 
 // Созвон прошёл, а отчёта нет — главный долг диагноста по регламенту.
-export const needsReport = (c) => (c.calls || []).some((x) => x.outcome === "held" && !x.reportAt && !x.legacy);
+// Итог диагностики у клиента один. Пересозвон его не требует заново: если итог уже есть, долга нет.
+export const latestReport = (c) => [...(c.calls || [])].filter((x) => x.report).sort((a, b) => Date.parse(b.reportAt || b.at) - Date.parse(a.reportAt || a.at))[0] || null;
+export const needsReport = (c) => !latestReport(c) && (c.calls || []).some((x) => x.outcome === "held" && !x.reportAt && !x.legacy);
+// «Диагностика» — первый проведённый созвон, дальше — «Пересозвон 1, 2…».
+export function callKind(c, call) {
+  const done = (c.calls || []).filter((x) => x.outcome === "held" || (!x.outcome && x.id === call.id) || x.id === call.id).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  const firstHeld = (c.calls || []).filter((x) => x.outcome === "held").sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0];
+  if (!firstHeld || Date.parse(call.at) <= Date.parse(firstHeld.at)) return "Диагностика";
+  const n = done.filter((x) => Date.parse(x.at) > Date.parse(firstHeld.at) && Date.parse(x.at) <= Date.parse(call.at)).length;
+  return n > 1 ? `Пересозвон ${n}` : "Пересозвон";
+}
 
 // Дожим: «Думает»/«Перенос без даты»/«НДЗ» без нового созвона — касания каждый день, 3 подряд.
 export function followupState(c, now = Date.now()) {

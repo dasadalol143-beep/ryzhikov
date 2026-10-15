@@ -219,8 +219,31 @@ function applyFields(c, body) {
 }
 
 // Смена статуса + события для РнП. sum — сумма продажи/предоплаты/потенциала/отказа.
+// День оплаты — день последнего проведённого созвона (пересозвона), если он был за последнюю неделю.
+const payDay = (c) => {
+  const last = (c.calls || []).filter((x) => x.outcome === "held").sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+  const today = mskKey(Date.now());
+  const d = last && mskKey(Date.parse(last.at));
+  return d && d <= today && Date.parse(today) - Date.parse(d) <= 7 * 86400_000 ? d : today;
+};
+
 async function setStatus(c, status, { by, sum, store, settings, notes }) {
-  if (!STATUS_IDS.includes(status) || status === c.status) return;
+  if (!STATUS_IDS.includes(status)) return;
+  // «Оплатил» ещё раз — это уточнение суммы той же оплаты, а не вторая продажа.
+  if (status === "paid" && c.status === "paid") {
+    const amount = money(sum);
+    if (!amount) return;
+    const ev = [...(c.events || [])].reverse().find((e) => e.t === "paid");
+    if (ev) ev.sum = amount;
+    const draft = store && (await store.all("payment")).find((p) => p.clientId === c.id && !p.verified);
+    if (draft) {
+      Object.assign(draft, { tariff: amount, date: payDay(c), net: draft.payLink ? netFromLink(settings, draft.payLink, amount) : draft.net });
+      await store.put("payment", draft.id, draft);
+    }
+    log(c, by, `Сумма оплаты уточнена: ${amount.toLocaleString("ru-RU")} ₽${draft || !store ? "" : " (оплата уже верифицирована — поправь в ведомости)"}`);
+    return;
+  }
+  if (status === c.status) return;
   const mop = c.mopId;
   const amount = money(sum) || c.wantedSum || 0;
   const wasPaid = c.status === "paid";
@@ -242,12 +265,12 @@ async function setStatus(c, status, { by, sum, store, settings, notes }) {
     // Продажа сразу падает в ведомость черновиком — РОП вносит чистую сумму и верифицирует.
     const draft = store && (await store.all("payment")).find((p) => p.clientId === c.id && !p.verified);
     if (draft) {
-      Object.assign(draft, { tariff: amount, mopId: mop, lidorubId: c.lidorubId, net: draft.net ?? netFromLink(settings, c.payLinkId, amount) });
+      Object.assign(draft, { tariff: amount, date: payDay(c), mopId: mop, lidorubId: c.lidorubId, net: draft.net ?? netFromLink(settings, c.payLinkId, amount) });
       await store.put("payment", draft.id, draft);
     } else if (store) {
       const p = {
         id: randomUUID(),
-        date: new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10),
+        date: payDay(c),
         clientId: c.id,
         clientName: clientTitle(c),
         mopId: mop,

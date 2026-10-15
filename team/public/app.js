@@ -1,6 +1,6 @@
 import {
   ROLES, STATUSES, SOURCES, REPORT_FIELDS, AFTER_CALL, FOLLOWUP_TOUCHES, DEFAULT_RATES,
-  statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState,
+  statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState, latestReport, callKind,
   mskKey, mskTime, mskMidnight, addDaysKey, fmtDay, weekday, fmtWhen, monthName, payrollRow, monthSummary,
   DEFAULT_PAY_LINKS, pace, daysInMonth, payoutsOwed, nextPayday, PAYOUT_ROLES, daySlots, rangesText, cleanRanges, toMin, fromMin,
 } from "./lib/model.js";
@@ -524,6 +524,7 @@ function nextStep(c) {
         ? `<div class="paid-line" data-more="payroll">${ps.map((p) => `<span>В ведомости: <b>${rub(p.tariff)}</b> · ${fmtDay(p.date)} · ${p.verified ? "верифицирована" : "ждёт проверки"}</span>`).join("")}<span class="link">Открыть ведомость →</span></div>`
         : `<div class="paid-line warn">В ведомости этой оплаты нет. <button class="link" data-addpay="${c.id}">Добавить в ведомость</button></div>`;
     }
+    if (c.status === "paid" && (money() || c.mopId === state.me.id)) body += `<div class="row-links"><button class="link" data-status="paid">Изменить сумму оплаты</button></div>`;
     body += `<div class="sub">${c.status === "refuse_bank" ? "По регламенту передаём рекрутеру: клиент может зайти в РКО как исполнитель." : "Если клиент вернулся — запиши на новый созвон."}</div><button class="btn block ghost" data-book="${c.id}">Записать на новый созвон</button>`;
   } else if (st.kind === "mark") {
     const at = Date.parse(st.call.at);
@@ -538,7 +539,8 @@ function nextStep(c) {
     body = `<div class="sub">Потребность, род деятельности, боль, возражение, договорённости. Можно вставить свой текст целиком.</div><button class="btn block" data-report-open="${c.id}">Заполнить итог</button>`;
   } else if (st.kind === "decide") {
     title = "Что решил клиент?";
-    body = `<div class="sub">Выбери итог — статус и ведомость обновятся сами.</div>${decide}`;
+    const recall = callKind(c, st.call) !== "Диагностика";
+    body = `<div class="sub">${recall ? `${callKind(c, st.call)} проведён — итог диагностики уже есть, выбери решение.` : "Выбери итог — статус и ведомость обновятся сами."}</div>${decide}${recall ? `<div class="row-links"><button class="link" data-report-open="${c.id}">Дополнить итог</button></div>` : ""}`;
   } else if (st.kind === "follow") {
     const f = followupState(c);
     title = `${statusLabel(c.status)} — дожим`;
@@ -581,12 +583,15 @@ function renderClient(c) {
 
   html += `<div class="card" style="margin-top:10px"><label class="field" style="margin:0"><span>Дальнейшие шаги и договорённости</span><textarea data-f="nextSteps" style="min-height:52px" placeholder="пересозвон 24.10 в 20:00, ждём снятия самозапрета…">${esc(c.nextSteps || "")}</textarea></label></div>`;
 
+  // Итог диагностики — один на клиента; пересозвоны его дополняют, а не дублируют.
+  const lr = latestReport(c);
+  if (lr) {
+    const rep = lr.report;
+    html += `<h2>Итог диагностики</h2><div class="card"><div class="report-view" style="margin-top:-6px">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}${rep.extra ? `<div><b>Заметки</b>${esc(rep.extra)}</div>` : ""}<div class="sub">Презентация тарифов: ${ynText(rep.presented)} · Предложил оплатить: ${ynText(rep.offeredPay)}</div><div class="sub">Обновлён ${fmtWhen(Date.parse(lr.reportAt || lr.at))} · ${esc(callKind(c, lr).toLowerCase())}${c.wantedSum ? ` · тариф ${rub(c.wantedSum)}` : ""}</div></div><button class="link" data-report-open="${c.id}">Дополнить итог</button></div>`;
+  }
   if (callsDone.length) {
-    html += `<h2>Созвоны и итоги</h2><div class="list">${callsDone
-      .map((x) => {
-        const rep = x.report;
-        return `<div class="card" style="border-radius:0;box-shadow:none"><div class="hbar-top"><b>${fmtWhen(Date.parse(x.at))}</b><span class="stt ${x.outcome === "held" ? "g-won" : "g-ndz"}">${x.outcome === "held" ? "проведён" : "НДЗ"}</span></div><div class="sub">Диагност: ${esc(userName(x.mopId))}${canEdit(c) ? ` · <button class="link" style="font-size:13px;color:var(--hint)" data-dropcall="${c.id}" data-call="${x.id}">убрать созвон</button>` : ""}</div>${rep ? `<div class="report-view">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}<div class="sub">Презентация тарифов: ${ynText(rep.presented)} · Предложил оплатить: ${ynText(rep.offeredPay)}</div>${rep.extra ? `<div>${esc(rep.extra)}</div>` : ""}</div><button class="link" data-report-open="${c.id}">Изменить итог</button>` : x.outcome === "held" ? `<button class="link" data-report-open="${c.id}">Заполнить итог →</button>` : ""}</div>`;
-      })
+    html += `<h2>Созвоны</h2><div class="list">${[...callsDone]
+      .map((x) => `<div class="call-line"><div class="grow"><div class="title">${esc(callKind(c, x))} · ${fmtWhen(Date.parse(x.at))}</div><div class="sub">${esc(userName(x.mopId))}${x.report && x !== lr ? " · есть свой итог" : ""}${canEdit(c) ? ` · <button class="link" style="font-size:12.5px;color:var(--hint);padding:0" data-dropcall="${c.id}" data-call="${x.id}">убрать</button>` : ""}</div></div><span class="stt ${x.outcome === "held" ? "g-won" : "g-ndz"}">${x.outcome === "held" ? "проведён" : "НДЗ"}</span></div>`)
       .join("")}</div>`;
   }
 
@@ -799,13 +804,17 @@ function openReport(c, { fresh = false } = {}) {
   if (!c) return;
   const held = fresh ? null : [...(c.calls || [])].reverse().find((x) => x.outcome === "held" && !x.reportAt) || [...(c.calls || [])].reverse().find((x) => x.outcome === "held" && !x.legacy);
   if (!held && !fresh) return openReport(c, { fresh: true });
-  const rep = held?.report || {};
+  // Пересозвон: всё из прошлого итога уже вписано — поправь только то, что изменилось.
+  const prev = latestReport(c);
+  const recall = !!prev && held && prev.id !== held.id && !held.report;
+  const rep = held?.report || prev?.report || {};
   let status = null;
   let presented = rep.presented ?? null;
   let offered = rep.offeredPay ?? null;
   const mopChoices = closers();
   openSheet(
-    `<div class="sheet-title">Итог диагностики</div><div class="sub" style="margin:0 4px 10px">${esc(clientTitle(c))}${held ? ` · ${fmtWhen(Date.parse(held.at))}` : ""}</div>
+    `<div class="sheet-title">${recall ? "Итог пересозвона" : "Итог диагностики"}</div><div class="sub" style="margin:0 4px 10px">${esc(clientTitle(c))}${held ? ` · ${fmtWhen(Date.parse(held.at))}` : ""}</div>
+    ${recall ? `<div class="card" style="margin-bottom:8px;background:var(--accent-wash)"><div class="sub" style="color:var(--text)">Это пересозвон — итог с диагностики ${fmtDay(mskKey(Date.parse(prev.at)))} уже вписан. Поправь только то, что изменилось, и выбери, что решил клиент.</div></div>` : ""}
     ${held ? "" : `<div class="card" style="margin-bottom:8px"><div class="two"><label class="field"><span>Дата диагностики</span><input type="date" id="r-date" value="${today()}"></label><label class="field"><span>Менеджер</span><select id="r-mop">${mopChoices.map((u) => `<option value="${u.id}" ${u.id === (state.me.role === "mop" ? state.me.id : c.mopId) ? "selected" : ""}>${esc(u.name)}</option>`).join("")}</select></label></div></div>`}
     <details class="card paste" style="margin-bottom:8px"><summary class="link">📋 Вставить отчёт текстом (как в таблице)</summary><textarea id="r-paste" style="min-height:120px;margin-top:8px" placeholder="Потребность/запрос клиента: …&#10;Род деятельности: …&#10;О чем глобально мечтает (главная боль): …&#10;Провел презентацию по тарифам: Да&#10;Основное возражение: …&#10;Следующий шаг, договоренности: …&#10;Предложил оплатить: Да"></textarea><button class="btn small block" id="r-parse">Разложить по полям</button></details>
     <div class="card">${REPORT_FIELDS.map((f) => `<label class="field"><span>${f.label}</span><textarea data-r="${f.id}" style="min-height:56px">${esc(rep[f.id] || "")}</textarea></label>`).join("")}
@@ -822,8 +831,9 @@ function openReport(c, { fresh = false } = {}) {
       const extra = sh.querySelector("#r-extra");
       const drawExtra = () => {
         const needSum = ["paid", "prepaid", "thinking", "resched", "refuse_bank"].includes(status);
-        const label = { paid: "Сумма оплаты (тариф)", prepaid: "Сумма предоплаты", thinking: "Сумма потенциала (тариф)", resched: "Сумма потенциала (тариф)", refuse_bank: "На какую сумму не одобрили" }[status];
-        extra.innerHTML = `${needSum ? `<div class="card" style="margin-top:10px"><label class="field"><span>${label}</span><input id="r-sum" inputmode="numeric" value="${status === "prepaid" ? "" : c.wantedSum || ""}" placeholder="100000"></label>${status === "prepaid" ? `<label class="field"><span>Полный тариф</span><input id="r-wanted" inputmode="numeric" value="${c.wantedSum || ""}"></label>` : ""}</div>` : ""}${status === "resched" ? `<div class="card" style="margin-top:8px"><label class="field"><span>Новый созвон (МСК)</span><input type="datetime-local" id="r-next"></label></div>` : ""}`;
+        const lastPaid = [...(c.events || [])].reverse().find((e) => e.t === "paid");
+  const label = { paid: c.status === "paid" ? "Итоговая сумма оплаты (заменит прежнюю)" : "Сумма оплаты (тариф)", prepaid: "Сумма предоплаты", thinking: "Сумма потенциала (тариф)", resched: "Сумма потенциала (тариф)", refuse_bank: "На какую сумму не одобрили" }[status];
+        extra.innerHTML = `${needSum ? `<div class="card" style="margin-top:10px"><label class="field"><span>${label}</span><input id="r-sum" inputmode="numeric" value="${status === "prepaid" ? "" : (status === "paid" && lastPaid?.sum) || c.wantedSum || ""}" placeholder="100000"></label>${status === "prepaid" ? `<label class="field"><span>Полный тариф</span><input id="r-wanted" inputmode="numeric" value="${c.wantedSum || ""}"></label>` : ""}</div>` : ""}${status === "resched" ? `<div class="card" style="margin-top:8px"><label class="field"><span>Новый созвон (МСК)</span><input type="datetime-local" id="r-next"></label></div>` : ""}`;
       };
       sh.querySelector("#r-parse").onclick = () => {
         const r = parseReportText(sh.querySelector("#r-paste").value);

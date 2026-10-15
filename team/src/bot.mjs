@@ -763,6 +763,7 @@ export async function runReminders({ store, env, tg, appUrl, now = Date.now() })
     // Созвон проведён, а отчёта нет через 30 минут — пнуть.
     for (const call of c.calls || []) {
       if (call.outcome !== "held" || call.reportAt || call.notified?.report) continue;
+      if (!needsReport(c)) continue; // пересозвон: итог диагностики уже есть
       if (now - Date.parse(call.outcomeAt || call.at) < 30 * MIN) continue;
       call.notified = { ...(call.notified || {}), report: nowIso() };
       dirty = true;

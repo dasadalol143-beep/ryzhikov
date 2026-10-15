@@ -608,3 +608,27 @@ test("«Оплатил» from a CRM sheet import gets a payroll draft; seed paym
   const { reconcilePaid } = await import("../src/api.mjs");
   assert.deepEqual(await reconcilePaid(store), { linked: 0, created: 0 });
 });
+
+test("re-call: one report for the client, no second report owed, one payment with the final sum on the re-call day", async () => {
+  const { store, api } = await setup();
+  const { needsReport } = await import("../public/lib/model.js");
+  const { rnp } = await import("../public/lib/stats.js");
+  const a = (await api(503, "POST", "/clients", { name: "Алексей", telegram: "alexey_rc" })).body.client;
+  const d1 = new Date(Date.now() - 26 * 3600_000).toISOString();
+  const d2 = new Date(Date.now() - 2 * 3600_000).toISOString();
+  await api(503, "POST", `/clients/${a.id}/action`, { type: "call", at: d1, mopId: "502" });
+  await api(502, "POST", `/clients/${a.id}/action`, { type: "held" });
+  await api(502, "POST", `/clients/${a.id}/action`, { type: "report", report: { need: "старт", occupation: "официант", nextStep: "пересозвон, рассрочка на 70к" }, status: "thinking", sum: 70000 });
+  await api(502, "POST", `/clients/${a.id}/action`, { type: "call", at: d2, mopId: "502" });
+  let c = (await api(502, "POST", `/clients/${a.id}/action`, { type: "held" })).body.client;
+  assert.equal(needsReport(c), false); // пересозвон — итог уже есть
+  c = (await api(502, "POST", `/clients/${a.id}/action`, { type: "status", status: "paid", sum: 70000 })).body.client;
+  // уточнили сумму — та же оплата, не вторая
+  c = (await api(502, "POST", `/clients/${a.id}/action`, { type: "status", status: "paid", sum: 75000 })).body.client;
+  const pays = (await store.all("payment")).filter((p) => p.clientId === a.id);
+  assert.equal(pays.length, 1);
+  assert.equal(pays[0].tariff, 75000);
+  assert.equal(pays[0].date, new Date(Date.parse(d2) + 3 * 3600_000).toISOString().slice(0, 10));
+  const t = rnp([c], {}).total;
+  assert.deepEqual([t.sales, t.salesSum], [1, 75000]);
+});
