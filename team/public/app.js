@@ -517,7 +517,14 @@ function nextStep(c) {
   let body = "";
   if (st.kind === "closed") {
     title = CLOSED_TEXT[c.status];
-    body = `<div class="sub">${c.status === "refuse_bank" ? "По регламенту передаём рекрутеру: клиент может зайти в РКО как исполнитель." : "Если клиент вернулся — запиши на новый созвон."}</div><button class="btn block ghost" data-book="${c.id}">Записать на новый созвон</button>`;
+    // Руководству — где эта оплата в ведомости.
+    if (c.status === "paid" && money() && state.payments) {
+      const ps = state.payments.filter((p) => p.clientId === c.id);
+      body += ps.length
+        ? `<div class="paid-line" data-more="payroll">${ps.map((p) => `<span>В ведомости: <b>${rub(p.tariff)}</b> · ${fmtDay(p.date)} · ${p.verified ? "верифицирована" : "ждёт проверки"}</span>`).join("")}<span class="link">Открыть ведомость →</span></div>`
+        : `<div class="paid-line warn">В ведомости этой оплаты нет. <button class="link" data-addpay="${c.id}">Добавить в ведомость</button></div>`;
+    }
+    body += `<div class="sub">${c.status === "refuse_bank" ? "По регламенту передаём рекрутеру: клиент может зайти в РКО как исполнитель." : "Если клиент вернулся — запиши на новый созвон."}</div><button class="btn block ghost" data-book="${c.id}">Записать на новый созвон</button>`;
   } else if (st.kind === "mark") {
     const at = Date.parse(st.call.at);
     title = `Созвон ${fmtWhen(at)} · ${esc(userName(st.call.mopId))}`;
@@ -1702,6 +1709,18 @@ $app.addEventListener("click", async (e) => {
     const input = document.getElementById("comment");
     if (!input.value.trim()) return;
     return act(d.comment, { type: "comment", text: input.value });
+  }
+  if (d.addpay) {
+    const c = clientById(d.addpay);
+    const ev = [...(c.events || [])].reverse().find((e) => e.t === "paid");
+    try {
+      const res = await api("POST", "/payments", { clientId: c.id, clientName: clientTitle(c), mopId: c.mopId, lidorubId: c.lidorubId, tariff: ev?.sum || c.wantedSum || 0, date: today() });
+      state.payments = [...(state.payments || []), res.payment];
+      toast("Оплата добавлена — внеси чистую в ведомости");
+      return render();
+    } catch (e) {
+      return alertDialog(e.message);
+    }
   }
   if (d.dropcall) {
     if (!(await confirmDialog("Убрать этот созвон из карточки? Используй для дублей и ошибок — РнП пересчитается."))) return;

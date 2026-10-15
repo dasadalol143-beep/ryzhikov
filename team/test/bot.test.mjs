@@ -580,3 +580,31 @@ test("dropcall removes a duplicate held/NDZ call and fixes status", async () => 
   assert.equal(c.status, "in_work");
   assert.equal(c.events.filter((e) => e.t === "ndz").length, 0);
 });
+
+test("«Оплатил» from a CRM sheet import gets a payroll draft; seed payments link by nick, no duplicates", async () => {
+  const { store, api } = await setup();
+  // клиент пришёл из CRM-таблицы, дальше его ведут в приложении
+  await api(1, "POST", "/import", { clients: [{ name: "Зовут Алексей", telegram: "@hanagassummi", status: "in_work", fromSheet: true, wantedSum: 70000 }] });
+  const a = (await store.all("client")).find((c) => c.telegram === "@hanagassummi");
+  await api(503, "POST", `/clients/${a.id}/action`, { type: "call", at: new Date(Date.now() - 3600_000).toISOString(), mopId: "502" });
+  await api(502, "POST", `/clients/${a.id}/action`, { type: "held" });
+  // исторический клиент из таблицы, оплата уже в ведомости (seed)
+  const r = (await api(1, "POST", "/import", {
+    payments: [{ id: "seed-dima-5", date: "2026-10-10", tariff: 95000, net: 65550, verified: true, mopAlias: "Дима", clientName: "Ромчик @poopkek" }],
+    clients: [
+      { name: "Ромчик", telegram: "@poopkek", status: "paid", fromSheet: true, mopAlias: "Дима", calls: [{ id: "l1", at: "2026-10-08T15:00:00.000Z", outcome: "held", legacy: true }] },
+      { name: "Зовут Алексей", telegram: "@hanagassummi", status: "paid", fromSheet: true, nextSteps: "Был пересозвон (в рамках него всё оплатил)" },
+    ],
+  })).body;
+  assert.equal(r.paidFromSheet, 1);
+  const pays = await store.all("payment");
+  const alexey = pays.filter((p) => p.clientId === a.id);
+  assert.equal(alexey.length, 1);
+  assert.equal(alexey[0].tariff, 70000);
+  assert.equal(alexey[0].verified, false);
+  const romchik = (await store.all("client")).find((c) => c.telegram === "@poopkek");
+  assert.equal(pays.filter((p) => p.clientId === romchik.id).length, 1); // seed привязан, второй не создан
+  // повторная сверка не плодит
+  const { reconcilePaid } = await import("../src/api.mjs");
+  assert.deepEqual(await reconcilePaid(store), { linked: 0, created: 0 });
+});

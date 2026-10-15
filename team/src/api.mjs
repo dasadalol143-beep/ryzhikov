@@ -155,6 +155,43 @@ export async function autoMergeDups(store) {
   return merged;
 }
 
+// ---------- сверка «Оплатил» ↔ ведомость ----------
+// Оплата из таблицы (seed) привязывается к клиенту по @нику в названии; клиент «Оплатил» с работой в приложении
+// без единой оплаты в ведомости — получает черновик «ждёт проверки» (так бывает после импорта CRM-таблицы).
+export async function reconcilePaid(store, now = Date.now()) {
+  const [clients, payments] = await Promise.all([store.all("client"), store.all("payment")]);
+  const linked = [];
+  for (const p of payments) {
+    if (p.clientId) continue;
+    const nick = (String(p.clientName || "").match(/@([A-Za-z][\w]{3,31})/) || [])[1];
+    const c = nick && clients.find((x) => nickKey(x.telegram) === nick.toLowerCase());
+    if (c) {
+      p.clientId = c.id;
+      linked.push(p);
+    }
+  }
+  if (linked.length) await store.putMany("payment", linked);
+  const created = [];
+  for (const c of clients) {
+    if (c.status !== "paid" || payments.some((p) => p.clientId === c.id)) continue;
+    // Только клиенты, которых вели в приложении: исторические оплаты из таблицы уже в ведомости.
+    const appWork = (c.calls || []).some((x) => !x.legacy) || (c.events || []).some((e) => e.t === "paid");
+    if (!appWork) continue;
+    const ev = [...(c.events || [])].reverse().find((e) => e.t === "paid");
+    const lastHeld = [...(c.calls || [])].reverse().find((x) => x.outcome === "held");
+    const day = mskKey(Date.parse(ev?.at || lastHeld?.at || c.statusAt || nowIso()));
+    const tariff = money(ev?.sum) || c.wantedSum || 0;
+    const p = { id: randomUUID(), date: day, clientId: c.id, clientName: clientTitle(c), mopId: c.mopId, lidorubId: c.lidorubId, tariff, net: null, verified: false, note: "Добавлено сверкой: у клиента «Оплатил», а в ведомости оплаты не было", createdBy: "system", createdAt: nowIso(), paid: { mop: null, rop: null, lidorub: null } };
+    await store.put("payment", p.id, p);
+    created.push(p);
+  }
+  if (created.length) {
+    const { addFeed } = await import("./notify.mjs");
+    await addFeed(store, { type: "paid", text: `💰 В ведомость добавлены оплаты без записи: ${created.map((p) => `${p.clientName}${p.tariff ? ` ${Math.round(p.tariff).toLocaleString("ru-RU")} ₽` : ""}`).join(", ")} — внеси чистую и верифицируй`, by: "system", to: [] });
+  }
+  return { linked: linked.length, created: created.length };
+}
+
 async function moveToTrash(store, c, by, reason = "") {
   await store.put("trash", c.id, { ...c, deletedAt: nowIso(), deletedBy: by, deleteReason: reason });
   await store.del("client", c.id);
@@ -435,6 +472,8 @@ function applyPayment(p, body) {
   if ("net" in body) p.net = body.net === null || body.net === "" ? null : money(body.net);
   if ("mopId" in body) p.mopId = body.mopId ? String(body.mopId) : null;
   if ("clientName" in body) p.clientName = str(body.clientName, 120);
+  if ("clientId" in body) p.clientId = body.clientId ? String(body.clientId) : null;
+  if ("lidorubId" in body) p.lidorubId = body.lidorubId ? String(body.lidorubId) : null;
   if ("note" in body) p.note = str(body.note, 300);
   if ("verified" in body) p.verified = !!body.verified && p.net !== null;
 }
@@ -479,6 +518,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         if (!dd || Date.now() - Date.parse(dd.at) > 10 * 60_000) {
           await store.put("meta", "dedupe-at", { id: "dedupe-at", at: nowIso() });
           await autoMergeDups(store).catch(() => 0);
+          await reconcilePaid(store).catch(() => 0);
         }
         const [clients, legacy, pending, feed, settingsNow, windows] = await Promise.all([store.all("client"), store.get("meta", "legacy"), store.all("pending"), store.recent("feed", 120), loadSettings(store), loadWindows(store)]);
         return json({
@@ -784,7 +824,12 @@ export async function importSeed(store, body) {
         if (!hit.name && raw.name) hit.name = raw.name;
         if (!hit.mopId && mopId) hit.mopId = mopId;
         // Статус из таблицы берём, только если в приложении клиент ещё «новый» или пришёл из таблицы
-        if (raw.status && (hit.status === "new" || hit.fromSheet) && STATUS_IDS.includes(raw.status)) hit.status = raw.status;
+        // «Оплатил» из таблицы по клиенту, которого ведут в приложении, — как настоящая смена статуса (с оплатой в ведомости).
+        if (raw.status && (hit.status === "new" || hit.fromSheet) && STATUS_IDS.includes(raw.status) && raw.status !== hit.status) {
+          if (raw.status === "paid" && (hit.calls || []).some((x) => !x.legacy)) out.paidFromSheet = (out.paidFromSheet || 0) + 1;
+          hit.status = raw.status;
+          hit.statusAt = nowIso();
+        }
         changed.set(key, hit);
         out.merged++;
       } else {
@@ -795,6 +840,7 @@ export async function importSeed(store, body) {
       }
     }
     await store.putMany("client", [...changed.values()]);
+    if (out.paidFromSheet) out.reconciled = await reconcilePaid(store);
   }
   return out;
 }

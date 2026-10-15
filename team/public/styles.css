@@ -547,3 +547,5 @@ main > * { animation: rise .22s ease-out both; }
 .rnp td.drill { cursor: pointer; }
 .rnp td.drill:active { background: var(--accent-wash); }
 .rnp td.drill { text-decoration: underline dotted var(--line); text-underline-offset: 3px; }
+.paid-line { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 2px; padding: 10px 12px; border-radius: 12px; background: var(--good-wash); font-size: 14px; cursor: pointer; }
+.paid-line.warn { background: var(--warn-wash); cursor: default; display: block; }
