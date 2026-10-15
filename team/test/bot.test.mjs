@@ -606,7 +606,7 @@ test("«Оплатил» from a CRM sheet import gets a payroll draft; seed paym
   assert.equal(pays.filter((p) => p.clientId === romchik.id).length, 1); // seed привязан, второй не создан
   // повторная сверка не плодит
   const { reconcilePaid } = await import("../src/api.mjs");
-  assert.deepEqual(await reconcilePaid(store), { linked: 0, created: 0 });
+  assert.deepEqual(await reconcilePaid(store), { linked: 0, created: 0, removed: 0 });
 });
 
 test("re-call: one report for the client, no second report owed, one payment with the final sum on the re-call day", async () => {
@@ -631,4 +631,22 @@ test("re-call: one report for the client, no second report owed, one payment wit
   assert.equal(pays[0].date, new Date(Date.parse(d2) + 3 * 3600_000).toISOString().slice(0, 10));
   const t = rnp([c], {}).total;
   assert.deepEqual([t.sales, t.salesSum], [1, 75000]);
+});
+
+test("reconcile: manual payment «Алексей» links to «Зовут Алексей», the system draft is removed, no new drafts", async () => {
+  const { store, api } = await setup();
+  await api(1, "POST", "/import", { clients: [{ name: "Зовут Алексей", telegram: "@hanagassummi", status: "in_work", fromSheet: true }] });
+  const a = (await store.all("client")).find((c) => c.telegram === "@hanagassummi");
+  await api(503, "POST", `/clients/${a.id}/action`, { type: "call", at: new Date(Date.now() - 3600_000).toISOString(), mopId: "502" });
+  await api(502, "POST", `/clients/${a.id}/action`, { type: "held" });
+  // статус из таблицы → сверка создала черновик
+  await api(1, "POST", "/import", { clients: [{ name: "Зовут Алексей", telegram: "@hanagassummi", status: "paid", fromSheet: true }] });
+  assert.equal((await store.all("payment")).filter((p) => p.createdBy === "system").length, 1);
+  // Андрей заводит оплату руками: «Алексей», без ника, верифицирует
+  const day = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
+  const res = (await api(1, "POST", "/payments", { date: day, tariff: 70000, net: 51000, verified: true, mopId: "502", clientName: "Алексей" })).body;
+  const pays = res.payments;
+  assert.equal(pays.length, 1);
+  assert.equal(pays[0].clientId, a.id);
+  assert.equal(pays[0].verified, true);
 });

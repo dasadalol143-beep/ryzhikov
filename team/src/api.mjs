@@ -159,37 +159,64 @@ export async function autoMergeDups(store) {
 // Оплата из таблицы (seed) привязывается к клиенту по @нику в названии; клиент «Оплатил» с работой в приложении
 // без единой оплаты в ведомости — получает черновик «ждёт проверки» (так бывает после импорта CRM-таблицы).
 export async function reconcilePaid(store, now = Date.now()) {
-  const [clients, payments] = await Promise.all([store.all("client"), store.all("payment")]);
+  const [clients, payments, settings] = await Promise.all([store.all("client"), store.all("payment"), loadSettings(store)]);
+  const mopOf = mopResolver(settings);
+  const words = (t) => String(t || "").replace(/@[\w]+/g, " ").toLowerCase().replace(/ё/g, "е").split(/[^a-zа-я0-9]+/).filter((w) => w.length >= 3);
+  const dayOf = (c) => mskKey(Date.parse([...(c.events || [])].reverse().find((e) => e.t === "paid")?.at || [...(c.calls || [])].filter((x) => x.outcome === "held").sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0]?.at || c.statusAt || nowIso()));
+  const near = (a, b, days = 10) => Math.abs(Date.parse(a) - Date.parse(b)) <= days * 86400_000;
   const linked = [];
   for (const p of payments) {
     if (p.clientId) continue;
+    // 1) по @нику в названии оплаты
     const nick = (String(p.clientName || "").match(/@([A-Za-z][\w]{3,31})/) || [])[1];
-    const c = nick && clients.find((x) => nickKey(x.telegram) === nick.toLowerCase());
+    let c = nick && clients.find((x) => nickKey(x.telegram) === nick.toLowerCase());
+    // 2) заведённую вручную («Алексей», без ника) — по имени + диагност + дата, если кандидат один
+    if (!c) {
+      const pw = words(p.clientName);
+      const cands = clients.filter((x) => x.status === "paid" && x.mopId && x.mopId === mopOf(p) && pw.some((w) => words(x.name).includes(w)) && near(p.date, dayOf(x)));
+      if (cands.length === 1) c = cands[0];
+    }
     if (c) {
       p.clientId = c.id;
       linked.push(p);
     }
   }
   if (linked.length) await store.putMany("payment", linked);
+  // Черновик сверки дублирует настоящую оплату того же клиента — убираем черновик.
+  let removed = 0;
+  for (const c of clients) {
+    const own = payments.filter((p) => p.clientId === c.id);
+    if (own.length < 2) continue;
+    const real = own.filter((p) => p.createdBy !== "system");
+    for (const p of own.filter((x) => x.createdBy === "system" && !x.verified)) {
+      if (real.length || own.indexOf(p) > 0) {
+        await store.del("payment", p.id);
+        payments.splice(payments.indexOf(p), 1);
+        removed++;
+      }
+    }
+  }
   const created = [];
   for (const c of clients) {
     if (c.status !== "paid" || payments.some((p) => p.clientId === c.id)) continue;
     // Только клиенты, которых вели в приложении: исторические оплаты из таблицы уже в ведомости.
     const appWork = (c.calls || []).some((x) => !x.legacy) || (c.events || []).some((e) => e.t === "paid");
     if (!appWork) continue;
+    const day = dayOf(c);
     const ev = [...(c.events || [])].reverse().find((e) => e.t === "paid");
-    const lastHeld = [...(c.calls || [])].reverse().find((x) => x.outcome === "held");
-    const day = mskKey(Date.parse(ev?.at || lastHeld?.at || c.statusAt || nowIso()));
     const tariff = money(ev?.sum) || c.wantedSum || 0;
+    // Похожая непривязанная оплата у того же диагноста рядом по дате — не дублируем, пусть её привяжут.
+    if (payments.some((p) => !p.clientId && mopOf(p) === c.mopId && near(p.date, day) && (!tariff || Number(p.tariff) === tariff))) continue;
     const p = { id: randomUUID(), date: day, clientId: c.id, clientName: clientTitle(c), mopId: c.mopId, lidorubId: c.lidorubId, tariff, net: null, verified: false, note: "Добавлено сверкой: у клиента «Оплатил», а в ведомости оплаты не было", createdBy: "system", createdAt: nowIso(), paid: { mop: null, rop: null, lidorub: null } };
     await store.put("payment", p.id, p);
+    payments.push(p);
     created.push(p);
   }
   if (created.length) {
     const { addFeed } = await import("./notify.mjs");
     await addFeed(store, { type: "paid", text: `💰 В ведомость добавлены оплаты без записи: ${created.map((p) => `${p.clientName}${p.tariff ? ` ${Math.round(p.tariff).toLocaleString("ru-RU")} ₽` : ""}`).join(", ")} — внеси чистую и верифицируй`, by: "system", to: [] });
   }
-  return { linked: linked.length, created: created.length };
+  return { linked: linked.length, created: created.length, removed };
 }
 
 async function moveToTrash(store, c, by, reason = "") {
@@ -644,7 +671,9 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           applyPayment(p, body);
           applyPayment(p, { verified: body.verified });
           await store.put("payment", p.id, p);
-          return json({ payment: p });
+          // Завели оплату вручную — сразу привязать к клиенту и убрать дубль-черновик сверки.
+          await reconcilePaid(store).catch(() => 0);
+          return json({ payment: (await store.get("payment", p.id)) || p, payments: await store.all("payment") });
         }
         if (pm) {
           const p = await store.get("payment", pm[1]);
@@ -657,7 +686,8 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
             applyPayment(p, body);
             if ("verified" in body) p.verifiedBy = p.verified ? by : null;
             await store.put("payment", p.id, p);
-            return json({ payment: p });
+            await reconcilePaid(store).catch(() => 0);
+            return json({ payment: (await store.get("payment", p.id)) || p, payments: await store.all("payment") });
           }
         }
         return json({ error: "not_found" }, 404);

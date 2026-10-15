@@ -1439,9 +1439,12 @@ function openPayment(p) {
         if (verified && body.net === null) return alertDialog("Без чистой суммы верифицировать нельзя");
         try {
           const res = isNew ? await api("POST", "/payments", { ...body, verified }) : await api("PATCH", `/payments/${p.id}`, { ...body, verified });
-          const i = state.payments.findIndex((x) => x.id === res.payment.id);
-          if (i >= 0) state.payments[i] = res.payment;
-          else state.payments.push(res.payment);
+          if (res.payments) state.payments = res.payments;
+          else {
+            const i = state.payments.findIndex((x) => x.id === res.payment.id);
+            if (i >= 0) state.payments[i] = res.payment;
+            else state.payments.push(res.payment);
+          }
           closeSheet();
           toast("Сохранено");
           render();
@@ -1725,7 +1728,7 @@ $app.addEventListener("click", async (e) => {
     const ev = [...(c.events || [])].reverse().find((e) => e.t === "paid");
     try {
       const res = await api("POST", "/payments", { clientId: c.id, clientName: clientTitle(c), mopId: c.mopId, lidorubId: c.lidorubId, tariff: ev?.sum || c.wantedSum || 0, date: today() });
-      state.payments = [...(state.payments || []), res.payment];
+      state.payments = res.payments || [...(state.payments || []), res.payment];
       toast("Оплата добавлена — внеси чистую в ведомости");
       return render();
     } catch (e) {
