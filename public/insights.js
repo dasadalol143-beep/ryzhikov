@@ -61,7 +61,7 @@ export function paidEvents(leads, offers) {
     for (const [id, lo] of Object.entries(lead.offers || {})) {
       if (lo.status !== "paid") continue;
       const o = catalog.get(id);
-      out.push({ lead, offerId: id, name: o?.name || id, partner: o?.partner || "", category: o?.category || "rko", amount: lo.amount, day: lo.changedAt ? dayKey(lo.changedAt) : null });
+      out.push({ lead, offerId: id, name: o?.name || id, partner: lo.network || o?.partner || "", category: o?.category || "rko", amount: lo.amount, day: lo.changedAt ? dayKey(lo.changedAt) : null });
     }
   }
   return out;

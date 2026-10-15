@@ -287,3 +287,19 @@ div.row:active { background: var(--bg2); }
 .inline-add input { background: var(--bg2); padding: 8px 10px; }
 .new-offer { margin: 8px 0 4px; }
 .dup-banner { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; border: 1.5px solid var(--orange); }
+
+/* нажимаемые цифры, справка, графики v2 */
+.tap { cursor: pointer; }
+.kpi.tap:active, .hbar.tap:active { opacity: .7; }
+.title-row { display: flex; justify-content: space-between; align-items: center; }
+.explain { background: var(--bg); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; font-size: 14px; line-height: 1.45; color: var(--text); }
+.help h3 { font-size: 15px; margin: 14px 0 6px; }
+.help h3:first-child { margin-top: 0; }
+.help p { margin: 6px 0; font-size: 14px; line-height: 1.45; }
+.chart-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.chart .bar.muted { fill: var(--hint); opacity: .45; }
+.chart-x.even { display: flex; justify-content: space-around; }
+.chart-tip .link { font-size: 13px; padding: 0 4px; }
+.sub.up { color: var(--green); }
+.sheet-close { position: sticky; top: 0; float: right; margin: -4px -4px 0 8px; width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--bg); color: var(--hint); font-size: 16px; cursor: pointer; z-index: 2; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+.sheet-head .btn { margin-right: 40px; }

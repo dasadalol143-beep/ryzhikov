@@ -24,7 +24,7 @@ test("parse: forward, hidden forward, contact, free text", () => {
 });
 
 function setup() {
-  const data = new Map([["bot_webhook", { url: "https://crm.test/api/tg" }]]);
+  const data = new Map([["bot_webhook", { url: "https://crm.test/api/tg", v: 3 }]]);
   const store = {
     getJSON: async (k) => (data.has(k) ? structuredClone(data.get(k)) : null),
     setJSON: async (k, v) => void data.set(k, structuredClone(v)),
@@ -63,7 +63,7 @@ test("bot: forwarded message creates a lead, duplicates are caught, strangers re
   assert.equal((await hook({ from: damir, text: "hi" }, "wrong")).status, 403);
 
   await hook({ from: damir, text: "Хочу заработать", forward_origin: { type: "user", sender_user: { id: 55, username: "ivan_rko", first_name: "Иван" } } });
-  assert.match(sent.at(-1).text, /✅ Лид создан: <b>@ivan_rko<\/b>/);
+  assert.match(sent.at(-1).text, /✅ Лид создан\n\n👤 <b>@ivan_rko<\/b>/);
   const leadId = JSON.parse(sent.at(-1).markup).inline_keyboard[0][0].web_app.url.split("lead=")[1];
 
   const leads = (await api(damir, "GET", "/state")).body.leads;
@@ -75,12 +75,13 @@ test("bot: forwarded message creates a lead, duplicates are caught, strangers re
   assert.match(sent.at(-1).text, /уже есть/);
   await hook({ from: damir, contact: { phone_number: "+79990001122", first_name: "Маша", user_id: 77 } });
   await hook({ from: damir, text: "8 999 000 11 22" });
-  assert.match(sent.at(-1).text, /уже есть: <b>Маша<\/b>/);
+  assert.match(sent.at(-1).text, /уже есть[\s\S]*<b>Маша<\/b>/);
 
   await hook({ from: { id: 42, first_name: "Чужой" }, text: "@someone" });
   assert.match(sent.at(-1).text, /Доступа у тебя пока нет/);
   await hook({ from: damir, text: "/start" });
-  assert.match(sent.at(-1).text, /Как завести лида/);
+  assert.match(sent.at(-1).text, /Это бот вашей CRM/);
+  assert.ok(JSON.parse(sent.at(-1).markup).keyboard, "постоянное меню");
   assert.equal((await api(damir, "GET", "/state")).body.leads.length, 2);
 
   // менеджер — лид записывается на него
@@ -174,5 +175,69 @@ test("bot reminders: set, appear in CRM, fire on time, snooze, cancel", async ()
 
   // пересланное сообщение со словом «напомни» — это лид, а не напоминание
   await hook({ from: petr, text: "напомни мне про банк", forward_origin: { type: "user", sender_user: { id: 321, username: "new_guy", first_name: "Новый" } } });
-  assert.match(sent.at(-1).text, /Лид создан: <b>@new_guy/);
+  assert.match(sent.at(-1).text, /Лид создан[\s\S]*<b>@new_guy/);
 });
+
+test("bot menu: search, create from search, card buttons, advance status, remind tomorrow, numbers", async () => {
+  const { hook, sent, data } = setup();
+  const damir = { id: 1, first_name: "Дамир" };
+  const last = () => sent.filter((x) => x.method === "sendMessage").at(-1);
+  await hook({ from: damir, text: "@yann Соловьёва Мария" });
+  const leadKey = [...data.keys()].find((k) => k.startsWith("leads/"));
+  const id = data.get(leadKey).id;
+
+  // поиск по фамилии → сразу карточка
+  await hook({ from: damir, text: "соловьёва" });
+  assert.match(last().text, /👤 <b>@yann<\/b> · Соловьёва Мария/);
+  const kb = JSON.parse(last().markup).inline_keyboard;
+  assert.deepEqual(kb.flat().map((b) => b.text), ["📱 Открыть в CRM", "✉️ Написать", "⏰ Завтра в 10"]);
+
+  // не нашли → кнопка «Создать»
+  await hook({ from: damir, text: "Петров Пётр" });
+  assert.match(last().text, /нет в CRM. Создать\?/);
+  const cb = (d) => hookCb(d);
+  const hookCb = async (d) => {
+    const { webhookSecret } = await import("../lib/telegram.mjs");
+    const res = await fetchHandle(new Request("https://crm.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": await webhookSecret(BOT_TOKEN) }, body: JSON.stringify({ callback_query: { id: "q", from: damir, data: d, message: { message_id: 9, chat: { id: 1 } } } }) }));
+    return res;
+  };
+  const fetchHandle = setupHandle(data, sent);
+  await cb("mk");
+  assert.match(last().text, /✅ Лид создан[\s\S]*Петров Пётр/);
+
+  // офферы и прогресс прямо из бота
+  const lead = data.get(leadKey);
+  lead.offers = { vtb: { status: "opened", amount: 7000, cost: 0 } };
+  data.set(leadKey, lead);
+  await cb(`lstat:${id.slice(0, 12)}`);
+  assert.match(JSON.parse(last().markup).inline_keyboard[0][0].text, /ВТБ: Нужна ЦД → Ждём засчёта/);
+  await cb(`adv:${id.slice(0, 12)}:vtb`);
+  assert.equal(data.get(leadKey).offers.vtb.status, "done");
+  assert.deepEqual(data.get(leadKey).history.slice(0, 2).map((x) => x.text), ["Этап: В работе", "ВТБ — РКО: Ждём засчёта"]);
+
+  await cb(`rem1:${id.slice(0, 12)}`);
+  assert.equal(data.get("reminders").length, 1);
+  assert.match(last().text, /в 10:00 МСК/);
+
+  await hook({ from: damir, text: "📊 Цифры" });
+  assert.match(last().text, /📊 <b>Цифры<\/b>[\s\S]*Ждём засчёта: 7\s000 ₽/);
+  await hook({ from: damir, text: "☀️ Сводка" });
+  assert.match(last().text, /Сводка CRM/);
+});
+
+function setupHandle(data, sent) {
+  return async (req) => {
+    const { createHandler } = await import("../lib/core.mjs");
+    const store = {
+      getJSON: async (k) => (data.has(k) ? structuredClone(data.get(k)) : null),
+      setJSON: async (k, v) => void data.set(k, structuredClone(v)),
+      delete: async (k) => void data.delete(k),
+      list: async (p) => [...data.keys()].filter((k) => k.startsWith(p)),
+    };
+    const fakeFetch = async (url, init) => {
+      sent.push({ method: url.split("/").pop(), chat: init.body.get("chat_id"), text: init.body.get("text"), markup: init.body.get("reply_markup") });
+      return new Response(JSON.stringify({ ok: true, result: {} }));
+    };
+    return createHandler({ store, env, fetch: fakeFetch })(req);
+  };
+}

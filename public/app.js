@@ -33,6 +33,7 @@ const state = {
   filter: "all",
   sort: "recent",
   query: "",
+  offerFilter: null, // { id, cond: none|work|paid|dead }
   period: "30",
 };
 
@@ -116,13 +117,28 @@ function initData() {
   }
 }
 
+// Запрос к серверу с таймаутом: без него при плохой связи кнопка «висит» вечно.
 async function api(method, path, body) {
-  const res = await fetch(`/api${path}`, {
-    method,
-    headers: { "content-type": "application/json", authorization: `tma ${initData()}` },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  let res;
+  try {
+    res = await fetch(`/api${path}`, {
+      method,
+      headers: { "content-type": "application/json", authorization: `tma ${initData()}` },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: ctrl.signal,
+    });
+  } catch (e) {
+    throw Object.assign(new Error(e.name === "AbortError" ? "сервер не ответил за 20 секунд — проверь интернет" : "нет связи с сервером"), { status: 0, data: {} });
+  } finally {
+    clearTimeout(timer);
+  }
   const data = await res.json().catch(() => ({}));
+  if (res.status === 401 && state.me) {
+    // Сессия Telegram живёт сутки: если CRM висела открытой дольше — просим переоткрыть.
+    alertDialog("Сессия устарела. Закрой CRM и открой заново кнопкой в боте — изменения сохранятся после этого.");
+  }
   if (!res.ok) throw Object.assign(new Error(data.detail || data.error || res.statusText), { status: res.status, data });
   return data;
 }
@@ -141,8 +157,9 @@ function openSheet(html, onMount, { instant = false } = {}) {
   closeSheet();
   const wrap = document.createElement("div");
   wrap.className = "sheet-wrap" + (instant ? " open instant" : "");
-  wrap.innerHTML = `<div class="sheet-backdrop"></div><div class="sheet"><div class="sheet-grip"></div>${html}</div>`;
+  wrap.innerHTML = `<div class="sheet-backdrop"></div><div class="sheet"><div class="sheet-grip"></div><button class="sheet-close" aria-label="Закрыть">✕</button>${html}</div>`;
   wrap.querySelector(".sheet-backdrop").onclick = closeSheet;
+  wrap.querySelector(".sheet-close").onclick = closeSheet;
   document.body.append(wrap);
   if (!instant) requestAnimationFrame(() => wrap.classList.add("open"));
   const sheet = wrap.querySelector(".sheet");
@@ -263,9 +280,9 @@ function renderToday() {
           <div class="hero-hi">${hi}, ${esc((state.me.name || "").split(" ")[0])} 👋</div>
           <div class="hero-date">${esc(dateText)} · ${tasks ? `${tasks} ${plural(tasks, "задача", "задачи", "задач")}` : "срочного нет"}</div>
         </div>
-        <button class="btn round light" id="addLead" aria-label="Новый лид">＋</button>
+        <div style="display:flex;gap:8px"><button class="btn round light" data-help="start" aria-label="Как пользоваться">?</button><button class="btn round light" id="addLead" aria-label="Новый лид">＋</button></div>
       </div>
-      <div class="hero-label">Засчитано в этом месяце</div>
+      <div class="hero-label tap" data-explain="month">Засчитано в этом месяце ›</div>
       <div class="hero-value">${rub(monthIncome)}</div>
       ${
         goal
@@ -276,14 +293,14 @@ function renderToday() {
     </div>
 
     <div class="kpis">
-      <div class="kpi"><div class="label">За 7 дней</div><div class="value">${rub(week)}</div>
+      <div class="kpi tap" data-explain="week"><div class="label">За 7 дней ›</div><div class="value">${rub(week)}</div>
         <div class="hint">${!week && !prevWeek ? "считается по засчётам в CRM" : delta === null ? "чистыми ≈ " + rub(netOf(week, state.settings)) : `${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta)}% к прошлой неделе`}</div></div>
-      <div class="kpi"><div class="label">Ждём засчёта</div><div class="value">${rub(t.waiting)}</div><div class="hint">ЦД сделали, денег нет</div></div>
+      <div class="kpi tap" data-explain="waiting"><div class="label">Ждём засчёта ›</div><div class="value">${rub(t.waiting)}</div><div class="hint">ЦД сделали, денег нет</div></div>
       ${isAdmin() ? (() => {
         const debt = networkReport(state.leads, state.offers, state.payouts).reduce((t, n) => t + n.debt, 0);
         return debt ? `<div class="kpi debt wide" data-gomore="payouts" role="button"><div class="label">Сети не доплатили</div><div class="value">${rub(debt)}</div><div class="hint">засчитано, но денег не видели → сверить</div></div>` : "";
       })() : ""}
-      <div class="kpi wide"><div class="label">В работе</div><div class="value">${rub(t.inWork)}</div><div class="hint">заявки и открытые счета — столько можно дожать</div></div>
+      <div class="kpi wide tap" data-explain="inwork"><div class="label">В работе ›</div><div class="value">${rub(t.inWork)}</div><div class="hint">заявки и открытые счета — столько можно дожать</div></div>
     </div>
 
     ${section("⏰", "Сроки по офферам", w.dues, (d) =>
@@ -322,6 +339,8 @@ const FILTERS = [
   ["remind", "Напоминания"],
   ["stale", "Без движения"],
   ["new", "Новые"],
+  ["in_work", "В работе"],
+  ["offers", "Докрутка"],
   ["closed", "Цикл закрыт"],
   ["lost", "Слились"],
 ];
@@ -346,10 +365,16 @@ function filterLeads() {
     new: (l) => l.stage === "new",
     closed: (l) => l.stage === "closed",
     lost: (l) => l.stage === "lost",
-  }[state.filter];
+  }[state.filter] || ((l) => l.stage === state.filter);
   const list = state.leads
     .filter(pass)
     .filter((l) => !q || `${l.telegram} ${l.fio} ${l.phone || ""} ${l.source} ${l.nextStep || ""}`.toLowerCase().includes(q))
+    .filter((l) => {
+      const f = state.offerFilter;
+      if (!f) return true;
+      const st = l.offers?.[f.id]?.status || "none";
+      return f.cond === "none" ? st === "none" && ACTIVE_STAGES.has(l.stage) : f.cond === "work" ? ["applied", "opened", "done"].includes(st) : f.cond === "paid" ? st === "paid" : ["rejected", "exists"].includes(st);
+    })
     .map((l) => ({ l, m: money(l) }));
   const sorters = {
     recent: (a, b) => b.l.updatedAt.localeCompare(a.l.updatedAt),
@@ -394,8 +419,9 @@ function renderLeads() {
     <div class="chips">
       ${FILTERS.map(([f, label]) => `<button class="chip ${state.filter === f ? "active" : ""}" data-filter="${f}">${label}</button>`).join("")}
     </div>
+    ${state.offerFilter ? `<div class="chips tight" style="margin:0 0 8px"><button class="chip active" id="offerFilterClear">${esc(offerById(state.offerFilter.id)?.name.replace(/ — РКО$/, "") || "")}: ${OFFER_CONDS[state.offerFilter.cond]} ✕</button></div>` : ""}
     <div class="list-head">
-      <span>${list.length} ${plural(list.length, "лид", "лида", "лидов")}</span>
+      <span>${list.length} ${plural(list.length, "лид", "лида", "лидов")} · <button class="link" id="offerFilter">🏦 Фильтр по офферу</button></span>
       <select id="sort">${SORTS.map(([s, label]) => `<option value="${s}" ${state.sort === s ? "selected" : ""}>${label}</option>`).join("")}</select>
     </div>
     <div id="leadList">${leadListHtml(list)}</div>`;
@@ -406,11 +432,37 @@ function renderLeads() {
     document.getElementById("leadList").innerHTML = leadListHtml(filterLeads());
   });
   document.getElementById("mergeDups")?.addEventListener("click", (e) => mergeDuplicates(e.target));
+  document.getElementById("offerFilter").onclick = offerFilterSheet;
+  document.getElementById("offerFilterClear")?.addEventListener("click", () => go({ offerFilter: null }));
   document.getElementById("sort").onchange = (e) => {
     state.sort = e.target.value;
     renderLeads();
   };
   document.getElementById("addLead").onclick = addLeadSheet;
+}
+
+const OFFER_CONDS = { none: "ещё не делали", work: "в работе", paid: "засчитан", dead: "отказ / уже есть" };
+
+function offerFilterSheet() {
+  let cond = state.offerFilter?.cond || "none";
+  openSheet(
+    `<h2 class="sheet-title">Фильтр по офферу</h2>
+    <div class="explain">Например: «Озон — ещё не делали» покажет активных лидов, кому можно предложить Озон. «ВТБ — в работе» — у кого ВТБ сейчас в процессе.</div>
+    <div class="chips tight" id="conds">${Object.entries(OFFER_CONDS).map(([k, l]) => `<button class="chip ${k === cond ? "active" : ""}" data-cond="${k}">${l}</button>`).join("")}</div>
+    ${Object.keys(CATEGORY_LABELS)
+      .map((c) => {
+        const list = state.offers.filter((o) => o.category === c && o.active);
+        return list.length ? `<h2>${CATEGORY_LABELS[c]}</h2><div class="offer-grid">${list.map((o) => `<button class="offer-chip" data-fo="${o.id}"><b>${esc(o.name.replace(/ — РКО$/, ""))}</b><span>${o.amount ? rub(o.amount) : ""}</span></button>`).join("")}</div>` : "";
+      })
+      .join("")}`,
+    (el) => {
+      el.querySelectorAll("[data-cond]").forEach((b) => (b.onclick = () => {
+        cond = b.dataset.cond;
+        el.querySelectorAll("[data-cond]").forEach((x) => x.classList.toggle("active", x === b));
+      }));
+      el.querySelectorAll("[data-fo]").forEach((b) => (b.onclick = () => go({ offerFilter: { id: b.dataset.fo, cond }, filter: "all" })));
+    },
+  );
 }
 
 function leadListHtml(list) {
@@ -841,135 +893,288 @@ function periodRange() {
   return { from: addDays(today, -(+state.period - 1)), to: today };
 }
 
-function barChart(days) {
-  const max = Math.max(1, ...days.map((d) => d.sum));
-  const w = 320, h = 120, gap = 2;
-  const bw = Math.max(2, (w - gap * (days.length - 1)) / days.length);
-  const bars = days
+// Столбиковая диаграмма: одна серия, тап по столбику — подпись и «Подробнее».
+function barChart(id, items, { title, empty = "Пока пусто" } = {}) {
+  const max = Math.max(1, ...items.map((d) => d.sum));
+  const w = 320, h = 120, gap = items.length > 20 ? 2 : 6;
+  const bw = Math.max(2, (w - gap * (items.length - 1)) / items.length);
+  const bars = items
     .map((d, i) => {
       const bh = d.sum ? Math.max(3, (d.sum / max) * (h - 4)) : 0;
       const x = i * (bw + gap), y = h - bh, r = Math.min(4, bw / 2, bh);
       const path = bh ? `M${x},${h} V${y + r} Q${x},${y} ${x + r},${y} H${x + bw - r} Q${x + bw},${y} ${x + bw},${y + r} V${h} Z` : "";
-      return `<g data-bar="${i}"><rect x="${x - gap / 2}" y="0" width="${bw + gap}" height="${h}" fill="transparent"/>${path ? `<path d="${path}" class="bar"/>` : ""}</g>`;
+      return `<g data-chart="${id}" data-i="${i}"><rect x="${x - gap / 2}" y="0" width="${bw + gap}" height="${h}" fill="transparent"/>${path ? `<path d="${path}" class="bar${d.muted ? " muted" : ""}"/>` : ""}</g>`;
     })
     .join("");
+  const labels = items.length <= 8
+    ? `<div class="chart-x even">${items.map((d) => `<span>${esc(d.label)}</span>`).join("")}</div>`
+    : `<div class="chart-x"><span>${esc(items[0].label)}</span><span>${esc(items[items.length - 1].label)}</span></div>`;
   return `<div class="chart">
-    <div class="chart-tip" id="tip">Тапни на столбик</div>
-    <svg viewBox="0 0 ${w} ${h + 1}" preserveAspectRatio="none" role="img" aria-label="Засчитано по дням">${bars}<line x1="0" x2="${w}" y1="${h + 0.5}" y2="${h + 0.5}" class="axis"/></svg>
-    <div class="chart-x"><span>${fmtDate(days[0].day)}</span><span>${fmtDate(days[days.length - 1].day)}</span></div>
+    ${title ? `<div class="chart-title">${title}</div>` : ""}
+    <div class="chart-tip" id="tip-${id}">${items.some((d) => d.sum) ? "Нажми на столбик — покажу сумму и что внутри" : empty}</div>
+    <svg viewBox="0 0 ${w} ${h + 1}" preserveAspectRatio="none" role="img" aria-label="${esc(title || "диаграмма")}">${bars}<line x1="0" x2="${w}" y1="${h + 0.5}" y2="${h + 0.5}" class="axis"/></svg>
+    ${labels}
   </div>`;
 }
 
+// Горизонтальные полосы; строка может открывать окно (act — data-атрибуты).
 function hbars(rows, valueText) {
   const max = Math.max(1, ...rows.map((r) => r.value));
   return `<div class="list">${rows
     .map(
-      (r) => `<div class="hbar"><div class="hbar-top"><span>${esc(r.label)}</span><b>${valueText(r)}</b></div>
+      (r) => `<div class="hbar${r.act ? " tap" : ""}" ${r.act || ""}><div class="hbar-top"><span>${esc(r.label)}</span><b>${valueText(r)}${r.act ? " ›" : ""}</b></div>
         <div class="bar-track"><i style="width:${(r.value / max) * 100}%"></i></div>${r.note ? `<div class="sub">${r.note}</div>` : ""}</div>`,
     )
     .join("")}</div>`;
+}
+
+const MONTHS_RU = ["янв", "фев", "мар", "апр", "май", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"];
+const MONTHS_FULL = ["Январь", "Февраль", "Март", "Апрель", "Май", "Июнь", "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"];
+const monthLabel = (ym) => `${MONTHS_RU[+ym.slice(5, 7) - 1]}${ym.slice(2, 4) !== todayKey().slice(2, 4) ? " " + ym.slice(2, 4) : ""}`;
+const prevMonthKey = (ym) => {
+  const d = new Date(`${ym}-01T00:00:00Z`);
+  d.setUTCMonth(d.getUTCMonth() - 1);
+  return d.toISOString().slice(0, 7);
+};
+
+// Окно со списком засчётов (месяц, день, оффер) — по тапу в любой диаграмме.
+function paidSheet(title, events, about = "") {
+  const sum = events.reduce((t, e) => t + e.amount, 0);
+  const leadsN = new Set(events.map((e) => e.lead.id)).size;
+  openSheet(
+    `<h2 class="sheet-title">${esc(title)}</h2>
+    <div class="kpis three" style="margin-bottom:10px">
+      <div class="kpi"><div class="label">Засчитано</div><div class="value">${rub(sum)}</div></div>
+      <div class="kpi"><div class="label">Чистыми ≈</div><div class="value money-green">${rub(netOf(sum, state.settings))}</div></div>
+      <div class="kpi"><div class="label">Офферов / лидов</div><div class="value">${events.length} / ${leadsN}</div></div>
+    </div>
+    ${about ? `<div class="sub" style="margin:0 4px 10px">${about}</div>` : ""}
+    ${events.length ? `<div class="list">${events
+      .sort((a, b) => (b.day || "").localeCompare(a.day || "") || b.amount - a.amount)
+      .map((e) => leadRow(e.lead, `${esc(e.name.replace(/ — РКО$/, ""))}${e.day ? " · " + fmtDate(e.day) : " · из таблицы"}`, `<b class="money-green">${rub(e.amount)}</b>`))
+      .join("")}</div>` : `<div class="card empty small">Засчётов нет</div>`}`,
+  );
+}
+
+// Окно со списком лидов + объяснение, что это за цифра.
+function leadsSheet(title, about, rows) {
+  openSheet(
+    `<h2 class="sheet-title">${esc(title)}</h2>
+    <div class="explain">${about}</div>
+    ${rows.length ? `<div class="list">${rows.map((r) => leadRow(r.lead, r.sub || "", r.right || "")).join("")}</div>` : `<div class="card empty small">Сейчас здесь пусто</div>`}`,
+  );
+}
+
+// Что значит каждая плитка с цифрой — и какие лиды за ней стоят.
+function explain(key) {
+  const w = worklist(state.leads, state.offers);
+  const m = (l) => money(l);
+  const today = todayKey();
+  const paid = paidEvents(state.leads, state.offers);
+  const items = {
+    week: () => paidSheet("Засчитано за 7 дней", paid.filter((e) => e.day && e.day > addDays(today, -7)), "Офферы, которые получили статус «Засчитано» за последние 7 дней. Засчёты из старой таблицы без даты сюда не попадают."),
+    month: () => paidSheet(`${MONTHS_FULL[+today.slice(5, 7) - 1]}: засчитано`, paid.filter((e) => e.day?.startsWith(today.slice(0, 7))), "Всё, что засчитали в этом месяце. План месяца задаётся в «Ещё» → «Расчёт и план»."),
+    waiting: () =>
+      leadsSheet("Ждём засчёта", "Целевое действие (ЦД) сделали, но партнёрка ещё не засчитала. Если висит больше 5 дней — пиши менеджеру сети. Как засчитают — открой лида и поставь «Засчитано».",
+        w.waiting.map((x) => ({ lead: x.lead, sub: esc(x.items.map((i) => i.name.replace(/ — РКО$/, "")).join(", ")), right: `<b>${rub(x.sum)}</b>${x.days ? `<div class="sub ${x.days >= 5 ? "danger" : ""}">${x.days} дн.</div>` : ""}` }))),
+    inwork: () =>
+      leadsSheet("В работе", "Деньги, которые ещё можно дожать: заявки заведены или счёт открыт, но ЦД пока не сделали. Чем выше сумма — тем важнее лид.",
+        state.leads.map((l) => ({ l, v: m(l).inWork })).filter((x) => x.v).sort((a, b) => b.v - a.v).map((x) => ({ lead: x.l, sub: stageBadge(x.l.stage), right: `<b class="money-orange">${rub(x.v)}</b>` }))),
+    net: () =>
+      leadsSheet("Чистая выручка по лидам", `Чистая = засчитано − налог ${state.settings.taxRate}% − доля ${esc(state.settings.partnerName)} ${state.settings.partnerShare}% − затраты − выплачено лиду. Сверху самые прибыльные.`,
+        state.leads.map((l) => ({ l, v: m(l).net })).filter((x) => x.v).sort((a, b) => b.v - a.v).map((x) => ({ lead: x.l, sub: stageBadge(x.l.stage), right: `<b class="money-green">${rub(x.v)}</b>` }))),
+    conv: () => {
+      const ever = new Set(paid.map((e) => e.lead.id));
+      leadsSheet("Лиды без денег", `Из ${state.leads.length} лидов деньги принесли ${ever.size}. Ниже — те, кто ещё не принёс ни одного засчёта: их стоит докрутить или закрыть как «Слился».`,
+        state.leads.filter((l) => !ever.has(l.id) && l.stage !== "lost").map((l) => ({ lead: l, sub: stageBadge(l.stage), right: m(l).inWork ? `<span class="money-orange">${rub(m(l).inWork)}</span>` : "" })));
+    },
+  };
+  items[key]?.();
 }
 
 function renderStats() {
   const range = periodRange();
   const all = paidEvents(state.leads, state.offers);
   const inRange = range ? all.filter((e) => e.day && e.day >= range.from && e.day <= range.to) : all;
-  const undated = range ? 0 : all.filter((e) => !e.day).length;
+  const undated = all.filter((e) => !e.day);
   const income = inRange.reduce((s, e) => s + e.amount, 0);
   const leadsWithMoney = new Set(inRange.map((e) => e.lead.id));
   const totals = sumMoney(state.leads.map(money));
   const everPaid = new Set(all.map((e) => e.lead.id)).size;
+  const today = todayKey();
 
-  // по дням
-  let chart = "";
+  // По месяцам — за всё время. «До CRM» — засчёты из таблицы без даты.
+  const byMonth = new Map();
+  for (const e of all) if (e.day) byMonth.set(e.day.slice(0, 7), (byMonth.get(e.day.slice(0, 7)) || 0) + e.amount);
+  const months = [];
+  const firstMonth = [...byMonth.keys()].sort()[0] || today.slice(0, 7);
+  for (let mth = today.slice(0, 7), guard = 0; mth >= firstMonth && guard < 24; mth = prevMonthKey(mth), guard++) months.unshift(mth);
+  while (months.length < 3) months.unshift(prevMonthKey(months[0]));
+  const monthItems = months.map((mth) => ({ label: monthLabel(mth), sum: byMonth.get(mth) || 0, key: mth }));
+  state._charts = { months: monthItems };
+
+  // По дням — для выбранного периода.
+  let dayChart = "";
   if (range) {
     const days = [];
-    for (let d = range.from; d <= range.to; d = addDays(d, 1)) days.push({ day: d, sum: 0, n: 0 });
+    for (let d = range.from; d <= range.to; d = addDays(d, 1)) days.push({ label: fmtDate(d), sum: 0, key: d });
     for (const e of inRange) {
-      const slot = days.find((d) => d.day === e.day);
-      if (slot) {
-        slot.sum += e.amount;
-        slot.n++;
-      }
+      const slot = days.find((d) => d.key === e.day);
+      if (slot) slot.sum += e.amount;
     }
-    chart = `<h2>Засчитано по дням</h2>${barChart(days)}`;
-    state._days = days;
+    state._charts.days = days;
+    dayChart = barChart("days", days, { title: "По дням", empty: "За период засчётов нет" });
   }
 
-  // офферы: деньги и конверсия (по всем лидам, за всё время)
+  // Сравнение месяцев: последние 6.
+  const lastMonths = months.slice(-6).reverse();
+  const monthRows = lastMonths.map((mth, i) => {
+    const v = byMonth.get(mth) || 0;
+    const prev = byMonth.get(prevMonthKey(mth)) || 0;
+    const delta = prev ? Math.round(((v - prev) / prev) * 100) : null;
+    return `<div class="row" data-month="${mth}" role="button"><div class="grow"><div class="title">${MONTHS_FULL[+mth.slice(5, 7) - 1]} ${mth.slice(0, 4)}${i === 0 ? " · сейчас" : ""}</div>
+      <div class="sub">${all.filter((e) => e.day?.startsWith(mth)).length} засчётов · чистыми ≈ ${rub(netOf(v, state.settings))}</div></div>
+      <div class="right"><b>${rub(v)}</b>${delta !== null ? `<div class="sub ${delta >= 0 ? "up" : "danger"}">${delta >= 0 ? "▲" : "▼"} ${Math.abs(delta)}%</div>` : ""}</div></div>`;
+  });
+
+  // Воронка офферов: сколько дошло до каждого шага (за всё время).
+  const RANK = { applied: 1, opened: 2, done: 3, paid: 4 };
+  const reached = [0, 0, 0, 0, 0];
+  for (const l of state.leads) for (const lo of Object.values(l.offers || {})) for (let r = 1; r <= (RANK[lo.status] || 0); r++) reached[r]++;
+  const funnel = [
+    { label: "Заявка заведена", value: reached[1] },
+    { label: "Счёт открыт", value: reached[2] },
+    { label: "ЦД выполнено", value: reached[3] },
+    { label: "Засчитано", value: reached[4] },
+  ].map((f, i, arr) => ({ ...f, note: i && arr[i - 1].value ? `${Math.round((f.value / arr[i - 1].value) * 100)}% от предыдущего шага` : "" }));
+
+  // Топ офферов с конверсией.
   const byOffer = new Map();
   for (const l of state.leads)
     for (const [id, lo] of Object.entries(l.offers || {})) {
-      if (lo.status === "none") continue;
+      if (lo.status === "none" || lo.status === "exists") continue;
       const r = byOffer.get(id) || { tried: 0, paid: 0 };
-      if (lo.status !== "exists") r.tried++;
+      r.tried++;
+      if (lo.status === "paid") r.paid++;
       byOffer.set(id, r);
     }
-  const offerRows = new Map();
+  const offerAgg = new Map();
   for (const e of inRange) {
-    const r = offerRows.get(e.offerId) || { label: e.name.replace(/ — РКО$/, ""), value: 0, n: 0, id: e.offerId };
+    const r = offerAgg.get(e.offerId) || { label: e.name.replace(/ — РКО$/, ""), value: 0, n: 0, id: e.offerId };
     r.value += e.amount;
     r.n++;
-    offerRows.set(e.offerId, r);
+    offerAgg.set(e.offerId, r);
   }
-  for (const l of state.leads) for (const [id, lo] of Object.entries(l.offers || {})) if (lo.status === "paid" && byOffer.get(id)) byOffer.get(id).paid++;
-  const topOffers = [...offerRows.values()]
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 8)
-    .map((r) => {
-      const c = byOffer.get(r.id);
-      return { ...r, note: c?.tried ? `конверсия ${Math.round((c.paid / c.tried) * 100)}% · засчитано ${c.paid} из ${c.tried} попыток` : "" };
-    });
+  const topOffers = [...offerAgg.values()].sort((a, b) => b.value - a.value).slice(0, 8).map((r) => {
+    const c = byOffer.get(r.id);
+    return { ...r, act: `data-offerstat="${r.id}"`, note: c?.tried ? `конверсия ${Math.round((c.paid / c.tried) * 100)}%: засчитано ${c.paid} из ${c.tried} попыток` : "" };
+  });
 
   const group = (keyOf) => {
-    const m = new Map();
+    const mp = new Map();
     for (const e of inRange) {
       const k = keyOf(e) || "Не указано";
-      m.set(k, (m.get(k) || 0) + e.amount);
+      mp.set(k, (mp.get(k) || 0) + e.amount);
     }
-    return [...m].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
+    return [...mp].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
   };
-  const byPartner = group((e) => e.partner);
+  const byPartner = group((e) => e.partner).map((r) => ({ ...r, act: isAdmin() ? `data-netgo="${esc(r.label)}"` : "" }));
   const bySource = group((e) => e.lead.source);
-  const byOwner = group((e) => e.lead.ownerName);
-
-  const counts = Object.fromEntries(Object.keys(STAGE_LABELS).map((s) => [s, 0]));
+  const counts = Object.fromEntries(Object.keys(STAGE_LABELS).map((st) => [st, 0]));
   state.leads.forEach((l) => (counts[l.stage] = (counts[l.stage] || 0) + 1));
 
   $app.innerHTML = `
-    <h1>Статистика</h1>
+    <div class="title-row"><h1>Статистика</h1><button class="link" data-help="stats">Что тут? ›</button></div>
     <div class="chips">${PERIODS.map(([p, label]) => `<button class="chip ${state.period === p ? "active" : ""}" data-period="${p}">${label}</button>`).join("")}</div>
 
     <div class="kpis">
-      <div class="kpi accent"><div class="label">Засчитано</div><div class="value">${rub(income)}</div><div class="hint">${inRange.length} ${plural(inRange.length, "оффер", "оффера", "офферов")}</div></div>
-      <div class="kpi"><div class="label">Чистыми ≈</div><div class="value money-green">${rub(range ? netOf(income, state.settings) : totals.net)}</div><div class="hint">${range ? "после налога и доли, до затрат" : "после всех вычетов"}</div></div>
-      <div class="kpi"><div class="label">Средний чек лида</div><div class="value">${rub(leadsWithMoney.size ? income / leadsWithMoney.size : 0)}</div><div class="hint">${leadsWithMoney.size} ${plural(leadsWithMoney.size, "лид", "лида", "лидов")} принесли деньги</div></div>
-      <div class="kpi"><div class="label">Лид → деньги</div><div class="value">${state.leads.length ? Math.round((everPaid / state.leads.length) * 100) : 0}%</div><div class="hint">${everPaid} из ${state.leads.length} за всё время</div></div>
+      <div class="kpi accent tap" data-paidrange="1"><div class="label">Засчитано ›</div><div class="value">${rub(income)}</div><div class="hint">${inRange.length} ${plural(inRange.length, "оффер", "оффера", "офферов")}</div></div>
+      <div class="kpi tap" data-explain="net"><div class="label">Чистыми ≈ ›</div><div class="value money-green">${rub(range ? netOf(income, state.settings) : totals.net)}</div><div class="hint">${range ? "после налога и доли, до затрат" : "после всех вычетов"}</div></div>
+      <div class="kpi"><div class="label">Средний чек лида</div><div class="value">${rub(leadsWithMoney.size ? income / leadsWithMoney.size : 0)}</div><div class="hint">${leadsWithMoney.size} ${plural(leadsWithMoney.size, "лид принёс", "лида принесли", "лидов принесли")} деньги</div></div>
+      <div class="kpi tap" data-explain="conv"><div class="label">Лид → деньги ›</div><div class="value">${state.leads.length ? Math.round((everPaid / state.leads.length) * 100) : 0}%</div><div class="hint">${everPaid} из ${state.leads.length} за всё время</div></div>
     </div>
-    ${undated ? `<div class="sub note">${undated} засчётов перенесены из таблицы без даты — они видны только во «Всё время».</div>` : ""}
 
-    ${chart}
-    ${topOffers.length ? `<h2>Топ офферов</h2>${hbars(topOffers, (r) => `${rub(r.value)} · ${r.n}×`)}` : `<div class="card empty">За этот период засчётов нет</div>`}
+    <h2>История по месяцам</h2>
+    ${barChart("months", monthItems, { title: "Засчитано по месяцам — за всё время" })}
+    <div class="list" style="margin-top:8px">${monthRows.join("")}</div>
+    ${undated.length ? `<div class="list" style="margin-top:8px"><div class="row" id="undated" role="button"><div class="grow"><div class="title">До CRM · из таблицы</div><div class="sub">${undated.length} засчётов без даты — в месяцы не попадают</div></div><div class="right"><b>${rub(undated.reduce((t, e) => t + e.amount, 0))}</b> ›</div></div></div>` : ""}
+
+    ${dayChart}
+
+    <h2>Воронка офферов · за всё время</h2>
+    <div class="sub note" style="margin-top:-4px">Сколько офферов дошло до каждого шага. Где процент маленький — там теряются деньги.</div>
+    ${hbars(funnel, (r) => String(r.value))}
+
+    ${topOffers.length ? `<h2>Топ офферов</h2>${hbars(topOffers, (r) => `${rub(r.value)} · ${r.n}×`)}` : `<h2>Топ офферов</h2><div class="card empty small">За этот период засчётов нет — выбери «Всё время»</div>`}
     ${byPartner.length ? `<h2>Партнёрские сети</h2>${hbars(byPartner, (r) => rub(r.value))}` : ""}
     ${bySource.length > 1 || (bySource[0] && bySource[0].label !== "Не указано") ? `<h2>Источники лидов</h2>${hbars(bySource, (r) => rub(r.value))}` : ""}
-    ${byOwner.length > 1 ? `<h2>Кто завёл лида</h2>${hbars(byOwner, (r) => rub(r.value))}` : ""}
 
-    <h2>Воронка · ${state.leads.length} ${plural(state.leads.length, "лид", "лида", "лидов")}</h2>
-    ${hbars(Object.entries(counts).map(([s, n]) => ({ label: STAGE_LABELS[s], value: n })), (r) => String(r.value))}
+    <h2>Этапы лидов · ${state.leads.length}</h2>
+    ${hbars(Object.entries(counts).map(([st, n]) => ({ label: STAGE_LABELS[st], value: n, act: `data-stagego="${st}"` })), (r) => String(r.value))}
 
     <h2>Отчётный лист · всё время</h2>
     ${reportRows(totals)}`;
 
   $app.querySelectorAll("[data-period]").forEach((b) => (b.onclick = () => go({ period: b.dataset.period })));
-  $app.querySelectorAll("[data-bar]").forEach(
+  $app.querySelector("[data-paidrange]").onclick = () => paidSheet(`Засчитано · ${PERIODS.find((p) => p[0] === state.period)[1]}`, inRange);
+  document.getElementById("undated")?.addEventListener("click", () => paidSheet("До CRM (из таблицы)", undated, "Засчёты, перенесённые из Google-таблицы. Даты засчёта у них нет, поэтому в помесячной истории их не видно."));
+  $app.querySelectorAll("[data-month]").forEach((r) => (r.onclick = () => paidSheet(`${MONTHS_FULL[+r.dataset.month.slice(5, 7) - 1]} ${r.dataset.month.slice(0, 4)}`, all.filter((e) => e.day?.startsWith(r.dataset.month)))));
+  $app.querySelectorAll("[data-offerstat]").forEach((r) => (r.onclick = () => paidSheet(`${offerById(r.dataset.offerstat)?.name || ""}`, inRange.filter((e) => e.offerId === r.dataset.offerstat))));
+  $app.querySelectorAll("[data-netgo]").forEach((r) => (r.onclick = () => go({ tab: "more", more: "payouts", network: r.dataset.netgo })));
+  $app.querySelectorAll("[data-stagego]").forEach((r) => (r.onclick = () => go({ tab: "leads", filter: r.dataset.stagego, query: "" })));
+  bindCharts(all);
+}
+
+// Тап по столбику: подпись + «Подробнее».
+function bindCharts(all) {
+  $app.querySelectorAll("[data-chart]").forEach(
     (g) =>
       (g.onclick = () => {
-        const d = state._days[+g.dataset.bar];
-        $app.querySelectorAll(".bar.sel").forEach((x) => x.classList.remove("sel"));
+        const id = g.dataset.chart;
+        const d = state._charts[id][+g.dataset.i];
+        $app.querySelectorAll(`[data-chart="${id}"] .bar.sel`).forEach((x) => x.classList.remove("sel"));
         g.querySelector(".bar")?.classList.add("sel");
-        document.getElementById("tip").textContent = `${fmtDate(d.day)}: ${rub(d.sum)}${d.n ? ` · ${d.n} ${plural(d.n, "засчёт", "засчёта", "засчётов")}` : ""}`;
+        const events = d.key === "undated" ? all.filter((e) => !e.day) : all.filter((e) => e.day?.startsWith(d.key));
+        const tip = document.getElementById(`tip-${id}`);
+        tip.innerHTML = `<b>${esc(d.label)}: ${rub(d.sum)}</b> · ${events.length} засч. <button class="link" id="tipMore-${id}">Подробнее ›</button>`;
+        document.getElementById(`tipMore-${id}`).onclick = () => paidSheet(d.key === "undated" ? "До CRM (из таблицы)" : d.key.length === 7 ? `${MONTHS_FULL[+d.key.slice(5, 7) - 1]} ${d.key.slice(0, 4)}` : fmtDate(d.key), events);
       }),
   );
+}
+
+// ---------- КАК ПОЛЬЗОВАТЬСЯ ----------
+const HELP_TEXT = {
+  start: `<h3>С чего начать</h3>
+    <p><b>1. Завести лида.</b> Кнопка <b>＋</b> на экране «Сегодня» или «Лиды». Ещё проще — переслать сообщение человека боту: лид создастся сам.</p>
+    <p><b>2. Добавить офферы.</b> В карточке лида — «＋ Оффер», выбери банк или МФО. Нет нужного — «Новый оффер».</p>
+    <p><b>3. Двигать статусы.</b> Нажми на оффер → выбери шаг. Деньги, этапы и статистика посчитаются сами.</p>
+    <p><b>4. Каждое утро</b> открывай «Сегодня»: там список, кому что сделать. В 9:00 то же самое приходит в бот.</p>
+    <h3>Шаги оффера</h3>
+    <p><span class="pill st-applied">Заявка</span> — человек подал заявку в банк/МФО.</p>
+    <p><span class="pill st-opened">Нужна ЦД</span> — счёт открыт, но целевое действие (пополнение, оплата) ещё не сделано.</p>
+    <p><span class="pill st-done">Ждём засчёта</span> — ЦД сделали, ждём, когда партнёрка засчитает.</p>
+    <p><span class="pill st-paid">Засчитано</span> — деньги наши. Идут в доход и статистику.</p>
+    <p><span class="pill st-rejected">Отказ</span> / <span class="pill st-exists">Уже есть</span> — денег не будет, оффер уходит в «Отказы и дубли».</p>
+    <h3>Как считаются деньги</h3>
+    <p>Чистая = засчитано − налог ${state.settings?.taxRate ?? 7}% − доля ${esc(state.settings?.partnerName || "партнёра")} ${state.settings?.partnerShare ?? 20}% − затраты − выплачено лиду.</p>
+    <h3>Подсказка</h3>
+    <p>Почти всё нажимается: плитки с цифрами, столбики графиков, строки статистики — откроется список лидов и пояснение.</p>`,
+  stats: `<h3>Статистика</h3>
+    <p><b>Период</b> сверху меняет плитки, «По дням» и топ офферов. «История по месяцам» — всегда за всё время.</p>
+    <p><b>до CRM</b> — засчёты из старой таблицы: даты у них нет, поэтому они отдельным серым столбиком.</p>
+    <p><b>Воронка офферов</b> — сколько офферов дошло до каждого шага. Маленький процент на шаге — там теряются деньги: например, счета открывают, а ЦД не делают.</p>
+    <p><b>Конверсия оффера</b> — из скольких попыток засчитали. Помогает понять, какие банки давать первыми.</p>
+    <p>Нажми на месяц, столбик, оффер, сеть или этап — откроется список.</p>`,
+  bot: `<h3>Бот</h3>
+    <p>Внизу чата с ботом — меню кнопок: Сводка, Цифры, Напоминания, Найти лида, Завести лида.</p>
+    <p><b>Перешли</b> боту сообщение человека — создастся лид. <b>Напиши имя или ник</b> — пришлю карточку с кнопками: открыть, написать, напомнить, отметить ЦД/засчёт.</p>
+    <p><b>Напоминание:</b> «напомни завтра в 12 сделать ЦД с @nick» — время московское.</p>`,
+};
+
+function helpSheet(key = "start") {
+  openSheet(`<h2 class="sheet-title">Как пользоваться</h2>
+    <div class="chips tight" style="margin-bottom:8px">${[["start", "Основное"], ["stats", "Статистика"], ["bot", "Бот"]].map(([k, l]) => `<button class="chip ${k === key ? "active" : ""}" data-helptab="${k}">${l}</button>`).join("")}</div>
+    <div class="card help">${HELP_TEXT[key]}</div>`, (el) => el.querySelectorAll("[data-helptab]").forEach((b) => (b.onclick = () => helpSheet(b.dataset.helptab))), { instant: !!document.querySelector(".sheet-wrap") });
 }
 
 // ---------- ЕЩЁ ----------
@@ -982,6 +1187,7 @@ function renderMore() {
   if (state.more === "payouts") return state.network ? renderNetwork() : renderPayouts();
   if (state.more === "bot") return renderBot();
   const items = [
+    ["help", "📘", "Как пользоваться", "Шаги офферов, деньги, бот — простыми словами"],
     ["offers", "🏦", "Офферы и ставки", isAdmin() ? "Каталог банков и МФО" : "Каталог банков и МФО (просмотр)"],
     ...(isAdmin()
       ? [
@@ -1003,7 +1209,7 @@ function renderMore() {
       .map(([k, icon, title, sub]) => `<button class="row" data-more="${k}"><div class="icon">${icon}</div><div class="grow"><div class="title">${title}</div><div class="sub">${esc(sub)}</div></div><div class="right sub">›</div></button>`)
       .join("")}</div>
     <div class="sub center">Утренняя сводка приходит в бота каждый день в 9:00 по Москве.<br>По понедельникам админам — ещё и бэкап.</div>`;
-  $app.querySelectorAll("[data-more]").forEach((b) => (b.onclick = () => go({ more: b.dataset.more })));
+  $app.querySelectorAll("[data-more]").forEach((b) => (b.onclick = () => (b.dataset.more === "help" ? helpSheet() : go({ more: b.dataset.more }))));
 }
 
 function renderData() {
@@ -1450,6 +1656,10 @@ $app.addEventListener("click", (e) => {
   }
   const open = e.target.closest("[data-open]");
   if (open) return go({ leadId: open.dataset.open });
+  const ex = e.target.closest("[data-explain]");
+  if (ex) return explain(ex.dataset.explain);
+  const hp = e.target.closest("[data-help]");
+  if (hp) return helpSheet(hp.dataset.help);
   const gm = e.target.closest("[data-gomore]");
   if (gm) return go({ tab: "more", more: gm.dataset.gomore, network: null });
   const jump = e.target.closest("[data-goto]");
@@ -1473,19 +1683,32 @@ safe(() => tg?.BackButton.onClick(() => {
   go({ more: null });
 }));
 
+let lastLoad = 0;
+// Вернулся в CRM через минуту+ — подтягиваем свежие данные (партнёр мог что-то поменять).
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "visible" || !state.me || Date.now() - lastLoad < 60000) return;
+  if (document.querySelector(".sheet-wrap, .dialog-wrap") || document.activeElement?.matches("input, textarea")) return;
+  const y = window.scrollY;
+  reload().then(() => window.scrollTo(0, y)).catch(() => {});
+});
+
 async function reload() {
   const data = await api("GET", "/state");
+  lastLoad = Date.now();
   Object.assign(state, { me: data.me, offers: data.offers, settings: data.settings, leads: data.leads, payouts: data.payouts || [] });
   render();
 }
 
 // Кнопка «Открыть лида» из бота приходит с ?lead=<id>.
-const deepLead = new URLSearchParams(location.search).get("lead");
+const params = new URLSearchParams(location.search);
+const deepLead = params.get("lead");
+const deepTab = params.get("tab");
 
 reload()
   .then(() => {
     $tabs.hidden = false;
     if (deepLead && state.leads.some((l) => l.id === deepLead)) go({ leadId: deepLead });
+    else if (["today", "leads", "stats", "more"].includes(deepTab)) go({ tab: deepTab });
   })
   .catch((e) => {
     $app.innerHTML =

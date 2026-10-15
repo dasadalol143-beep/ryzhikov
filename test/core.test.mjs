@@ -17,7 +17,7 @@ function sign(user, authDate = Math.floor(Date.now() / 1000), token = BOT_TOKEN)
 
 function memoryStore() {
   // вебхук бота «уже подключён», чтобы тесты не ходили в настоящий Telegram
-  const data = new Map([["bot_webhook", { url: "https://crm.test/api/tg" }]]);
+  const data = new Map([["bot_webhook", { url: "https://crm.test/api/tg", v: 3 }]]);
   return {
     getJSON: async (k) => (data.has(k) ? structuredClone(data.get(k)) : null),
     setJSON: async (k, v) => void data.set(k, structuredClone(v)),
