@@ -15,10 +15,10 @@
   var T = [
     { id: 'sakura', name: 'Сад сакуры', bg: ['30,10,34', '8,3,12'], tone: '236,110,160', tone2: '255,190,215', panel: ['46,16,40', '16,5,16'],
       door: ['#5a0f22', '#2a0610', '255,170,200'], fx: [['petal', 1]],
-      dragon: { b1: '#fbf1f6', b2: '#e4a9c6', b3: '#6e2a52', edge: '#ff9cc4', belly: '#fff0f6', scale: '#c64b86', glow: '#ff7fb6', spine: '#ff6fa5', eye: '#ff3d7f' } },
+      dragon: { b1: '#7a1e34', b2: '#3a0c18', b3: '#12040a', edge: '#f0c46a', belly: '#f6dca0', scale: '#d8546f', glow: '#ff6a86', spine: '#e9b75e', eye: '#ffe08a' } },
     { id: 'egypt', name: 'Египет', bg: ['10,15,42', '4,5,15'], tone: '60,90,200', tone2: '230,180,70', panel: ['16,22,60', '6,8,24'],
       door: ['#16205a', '#080c26', '240,196,80'], fx: [['sand', 1], ['dust', .4]],
-      dragon: { b1: '#2f52d8', b2: '#1a2b8a', b3: '#0a1238', edge: '#f0c350', belly: '#f5d778', scale: '#f0c350', glow: '#5a82ff', spine: '#f0c350', eye: '#ffe28a' } }
+      dragon: { b1: '#2448b8', b2: '#11246e', b3: '#050b26', edge: '#f2c75a', belly: '#f7dd8f', scale: '#6a8fff', glow: '#4f80ff', spine: '#f2c75a', eye: '#a8f2ff' } }
   ];
 
   /* ---------------------------------------------------------- миры-кадры
