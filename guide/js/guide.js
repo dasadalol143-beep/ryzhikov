@@ -82,7 +82,9 @@
   }
 
   var currentWorld = -1;
+  var WMAP = [0, 0, 1];   // главы I и II в сакуре, глава III в Египте
   function setWorld(n) {
+    n = WMAP[n] !== undefined ? WMAP[n] : 0;
     if (!Worlds || n === currentWorld) return;
     var first = currentWorld < 0;
     currentWorld = n;
@@ -98,7 +100,7 @@
      final - над кнопкой, дышит огнём */
   var PLANS = {
     hero:  function () { return isMobile() ? { tx: .66, ty: .15, scale: .95, alpha: 1, wander: .6, k: 1.7 } : { tx: .74, ty: .5, scale: 1.15, alpha: 1, wander: 1, k: 1.7 }; },
-    side:  function () { return isMobile() ? { tx: .97, ty: .52, scale: .6, alpha: .2, wander: .25, k: 1.7 } : { tx: .95, ty: .5, scale: .9, alpha: window.innerWidth < 1300 ? .32 : .55, wander: .35, k: 1.7 }; },
+    side:  function () { return isMobile() ? { tx: .97, ty: .52, scale: .55, alpha: .14, wander: .2, k: 1.7 } : { tx: .95, ty: .5, scale: .85, alpha: window.innerWidth < 1300 ? .22 : .35, wander: .25, k: 1.7 }; },
     show:  function () { return isMobile() ? { tx: .9, ty: .16, scale: .62, alpha: .55, wander: .3, k: 1.7 } : { tx: .9, ty: .3, scale: 1, alpha: .85, wander: .5, k: 1.7 }; },
     gate:  function () { return { tx: .5, ty: .3, scale: isMobile() ? 1 : 1.25, alpha: 1, wander: .3, k: 5 }; },
     final: function () { return isMobile() ? { tx: .9, ty: .13, scale: .7, alpha: .9, wander: .25, k: 1.7 } : { tx: .84, ty: .3, scale: 1.1, alpha: 1, wander: .35, k: 1.7 }; }
@@ -513,6 +515,7 @@
     }
     else if (a.id === 'stickyCta') goal('cta_sticky');
     else if (a.getAttribute('href') === '#final') goal('cta_to_final');
+    else if (a.dataset.partner) goal('partner_' + a.dataset.partner);
   });
   if ('IntersectionObserver' in window) {
     var marks = [['ch-2', 'read_ch2'], ['ch-3', 'read_ch3'], ['anton', 'read_cases'], ['final', 'read_final']];

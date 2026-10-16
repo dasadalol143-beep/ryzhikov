@@ -16,9 +16,6 @@
     { id: 'sakura', name: 'Сад сакуры', bg: ['30,10,34', '8,3,12'], tone: '236,110,160', tone2: '255,190,215', panel: ['46,16,40', '16,5,16'],
       door: ['#5a0f22', '#2a0610', '255,170,200'], fx: [['petal', 1]],
       dragon: { b1: '#fbf1f6', b2: '#e4a9c6', b3: '#6e2a52', edge: '#ff9cc4', belly: '#fff0f6', scale: '#c64b86', glow: '#ff7fb6', spine: '#ff6fa5', eye: '#ff3d7f' } },
-    { id: 'hell', name: 'Врата ада', bg: ['30,4,2', '6,1,1'], tone: '220,50,20', tone2: '255,140,40', panel: ['44,10,6', '14,3,2'],
-      door: ['#5a1208', '#1e0402', '255,110,50'], fx: [['ember', 1]],
-      dragon: { b1: '#4a0d07', b2: '#1e0403', b3: '#080101', edge: '#ff5a1e', belly: '#ff9a3c', scale: '#ff4a1a', glow: '#ff3c0a', spine: '#ff6e1e', eye: '#fff060' } },
     { id: 'egypt', name: 'Египет', bg: ['10,15,42', '4,5,15'], tone: '60,90,200', tone2: '230,180,70', panel: ['16,22,60', '6,8,24'],
       door: ['#16205a', '#080c26', '240,196,80'], fx: [['sand', 1], ['dust', .4]],
       dragon: { b1: '#2f52d8', b2: '#1a2b8a', b3: '#0a1238', edge: '#f0c350', belly: '#f5d778', scale: '#f0c350', glow: '#5a82ff', spine: '#f0c350', eye: '#ffe28a' } }
@@ -41,9 +38,6 @@
       ['glow', 56, 18, 5, '255,250,235', 'pulse'], ['glow', 18.5, 70, 3.2, '255,200,120', 'flicker'], ['glow', 75, 69.5, 3.2, '255,200,120', 'flicker'],
       ['glow', 90, 69, 2.6, '255,200,120', 'flicker'], ['glow', 34, 71, 1.8, '255,200,120', 'flicker'], ['glow', 81, 40, 7, '255,60,80', 'pulse'],
       ['shimmer', 18, 76, 62, 22, '255,190,225'], ['haze', 70, 18, '255,190,220', 70]] },
-    { img: 'hell', fx: 0.42, fy: 0.45, live: [
-      ['lava', 22, 52, 56, 46], ['glow', 45, 70, 12, '255,110,30', 'flicker'], ['glow', 62, 57, 8, '255,140,40', 'flicker'],
-      ['glow', 36, 88, 10, '255,80,20', 'pulse'], ['haze', 40, 30, '120,60,50', 70], ['haze', 70, 24, '90,40,30', 90]] },
     { img: 'egypt', fx: 0.45, fy: 0.55, live: [
       ['glow', 57, 82, 5, '255,190,100', 'flicker'], ['glow', 28, 88, 3, '255,180,90', 'flicker'], ['glow', 39, 10, 3, '230,230,255', 'pulse'],
       ['sandwind', 0, 74, 100, 26], ['haze', 88, 14, '210,170,110', 50]] }
@@ -149,7 +143,7 @@
   // врата: фотореалистичные врата мира (вырезанные, с прозрачным проёмом)
   var GATES = {"sakura": {"r": 1.2115, "o": [0.3115, 0.391, 0.6885, 0.9193]}, "hell": {"r": 1.1667, "o": [0.3456, 0.2852, 0.6549, 0.9419]}, "greece": {"r": 1.3108, "o": [0.4108, 0.4885, 0.5897, 0.8991]}, "rome": {"r": 1.1665, "o": [0.3871, 0.4807, 0.6229, 0.9994]}, "north": {"r": 1.2207, "o": [0.3616, 0.4587, 0.6384, 0.9994]}, "egypt": {"r": 1.4349, "o": [0.4215, 0.4356, 0.579, 0.9987]}, "gold": {"r": 1.2484, "o": [0.3832, 0.3896, 0.6237, 0.9988]}, "neon": {"r": 1.1191, "o": [0.3113, 0.2485, 0.6882, 0.9994]}, "volcano": {"r": 1.2933, "o": [0.2862, 0.2402, 0.7152, 0.8006]}};
   document.querySelectorAll('.gate').forEach(function (gate) {
-    var n = parseInt(gate.dataset.room, 10), th = T[n];
+    var n = parseInt(gate.dataset.wi || gate.dataset.room, 10), th = T[n];
     if (!th) return;
     gate.dataset.world = th.id;
     var st = gate.style;
@@ -290,7 +284,7 @@
     var y = window.scrollY || 0, dS = y - lastY; lastY = y;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, vw, vh);
-    var pLimit = reading ? Math.ceil(parts.length * .5) : parts.length;
+    var pLimit = reading ? Math.ceil(parts.length * .3) : parts.length;
     for (var i = 0; i < pLimit; i++) {
       var p = parts[i];
       if (p.fade) { p.life -= dt * 1.4; if (p.life <= 0) { spawn(p, false); continue; } }

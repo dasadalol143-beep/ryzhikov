@@ -452,3 +452,45 @@ mark.hl { background: linear-gradient(90deg, rgba(212, 166, 74, .38), rgba(243, 
 .who p + p { margin-top: 10px; }
 .ref > div { grid-template-columns: 1fr; }
 .ref i b { color: var(--gold-hi); }
+
+/* =====================================================================
+   v7: спокойнее и взрослее — меньше движения, больше типографики
+   ===================================================================== */
+/* появление блоков: короткий мягкий подъём без масок и бликов */
+.rv { transform: translate3d(0, 16px, 0); }
+.rv.in { transition: opacity .9s cubic-bezier(.22, .61, .36, 1), transform .9s cubic-bezier(.22, .61, .36, 1); }
+.panel.rv { transform: translate3d(0, 16px, 0); }
+.g-sec h2.d.rv, .room-head.rv h2.d, .g-sec h2.d.rv.in, .room-head.rv.in h2.d { clip-path: none; transition: none; }
+.room-head.rv.in .it, .g-sec h2.d.rv.in .it { animation: none; }
+.lock--gold::after, .lock--gold.in::after { display: none; animation: none; }
+.reading .worlds::after { background: rgba(4, 5, 12, .5); }
+
+/* фон в режиме чтения темнее, текст на плотных подложках */
+.g-sec .lead, .g-sec p { color: rgba(243, 238, 226, .86); }
+.g-sec h2.d { letter-spacing: -.005em; }
+.room-head .kicker { color: var(--gold-hi); }
+
+/* разделитель главы II */
+.chap-break { padding: clamp(90px, 16vw, 170px) 0 clamp(40px, 6vw, 70px); }
+.cb { position: relative; text-align: center; display: grid; justify-items: center; gap: 14px; }
+.cb-n { font-family: var(--f-s); font-style: italic; font-size: clamp(90px, 22vw, 180px); line-height: .8; color: transparent; -webkit-text-stroke: 1px rgba(212, 166, 74, .5); }
+.cb-k { font-family: var(--f-m); font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: var(--gold); }
+.cb h2.d { font-size: clamp(36px, 7vw, 72px) !important; }
+.cb p { max-width: 520px; }
+.cb::after { content: ''; width: 1px; height: 54px; }
+.cb::after { background: linear-gradient(180deg, var(--gold), transparent); }
+
+/* партнёрки */
+.pp { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pc { padding: 22px; display: grid; gap: 12px; align-content: start; }
+.pc-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.pc-h b { font-family: var(--f-d); font-weight: 400; text-transform: uppercase; font-size: 22px; color: var(--ivory); }
+.pc-h span { font-family: var(--f-m); font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--dim); }
+.pc p { font-size: 14.5px !important; line-height: 1.55 !important; }
+.pc-t { display: flex; flex-wrap: wrap; gap: 6px; }
+.pc-t i { font-style: normal; padding: 5px 9px; border: 1px solid var(--line); font-size: 12px; color: var(--mute); }
+.pc-b { justify-content: center; margin-top: 4px; }
+.pp-tip { margin-top: 14px; padding: 18px 20px; border-left: 3px solid var(--gold); background: rgba(10, 6, 16, .82); }
+.pp-tip b { display: block; margin-bottom: 6px; font-family: var(--f-d); font-weight: 400; text-transform: uppercase; font-size: 16px; color: var(--gold-hi); }
+.pp-tip p { font-size: 15px !important; }
+@media (max-width: 640px) { .pp { grid-template-columns: 1fr; } }
