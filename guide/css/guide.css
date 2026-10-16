@@ -620,3 +620,24 @@ html, body { overflow-x: hidden; }
   .tbl th { font-size: 8.5px; letter-spacing: .06em; padding: 6px 4px; }
   .tbl td { font-size: 12.5px; padding: 10px 4px; }
 }
+
+/* ===== v11: усиленный призыв ===== */
+.g-final .closed, .g-final .cost { text-align: left; }
+.closed { margin-top: 40px; padding: 24px 22px; border: 1px solid rgba(212, 166, 74, .45); background: linear-gradient(180deg, rgba(30, 22, 8, .85), rgba(8, 6, 4, .92)); border-radius: 4px; }
+.closed h3 { margin: 10px 0 8px; font-size: clamp(22px, 3vw, 30px) !important; }
+.closed > p { font-size: 15.5px !important; }
+.cl { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.cl-i { position: relative; padding: 16px 16px 16px 46px; border: 1px solid var(--line); background: rgba(255, 255, 255, .03); }
+.cl-i > i { position: absolute; left: 16px; top: 19px; width: 14px; height: 11px; border: 2px solid var(--gold); border-radius: 2px; }
+.cl-i > i::before { content: ''; position: absolute; left: 0; top: -9px; width: 7px; height: 7px; border: 2px solid var(--gold); border-bottom: 0; border-radius: 5px 5px 0 0; }
+.cl-i b { display: block; margin-bottom: 6px; font-family: var(--f-d); font-weight: 400; text-transform: uppercase; font-size: 15px; color: var(--gold-hi); line-height: 1.2; }
+.cl-i p { font-size: 14px !important; line-height: 1.55 !important; }
+.cost { margin-top: 14px; padding: 22px; border: 1px solid var(--line-b); background: linear-gradient(180deg, rgba(var(--panel), .94), rgba(var(--panel-d), .96)); border-radius: 4px; }
+.cost-r { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 11px 0; border-top: 1px solid rgba(255, 255, 255, .07); }
+.cost-r span { font-size: 14.5px; color: var(--mute); line-height: 1.45; }
+.cost-r b { font-family: var(--f-d); font-weight: 400; font-size: 17px; color: #f08a8a; white-space: nowrap; }
+.cost-r:last-of-type b { font-size: 20px; }
+.cost > p { margin-top: 12px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 15.5px !important; color: var(--ivory) !important; font-weight: 700; }
+.tease { display: block; margin-top: 14px; padding: 12px 14px; border: 1px dashed rgba(212, 166, 74, .5); font-size: 14px; line-height: 1.45; color: var(--gold-hi); text-decoration: none; }
+.tease:hover { background: rgba(212, 166, 74, .08); }
+@media (max-width: 640px) { .cl { grid-template-columns: 1fr; } }
