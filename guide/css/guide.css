@@ -494,3 +494,25 @@ mark.hl { background: linear-gradient(90deg, rgba(212, 166, 74, .38), rgba(243, 
 .pp-tip b { display: block; margin-bottom: 6px; font-family: var(--f-d); font-weight: 400; text-transform: uppercase; font-size: 16px; color: var(--gold-hi); }
 .pp-tip p { font-size: 15px !important; }
 @media (max-width: 640px) { .pp { grid-template-columns: 1fr; } }
+
+/* размытый фон для чтения — отдельный слой (Safari) */
+.read-bg { position: fixed; inset: 0; z-index: 1; pointer-events: none; background-color: #06040a; background-position: center; background-size: cover; background-repeat: no-repeat; opacity: 0; transition: opacity .8s ease; }
+.reading .read-bg { opacity: 1; }
+.worlds .ws-blur { display: none !important; }
+.reading .worlds::after { opacity: 0 !important; }
+.cb-n { display: none; }
+.cb-k { font-size: 12px; }
+
+/* ===== v8: единая колонка, одинаковые плашки, шапка с подложкой ===== */
+.g-sec .wrap--narrow { max-width: 780px; }
+.g-sec .flow, .g-sec .chat, .g-sec .soul, .g-sec .beach, .g-sec .vid,
+.g-sec .loop, .g-sec .code p, .g-sec .cb p, .g-sec .toc { max-width: none; width: 100%; }
+.g-sec .beach, .g-sec .vid { margin-left: 0; margin-right: 0; }
+.g-final .vid, .g-final .beach { margin-left: auto; margin-right: auto; }
+.g-sec .panel, .g-sec .chat { border-radius: 4px; }
+.g-sec .chat { background: linear-gradient(180deg, rgba(var(--panel), .94), rgba(var(--panel-d), .96)); border-color: var(--line-b); }
+.g-sec .room-head { max-width: 100%; }
+.g-sec img, .g-sec video { max-width: 100%; }
+html, body { overflow-x: hidden; }
+.hud { background: linear-gradient(180deg, rgba(5, 6, 12, .97) 0%, rgba(5, 6, 12, .9) 62%, rgba(5, 6, 12, 0) 100%); padding-bottom: 26px; }
+@media (max-width: 760px) { .hud { padding-bottom: 20px; } }

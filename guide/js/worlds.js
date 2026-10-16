@@ -98,7 +98,7 @@
     im.decoding = 'async';
     im.onload = function () { d._img.style.backgroundImage = 'url("' + src + '")'; d.classList.add('ready'); };
     im.src = src;
-    d._blur.style.backgroundImage = 'url("assets/worlds/' + d._name + '-blur.jpg")';
+    d._blurUrl = 'url("assets/worlds/' + d._name + '-blur.jpg")';
     addVideo(d);
   }
   function addVideo(d) {
@@ -137,8 +137,14 @@
       }
     });
   }
+  // размытый фон для чтения: отдельный неподвижный слой на весь экран
+  // (внутри анимированной сцены Safari рисует его кусками поверх видео)
+  var readBg = document.createElement('div');
+  readBg.className = 'read-bg';
+  readBg.setAttribute('aria-hidden', 'true');
   var atmo = document.querySelector('.atmo');
   if (atmo && atmo.parentNode) atmo.parentNode.insertBefore(layer, atmo.nextSibling);
+  layer.parentNode.insertBefore(readBg, layer.nextSibling);
 
   // врата: фотореалистичные врата мира (вырезанные, с прозрачным проёмом)
   var GATES = {"sakura": {"r": 1.2115, "o": [0.3115, 0.391, 0.6885, 0.9193]}, "hell": {"r": 1.1667, "o": [0.3456, 0.2852, 0.6549, 0.9419]}, "greece": {"r": 1.3108, "o": [0.4108, 0.4885, 0.5897, 0.8991]}, "rome": {"r": 1.1665, "o": [0.3871, 0.4807, 0.6229, 0.9994]}, "north": {"r": 1.2207, "o": [0.3616, 0.4587, 0.6384, 0.9994]}, "egypt": {"r": 1.4349, "o": [0.4215, 0.4356, 0.579, 0.9987]}, "gold": {"r": 1.2484, "o": [0.3832, 0.3896, 0.6237, 0.9988]}, "neon": {"r": 1.1191, "o": [0.3113, 0.2485, 0.6882, 0.9994]}, "volcano": {"r": 1.2933, "o": [0.2862, 0.2402, 0.7152, 0.8006]}};
@@ -377,6 +383,7 @@
       var vars = { '--tone': th.tone, '--tone2': th.tone2, '--bg-top': th.bg[0], '--bg-bot': th.bg[1], '--panel': th.panel[0], '--panel-d': th.panel[1] };
       for (var k in vars) root.style.setProperty(k, vars[k]);
       root.dataset.world = th.id;
+      if (scenes[n] && scenes[n]._blurUrl) readBg.style.backgroundImage = 'linear-gradient(rgba(4,5,12,.48), rgba(4,5,12,.48)), ' + scenes[n]._blurUrl;
       return th;
     },
     flame: addFlameHost,
