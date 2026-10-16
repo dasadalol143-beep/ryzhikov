@@ -730,3 +730,38 @@ test("data fix @iuuhkkk: restored from trash, held call 16.10 16:00 with Dima, D
   assert.equal((await api(1, "POST", `/trash/${d.id}/restore`)).status, 200);
   assert.ok(await store.get("client", d.id));
 });
+
+test("report reminders: 3 nudges to the mop, then ROP/owner; stops once the report is filled; stuck leads detected", async () => {
+  const { store, sent, api } = await setup();
+  await api(1, "POST", "/users", { id: "504", role: "rop", name: "Андрей" });
+  const c = (await api(503, "POST", "/clients", { name: "Глеб", telegram: "gleb_rem" })).body.client;
+  const at = Date.now() - 3600_000;
+  await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at: new Date(at).toISOString(), mopId: "502" });
+  await api(502, "POST", `/clients/${c.id}/action`, { type: "held" });
+  const held = Date.parse((await store.get("client", c.id)).calls[0].outcomeAt);
+  const { runReminders } = await import("../src/bot.mjs");
+  const { telegram } = await import("../src/telegram.mjs");
+  const tg = telegram("123:abc", async (url, init) => (sent.push({ chat: init.body.get("chat_id"), text: init.body.get("text") }), new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }))));
+  const run = (t) => runReminders({ store, env: { OWNER_IDS: "1" }, tg, appUrl: "https://t/", now: t });
+  assert.deepEqual((await run(held + 31 * 60_000)).filter((x) => x.startsWith("report")), [`report:${c.id}`]);
+  assert.deepEqual((await run(held + 40 * 60_000)).filter((x) => x.startsWith("report")), []);
+  assert.deepEqual((await run(held + 181 * 60_000)).filter((x) => x.startsWith("report")), [`report2:${c.id}`]);
+  const { mskKey } = await import("../public/lib/model.js");
+  const r3 = Math.max(Date.parse(`${mskKey(held + 86400_000)}T10:00:00+03:00`), held + 6 * 3600_000);
+  assert.deepEqual((await run(r3 + 60_000)).filter((x) => x.startsWith("report")), [`report3:${c.id}`]);
+  const boss = await run(r3 + 4 * 3600_000 + 60_000);
+  assert.ok(boss.filter((x) => x === `reportBoss:${c.id}`).length >= 1);
+  assert.ok(sent.some((m) => m.chat === "504" && /не заполнил итог/.test(m.text)));
+  // заполнил — больше не дёргаем
+  await api(502, "POST", `/clients/${c.id}/action`, { type: "report", report: { need: "x" } });
+  assert.deepEqual((await run(held + 40 * 3600_000)).filter((x) => x.startsWith("report")), []);
+
+  const { stuckReason } = await import("../public/lib/model.js");
+  const old = new Date(Date.now() - 3 * 86400_000).toISOString();
+  assert.match(stuckReason({ status: "new", createdAt: old, calls: [] }), /без записи/);
+  const older = new Date(Date.now() - 5 * 86400_000).toISOString();
+  assert.match(stuckReason({ status: "thinking", mopId: "502", createdAt: older, statusAt: older, calls: [], touches: [] }), /дожим заброшен/);
+  assert.match(stuckReason({ status: "thinking", createdAt: old, statusAt: old, calls: [] }), /нет ответственного/);
+  assert.equal(stuckReason({ status: "in_work", createdAt: old, calls: [{ id: "a", at: new Date(Date.now() + 3600_000).toISOString() }] }), null);
+  assert.equal(stuckReason({ status: "paid", createdAt: old }), null);
+});

@@ -779,17 +779,33 @@ export async function runReminders({ store, env, tg, appUrl, now = Date.now() })
         // менеджер не запустил бота — отметим и пойдём дальше
       }
     }
-    // Созвон проведён, а отчёта нет через 30 минут — пнуть.
-    for (const call of c.calls || []) {
-      if (call.outcome !== "held" || call.reportAt || call.notified?.report) continue;
-      if (!needsReport(c)) continue; // пересозвон: итог диагностики уже есть
-      if (now - Date.parse(call.outcomeAt || call.at) < 30 * MIN) continue;
-      call.notified = { ...(call.notified || {}), report: nowIso() };
+    // Созвон проведён, а итога нет: напоминаем диагносту 3 раза (через 30 минут, 3 часа, наутро в 10:00),
+    // если и после этого пусто — сообщаем РОПу и собственнику. Пересозвоны не дёргаем: итог уже есть.
+    if (needsReport(c)) for (const call of c.calls || []) {
+      if (call.outcome !== "held" || call.reportAt || call.legacy) continue;
+      const done = Date.parse(call.outcomeAt || call.at);
+      if (now - done > 4 * 86400_000) continue; // старьё не трогаем
+      call.notified ||= {};
+      const morning = Date.parse(`${mskKey(done + 86400_000)}T10:00:00+03:00`);
+      const steps = [["report", done + 30 * MIN], ["report2", done + 180 * MIN], ["report3", Math.max(morning, done + 6 * 3600_000)], ["reportBoss", Math.max(morning, done + 6 * 3600_000) + 4 * 3600_000]];
+      const due = steps.filter(([, t]) => now >= t).at(-1);
+      if (!due || call.notified[due[0]]) continue;
+      for (const [k, t] of steps) if (now >= t) call.notified[k] = call.notified[k] || nowIso();
       dirty = true;
-      await tg
-        .sendMessage(call.mopId, `📝 <b>Отчёт после диагностики</b>\n👤 ${who(c)}\n\nПо регламенту отчёт и CRM — сразу после созвона.`, { inline_keyboard: [[openApp(appUrl, "Заполнить отчёт", `?client=${c.id}&report=1`)]] })
-        .then(() => sent.push(`report:${c.id}`))
-        .catch(() => {});
+      const n = { report: 1, report2: 2, report3: 3 }[due[0]];
+      const mop = users.find((u) => u.id === call.mopId);
+      if (n) {
+        await tg
+          .sendMessage(call.mopId, `📝 <b>Итог созвона не заполнен${n > 1 ? ` · напоминание ${n} из 3` : ""}</b>\n👤 ${who(c)}\n📅 ${fmtWhen(Date.parse(call.at))} — проведён\n\n${n === 3 ? "После этого напоминания сообщу РОПу." : "По регламенту итог и CRM — сразу после созвона."}`, { inline_keyboard: [[openApp(appUrl, "Заполнить итог", `?client=${c.id}&report=1`)]] })
+          .then(() => sent.push(`${due[0]}:${c.id}`))
+          .catch(() => {});
+      } else {
+        for (const boss of users.filter((u) => ["owner", "rop"].includes(u.role) && u.id !== call.mopId))
+          await tg
+            .sendMessage(boss.id, `⚠️ <b>${h(mop?.name || "Диагност")} не заполнил итог</b> после 3 напоминаний\n👤 ${who(c)} · созвон ${fmtWhen(Date.parse(call.at))}`, { inline_keyboard: [[openApp(appUrl, "Открыть карточку", `?client=${c.id}`)]] })
+            .then(() => sent.push(`reportBoss:${c.id}`))
+            .catch(() => {});
+      }
     }
     if (dirty) {
       // Пока слали в Telegram, карточку могли поменять (отметили «пришёл», отчёт) — пишем только отметки напоминаний.
@@ -832,8 +848,8 @@ export async function runMorning({ store, env, tg, appUrl, now = Date.now() }) {
   const y = rnp(clients, legacy, { from: yesterday, to: yesterday, aliases: settings.aliases }).total;
   const month = monthSummary(payments, mskKey(now).slice(0, 7), settings.rates);
   const results = [];
-  // По понедельникам — бэкап базы собственнику, чтобы ничего не пропало.
-  if (new Date(now + 3 * 3600_000).getUTCDay() === 1) {
+  // Каждое утро — бэкап всей базы собственнику в Telegram, чтобы ни один лид не потерялся.
+  {
     const { sendExport } = await import("./export.mjs");
     for (const u of users.filter((x) => x.role === "owner")) await sendExport({ store, tg, to: u.id, withMoney: true, now }).catch(() => {});
   }
@@ -846,6 +862,11 @@ export async function runMorning({ store, env, tg, appUrl, now = Date.now() }) {
       if (month.pending.count) text += `\n⚠️ Не верифицировано оплат: ${month.pending.count} на ${rub(month.pending.tariff)}`;
     }
     text += plan ? `\n\n${plan}` : "\n\nСозвонов и долгов на сегодня нет.";
+    // Зависшие лиды: у руководства — все, у остальных — свои.
+    const { stuckReason } = await import("../public/lib/model.js");
+    const boss = ["owner", "rop"].includes(u.role);
+    const stuck = clients.filter((c) => (boss || c.mopId === u.id || c.lidorubId === u.id) && stuckReason(c, now));
+    if (stuck.length) text += `\n\n🧊 <b>Зависли без следующего шага: ${stuck.length}</b>\n${stuck.slice(0, 6).map((c) => `• ${who(c)} — ${stuckReason(c, now)}`).join("\n")}${stuck.length > 6 ? `\n…и ещё ${stuck.length - 6} — в приложении «Клиенты → Зависли»` : ""}`;
     try {
       await tg.sendMessage(u.id, text, { inline_keyboard: [[openApp(appUrl)]] });
       results.push({ id: u.id, ok: true });

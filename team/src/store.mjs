@@ -4,7 +4,7 @@
 // Клиенты, которых крону раз в минуту надо проверить: открытый созвон или созвон без отчёта.
 // Держим их id отдельно ("watch"), чтобы крон читал десяток строк, а не всю базу.
 export const needsWatch = (c) =>
-  (c.calls || []).some((x) => (!x.outcome && !x.legacy) || (x.outcome === "held" && !x.reportAt && !x.legacy && !x.notified?.report));
+  (c.calls || []).some((x) => (!x.outcome && !x.legacy) || (x.outcome === "held" && !x.reportAt && !x.legacy && !x.notified?.reportBoss && Date.now() - Date.parse(x.outcomeAt || x.at) < 4 * 86400_000));
 
 const SCHEMA = "CREATE TABLE IF NOT EXISTS docs (kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, updated TEXT NOT NULL, PRIMARY KEY (kind, id))";
 

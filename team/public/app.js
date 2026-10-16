@@ -1,6 +1,6 @@
 import {
   ROLES, STATUSES, SOURCES, REPORT_FIELDS, AFTER_CALL, FOLLOWUP_TOUCHES, DEFAULT_RATES,
-  statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState, latestReport, callKind,
+  statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState, latestReport, callKind, stuckReason,
   mskKey, mskTime, mskMidnight, addDaysKey, fmtDay, weekday, fmtWhen, monthName, payrollRow, monthSummary,
   DEFAULT_PAY_LINKS, pace, daysInMonth, canTouchClient, canDeleteClient, payoutsOwed, nextPayday, PAYOUT_ROLES, daySlots, rangesText, cleanRanges, toMin, fromMin,
 } from "./lib/model.js";
@@ -379,9 +379,9 @@ function renderToday() {
   }
   html += `</div>`;
 
-  // Долги — наверху, жёстко
-  if (reportsOwed.length) html += `<button class="big-cta warn" data-open="${reportsOwed[0].id}" data-report="1"><span>${icon("note")}</span><div>Нет отчёта после созвона: ${reportsOwed.length}<small>${esc(reportsOwed.slice(0, 3).map(clientTitle).join(", "))} — регламент: сразу после звонка</small></div></button>`;
-  if (role === "lidorub") html += `<button class="big-cta" data-new><span>${icon("plus")}</span><div>Новый лид<small>квалифицировать, отправить ЛМ, записать на созвон</small></div></button>`;
+  // Что сделать сейчас — список задач с одной кнопкой на каждую.
+  html += tasksBlock({ role, me, now, reportsOwed, unmarked, follow, todays });
+  if (role === "lidorub") html += `<button class="big-cta" data-new><span>${icon("plus")}</span><div>Новый лид<small>квалифицировать, отправить ЛМ, записать на созвон</small></div></button>` + lidorubHome(me);
 
   if (isBoss()) html += teamToday();
 
@@ -413,6 +413,63 @@ function renderToday() {
   $app.innerHTML = html;
 }
 
+// Задачи на сейчас: что требует действия, по порядку важности. Тап — сразу к нужным клиентам.
+function tasksBlock({ role, me, now, reportsOwed, unmarked, follow, todays }) {
+  const mine = (c) => role === "owner" || role === "rop" || c.mopId === me.id || c.lidorubId === me.id;
+  const passedToday = todays.filter(({ call }) => !call.outcome && Date.parse(call.at) + 15 * 60_000 < now && (role !== "lidorub"));
+  const stuck = state.clients.filter((c) => mine(c) && stuckReason(c, now));
+  const person = ["owner", "rop"].includes(role) ? "all" : me.id;
+  const lm = role === "lidorub" ? state.clients.filter((c) => c.status === "new" && (!c.lidorubId || c.lidorubId === me.id) && !(c.events || []).some((e) => e.t === "lm")) : [];
+  const toBook = role === "lidorub" ? state.clients.filter((c) => c.status === "new" && (!c.lidorubId || c.lidorubId === me.id) && (c.events || []).some((e) => e.t === "lm")) : [];
+  const items = [
+    [passedToday.length + unmarked.length, "Отметь: клиент пришёл или НДЗ", "созвон прошёл — нажми «Пришёл» или «НДЗ»", passedToday[0]?.c.id || unmarked[0]?.c.id, null, "warn"],
+    [reportsOwed.length, "Заполни итог диагностики", "после созвона — потребность, боль, возражение, решение", reportsOwed[0]?.id, "report", "warn"],
+    [role !== "lidorub" ? follow.length : 0, "Дожим: коснись клиента сегодня", "написал — отметь «тишина» или «ответил»", null, "follow", ""],
+    [lm.length, "Отправь ЛМ новым лидам", "квалифицируй и отправь лид-магнит", null, "new", ""],
+    [toBook.length, "Запиши на созвон — ЛМ уже отправлен", "выбери диагноста и свободное окно", null, "lm", ""],
+    [stuck.length, "Зависли — нет следующего шага", "назначь созвон, касание или закрой статусом", null, "stuck", "warn"],
+  ].filter(([n]) => n > 0);
+  if (!items.length) return `<div class="tasks done"><b>Всё сделано 👌</b><span class="sub">Новых задач нет — загляни в «Окна» и «Клиенты».</span></div>`;
+  return `<div class="list-head"><h2>Что сделать сейчас</h2></div><div class="list tasks">${items
+    .map(([n, title, sub, openId, folder, tone]) => `<div class="row task ${tone}" ${n === 1 && openId ? `data-open="${openId}"${folder === "report" ? ' data-report="1"' : ""}` : `data-goto="${folder || "calls"}|${person}"`}><div class="task-n">${n}</div><div class="grow"><div class="title">${title}</div><div class="sub">${sub}</div></div><div class="right sub">›</div></div>`)
+    .join("")}</div>`;
+}
+
+// Экран лидоруба: где сейчас его лиды, что с них продано, динамика за 2 недели.
+function lidorubHome(me) {
+  const mineAll = state.clients.filter((c) => c.lidorubId === me.id);
+  const has = (c, t) => (c.events || []).some((e) => e.t === t);
+  const stages = [
+    ["Новые, без ЛМ", (c) => c.status === "new" && !has(c, "lm"), "new"],
+    ["ЛМ отправлен — записать", (c) => c.status === "new" && has(c, "lm"), "lm"],
+    ["Записаны на созвон", (c) => !!currentCall(c), "calls"],
+    ["Провели — ждём решения", (c) => !currentCall(c) && (c.calls || []).some((x) => x.outcome === "held") && ["in_work", "thinking", "prepaid", "resched"].includes(c.status), "hot"],
+    ["НДЗ", (c) => /^ndz/.test(c.status), "ndz"],
+    ["Оплатили", (c) => c.status === "paid", "paid"],
+    ["Слив (отказ, игнор, невалид)", (c) => ["refuse_personal", "refuse_bank", "ignore", "invalid"].includes(c.status), "lost"],
+  ];
+  const max = Math.max(1, ...stages.map(([, f]) => mineAll.filter(f).length));
+  let html = `<div class="list-head"><h2>Мои лиды по этапам <span class="cnt">${mineAll.length}</span></h2><button class="link" data-goto="all|${me.id}">Таблица →</button></div><div class="list">${stages
+    .map(([label, f, folder]) => {
+      const n = mineAll.filter(f).length;
+      return `<div class="hbar" data-goto="${folder}|${me.id}" style="cursor:pointer"><div class="hbar-top"><span>${label}</span><b>${n}</b></div><div class="bar-track"><i style="width:${(n / max) * 100}%"></i></div></div>`;
+    })
+    .join("")}</div>`;
+  // 14 дней: сколько завёл и сколько записал
+  const days = Array.from({ length: 14 }, (_, i) => addDaysKey(today(), i - 13));
+  const added = days.map((d) => mineAll.filter((c) => mskKey(Date.parse(c.createdAt)) === d).length);
+  const booked = days.map((d) => mineAll.reduce((n, c) => n + (c.calls || []).filter((x) => !x.legacy && x.setBy === me.id && mskKey(Date.parse(x.setAt || x.at)) === d).length, 0));
+  html += columns(days.map((d, i) => ({ label: d.slice(8), value: added[i], accent: d === today(), tip: `${fmtDay(d)}: завёл ${added[i]}, записал ${booked[i]}` })), { title: "Завёл лидов за 14 дней", height: 120 });
+  html += columns(days.map((d, i) => ({ label: d.slice(8), value: booked[i], accent: d === today(), tip: `${fmtDay(d)}: записал ${booked[i]}` })), { title: "Записал на созвон за 14 дней", height: 120 });
+  // продажи с моих лидов
+  const sold = mineAll.filter((c) => c.status === "paid").map((c) => ({ c, ev: [...(c.events || [])].reverse().find((e) => e.t === "paid") })).sort((a, b) => (b.ev?.at || "").localeCompare(a.ev?.at || ""));
+  if (sold.length) {
+    const sum = sold.reduce((x, y) => x + (Number(y.ev?.sum) || y.c.wantedSum || 0), 0);
+    html += section(`Продажи с моих лидов · ${sold.length}`, sold.slice(0, 20).map(({ c, ev }) => clientRow(c, { sub: `${statusBadge(c.status)}<span class="sub">· ${esc(userName(c.mopId))}${ev ? ` · ${fmtDay(mskKey(Date.parse(ev.at)))}` : ""}</span>`, right: `<b class="money-green">${rub(Number(ev?.sum) || c.wantedSum || 0)}</b>` })), { action: `<span class="sub">${rub(sum)}</span>` });
+  }
+  return html;
+}
+
 // Таблица «кто как сегодня» для РОПа/собственника
 function teamToday() {
   const day = today();
@@ -434,6 +491,7 @@ function teamToday() {
 // Папки лидов: путь клиента от заявки до денег. Тап — фильтр списка.
 const FOLDERS = [
   ["active", "В работе", (c) => !isClosed(c.status)],
+  ["stuck", "Зависли — нет следующего шага", (c) => !!stuckReason(c), true],
   ["new", "Новые, без ЛМ", (c) => c.status === "new" && !(c.events || []).some((e) => e.t === "lm")],
   ["lm", "ЛМ отправлен, ждут записи", (c) => c.status === "new" && (c.events || []).some((e) => e.t === "lm")],
   ["calls", "Созвон назначен", (c) => !!currentCall(c)],
@@ -470,12 +528,15 @@ function renderClients() {
     const n = base.filter(fn).length;
     return `<button class="folder ${state.filter === id ? "active" : ""} ${alert && n ? "alert" : ""}" data-filter="${id}"><b>${n}</b><span>${label}</span></button>`;
   }).join("");
+  const asTable = state.clientsView === "table";
+  const folderName = FOLDERS.find((f) => f[0] === state.filter)?.[1] || "";
   $app.innerHTML = `
-    <div class="toolbar"><input type="search" id="q" placeholder="Поиск: имя, ник, телефон, инфа" value="${esc(state.query)}"><button class="btn round" data-new>＋</button></div>
-    ${people.length > 1 ? `<div class="chips"><button class="chip ${state.person === "all" ? "active" : ""}" data-pfilter="all">Вся команда</button>${people.map((u) => `<button class="chip ${state.person === u.id ? "active" : ""}" data-pfilter="${u.id}">${esc(u.name)}</button>`).join("")}</div>` : ""}
+    <div class="toolbar"><input type="search" id="q" placeholder="Поиск: имя, ник, телефон, инфа" value="${esc(state.query)}"><button class="btn round" data-new aria-label="Новый лид">＋</button></div>
+    <div class="seg"><button class="${asTable ? "" : "active"}" data-cview="list">Список</button><button class="${asTable ? "active" : ""}" data-cview="table">Таблица</button></div>
+    ${people.length > 1 ? `<div class="chips"><button class="chip ${state.person === "all" ? "active" : ""}" data-pfilter="all">Вся команда</button>${people.map((u) => `<button class="chip ${state.person === u.id ? "active" : ""}" data-pfilter="${u.id}">${u.id === state.me.id ? "Мои" : esc(u.name)}</button>`).join("")}</div>` : ""}
     <div class="folders">${folders}</div>
-    <div class="sub" style="margin:0 4px 8px">${esc(FOLDERS.find((f) => f[0] === state.filter)?.[1] || "")}: ${list.length} ${plural(list.length, "клиент", "клиента", "клиентов")}</div>
-    ${list.length ? `<div class="list">${list.slice(0, 300).map((c) => clientRow(c)).join("")}</div>` : `<div class="card empty">Пусто. ${state.clients.length ? "Загляни в другую папку." : "Жми ＋ и заводи первого клиента."}</div>`}`;
+    <div class="list-head" style="margin-top:4px"><h2>${esc(folderName)} <span class="cnt">${list.length}</span></h2>${asTable ? `<button class="link" data-bulk>+ Добавить строками</button>` : ""}</div>
+    ${!list.length ? `<div class="card empty">Пусто. ${state.clients.length ? "Загляни в другую папку." : "Жми ＋ и заводи первого клиента."}</div>` : asTable ? crmTable(list) : `<div class="list">${list.slice(0, 300).map((c) => clientRow(c, stuckReason(c) && state.filter === "stuck" ? { extra: `<div class="sub stuck-why">🧊 ${esc(stuckReason(c))}</div>` } : {})).join("")}</div>`}`;
   const q = document.getElementById("q");
   q.oninput = () => {
     state.query = q.value;
@@ -485,6 +546,91 @@ function renderClients() {
     nq.focus();
     nq.setSelectionRange(pos, pos);
   };
+}
+
+// Таблица как CRM-таблица: те же клиенты, что в карточках (одна база — всё синхронно). Тап по строке — карточка.
+function crmTable(list) {
+  const rows = [...list].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).slice(0, 500);
+  const cell = (t, cls = "") => `<td class="${cls}">${t || "<span class='sub'>—</span>"}</td>`;
+  return `<div class="crm-wrap"><table class="crm"><thead><tr><th>Клиент</th><th>Заявка</th><th>Статус</th><th>Созвон</th><th>Диагност</th><th>Лидоруб</th><th>Источник</th><th>Сумма</th><th>Запрос (итог)</th><th>Дальнейшие шаги</th><th>Телефон</th></tr></thead><tbody>${rows
+    .map((c) => {
+      const call = currentCall(c) || [...(c.calls || [])].filter((x) => x.outcome && x.outcome !== "moved").sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+      const rep = latestReport(c)?.report;
+      const stuck = stuckReason(c);
+      return `<tr data-open="${c.id}" class="${stuck ? "is-stuck" : ""}">${cell(`<b>${esc(clientTitle(c))}</b>${c.name && c.telegram ? `<br><span class="sub">${esc(c.telegram)}</span>` : ""}`, "sticky")}${cell(fmtDay(mskKey(Date.parse(c.createdAt))))}${cell(statusBadge(c.status) + (stuck ? `<br><span class="sub">🧊 завис</span>` : ""))}${cell(call ? `${fmtWhen(Date.parse(call.at))}${call.outcome ? `<br><span class="sub">${call.outcome === "held" ? "проведён" : call.outcome === "ndz" ? "НДЗ" : ""}</span>` : ""}` : "")}${cell(c.mopId ? esc(userName(c.mopId)) : "")}${cell(c.lidorubId ? esc(userName(c.lidorubId)) : "")}${cell(esc(c.source || ""))}${cell(c.wantedSum ? short(c.wantedSum) : "", "num")}${cell(rep?.need ? esc(rep.need.slice(0, 80)) : "", "wide")}${cell(c.nextSteps ? esc(c.nextSteps.slice(0, 90)) : "", "wide")}${cell(esc(c.phone || ""))}</tr>`;
+    })
+    .join("")}</tbody></table></div>${list.length > 500 ? `<div class="sub" style="margin:8px 4px">Показаны первые 500 — уточни поиск или папку.</div>` : ""}`;
+}
+
+// Добавить лидов пачкой — как строки в таблице: «Имя @ник +7… что известно», каждая строка — лид.
+function openBulkAdd() {
+  let src = SOURCES[0];
+  const parse = (text) =>
+    text.split(/\n+/).map((line) => line.trim()).filter(Boolean).map((line) => {
+      const nick = (line.match(/@([A-Za-z][\w]{3,31})/) || line.match(/t\.me\/([A-Za-z][\w]{3,31})/) || [])[1] || "";
+      const phone = (line.match(/\+?\d[\d\s()-]{9,}\d/) || [])[0] || "";
+      let rest = line.replace(/@[A-Za-z][\w]{3,31}|(?:https?:\/\/)?t\.me\/[\w]+/g, " ").replace(phone, " ").replace(/\s+/g, " ").trim();
+      // Имя — слова с заглавной буквы в начале строки (не больше двух): «Антон», «Иван Петров».
+      const words = rest.split(" ");
+      const nameWords = [];
+      for (const w of words) {
+        if (nameWords.length < 2 && /^[А-ЯЁA-Z][а-яёa-z-]*$/.test(w)) nameWords.push(w);
+        else break;
+      }
+      const name = nameWords.join(" ");
+      const info = rest.slice(name.length).replace(/^[\s—–|;,:-]+/, "").trim();
+      const dup = state.clients.find((c) => (nick && c.telegram?.replace(/^@/, "").toLowerCase() === nick.toLowerCase()) || (phone.replace(/\D/g, "").length >= 10 && c.phone?.replace(/\D/g, "").endsWith(phone.replace(/\D/g, "").slice(-10))));
+      return { name, telegram: nick ? `@${nick}` : "", phone: phone.replace(/[^\d+]/g, ""), info, dup };
+    });
+  const draw = (sh, text = "") => {
+    const rows = parse(text);
+    sh.querySelector("#bk-prev").innerHTML = rows.length
+      ? `<div class="crm-wrap"><table class="crm"><thead><tr><th>Имя</th><th>Ник</th><th>Телефон</th><th>Инфа</th><th></th></tr></thead><tbody>${rows.map((r) => `<tr class="${r.dup ? "is-dup" : ""}"><td>${esc(r.name) || "—"}</td><td>${esc(r.telegram) || "—"}</td><td>${esc(r.phone) || "—"}</td><td class="wide">${esc(r.info) || "—"}</td><td>${r.dup ? `<span class="sub">уже есть: ${esc(clientTitle(r.dup))}</span>` : !r.name && !r.telegram && !r.phone ? "<span class='sub'>пусто</span>" : "✓"}</td></tr>`).join("")}</tbody></table></div>`
+      : `<div class="sub" style="margin:6px 4px">Вставь строки — здесь появится таблица, что будет создано.</div>`;
+    const ok = rows.filter((r) => !r.dup && (r.name || r.telegram || r.phone)).length;
+    const b = sh.querySelector("#bk-save");
+    b.textContent = ok ? `Создать ${ok} ${plural(ok, "лида", "лида", "лидов")}` : "Нечего создавать";
+    b.disabled = !ok;
+  };
+  openSheet(
+    `<div class="sheet-title">Добавить лидов строками</div><div class="sub" style="margin:-6px 2px 10px">Каждая строка — один лид: <b>Имя @ник +7 900 … что известно</b>. Дубли по нику и телефону пропущу.</div>
+    <textarea id="bk-text" style="min-height:140px" placeholder="Антон @anton_x хочет выйти на 100к, прогрет на интенсиве&#10;Миша +79001234567 из рилс&#10;@oleg_k — ИП уже есть"></textarea>
+    <div class="sheet-label">Источник</div><div class="chips tight" id="bk-src">${SOURCES.map((x, i) => `<button class="chip ${i === 0 ? "active" : ""}" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+    ${state.me.role !== "lidorub" && lidorubs().length ? `<label class="field" style="margin-top:10px"><span>Лидоруб</span><select id="bk-lr"><option value="">—</option>${lidorubs().map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join("")}</select></label>` : ""}
+    <div class="sheet-label">Что будет создано</div><div id="bk-prev"></div>
+    <button class="btn block" id="bk-save" disabled>Нечего создавать</button>`,
+    (sh) => {
+      const ta = sh.querySelector("#bk-text");
+      ta.oninput = () => draw(sh, ta.value);
+      draw(sh, "");
+      sh.querySelector("#bk-src").onclick = (e) => {
+        const b = e.target.closest("[data-v]");
+        if (!b) return;
+        src = b.dataset.v;
+        for (const x of sh.querySelectorAll("#bk-src .chip")) x.classList.toggle("active", x === b);
+      };
+      sh.querySelector("#bk-save").onclick = async (ev) => {
+        const btn = ev.currentTarget;
+        btn.disabled = true;
+        const rows = parse(ta.value).filter((r) => !r.dup && (r.name || r.telegram || r.phone));
+        let made = 0;
+        const skipped = [];
+        for (const r of rows) {
+          try {
+            const res = await api("POST", "/clients", { name: r.name, telegram: r.telegram, phone: r.phone, info: r.info, source: src, lidorubId: sh.querySelector("#bk-lr")?.value || (state.me.role === "lidorub" ? state.me.id : null) });
+            replaceClient(res.client);
+            made++;
+          } catch (e) {
+            skipped.push(`${r.name || r.telegram || r.phone}: ${e.message}`);
+          }
+        }
+        closeSheet();
+        render();
+        if (skipped.length) alertDialog(`Создано: ${made}. Пропущено:\n${skipped.join("\n")}`);
+        else toast(`Создано лидов: ${made}`);
+      };
+    },
+  );
 }
 
 // ---------- КАРТОЧКА ----------
@@ -1675,7 +1821,7 @@ function renderRules() {
 $app.addEventListener("click", async (e) => {
   const lt = e.target.closest(".link-row .title");
   if (lt && isBoss() && state.more === "links") return openLinkEdit(linkById(lt.closest(".link-row").querySelector("[data-copy]").dataset.copy));
-  const t = e.target.closest("button, [data-open], [data-more], [data-pay], [data-user], [data-person], [data-sperson], [data-export], [data-drill]");
+  const t = e.target.closest("button, [data-open], [data-more], [data-pay], [data-user], [data-person], [data-sperson], [data-export], [data-drill], [data-goto]");
   if (!t) return;
   const d = t.dataset;
   if (d.link) {
@@ -1821,6 +1967,15 @@ $app.addEventListener("click", async (e) => {
     return render();
   }
   if (d.filter) return (state.filter = d.filter), render();
+  if (d.cview) return (state.clientsView = d.cview), render();
+  if (d.goto) {
+    const [folder, person] = d.goto.split("|");
+    Object.assign(state, { tab: "clients", filter: folder, person: person || "all", clientId: null, more: null });
+    if (folder === "all") state.clientsView = "table";
+    render();
+    return window.scrollTo(0, 0);
+  }
+  if (d.bulk !== undefined) return openBulkAdd();
   if (d.pfilter) return (state.person = d.pfilter), render();
   if (d.person) return (state.tab = "clients"), (state.person = d.person), (state.filter = "active"), render();
   if (d.cal) return (state.calDay = d.cal), render();
