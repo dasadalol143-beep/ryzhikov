@@ -477,8 +477,8 @@ test("no duplicates: same @nick/phone refused, old dups auto-merged, repeated ca
   // повторная запись на то же время — тот же созвон; сдвиг на 30 минут — перенос, а не второй созвон
   const at = new Date(Date.now() + 3 * 3600_000).toISOString();
   await api(503, "POST", `/clients/${b.id}/action`, { type: "call", at, mopId: "501" });
-  // клиента взял Тема — лидоруб его больше не трогает, перенос делает сам Тема
-  assert.equal((await api(503, "POST", `/clients/${b.id}/action`, { type: "call", at, mopId: "501" })).status, 403);
+  // лидоруб только что записал — повтор на то же время не создаёт второй созвон
+  assert.equal((await api(503, "POST", `/clients/${b.id}/action`, { type: "call", at, mopId: "501" })).status, 409);
   let c = (await api(501, "POST", `/clients/${b.id}/action`, { type: "call", at, mopId: "501" })).body.client;
   assert.equal(c.calls.filter((x) => x.outcome !== "moved").length, 1);
   c = (await api(501, "POST", `/clients/${b.id}/action`, { type: "call", at: new Date(Date.parse(at) + 30 * 60_000).toISOString(), mopId: "501" })).body.client;
@@ -598,8 +598,14 @@ test("«Оплатил» from a CRM sheet import gets a payroll draft; seed paym
       { name: "Зовут Алексей", telegram: "@hanagassummi", status: "paid", fromSheet: true, nextSteps: "Был пересозвон (в рамках него всё оплатил)" },
     ],
   })).body;
-  assert.equal(r.paidFromSheet, 1);
-  const pays = await store.all("payment");
+  // Алексея ведут в приложении — таблица статус не перетирает, только сообщает о расхождении
+  assert.equal(r.statusConflicts.length, 1);
+  assert.equal((await store.get("client", a.id)).status, "in_work");
+  let pays = await store.all("payment");
+  assert.equal(pays.filter((p) => p.clientId === a.id).length, 0);
+  // МОП ставит «Оплатил» в приложении → один черновик в ведомость
+  await api(502, "POST", `/clients/${a.id}/action`, { type: "status", status: "paid", sum: 70000 });
+  pays = await store.all("payment");
   const alexey = pays.filter((p) => p.clientId === a.id);
   assert.equal(alexey.length, 1);
   assert.equal(alexey[0].tariff, 70000);
@@ -641,9 +647,9 @@ test("reconcile: manual payment «Алексей» links to «Зовут Але�
   const a = (await store.all("client")).find((c) => c.telegram === "@hanagassummi");
   await api(503, "POST", `/clients/${a.id}/action`, { type: "call", at: new Date(Date.now() - 3600_000).toISOString(), mopId: "502" });
   await api(502, "POST", `/clients/${a.id}/action`, { type: "held" });
-  // статус из таблицы → сверка создала черновик
-  await api(1, "POST", "/import", { clients: [{ name: "Зовут Алексей", telegram: "@hanagassummi", status: "paid", fromSheet: true }] });
-  assert.equal((await store.all("payment")).filter((p) => p.createdBy === "system").length, 1);
+  // «Оплатил» в приложении → черновик в ведомости
+  await api(502, "POST", `/clients/${a.id}/action`, { type: "status", status: "paid", sum: 70000 });
+  assert.equal((await store.all("payment")).filter((p) => p.clientId === a.id).length, 1);
   // Андрей заводит оплату руками: «Алексей», без ника, верифицирует
   const day = new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10);
   const res = (await api(1, "POST", "/payments", { date: day, tariff: 70000, net: 51000, verified: true, mopId: "502", clientName: "Алексей" })).body;
@@ -764,4 +770,58 @@ test("report reminders: 3 nudges to the mop, then ROP/owner; stops once the repo
   assert.match(stuckReason({ status: "thinking", createdAt: old, statusAt: old, calls: [] }), /нет ответственного/);
   assert.equal(stuckReason({ status: "in_work", createdAt: old, calls: [{ id: "a", at: new Date(Date.now() + 3600_000).toISOString() }] }), null);
   assert.equal(stuckReason({ status: "paid", createdAt: old }), null);
+});
+
+test("audit: payments survive status flips, deleted payments don't come back, late report keeps the future re-call, money parses k/тыс", async () => {
+  const { store, api } = await setup();
+  const { money, mergeInto } = await import("../src/api.mjs");
+  assert.deepEqual(["100k", "100тыс", "1,5к", "68 950,50"].map(money), [100000, 100000, 1500, 68950.5]);
+  const a = (await api(503, "POST", "/clients", { name: "Вася", telegram: "vasya_pay" })).body.client;
+  await api(503, "POST", `/clients/${a.id}/action`, { type: "call", at: new Date(Date.now() - 3600_000).toISOString(), mopId: "502" });
+  await api(502, "POST", `/clients/${a.id}/action`, { type: "held" });
+  await api(502, "POST", `/clients/${a.id}/action`, { type: "status", status: "paid", sum: 80000 });
+  let pays = (await store.all("payment")).filter((p) => p.clientId === a.id);
+  assert.equal(pays.length, 1);
+  // Андрей внёс чистую — оплата уже не черновик; сняли «Оплатил» случайно — оплата остаётся
+  await api(1, "PATCH", `/payments/${pays[0].id}`, { net: 60000, verified: true });
+  await api(502, "POST", `/clients/${a.id}/action`, { type: "status", status: "thinking", sum: 80000 });
+  assert.equal((await store.all("payment")).filter((p) => p.clientId === a.id).length, 1);
+  // вернули «Оплатил» — второй оплаты нет
+  await api(502, "POST", `/clients/${a.id}/action`, { type: "status", status: "paid", sum: 80000 });
+  pays = (await store.all("payment")).filter((p) => p.clientId === a.id);
+  assert.equal(pays.length, 1);
+  assert.equal(pays[0].net, 60000);
+  // удалили оплату руками — сверка её не воссоздаёт
+  await api(1, "DELETE", `/payments/${pays[0].id}`);
+  const { reconcilePaid } = await import("../src/api.mjs");
+  await reconcilePaid(store);
+  assert.equal((await store.all("payment")).filter((p) => p.clientId === a.id).length, 0);
+
+  // поздний отчёт по прошедшей диагностике не отменяет будущий пересозвон
+  const b = (await api(503, "POST", "/clients", { name: "Петя", telegram: "petya_late" })).body.client;
+  const future = new Date(Date.now() + 2 * 86400_000).toISOString();
+  await api(503, "POST", `/clients/${b.id}/action`, { type: "call", at: future, mopId: "502" });
+  const r = (await api(502, "POST", `/clients/${b.id}/action`, { type: "report", report: { need: "старт" }, newCall: true, date: new Date(Date.now() - 86400_000).toISOString(), mopId: "502" })).body.client;
+  assert.equal(r.calls.find((x) => x.at === future).outcome, null);
+  assert.equal(r.calls.filter((x) => x.outcome === "held").length, 1);
+
+  // склейка: «передан» и «оплатил» не задваиваются, открытый созвон один
+  const x = { calls: [{ id: "1", at: "2026-10-20T10:00:00Z", mopId: "502", outcome: null }], events: [{ t: "handed", at: "2026-10-01T10:00:00Z", mop: "502" }, { t: "paid", at: "2026-10-02T10:00:00Z", sum: 1 }], history: [] };
+  const y = { calls: [{ id: "2", at: "2026-10-22T10:00:00Z", mopId: "502", outcome: null }], events: [{ t: "handed", at: "2026-10-03T10:00:00Z", mop: "502" }, { t: "paid", at: "2026-10-04T10:00:00Z", sum: 2 }], history: [] };
+  mergeInto(x, y, "1");
+  assert.equal(x.events.filter((e) => e.t === "handed").length, 1);
+  assert.deepEqual(x.events.filter((e) => e.t === "paid").map((e) => e.sum), [2]);
+  assert.equal(x.calls.filter((c) => !c.outcome).length, 1);
+});
+
+test("audit: lidorub can't write a report as diagnost, can fix own fresh booking on a locked lead", async () => {
+  const { store, api } = await setup();
+  const c = (await api(503, "POST", "/clients", { name: "Глеб", telegram: "gleb_r" })).body.client;
+  const res = await api(503, "POST", `/clients/${c.id}/action`, { type: "report", report: { need: "x" }, newCall: true, date: new Date().toISOString(), mopId: "503" });
+  assert.equal(res.status, 400);
+  // лидоруб записал к Диме и сразу переносит — можно 15 минут
+  await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at: new Date(Date.now() + 86400_000).toISOString(), mopId: "502" });
+  const moved = await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at: new Date(Date.now() + 2 * 86400_000).toISOString(), mopId: "502" });
+  assert.equal(moved.status, 200);
+  assert.equal((await store.get("client", c.id)).calls.filter((x) => !x.outcome).length, 1);
 });

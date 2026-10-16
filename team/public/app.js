@@ -711,6 +711,11 @@ function possibleDups(c) {
 }
 // Взял МОП — менять может только он, РОП и собственник. До этого лид общий.
 const canEdit = (c) => canTouchClient(state.me, c);
+// Только что сам записал на созвон — 15 минут можно отменить или перенести, даже если лида ведёт другой.
+const freshOwn = (c) => {
+  const call = currentCall(c);
+  return !!call && call.setBy === state.me.id && Date.now() - Date.parse(call.setAt || 0) < 15 * 60_000;
+};
 
 function renderClient(c) {
   const st = clientStage(c);
@@ -722,14 +727,14 @@ function renderClient(c) {
       ${c.telegram ? `<button class="action" data-link="${esc(tgUrl(c.telegram))}"><span>${icon("send")}</span>Написать</button>` : ""}
       ${c.chatUrl ? `<button class="action" data-link="${esc(c.chatUrl)}"><span>${icon("chat")}</span>Чат</button>` : ""}
       ${c.phone ? `<a class="action" href="tel:${esc(c.phone)}"><span>${icon("phone")}</span>Позвонить</a>` : ""}
-      <button class="action" data-paylinks="${c.id}"><span>${icon("card")}</span>Ссылка</button>
+      ${canEdit(c) ? `<button class="action" data-paylinks="${c.id}"><span>${icon("card")}</span>Ссылка</button>` : ""}
     </div>${c.payLinkId ? `<div class="sub" style="margin-top:10px">Отправлена ссылка: <b>${esc(linkById(c.payLinkId)?.label || c.payLinkId)}</b></div>` : ""}</div>`;
 
-  if (dups.length) html += `<div class="dup-card"><b>Похоже на дубль</b><div class="sub">Тот же клиент заведён ещё раз — склей, чтобы история и созвоны были в одной карточке.</div>${dups.map((d) => `<div class="dup-row"><span>${esc(clientTitle(d))} · ${esc(statusLabel(d.status))} · создан ${fmtDay(mskKey(Date.parse(d.createdAt)))}</span><button class="btn small" data-merge="${d.id}">Склеить</button></div>`).join("")}</div>`;
+  if (dups.length && canEdit(c)) html += `<div class="dup-card"><b>Похоже на дубль</b><div class="sub">Тот же клиент заведён ещё раз — склей, чтобы история и созвоны были в одной карточке.</div>${dups.map((d) => `<div class="dup-row"><span>${esc(clientTitle(d))} · ${esc(statusLabel(d.status))} · создан ${fmtDay(mskKey(Date.parse(d.createdAt)))}</span><button class="btn small" data-merge="${d.id}">Склеить</button></div>`).join("")}</div>`;
 
   const locked = !canEdit(c);
   html += locked
-    ? `<div class="next-card lock-card"><div class="next-label">Только просмотр</div><div class="next-title">Клиента ведёт ${esc(userName(c.mopId))}</div><div class="sub">Менять карточку может только ${esc(userName(c.mopId))}, РОП или Петя. Нужно что-то поправить — оставь комментарий внизу, ${esc(userName(c.mopId))} получит уведомление.</div></div>`
+    ? `<div class="next-card lock-card"><div class="next-label">Только просмотр</div><div class="next-title">Клиента ведёт ${esc(userName(c.mopId))}</div><div class="sub">Менять карточку может только ${esc(userName(c.mopId))}, РОП или Петя. Нужно что-то поправить — оставь комментарий внизу, ${esc(userName(c.mopId))} получит уведомление.</div>${freshOwn(c) ? `<div class="row-links"><button class="link" data-book="${c.id}">Перенести мою запись</button><button class="link" data-uncall="${c.id}">Отменить мою запись</button></div>` : ""}</div>`
     : nextStep(c);
   // Руководству: диагност не заполнил итог — напомнить ему в боте.
   if (money() && c.mopId && c.mopId !== state.me.id && needsReport(c)) html += `<button class="big-cta" data-nudge="${c.id}" style="margin-top:10px"><span>${icon("bell")}</span><div>Напомнить ${esc(userName(c.mopId))} заполнить итог<small>придёт сообщение в бота с кнопкой «Заполнить итог»</small></div></button>`;
@@ -1036,9 +1041,14 @@ function openReport(c, { fresh = false } = {}) {
         if (sh.querySelector("#r-wanted")) body.wantedSum = sh.querySelector("#r-wanted").value;
         const next = sh.querySelector("#r-next")?.value;
         if (next) body.nextAt = new Date(Date.parse(`${next}:00+03:00`)).toISOString();
-        closeSheet();
+        // Закрываем только после сохранения — при ошибке написанный отчёт не пропадает.
+        const btn = sh.querySelector("#r-save");
+        btn.disabled = true;
         const res = await act(c.id, body, "Отчёт сохранён");
-        if (res && status === "paid") celebrate(Number(body.sum) || 0);
+        btn.disabled = false;
+        if (!res) return;
+        closeSheet();
+        if (status === "paid") celebrate(Number(body.sum) || 0);
       };
     },
   );
@@ -1058,9 +1068,13 @@ function openStatus(c, status) {
     (sh) => {
       sh.querySelector("#s-save").onclick = async () => {
         const sum = sh.querySelector("#s-sum").value;
-        closeSheet();
+        const btn = sh.querySelector("#s-save");
+        btn.disabled = true;
         const res = await act(c.id, { type: "status", status, sum }, `Статус: ${statusLabel(status)}`);
-        if (res && status === "paid") celebrate(Number(sum) || 0);
+        btn.disabled = false;
+        if (!res) return;
+        closeSheet();
+        if (status === "paid") celebrate(Number(sum) || 0);
       };
     },
   );

@@ -15,7 +15,7 @@ const str = (v, max = 500) => (typeof v === "string" ? v.trim().slice(0, max) : 
 // «68 950,50», «68.950», «99.99», «100 000 ₽» → число. Последние «,» или «.» с 1–2 цифрами — копейки, остальные — разделители тысяч.
 export const money = (v) => {
   let t = String(v ?? "").replace(/[\s\u00a0₽]|руб\.?|р\.?$/gi, "");
-  const k = t.match(/^(\d+(?:[.,]\d+)?)к$/i);
+  const k = t.match(/^(\d+(?:[.,]\d+)?)(?:к|k|тыс\.?|т\.?)$/i);
   if (k) return Math.min(Math.round(Number(k[1].replace(",", ".")) * 1000), 100_000_000);
   const dec = t.match(/[.,](\d{1,2})$/);
   if (dec) t = `${t.slice(0, -dec[0].length).replace(/[.,]/g, "")}.${dec[1]}`;
@@ -109,6 +109,12 @@ export function findDup(clients, { telegram, phone }, exceptId = null) {
 }
 
 // Склеить дубль `from` в `to`: созвоны (без повторов по времени), события, история, пустые поля.
+// Лида передали другому диагносту, а прежний с ним так и не созвонился — «лид в работе» в РнП у прежнего снимаем.
+function dropIdleHanded(c, prevMop) {
+  if (!prevMop || (c.calls || []).some((x) => x.mopId === prevMop && (x.outcome === "held" || x.outcome === "ndz"))) return;
+  c.events = (c.events || []).filter((e) => !(e.t === "handed" && e.mop === prevMop));
+}
+
 export function mergeInto(to, from, by) {
   const near = (a, b) => Math.abs(Date.parse(a.at) - Date.parse(b.at)) < 45 * 60_000;
   for (const call of from.calls || []) {
@@ -118,7 +124,20 @@ export function mergeInto(to, from, by) {
     if (same && call.report && !same.report) Object.assign(same, { report: call.report, reportAt: call.reportAt });
   }
   to.calls.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
-  to.events = [...(to.events || []), ...(from.events || []).filter((e) => !(to.events || []).some((x) => x.t === e.t && x.at === e.at))];
+  // Один открытый созвон на клиента: остальные — «перенесён».
+  const open = to.calls.filter((x) => !x.outcome);
+  for (const x of open.slice(0, -1)) Object.assign(x, { outcome: "moved", movedAt: nowIso() });
+  // События: «передан» — один раз на диагноста, «оплатил» — один раз, иначе РнП посчитает дважды.
+  const evs = [...(to.events || []), ...(from.events || [])].sort((a, b) => (a.at || "").localeCompare(b.at || ""));
+  const lastPaid = evs.map((e) => e.t).lastIndexOf("paid");
+  const seen = new Set();
+  to.events = evs.filter((e, i) => {
+    if (e.t === "paid") return i === lastPaid;
+    const k = e.t === "handed" ? `handed:${e.mop}` : `${e.t}:${e.at}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
   for (const f of ["name", "telegram", "phone", "chatUrl", "lidorubId", "mopId", "nextSteps", "payLinkId"]) if (!to[f] && from[f]) to[f] = from[f];
   if (from.info && !(to.info || "").includes(from.info)) to.info = [to.info, from.info].filter(Boolean).join("\n");
   if (!to.wantedSum && from.wantedSum) to.wantedSum = from.wantedSum;
@@ -187,18 +206,19 @@ export async function reconcilePaid(store, now = Date.now()) {
   for (const c of clients) {
     const own = payments.filter((p) => p.clientId === c.id);
     if (own.length < 2) continue;
-    const real = own.filter((p) => p.createdBy !== "system");
-    for (const p of own.filter((x) => x.createdBy === "system" && !x.verified)) {
-      if (real.length || own.indexOf(p) > 0) {
-        await store.del("payment", p.id);
-        payments.splice(payments.indexOf(p), 1);
-        removed++;
-      }
+    // Пустой автоматический черновик (без чистой, не проверен) лишний, если есть другая оплата этого клиента.
+    const empty = (p) => !p.verified && isAutoDraft(p) && (p.net === null || p.net === undefined);
+    const real = own.filter((p) => !empty(p));
+    const extra = real.length ? own.filter(empty) : own.filter(empty).sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).slice(1);
+    for (const p of extra) {
+      await store.del("payment", p.id);
+      payments.splice(payments.indexOf(p), 1);
+      removed++;
     }
   }
   const created = [];
   for (const c of clients) {
-    if (c.status !== "paid" || payments.some((p) => p.clientId === c.id)) continue;
+    if (c.status !== "paid" || c.payDismissed || payments.some((p) => p.clientId === c.id)) continue;
     // Только клиенты, которых вели в приложении: исторические оплаты из таблицы уже в ведомости.
     const appWork = (c.calls || []).some((x) => !x.legacy) || (c.events || []).some((e) => e.t === "paid");
     if (!appWork) continue;
@@ -207,7 +227,7 @@ export async function reconcilePaid(store, now = Date.now()) {
     const tariff = money(ev?.sum) || c.wantedSum || 0;
     // Похожая непривязанная оплата у того же диагноста рядом по дате — не дублируем, пусть её привяжут.
     if (payments.some((p) => !p.clientId && mopOf(p) === c.mopId && near(p.date, day) && (!tariff || Number(p.tariff) === tariff))) continue;
-    const p = { id: randomUUID(), date: day, clientId: c.id, clientName: clientTitle(c), mopId: c.mopId, lidorubId: c.lidorubId, tariff, net: null, verified: false, note: "Добавлено сверкой: у клиента «Оплатил», а в ведомости оплаты не было", createdBy: "system", createdAt: nowIso(), paid: { mop: null, rop: null, lidorub: null } };
+    const p = { id: randomUUID(), date: day, clientId: c.id, clientName: clientTitle(c), mopId: c.mopId, lidorubId: c.lidorubId, tariff, net: null, verified: false, note: "Добавлено сверкой: у клиента «Оплатил», а в ведомости оплаты не было", auto: true, createdBy: "system", createdAt: nowIso(), paid: { mop: null, rop: null, lidorub: null } };
     await store.put("payment", p.id, p);
     payments.push(p);
     created.push(p);
@@ -254,6 +274,9 @@ const payDay = (c) => {
   return d && d <= today && Date.parse(today) - Date.parse(d) <= 7 * 86400_000 ? d : today;
 };
 
+// Черновик, который создала система (статус «Оплатил» или сверка), а не РОП руками.
+const isAutoDraft = (p) => p.auto === true || p.createdBy === "system" || (!!p.clientId && p.note === "" && !p.verifiedBy && p.createdBy !== undefined && p.payLink !== undefined);
+
 async function setStatus(c, status, { by, sum, store, settings, notes }) {
   if (!STATUS_IDS.includes(status)) return;
   // «Оплатил» ещё раз — это уточнение суммы той же оплаты, а не вторая продажа.
@@ -262,7 +285,7 @@ async function setStatus(c, status, { by, sum, store, settings, notes }) {
     if (!amount) return;
     const ev = [...(c.events || [])].reverse().find((e) => e.t === "paid");
     if (ev) ev.sum = amount;
-    const draft = store && (await store.all("payment")).find((p) => p.clientId === c.id && !p.verified);
+    const draft = store && (await store.all("payment")).find((p) => p.clientId === c.id && !p.verified && isAutoDraft(p));
     if (draft) {
       Object.assign(draft, { tariff: amount, date: payDay(c), net: draft.payLink ? netFromLink(settings, draft.payLink, amount) : draft.net });
       await store.put("payment", draft.id, draft);
@@ -277,23 +300,36 @@ async function setStatus(c, status, { by, sum, store, settings, notes }) {
   c.status = status;
   c.statusAt = nowIso();
   c.touches = [];
-  // Ошибочно нажали «Оплатил» и поправили — продажа уходит из РнП, неверифицированный черновик — из ведомости.
+  // Ошибочно нажали «Оплатил» и поправили — продажа уходит из РнП. Из ведомости уходит только пустой автоматический
+  // черновик; проверенную оплату или заведённую РОПом не трогаем — руководство решит само.
   if (wasPaid && status !== "paid") {
     const i = (c.events || []).map((e) => e.t).lastIndexOf("paid");
     if (i >= 0) c.events.splice(i, 1);
     if (store) {
-      const drafts = (await store.all("payment")).filter((p) => p.clientId === c.id && !p.verified);
-      for (const p of drafts) await store.del("payment", p.id);
-      if (drafts.length) log(c, by, `Черновик оплаты убран из ведомости (${drafts.length})`);
+      const own = (await store.all("payment")).filter((p) => p.clientId === c.id);
+      const drop = own.filter((p) => !p.verified && isAutoDraft(p) && (p.net === null || p.net === undefined));
+      for (const p of drop) await store.del("payment", p.id);
+      if (drop.length) log(c, by, "Черновик оплаты убран из ведомости");
+      const kept = own.filter((p) => !drop.includes(p));
+      if (kept.length) {
+        log(c, by, `⚠️ В ведомости осталась оплата ${kept.map((p) => `${Math.round(p.tariff).toLocaleString("ru-RU")} ₽${p.verified ? " (проверена)" : ""}`).join(", ")} — РОП решит, убирать ли`);
+        const { addFeed } = await import("./notify.mjs");
+        await addFeed(store, { type: "paid", text: `⚠️ ${clientTitle(c)}: статус «Оплатил» сняли, а оплата в ведомости осталась — проверь`, by, to: [] });
+      }
     }
   }
   if (status === "paid") {
     event(c, "paid", by, { mop, sum: amount });
+    c.payDismissed = false;
     // Продажа сразу падает в ведомость черновиком — РОП вносит чистую сумму и верифицирует.
-    const draft = store && (await store.all("payment")).find((p) => p.clientId === c.id && !p.verified);
+    // Оплата этого клиента уже есть (проверенная или от РОПа) — вторую не создаём.
+    const own = store ? (await store.all("payment")).filter((p) => p.clientId === c.id) : [];
+    const draft = own.find((p) => !p.verified && isAutoDraft(p));
     if (draft) {
       Object.assign(draft, { tariff: amount, date: payDay(c), mopId: mop, lidorubId: c.lidorubId, net: draft.net ?? netFromLink(settings, c.payLinkId, amount) });
       await store.put("payment", draft.id, draft);
+    } else if (own.length) {
+      log(c, by, "Оплата этого клиента уже есть в ведомости — вторую не создаю");
     } else if (store) {
       const p = {
         id: randomUUID(),
@@ -308,6 +344,7 @@ async function setStatus(c, status, { by, sum, store, settings, notes }) {
         payLink: c.payLinkId || null,
         verified: false,
         note: "",
+        auto: true,
         createdBy: by,
         createdAt: nowIso(),
       };
@@ -359,8 +396,11 @@ export async function applyAction(c, body, ctx) {
     if (dupCall) {
       if (!dupCall.outcome && dupCall.mopId !== mopId) {
         notes.push({ t: "call", at: dupCall.at, mop: mopId, moved: dupCall.at, prevMop: dupCall.mopId });
+        const prev = dupCall.mopId;
         dupCall.mopId = mopId;
         c.mopId = mopId;
+        dropIdleHanded(c, prev);
+        if (!(c.events || []).some((e) => e.t === "handed" && e.mop === mopId)) event(c, "handed", by, { mop: mopId });
         log(c, by, `Созвон ${fmtWhen(Date.parse(dupCall.at))} передан ${users?.[mopId]?.name || "другому диагносту"}`);
       }
       ctx.call = dupCall;
@@ -375,6 +415,7 @@ export async function applyAction(c, body, ctx) {
     c.calls.push(call);
     ctx.call = call;
     notes.push({ t: "call", at, mop: mopId, moved: cur ? cur.at : null, prevMop: cur?.mopId || null });
+    if (cur?.mopId && cur.mopId !== mopId) dropIdleHanded(c, cur.mopId);
     c.mopId = mopId;
     if (!["paid"].includes(c.status)) {
       c.status = "in_work";
@@ -458,9 +499,11 @@ export async function applyAction(c, body, ctx) {
     if (!call && body.newCall) {
       const at = isoOrNull(body.date) || nowIso();
       const mopId = String(body.mopId || c.mopId || by);
+      if (users && !["mop", "rop"].includes(users[mopId]?.role) && !c.mopId) throw Object.assign(new Error("Кто проводил диагностику? Отчёт пишет диагност (МОП или РОП)"), { status: 400 });
       if (!(c.events || []).some((e) => e.t === "handed" && e.mop === mopId)) event(c, "handed", by, { mop: mopId });
+      // Будущий пересозвон не трогаем — отчёт про прошедшую диагностику.
       const cur = currentCall(c);
-      if (cur) Object.assign(cur, { outcome: "moved", movedAt: nowIso() });
+      if (cur && Date.parse(cur.at) <= Date.parse(at)) Object.assign(cur, { outcome: "moved", movedAt: nowIso() });
       call = { id: randomUUID().slice(0, 8), at, mopId, setAt: nowIso(), setBy: by, outcome: "held", outcomeAt: at, outcomeBy: by, notified: { h2: at, h1: at, m15: at, after: at } };
       c.calls.push(call);
       c.mopId = mopId;
@@ -641,9 +684,9 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           await repointPayments(store, [other.id], c.id);
           return json({ client: c, removed: other.id, payments: money_ ? await store.all("payment") : null });
         }
-        // Комментарий — любой. Только что сам записал и отменяешь (ошибся) — 15 минут можно.
-        const ownFresh = body.type === "uncall" && (() => {
-          const call = (body.callId && c.calls.find((x) => x.id === body.callId)) || currentCall(c);
+        // Комментарий — любой. Только что сам записал и отменяешь/переносишь (ошибся) — 15 минут можно.
+        const ownFresh = (body.type === "uncall" || body.type === "call") && (() => {
+          const call = (body.type === "uncall" && body.callId && c.calls.find((x) => x.id === body.callId)) || currentCall(c);
           return call && call.setBy === by && Date.now() - Date.parse(call.setAt || 0) < 15 * 60_000;
         })();
         const onlyComment = cm[2] && req.method === "POST" && (body.type === "comment" || ownFresh);
@@ -725,7 +768,17 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           const p = await store.get("payment", pm[1]);
           if (!p) return json({ error: "not_found" }, 404);
           if (req.method === "DELETE") {
+            // Удалённую оплату помним: сверка не создаст её заново, повторный импорт не вернёт.
+            await store.put("paytrash", p.id, { ...p, deletedAt: nowIso(), deletedBy: by });
             await store.del("payment", p.id);
+            if (p.clientId) {
+              const cl = await store.get("client", p.clientId);
+              if (cl && !(await store.all("payment")).some((x) => x.clientId === cl.id)) {
+                cl.payDismissed = true;
+                log(cl, by, `Оплата ${Math.round(p.tariff).toLocaleString("ru-RU")} ₽ удалена из ведомости`);
+                await store.put("client", cl.id, cl);
+              }
+            }
             return json({ ok: true });
           }
           if (req.method === "PATCH") {
@@ -880,14 +933,13 @@ export async function importSeed(store, body) {
   if (Array.isArray(body.payments)) {
     const items = body.payments.filter((p) => p.id && isDay(p.date)).map((p) => ({ net: null, verified: false, ...p, tariff: money(p.tariff), net: p.net === null ? null : money(p.net) }));
     // Повторный импорт не сбрасывает то, что уже проверено и выплачено в приложении.
-    const have = new Map((await store.all("payment")).map((p) => [p.id, p]));
-    for (const p of items) {
-      const old = have.get(p.id);
-      if (old) Object.assign(p, { verified: old.verified, net: old.net, paid: old.paid, verifiedBy: old.verifiedBy, mopId: old.mopId || p.mopId, clientId: old.clientId || p.clientId });
-      if (!p.paid) p.paid = seedPaid(p);
-    }
-    await store.putMany("payment", items);
-    out.payments = items.length;
+    // Повторный импорт не трогает оплаты, которые уже есть (их могли поправить и проверить), и не возвращает удалённые.
+    const have = new Set((await store.all("payment")).map((p) => p.id));
+    const gone = new Set((await store.all("paytrash")).map((p) => p.id));
+    const fresh = items.filter((p) => !have.has(p.id) && !gone.has(p.id));
+    for (const p of fresh) if (!p.paid) p.paid = seedPaid(p);
+    await store.putMany("payment", fresh);
+    out.payments = fresh.length;
   }
   if (body.legacy) {
     await store.put("meta", "legacy", body.legacy);
@@ -913,7 +965,9 @@ export async function importSeed(store, body) {
       const mopId = raw.mopId || aliases[raw.mopAlias] || null;
       const calls = (raw.calls || []).map((x) => ({ ...x, mopId: x.mopId || mopId }));
       const key = keyOf(raw);
-      const hit = (key && (changed.get(key) || byNick.get(key))) || null;
+      // Клиент уже есть с этим id (ник или имя поправили в приложении) — это он же, не перезаписываем.
+      const byId = raw.id && (changed.get(raw.id) || existing.find((x) => x.id === raw.id));
+      const hit = (key && (changed.get(key) || byNick.get(key))) || byId || null;
       if (hit) {
         for (const call of calls) if (!hit.calls.some((x) => x.id === call.id || (x.legacy && x.at === call.at))) hit.calls.push(call);
         hit.calls.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
@@ -924,10 +978,15 @@ export async function importSeed(store, body) {
         if (!hit.mopId && mopId) hit.mopId = mopId;
         // Статус из таблицы берём, только если в приложении клиент ещё «новый» или пришёл из таблицы
         // «Оплатил» из таблицы по клиенту, которого ведут в приложении, — как настоящая смена статуса (с оплатой в ведомости).
+        // Клиента уже ведут в приложении — приложение главное, статус из таблицы не перетирает (только отметка).
+        const appWorked = (hit.calls || []).some((x) => !x.legacy) || (hit.events || []).some((e) => e.t === "paid") || (hit.history || []).some((h) => h.by !== "import" && h.by !== "system" && !/^Клиент создан|^Склеен/.test(h.text || ""));
         if (raw.status && (hit.status === "new" || hit.fromSheet) && STATUS_IDS.includes(raw.status) && raw.status !== hit.status) {
-          if (raw.status === "paid" && (hit.calls || []).some((x) => !x.legacy)) out.paidFromSheet = (out.paidFromSheet || 0) + 1;
-          hit.status = raw.status;
-          hit.statusAt = nowIso();
+          if (appWorked) {
+            out.statusConflicts = [...(out.statusConflicts || []), `${clientTitle(hit)}: в таблице «${statusLabel(raw.status)}», в приложении «${statusLabel(hit.status)}»`];
+          } else {
+            hit.status = raw.status;
+            hit.statusAt = nowIso();
+          }
         }
         changed.set(key, hit);
         out.merged++;
@@ -939,8 +998,13 @@ export async function importSeed(store, body) {
       }
     }
     await store.putMany("client", [...changed.values()]);
-    if (out.paidFromSheet) out.reconciled = await reconcilePaid(store);
+    if (out.statusConflicts?.length) {
+      const { addFeed } = await import("./notify.mjs");
+      await addFeed(store, { type: "comment", text: `📥 Импорт таблицы: статус не перезаписан у клиентов, которых ведут в приложении — проверь:\n${out.statusConflicts.slice(0, 15).join("\n")}`, by: "system", to: [] });
+    }
   }
+  // Оплаты из ведомости ↔ клиенты: привязываем сразу, не дожидаясь фоновой сверки.
+  if (out.payments || out.clients || out.merged) out.reconcile = await reconcilePaid(store).catch(() => null);
   return out;
 }
 
@@ -997,7 +1061,7 @@ export async function ensurePayoutFlags(store) {
 export const mopResolver = (settings) => (p) => p.mopId || settings?.aliases?.[p.mopAlias] || (p.mopAlias ? `legacy:${p.mopAlias}` : null);
 
 // Отметить выплату человеку: все его невыплаченные верифицированные оплаты (или ids).
-export async function markPayout(store, { by, users, settings, role, personId, ids = null, tg = null, now = Date.now() }) {
+export async function markPayout(store, { by, users, settings, role, personId, ids = null, expect = null, tg = null, now = Date.now() }) {
   if (!PAYOUT_ROLES[role]) throw Object.assign(new Error("Кому выплата?"), { status: 400 });
   const payments = await ensurePayoutFlags(store);
   const { groups } = payoutsOwed(payments, Object.values(users), settings.rates, { roles: [role], mopOf: mopResolver(settings) });
@@ -1005,6 +1069,8 @@ export async function markPayout(store, { by, users, settings, role, personId, i
   if (!g) throw Object.assign(new Error("Этому человеку ничего не должны"), { status: 400 });
   const pick = Array.isArray(ids) && ids.length ? g.items.filter((it) => ids.includes(it.p.id)) : g.items;
   if (!pick.length) throw Object.assign(new Error("Нет оплат к выплате"), { status: 400 });
+  // Кнопка из старого сообщения: за это время добавились/изменились оплаты — сумма уже другая.
+  if (Number.isFinite(expect) && Math.abs(Math.round(pick.reduce((s, it) => s + it.amount, 0)) - expect) > 1) throw Object.assign(new Error("Сумма изменилась — открой свежее сообщение или «Выплаты» в приложении"), { status: 409 });
   const day = new Date(now + 3 * 3600_000).toISOString().slice(0, 10);
   for (const it of pick) it.p.paid = { ...(it.p.paid || {}), [role]: day };
   await store.putMany("payment", pick.map((it) => it.p));

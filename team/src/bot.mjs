@@ -152,6 +152,8 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
     const name = su ? [su.first_name, su.last_name].filter(Boolean).join(" ") : fwd?.sender_user_name || msg.forward_sender_name || "";
     const dup = byNick(clients, nick) || findDup(clients, { phone: (text.match(/\+?\d[\d\s()-]{9,}\d/) || [])[0] || "" });
     if (dup) {
+      // Лида ведёт другой МОП — карточку не трогаем, только сообщаем.
+      if (!canTouchClient(me, dup)) return reply(`Уже есть: <b>${who(dup)}</b> — ${statusLabel(dup.status)}. ${lockText(dup, usersMap)}`, { inline_keyboard: [[openApp(appUrl, "Открыть карточку", `?client=${dup.id}`)]] });
       // Ещё сообщение от того же клиента — дописываем в инфо, а не заводим второго.
       if (text && !(dup.info || "").includes(text.slice(0, 200))) {
         dup.info = [dup.info, text.slice(0, 1000)].filter(Boolean).join("\n");
@@ -293,7 +295,8 @@ async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, 
   const pick = async (ref) => {
     const { c, list } = findClient(clients, ref);
     if (!c) await reply(list.length > 1 ? `Таких клиентов несколько: ${list.slice(0, 5).map(who).join(", ")}. Уточни @ником.` : `Не нашёл «${h(ref)}» в CRM. Напиши @ник или телефон клиента.`);
-    return c;
+    // Список мог устареть, пока думал ИИ, — правим свежую карточку.
+    return c ? (await store.get("client", c.id)) || c : c;
   };
   const save = async (c, ctx) => {
     c.updatedAt = new Date().toISOString();
@@ -326,6 +329,7 @@ async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, 
         if (!c) return;
         if (!canTouchClient(me, c)) return reply(lockText(c, usersMap));
         const report = Object.fromEntries(REPORT_FIELDS.map((f) => [f.id, inp[f.id] ? String(inp[f.id]) : ""]));
+        if (!["mop", "rop"].includes(me.role) && !c.mopId) return reply("Отчёт пишет диагност (МОП или РОП). Сначала закрепи клиента за МОПом.");
         const pending = (c.calls || []).some((x) => x.outcome === "held" && !x.reportAt);
         const status = AFTER_CALL.includes(inp.status) ? inp.status : null;
         await applyAction(c, { type: "report", report, newCall: !pending, date: new Date().toISOString(), mopId: ["mop", "rop"].includes(me.role) ? me.id : c.mopId || me.id, ...(status ? { status, sum: Number(inp.sum) || c.wantedSum || 0 } : {}) }, ctx);
@@ -425,8 +429,10 @@ async function handleReportMessage(text, { me, clients, store, tg, appUrl, reply
   if (!nick) return reply("Чей это отчёт? Добавь @ник клиента в сообщение и пришли ещё раз.");
   const { blankClient, log, applyAction } = await import("./api.mjs");
   let c = byNick(clients, nick);
+  if (c) c = (await store.get("client", c.id)) || c;
   if (c && !canTouchClient(me, c)) return reply(lockText(c, usersMap));
   let created = false;
+  if (!["mop", "rop"].includes(me.role) && !c?.mopId) return reply("Отчёт пишет диагност (МОП или РОП). Сначала закрепи клиента за МОПом.");
   if (!c) {
     c = blankClient(me.id);
     Object.assign(c, { telegram: `@${nick}` });
@@ -600,6 +606,7 @@ async function handleBooking(book, { me, text, clients, closers, store, tg, appU
   let c = findDup(clients, { telegram: nick, phone: book.phone });
   if (c && !canTouchClient(me, c)) return reply(lockText(c, usersMap));
   let created = false;
+  if (!["mop", "rop"].includes(me.role) && !c?.mopId) return reply("Отчёт пишет диагност (МОП или РОП). Сначала закрепи клиента за МОПом.");
   if (!c) {
     c = blankClient(me.id);
     Object.assign(c, { name: book.name, telegram: nick, phone: book.phone, lidorubId: me.role === "lidorub" ? me.id : null });
@@ -622,7 +629,7 @@ async function handleBooking(book, { me, text, clients, closers, store, tg, appU
 }
 
 async function handleCallback(cb, { store, env, tg, appUrl }) {
-  const [action, clientId, callId] = String(cb.data || "").split(":");
+  const [action, clientId, callId, extra] = String(cb.data || "").split(":");
   const users = await activeUsers(store, env);
   const me = users.find((u) => u.id === String(cb.from.id));
   const answer = (text) => tg.answerCallback(cb.id, text).catch(() => {});
@@ -633,7 +640,7 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
     const { markPayout, loadSettings } = await import("./api.mjs");
     const usersMap = Object.fromEntries(users.map((u) => [u.id, u]));
     try {
-      const res = await markPayout(store, { by: me, users: usersMap, settings: await loadSettings(store), role: clientId, personId: callId, tg });
+      const res = await markPayout(store, { by: me, users: usersMap, settings: await loadSettings(store), role: clientId, personId: callId, expect: extra === undefined ? null : Number(extra), tg });
       await answer(`Отмечено: ${res.payout.name} ${rub(res.payout.amount)}`);
       const fresh = await payoutMessage({ store, env, forOwner: true });
       await tg.editMessage(cb.message.chat.id, cb.message.message_id, `${fresh.text}\n\n✅ <i>Выплачено ${h(res.payout.name)}: ${rub(res.payout.amount)}</i>`, fresh.markup(appUrl)).catch(() => {});
@@ -646,11 +653,15 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
     const batch = await store.get("batch", clientId);
     if (!batch) return answer("Уже неактуально");
     let n = 0;
+    let denied = 0;
     for (const it of batch.items) {
       const cl = await store.get("client", it.clientId);
       const call = cl?.calls.find((x) => x.id === it.callId);
       if (!call || call.outcome) continue;
-      if (!canTouchClient(me, cl) && !freshOwnCall(me, call)) continue;
+      if (!canTouchClient(me, cl) && !freshOwnCall(me, call)) {
+        denied++;
+        continue;
+      }
       const { applyAction } = await import("./api.mjs");
       await applyAction(cl, { type: "uncall", callId: call.id }, { by: me.id, store });
       cl.updatedAt = nowIso();
@@ -658,8 +669,10 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
       await tg.sendMessage(call.mopId, `❌ Отменён созвон ${fmtWhen(Date.parse(call.at))} — ${who(cl)}`).catch(() => {});
       n++;
     }
-    await store.del("batch", batch.id);
-    await answer(n ? `Отменено: ${n}` : "Уже неактуально");
+    // Что-то отменить не дали — пачку не удаляем: её сможет отменить РОП/Петя.
+    if (!denied) await store.del("batch", batch.id);
+    if (denied && !n) return answer("Нет прав: эти созвоны ведёт другой МОП");
+    await answer(n ? `Отменено: ${n}${denied ? `, без прав: ${denied}` : ""}` : "Уже неактуально");
     await tg.editMessage(cb.message.chat.id, cb.message.message_id, `❌ <s>${h(cb.message.text || "")}</s>\nОтменено`).catch(() => {});
     return;
   }
@@ -809,7 +822,8 @@ export async function runReminders({ store, env, tg, appUrl, now = Date.now() })
     }
     if (dirty) {
       // Пока слали в Telegram, карточку могли поменять (отметили «пришёл», отчёт) — пишем только отметки напоминаний.
-      const fresh = (await store.get("client", c.id)) || c;
+      const fresh = await store.get("client", c.id);
+      if (!fresh) continue; // карточку удалили (корзина/склейка) — не воскрешаем
       for (const call of fresh.calls || []) {
         const mine = (c.calls || []).find((x) => x.id === call.id);
         if (mine?.notified) call.notified = { ...(call.notified || {}), ...mine.notified };
@@ -931,7 +945,7 @@ export async function payoutMessage({ store, env, now = Date.now(), forOwner = t
     groups,
     markup: (appUrl) => ({
       inline_keyboard: [
-        ...(forOwner ? groups.map((g) => [{ text: `✅ ${name(g.personId)} — выплатил ${rub(g.total)}`, callback_data: `po:${g.role}:${g.personId}` }]) : []),
+        ...(forOwner ? groups.map((g) => [{ text: `✅ ${name(g.personId)} — выплатил ${rub(g.total)}`, callback_data: `po:${g.role}:${g.personId}:${Math.round(g.total)}` }]) : []),
         [openApp(appUrl, "Выплаты в приложении", "?tab=more&more=payouts")],
       ],
     }),
