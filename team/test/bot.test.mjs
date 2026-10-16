@@ -680,3 +680,26 @@ test("lead taken by a mop: only that mop, ROP and owner can change it; others on
   assert.match(sent.filter((m) => m.chat === "501").at(-1).text, /ведёт Дима/);
   assert.equal((await store.get("client", c.id)).calls.filter((x) => x.outcome === "ndz").length, 0);
 });
+
+test("report can be filled any time: after a removed call, on a refused client; wrong NDZ flips to held", async () => {
+  const { api } = await setup();
+  const c = (await api(503, "POST", "/clients", { name: "Артём", telegram: "iuuhkkk" })).body.client;
+  const at = new Date(Date.now() - 6 * 3600_000).toISOString();
+  let x = (await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at, mopId: "502" })).body.client;
+  x = (await api(502, "POST", `/clients/${c.id}/action`, { type: "ndz", callId: x.calls[0].id })).body.client;
+  assert.equal(x.status, "ndz1");
+  // НДЗ по ошибке → проведён
+  x = (await api(502, "POST", `/clients/${c.id}/action`, { type: "fixheld", callId: x.calls[0].id })).body.client;
+  assert.equal(x.calls[0].outcome, "held");
+  assert.equal(x.status, "in_work");
+  assert.equal(x.events.filter((e) => e.t === "ndz").length, 0);
+  // убрали созвон совсем, поставили отказ — итог всё равно можно внести, созвон появится сам
+  await api(502, "POST", `/clients/${c.id}/action`, { type: "dropcall", callId: x.calls[0].id });
+  await api(502, "POST", `/clients/${c.id}/action`, { type: "status", status: "refuse_personal" });
+  const day = new Date(Date.parse(at) + 3 * 3600_000).toISOString().slice(0, 10);
+  x = (await api(502, "POST", `/clients/${c.id}/action`, { type: "report", newCall: true, date: `${day}T13:00:00.000Z`, mopId: "502", report: { need: "старт в РКО", occupation: "студент" } })).body.client;
+  assert.equal(x.calls.length, 1);
+  assert.equal(x.calls[0].outcome, "held");
+  assert.equal(x.calls[0].report.need, "старт в РКО");
+  assert.equal(x.status, "refuse_personal");
+});

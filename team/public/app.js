@@ -585,6 +585,8 @@ function renderClient(c) {
   html += locked
     ? `<div class="next-card lock-card"><div class="next-label">Только просмотр</div><div class="next-title">Клиента ведёт ${esc(userName(c.mopId))}</div><div class="sub">Менять карточку может только ${esc(userName(c.mopId))}, РОП или Петя. Нужно что-то поправить — оставь комментарий внизу, ${esc(userName(c.mopId))} получит уведомление.</div></div>`
     : nextStep(c);
+  // Итога нет — заполнить можно всегда, на любом этапе (даже если созвон убрали или стоит отказ).
+  if (!locked && !latestReport(c) && st.kind !== "report") html += `<button class="big-cta" data-report-new="${c.id}" style="margin-top:10px"><span>${icon("note")}</span><div>Заполнить итог диагностики<small>${(c.calls || []).some((x) => x.outcome === "held") ? "созвон проведён, итога нет" : "созвона в карточке нет — итог создаст проведённый созвон на дату диагностики"}</small></div></button>`;
 
   html += `<div class="card" style="margin-top:10px"><label class="field" style="margin:0"><span>Дальнейшие шаги и договорённости</span><textarea ${locked ? "disabled" : ""} data-f="nextSteps" style="min-height:52px" placeholder="пересозвон 24.10 в 20:00, ждём снятия самозапрета…">${esc(c.nextSteps || "")}</textarea></label></div>`;
 
@@ -596,7 +598,7 @@ function renderClient(c) {
   }
   if (callsDone.length) {
     html += `<h2>Созвоны</h2><div class="list">${[...callsDone]
-      .map((x) => `<div class="call-line"><div class="grow"><div class="title">${esc(callKind(c, x))} · ${fmtWhen(Date.parse(x.at))}</div><div class="sub">${esc(userName(x.mopId))}${x.report && x !== lr ? " · есть свой итог" : ""}${canEdit(c) ? ` · <button class="link" style="font-size:12.5px;color:var(--hint);padding:0" data-dropcall="${c.id}" data-call="${x.id}">убрать</button>` : ""}</div></div><span class="stt ${x.outcome === "held" ? "g-won" : "g-ndz"}">${x.outcome === "held" ? "проведён" : "НДЗ"}</span></div>`)
+      .map((x) => `<div class="call-line"><div class="grow"><div class="title">${esc(callKind(c, x))} · ${fmtWhen(Date.parse(x.at))}</div><div class="sub">${esc(userName(x.mopId))}${x.report && x !== lr ? " · есть свой итог" : ""}${canEdit(c) && x.outcome === "ndz" ? ` · <button class="link" style="font-size:12.5px;padding:0" data-fixheld="${c.id}" data-call="${x.id}">на самом деле проведён</button>` : ""}${canEdit(c) ? ` · <button class="link" style="font-size:12.5px;color:var(--hint);padding:0" data-dropcall="${c.id}" data-call="${x.id}">убрать</button>` : ""}</div></div><span class="stt ${x.outcome === "held" ? "g-won" : "g-ndz"}">${x.outcome === "held" ? "проведён" : "НДЗ"}</span></div>`)
       .join("")}</div>`;
   }
 
@@ -1688,7 +1690,7 @@ $app.addEventListener("click", async (e) => {
     return openBooking(clientById(d.book));
   }
   if (d.reportOpen) return openReport(clientById(d.reportOpen));
-  if (d.reportNew) return openReport(clientById(d.reportNew), { fresh: true });
+  if (d.reportNew) return openReport(clientById(d.reportNew));
   if (d.export !== undefined) {
     toast("Готовлю выгрузку…");
     try {
@@ -1740,6 +1742,12 @@ $app.addEventListener("click", async (e) => {
     } catch (e) {
       return alertDialog(e.message);
     }
+  }
+  if (d.fixheld) {
+    if (!(await confirmDialog("Клиент на самом деле пришёл? НДЗ уберём, созвон станет проведённым — дальше заполни итог."))) return;
+    const c = await act(d.fixheld, { type: "fixheld", callId: d.call }, "Исправлено: созвон проведён");
+    if (c && !latestReport(c)) openReport(c);
+    return;
   }
   if (d.dropcall) {
     if (!(await confirmDialog("Убрать этот созвон из карточки? Используй для дублей и ошибок — РнП пересчитается."))) return;

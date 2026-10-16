@@ -397,6 +397,21 @@ export async function applyAction(c, body, ctx) {
     log(c, by, `Убран лишний созвон ${fmtWhen(Date.parse(call.at))}${call.outcome === "held" ? " (проведён)" : call.outcome === "ndz" ? " (НДЗ)" : ""}`);
     return;
   }
+  // НДЗ поставили по ошибке — созвон на самом деле был.
+  if (type === "fixheld") {
+    const call = c.calls.find((x) => x.id === body.callId);
+    if (!call || call.outcome !== "ndz") throw Object.assign(new Error("Это не НДЗ"), { status: 400 });
+    Object.assign(call, { outcome: "held", outcomeAt: nowIso(), outcomeBy: by });
+    const i = (c.events || []).map((e) => e.t).lastIndexOf("ndz");
+    if (i >= 0) c.events.splice(i, 1);
+    if (/^ndz\d$/.test(c.status)) {
+      const n = c.calls.filter((x) => x.outcome === "ndz").length;
+      c.status = n ? `ndz${Math.min(n, 3)}` : "in_work";
+      c.statusAt = nowIso();
+    }
+    log(c, by, `НДЗ ${fmtWhen(Date.parse(call.at))} исправлено: созвон проведён`);
+    return;
+  }
   if (type === "uncall") {
     const call = (body.callId && c.calls.find((x) => x.id === body.callId)) || currentCall(c);
     if (!call || call.outcome) throw Object.assign(new Error("Нет назначенного созвона"), { status: 400 });
