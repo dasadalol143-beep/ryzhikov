@@ -284,3 +284,10 @@ export function nextPayday(today) {
   const wd = new Date(`${today}T12:00:00Z`).getUTCDay();
   return addDaysKey(today, (8 - wd) % 7);
 }
+
+// ---------- кто может менять клиента ----------
+// Пока диагност не назначен — лид общий (лидоруб ведёт, записывает). Взял МОП — менять может только он, РОП и собственник.
+export const isBossRole = (role) => role === "owner" || role === "rop";
+export const canTouchClient = (u, c) => !!u && (isBossRole(u.role) || !c?.mopId || c.mopId === u.id);
+// Удалить: руководство; до назначения МОПа — ещё тот, кто завёл, и лидоруб клиента; после — только его МОП.
+export const canDeleteClient = (u, c) => !!u && (isBossRole(u.role) || (c?.mopId ? c.mopId === u.id : [c?.createdBy, c?.lidorubId].includes(u.id)));

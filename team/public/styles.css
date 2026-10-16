@@ -551,3 +551,6 @@ main > * { animation: rise .22s ease-out both; }
 .paid-line.warn { background: var(--warn-wash); cursor: default; display: block; }
 .call-line { display: flex; align-items: center; gap: 10px; padding: 11px 16px; }
 .call-line .title { font-weight: 600; font-size: 14.5px; }
+.lock-card { border-color: var(--line); background: var(--bg3); }
+.lock-card .next-label { color: var(--hint); }
+textarea:disabled, input:disabled, select:disabled { opacity: .7; }

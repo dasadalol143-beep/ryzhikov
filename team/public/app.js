@@ -2,7 +2,7 @@ import {
   ROLES, STATUSES, SOURCES, REPORT_FIELDS, AFTER_CALL, FOLLOWUP_TOUCHES, DEFAULT_RATES,
   statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState, latestReport, callKind,
   mskKey, mskTime, mskMidnight, addDaysKey, fmtDay, weekday, fmtWhen, monthName, payrollRow, monthSummary,
-  DEFAULT_PAY_LINKS, pace, daysInMonth, payoutsOwed, nextPayday, PAYOUT_ROLES, daySlots, rangesText, cleanRanges, toMin, fromMin,
+  DEFAULT_PAY_LINKS, pace, daysInMonth, canTouchClient, canDeleteClient, payoutsOwed, nextPayday, PAYOUT_ROLES, daySlots, rangesText, cleanRanges, toMin, fromMin,
 } from "./lib/model.js";
 import { rnp, rnpEvents, lidorubStats, periodRange } from "./lib/stats.js";
 import { parseReportText, parseCsv, crmRowsToClients } from "./lib/report.js";
@@ -292,10 +292,11 @@ function callRow(c, call) {
   const now = Date.now();
   const cls = at - now < 15 * 60_000 && now - at < 60 * 60_000 ? "now" : at < now ? "past" : "";
   const passed = now >= at;
-  const noReport = call.outcome === "held" && !call.reportAt && !call.legacy;
+  const noReport = needsReport(c) && call.outcome === "held" && !call.reportAt && !call.legacy && canEdit(c);
+  const mayMark = canEdit(c);
   const btns = noReport
     ? `<div class="quick"><button class="qbtn g-ndz" data-report-open="${c.id}">Заполнить итог</button></div>`
-    : passed && !call.outcome
+    : passed && !call.outcome && mayMark
     ? `<div class="quick"><button class="qbtn g-won" data-held="${c.id}" data-call="${call.id}">Пришёл</button><button class="qbtn g-ndz" data-ndz="${c.id}" data-call="${call.id}">НДЗ</button>${c.chatUrl ? `<button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>` : ""}</div>`
     : c.chatUrl ? `<div class="quick"><button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>${c.telegram ? `<button class="qbtn g-lead" data-link="${esc(tgUrl(c.telegram))}">Написать</button>` : ""}</div>` : "";
   const outcome = call.outcome === "held" ? (call.reportAt ? "проведён" : "проведён · нет отчёта") : call.outcome === "ndz" ? "НДЗ" : "";
@@ -399,7 +400,7 @@ function renderToday() {
     html += section(`Новые без созвона · ${fresh.length}`, fresh.slice(0, 30).map((c) =>
       clientRow(c, {
         sub: `${statusBadge(c.status)}<span class="sub">· ${esc(c.source)}${c.lidorubId ? ` · ${esc(userName(c.lidorubId))}` : ""}</span>`,
-        extra: `<div class="quick">${(c.events || []).some((e) => e.t === "lm") ? `<span class="qmore">ЛМ ✓</span>` : `<button class="qbtn g-hot" data-lm="${c.id}">ЛМ отправлен</button>`}<button class="qbtn g-work" data-book="${c.id}">На созвон</button><button class="qbtn g-lost" data-invalid="${c.id}">Невалид</button></div>`,
+        extra: canEdit(c) ? `<div class="quick">${(c.events || []).some((e) => e.t === "lm") ? `<span class="qmore">ЛМ ✓</span>` : `<button class="qbtn g-hot" data-lm="${c.id}">ЛМ отправлен</button>`}<button class="qbtn g-work" data-book="${c.id}">На созвон</button><button class="qbtn g-lost" data-invalid="${c.id}">Невалид</button></div>` : `<div class="sub">🔒 ведёт ${esc(userName(c.mopId))}</div>`,
       }),
     ));
   }
@@ -562,7 +563,8 @@ function possibleDups(c) {
   if (!nm(c)) return [];
   return state.clients.filter((x) => x.id !== c.id && nm(x) === nm(c) && (!x.telegram || !c.telegram) && x.status !== "archive");
 }
-const canEdit = (c) => money() || [c.createdBy, c.mopId, c.lidorubId].includes(state.me.id);
+// Взял МОП — менять может только он, РОП и собственник. До этого лид общий.
+const canEdit = (c) => canTouchClient(state.me, c);
 
 function renderClient(c) {
   const st = clientStage(c);
@@ -579,15 +581,18 @@ function renderClient(c) {
 
   if (dups.length) html += `<div class="dup-card"><b>Похоже на дубль</b><div class="sub">Тот же клиент заведён ещё раз — склей, чтобы история и созвоны были в одной карточке.</div>${dups.map((d) => `<div class="dup-row"><span>${esc(clientTitle(d))} · ${esc(statusLabel(d.status))} · создан ${fmtDay(mskKey(Date.parse(d.createdAt)))}</span><button class="btn small" data-merge="${d.id}">Склеить</button></div>`).join("")}</div>`;
 
-  html += nextStep(c);
+  const locked = !canEdit(c);
+  html += locked
+    ? `<div class="next-card lock-card"><div class="next-label">Только просмотр</div><div class="next-title">Клиента ведёт ${esc(userName(c.mopId))}</div><div class="sub">Менять карточку может только ${esc(userName(c.mopId))}, РОП или Петя. Нужно что-то поправить — оставь комментарий внизу, ${esc(userName(c.mopId))} получит уведомление.</div></div>`
+    : nextStep(c);
 
-  html += `<div class="card" style="margin-top:10px"><label class="field" style="margin:0"><span>Дальнейшие шаги и договорённости</span><textarea data-f="nextSteps" style="min-height:52px" placeholder="пересозвон 24.10 в 20:00, ждём снятия самозапрета…">${esc(c.nextSteps || "")}</textarea></label></div>`;
+  html += `<div class="card" style="margin-top:10px"><label class="field" style="margin:0"><span>Дальнейшие шаги и договорённости</span><textarea ${locked ? "disabled" : ""} data-f="nextSteps" style="min-height:52px" placeholder="пересозвон 24.10 в 20:00, ждём снятия самозапрета…">${esc(c.nextSteps || "")}</textarea></label></div>`;
 
   // Итог диагностики — один на клиента; пересозвоны его дополняют, а не дублируют.
   const lr = latestReport(c);
   if (lr) {
     const rep = lr.report;
-    html += `<h2>Итог диагностики</h2><div class="card"><div class="report-view" style="margin-top:-6px">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}${rep.extra ? `<div><b>Заметки</b>${esc(rep.extra)}</div>` : ""}<div class="sub">Презентация тарифов: ${ynText(rep.presented)} · Предложил оплатить: ${ynText(rep.offeredPay)}</div><div class="sub">Обновлён ${fmtWhen(Date.parse(lr.reportAt || lr.at))} · ${esc(callKind(c, lr).toLowerCase())}${c.wantedSum ? ` · тариф ${rub(c.wantedSum)}` : ""}</div></div><button class="link" data-report-open="${c.id}">Дополнить итог</button></div>`;
+    html += `<h2>Итог диагностики</h2><div class="card"><div class="report-view" style="margin-top:-6px">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}${rep.extra ? `<div><b>Заметки</b>${esc(rep.extra)}</div>` : ""}<div class="sub">Презентация тарифов: ${ynText(rep.presented)} · Предложил оплатить: ${ynText(rep.offeredPay)}</div><div class="sub">Обновлён ${fmtWhen(Date.parse(lr.reportAt || lr.at))} · ${esc(callKind(c, lr).toLowerCase())}${c.wantedSum ? ` · тариф ${rub(c.wantedSum)}` : ""}</div></div>${locked ? "" : `<button class="link" data-report-open="${c.id}">Дополнить итог</button>`}</div>`;
   }
   if (callsDone.length) {
     html += `<h2>Созвоны</h2><div class="list">${[...callsDone]
@@ -606,13 +611,14 @@ function renderClient(c) {
     <label class="field" style="margin:0"><span>Доп. инфа (для диагноста)</span><textarea data-f="info" placeholder="откуда, что пробовал, долги, на что прогрет">${esc(c.info)}</textarea></label>
   </div></details>`;
 
-  html += `<details class="block-det"><summary><span>Сменить статус вручную</span><span class="sub">сейчас: ${esc(statusLabel(c.status))}</span></summary><div class="chips tight" style="margin:4px 0 0">${STATUSES.map((s) => `<button class="chip ${c.status === s.id ? "active" : ""}" data-status="${s.id}">${s.label}</button>`).join("")}</div></details>`;
+  if (!locked) html += `<details class="block-det"><summary><span>Сменить статус вручную</span><span class="sub">сейчас: ${esc(statusLabel(c.status))}</span></summary><div class="chips tight" style="margin:4px 0 0">${STATUSES.map((s) => `<button class="chip ${c.status === s.id ? "active" : ""}" data-status="${s.id}">${s.label}</button>`).join("")}</div></details>`;
 
   html += `<h2>История</h2><div class="card"><div class="toolbar" style="margin:0"><input id="comment" placeholder="Комментарий — увидят все, кто ведёт клиента"><button class="btn small" data-comment="${c.id}">Отправить</button></div></div>
     <div class="list history" style="margin-top:6px">${(c.history || []).slice(0, 30).map((h) => `<div class="row"><div class="grow">${esc(h.text)}</div><div class="right sub">${esc(userName(h.by))}<br>${fmtWhen(Date.parse(h.at))}</div></div>`).join("")}</div>`;
-  if (canEdit(c)) html += `<button class="btn danger" data-delete="${c.id}">Удалить клиента</button>`;
+  if (canDeleteClient(state.me, c)) html += `<button class="btn danger" data-delete="${c.id}">Удалить клиента</button>`;
   $app.innerHTML = html;
 
+  if (locked) for (const el of $app.querySelectorAll("[data-f]")) el.disabled = true;
   // автосохранение полей
   for (const el of $app.querySelectorAll("[data-f]")) {
     el.onchange = async () => {
@@ -1043,7 +1049,7 @@ function openSlotBook(mopId, day, time) {
   const at = new Date(Date.parse(`${day}T${time}:00+03:00`)).toISOString();
   let q = "";
   const pool = () => state.clients
-    .filter((c) => !isClosed(c.status) && !currentCall(c))
+    .filter((c) => !isClosed(c.status) && !currentCall(c) && canEdit(c))
     .filter((c) => !q || [c.name, c.telegram, c.phone, c.info].join(" ").toLowerCase().includes(q))
     .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))
     .slice(0, 30);

@@ -8,7 +8,11 @@ import { parseBooking, parseBookings, parseWindows, parseRelay, parseSetWindows 
 import { addFeed } from "./notify.mjs";
 import { isReportText, parseReportText } from "../public/lib/report.js";
 import { dispatch } from "./notify.mjs";
-import { DEFAULT_PAY_LINKS, REPORT_FIELDS, AFTER_CALL, daySlots, rangesText, toMin } from "../public/lib/model.js";
+import { DEFAULT_PAY_LINKS, REPORT_FIELDS, AFTER_CALL, daySlots, rangesText, toMin, canTouchClient } from "../public/lib/model.js";
+// Клиента, которого взял МОП, меняют только он, РОП и собственник.
+const lockText = (c, usersMap) => `🔒 ${who(c)} ведёт ${h(usersMap?.[c.mopId]?.name || "диагност")} — менять клиента может только он, РОП или Петя. Нужно что-то поправить — напиши ему: <code>${h((usersMap?.[c.mopId]?.name || "Диме").split(" ")[0])}: …</code>`;
+// Только что сам записал и сразу отменяешь (ошибся) — можно в течение 15 минут.
+const freshOwnCall = (me, call) => call && call.setBy === me.id && Date.now() - Date.parse(call.setAt || 0) < 15 * 60_000;
 import { loadWindows, findDup, nickKey } from "./api.mjs";
 const byNick = (clients, nick) => (nick ? clients.find((x) => nickKey(x.telegram) === nickKey(nick)) : null);
 
@@ -254,6 +258,7 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
 
 // Статус клиента из бота: «пришёл / НДЗ» закрывают ближайший созвон, остальное — статус карточки.
 async function applyStatus(c, st, { me, store, tg, appUrl, reply, usersMap, settings, env }) {
+  if (!canTouchClient(me, c)) return reply(lockText(c, usersMap));
   const { applyAction } = await import("./api.mjs");
   const ctx = { by: me.id, store, users: usersMap, settings, notes: [] };
   try {
@@ -319,6 +324,7 @@ async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, 
       if (name === "save_report") {
         const c = await pick(inp.client);
         if (!c) return;
+        if (!canTouchClient(me, c)) return reply(lockText(c, usersMap));
         const report = Object.fromEntries(REPORT_FIELDS.map((f) => [f.id, inp[f.id] ? String(inp[f.id]) : ""]));
         const pending = (c.calls || []).some((x) => x.outcome === "held" && !x.reportAt);
         const status = AFTER_CALL.includes(inp.status) ? inp.status : null;
@@ -349,6 +355,7 @@ async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, 
       if (name === "cancel_call") {
         const c = await pick(inp.client);
         if (!c) return;
+        if (!canTouchClient(me, c) && !freshOwnCall(me, currentCall(c))) return reply(lockText(c, usersMap));
         const call = (c.calls || []).filter((x) => !x.outcome).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0];
         if (!call) return reply(`У ${who(c)} нет назначенного созвона.`);
         await applyAction(c, { type: "uncall", callId: call.id }, ctx);
@@ -418,6 +425,7 @@ async function handleReportMessage(text, { me, clients, store, tg, appUrl, reply
   if (!nick) return reply("Чей это отчёт? Добавь @ник клиента в сообщение и пришли ещё раз.");
   const { blankClient, log, applyAction } = await import("./api.mjs");
   let c = byNick(clients, nick);
+  if (c && !canTouchClient(me, c)) return reply(lockText(c, usersMap));
   let created = false;
   if (!c) {
     c = blankClient(me.id);
@@ -526,6 +534,10 @@ async function handleBookings(items, { me, text, clients, closers, store, tg, ap
       findDup(clients, { telegram: nick, phone: b.phone }) ||
       (!nick && !b.phone && b.name && clients.find((x) => !isClosed(x.status) && !x.telegram && x.name?.toLowerCase() === b.name.toLowerCase() && !currentCall(x) && !taken.some((t) => t.c.id === x.id))) ||
       null;
+    if (c && !canTouchClient(me, c)) {
+      skipped.push(`${label}: 🔒 ${who(c)} ведёт ${h(usersMap[c.mopId]?.name || "диагност")} — переносить может только он, РОП или Петя`);
+      continue;
+    }
     const clash = busy.find((x) => Math.abs(x.t - b.at) < 45 * 60_000 && x.c.id !== c?.id);
     if (clash) {
       skipped.push(`${label}: у ${h(b.mop.name)} уже ${mskTime(clash.t)} — ${who(clash.c)}`);
@@ -586,6 +598,7 @@ async function handleBooking(book, { me, text, clients, closers, store, tg, appU
   const { blankClient, log, applyAction } = await import("./api.mjs");
   const nick = book.nick ? `@${book.nick}` : "";
   let c = findDup(clients, { telegram: nick, phone: book.phone });
+  if (c && !canTouchClient(me, c)) return reply(lockText(c, usersMap));
   let created = false;
   if (!c) {
     c = blankClient(me.id);
@@ -637,6 +650,7 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
       const cl = await store.get("client", it.clientId);
       const call = cl?.calls.find((x) => x.id === it.callId);
       if (!call || call.outcome) continue;
+      if (!canTouchClient(me, cl) && !freshOwnCall(me, call)) continue;
       const { applyAction } = await import("./api.mjs");
       await applyAction(cl, { type: "uncall", callId: call.id }, { by: me.id, store });
       cl.updatedAt = nowIso();
@@ -652,6 +666,11 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
   const c = await store.get("client", clientId);
   if (!c) return answer("Клиент не найден");
   const { applyAction } = await import("./api.mjs");
+  const lockedFor = () => (canTouchClient(me, c) ? null : `🔒 Клиента ведёт ${users.find((u) => u.id === c.mopId)?.name || "диагност"} — менять может только он, РОП или Петя`);
+  if (action === "uncall") {
+    const call = c.calls.find((x) => x.id === callId);
+    if (lockedFor() && !freshOwnCall(me, call)) return answer(lockedFor());
+  } else if (lockedFor()) return answer(lockedFor());
   if (action === "held" || action === "ndz") {
     const call = c.calls.find((x) => x.id === callId);
     if (!call) return answer("Созвон уже перенесён — открой карточку");

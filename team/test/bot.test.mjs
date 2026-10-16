@@ -477,9 +477,11 @@ test("no duplicates: same @nick/phone refused, old dups auto-merged, repeated ca
   // повторная запись на то же время — тот же созвон; сдвиг на 30 минут — перенос, а не второй созвон
   const at = new Date(Date.now() + 3 * 3600_000).toISOString();
   await api(503, "POST", `/clients/${b.id}/action`, { type: "call", at, mopId: "501" });
-  let c = (await api(503, "POST", `/clients/${b.id}/action`, { type: "call", at, mopId: "501" })).body.client;
+  // клиента взял Тема — лидоруб его больше не трогает, перенос делает сам Тема
+  assert.equal((await api(503, "POST", `/clients/${b.id}/action`, { type: "call", at, mopId: "501" })).status, 403);
+  let c = (await api(501, "POST", `/clients/${b.id}/action`, { type: "call", at, mopId: "501" })).body.client;
   assert.equal(c.calls.filter((x) => x.outcome !== "moved").length, 1);
-  c = (await api(503, "POST", `/clients/${b.id}/action`, { type: "call", at: new Date(Date.parse(at) + 30 * 60_000).toISOString(), mopId: "501" })).body.client;
+  c = (await api(501, "POST", `/clients/${b.id}/action`, { type: "call", at: new Date(Date.parse(at) + 30 * 60_000).toISOString(), mopId: "501" })).body.client;
   assert.equal(c.calls.length, 1);
   assert.equal(Date.parse(c.calls[0].at), Date.parse(at) + 30 * 60_000);
   // отмена записи
@@ -649,4 +651,32 @@ test("reconcile: manual payment «Алексей» links to «Зовут Але�
   assert.equal(pays.length, 1);
   assert.equal(pays[0].clientId, a.id);
   assert.equal(pays[0].verified, true);
+});
+
+test("lead taken by a mop: only that mop, ROP and owner can change it; others only comment; fresh own booking can be undone", async () => {
+  const { store, sent, say, api } = await setup();
+  await api(1, "POST", "/users", { id: "504", role: "rop", name: "Андрей" });
+  const c = (await api(503, "POST", "/clients", { name: "Олег", telegram: "oleg_lock" })).body.client;
+  // до назначения МОПа лидоруб ведёт лида сам
+  assert.equal((await api(503, "POST", `/clients/${c.id}/action`, { type: "lm" })).status, 200);
+  const at = new Date(Date.now() + 5 * 3600_000).toISOString();
+  const booked = (await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at, mopId: "502" })).body.client;
+  // ошибся — сразу отменил свою запись
+  assert.equal((await api(503, "POST", `/clients/${c.id}/action`, { type: "uncall", callId: booked.calls[0].id })).status, 200);
+  await api(502, "POST", `/clients/${c.id}/action`, { type: "call", at, mopId: "502" }); // взял Дима
+  // чужие (лидоруб, другой МОП) — 403 на всё, кроме комментария
+  for (const who of ["503", "501"]) {
+    assert.equal((await api(who, "PATCH", `/clients/${c.id}`, { name: "Хакер" })).status, 403);
+    assert.equal((await api(who, "POST", `/clients/${c.id}/action`, { type: "status", status: "thinking", sum: 1 })).status, 403);
+    assert.equal((await api(who, "DELETE", `/clients/${c.id}`)).status, 403);
+    assert.equal((await api(who, "POST", `/clients/${c.id}/action`, { type: "comment", text: "клиент просил позвонить позже" })).status, 200);
+  }
+  // свой МОП, РОП и собственник — можно
+  assert.equal((await api(502, "PATCH", `/clients/${c.id}`, { info: "от Димы" })).status, 200);
+  assert.equal((await api(504, "PATCH", `/clients/${c.id}`, { info: "от РОПа" })).status, 200);
+  assert.equal((await api(1, "PATCH", `/clients/${c.id}`, { info: "от Пети" })).status, 200);
+  // в боте чужой МОП не может поставить статус
+  await say(501, "@oleg_lock ндз");
+  assert.match(sent.filter((m) => m.chat === "501").at(-1).text, /ведёт Дима/);
+  assert.equal((await store.get("client", c.id)).calls.filter((x) => x.outcome === "ndz").length, 0);
 });

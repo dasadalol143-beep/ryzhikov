@@ -5,7 +5,7 @@ import { handleUpdate, BOT_COMMANDS } from "./bot.mjs";
 import { dispatch } from "./notify.mjs";
 import {
   ROLES, STATUS_IDS, SOURCES, REPORT_FIELDS, AFTER_CALL, DEFAULT_RATES, FOLLOWUP_TOUCHES,
-  canSeeMoney, DEFAULT_PAY_LINKS, payoutsOwed, payrollRow, PAYOUT_ROLES, cleanRanges, rangesText, mskKey, addDaysKey, currentCall, ndzCount, clientTitle, statusLabel, fmtWhen,
+  canSeeMoney, canTouchClient, canDeleteClient, DEFAULT_PAY_LINKS, payoutsOwed, payrollRow, PAYOUT_ROLES, cleanRanges, rangesText, mskKey, addDaysKey, currentCall, ndzCount, clientTitle, statusLabel, fmtWhen,
 } from "../public/lib/model.js";
 
 export const json = (data, status = 200) =>
@@ -606,10 +606,11 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       if (cm) {
         const c = await store.get("client", cm[1]);
         if (!c) return json({ error: "not_found" }, 404);
-        // Удалить может руководство и тот, кто ведёт клиента (завёл, лидоруб, диагност). Удалённое лежит в корзине.
-        const mine = money_ || [c.createdBy, c.mopId, c.lidorubId].includes(by);
+        // Клиента, которого взял МОП, меняют только этот МОП, РОП и собственник. Комментарий оставить может любой.
+        const lockedMsg = (x) => `Клиента ведёт ${users[x.mopId]?.name || "диагност"} — менять его может только он, РОП или Петя`;
+        const touch = (x) => canTouchClient(me, x);
         if (req.method === "DELETE") {
-          if (!mine) return json({ error: "Удалить может тот, кто ведёт клиента, или руководство" }, 403);
+          if (!canDeleteClient(me, c)) return json({ error: c.mopId ? lockedMsg(c) : "Удалить может тот, кто завёл клиента, или руководство" }, 403);
           await moveToTrash(store, c, by, "удалён вручную");
           const { addFeed } = await import("./notify.mjs");
           await addFeed(store, { type: "comment", text: `🗑 ${me.name} удалил клиента ${clientTitle(c)}`, by, to: [c.mopId, c.lidorubId].filter(Boolean), clientId: null });
@@ -618,13 +619,20 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         if (!cm[2] && req.method === "POST" && body.mergeFrom) {
           const other = await store.get("client", String(body.mergeFrom));
           if (!other || other.id === c.id) return json({ error: "Дубль не найден" }, 404);
-          if (!mine && ![other.createdBy, other.mopId, other.lidorubId].includes(by)) return json({ error: "forbidden" }, 403);
+          if (!touch(c) || !touch(other)) return json({ error: lockedMsg(touch(c) ? other : c) }, 403);
           mergeInto(c, other, by);
           await store.put("client", c.id, c);
           await moveToTrash(store, other, by, `склеен с ${clientTitle(c)}`);
           await repointPayments(store, [other.id], c.id);
           return json({ client: c, removed: other.id, payments: money_ ? await store.all("payment") : null });
         }
+        // Комментарий — любой. Только что сам записал и отменяешь (ошибся) — 15 минут можно.
+        const ownFresh = body.type === "uncall" && (() => {
+          const call = (body.callId && c.calls.find((x) => x.id === body.callId)) || currentCall(c);
+          return call && call.setBy === by && Date.now() - Date.parse(call.setAt || 0) < 15 * 60_000;
+        })();
+        const onlyComment = cm[2] && req.method === "POST" && (body.type === "comment" || ownFresh);
+        if ((req.method === "PATCH" || (cm[2] && req.method === "POST")) && !onlyComment && !touch(c)) return json({ error: lockedMsg(c) }, 403);
         if (req.method === "PATCH" && ("telegram" in body || "phone" in body)) {
           const next = { telegram: "telegram" in body ? normTelegram(body.telegram) : c.telegram, phone: "phone" in body ? str(body.phone, 40) : c.phone };
           const dup = findDup(await store.all("client"), next, c.id);
