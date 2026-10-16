@@ -17,5 +17,7 @@ export default {
     if (event.cron === "0 18 * * *") return console.log(JSON.stringify(await runEvening(ctx)));
     await runReminders(ctx);
     await runPayoutReminder(ctx).catch((e) => console.log("payouts", e.message));
+    const { runDataFixes } = await import("../src/api.mjs");
+    await runDataFixes(ctx).catch((e) => console.log("fixes", e.message));
   },
 };

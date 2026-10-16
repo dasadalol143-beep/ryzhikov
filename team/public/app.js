@@ -585,6 +585,8 @@ function renderClient(c) {
   html += locked
     ? `<div class="next-card lock-card"><div class="next-label">Только просмотр</div><div class="next-title">Клиента ведёт ${esc(userName(c.mopId))}</div><div class="sub">Менять карточку может только ${esc(userName(c.mopId))}, РОП или Петя. Нужно что-то поправить — оставь комментарий внизу, ${esc(userName(c.mopId))} получит уведомление.</div></div>`
     : nextStep(c);
+  // Руководству: диагност не заполнил итог — напомнить ему в боте.
+  if (money() && c.mopId && c.mopId !== state.me.id && needsReport(c)) html += `<button class="big-cta" data-nudge="${c.id}" style="margin-top:10px"><span>${icon("bell")}</span><div>Напомнить ${esc(userName(c.mopId))} заполнить итог<small>придёт сообщение в бота с кнопкой «Заполнить итог»</small></div></button>`;
   // Итога нет — заполнить можно всегда, на любом этапе (даже если созвон убрали или стоит отказ).
   if (!locked && !latestReport(c) && st.kind !== "report") html += `<button class="big-cta" data-report-new="${c.id}" style="margin-top:10px"><span>${icon("note")}</span><div>Заполнить итог диагностики<small>${(c.calls || []).some((x) => x.outcome === "held") ? "созвон проведён, итога нет" : "созвона в карточке нет — итог создаст проведённый созвон на дату диагностики"}</small></div></button>`;
 
@@ -1321,6 +1323,7 @@ function renderMore() {
   if (state.more === "feed") return renderFeed();
   if (state.more === "links") return renderLinks();
   if (state.more === "payouts" && money()) return renderPayouts();
+  if (state.more === "trash" && money()) return renderTrash();
   state.more = null;
   const item = (id, ic, title, sub) => `<div class="row" data-more="${id}"><div class="icon">${ic}</div><div class="grow"><div class="title">${title}</div><div class="sub">${sub}</div></div><div class="right sub">›</div></div>`;
   const pend = (state.payments || []).filter((p) => !p.verified).length;
@@ -1332,9 +1335,22 @@ function renderMore() {
       ${item("links", icon("card"), "Ссылки на оплату", `${payLinks().length} шт · Т-Банк, Ресурс развития, Продамус`)}
       ${item("team", icon("users"), "Команда", `${state.users.filter((u) => u.active !== false).length} в команде${state.pending.length ? ` · заявок ${state.pending.length}` : ""}`)}
       ${item("rules", icon("book"), "Регламент отдела продаж", "кто что делает и когда")}
+      ${money() ? item("trash", icon("box"), "Корзина", "удалённые клиенты — можно восстановить") : ""}
       <div class="row" data-export><div class="icon">${icon("box")}</div><div class="grow"><div class="title">Выгрузить базу</div><div class="sub">Excel-файл в бота${money() ? " + ведомость и полный бэкап" : ""}</div></div><div class="right sub">›</div></div>
       ${money() ? item("settings", icon("gear"), "Настройки", "проценты, план, перенос из таблиц") : ""}
     </div>`;
+}
+
+// ---------- КОРЗИНА ----------
+async function renderTrash() {
+  $app.innerHTML = `<h1>Корзина</h1><div class="page-sub">Удалённые и склеенные дубли. Восстановить — вернуть клиента со всей историей.</div><div class="loader" style="padding-top:20px">Загрузка…</div>`;
+  try {
+    const { items } = await api("GET", "/trash");
+    if (state.more !== "trash") return;
+    $app.innerHTML = `<h1>Корзина</h1><div class="page-sub">Удалённые и склеенные дубли. Восстановить — вернуть клиента со всей историей.</div>${items.length ? `<div class="list">${items.map((c) => `<div class="row" style="cursor:default">${avatar(clientTitle(c), c.id, 36)}<div class="grow"><div class="title">${esc(clientTitle(c))}${c.name && c.telegram ? ` <span class="sub" style="display:inline">${esc(c.telegram)}</span>` : ""}</div><div class="sub">${statusBadge(c.status)}<span class="sub">· ${esc(c.deleteReason || "удалён")} · ${esc(userName(c.deletedBy))} · ${fmtWhen(Date.parse(c.deletedAt))}</span></div></div><button class="btn small ghost" data-restore="${c.id}">Восстановить</button></div>`).join("")}</div>` : `<div class="card empty">Корзина пуста</div>`}`;
+  } catch (e) {
+    $app.innerHTML = `<div class="card empty">${esc(e.message)}</div>`;
+  }
 }
 
 // ---------- ВЫПЛАТЫ ----------
@@ -1738,6 +1754,27 @@ $app.addEventListener("click", async (e) => {
       const res = await api("POST", "/payments", { clientId: c.id, clientName: clientTitle(c), mopId: c.mopId, lidorubId: c.lidorubId, tariff: ev?.sum || c.wantedSum || 0, date: today() });
       state.payments = res.payments || [...(state.payments || []), res.payment];
       toast("Оплата добавлена — внеси чистую в ведомости");
+      return render();
+    } catch (e) {
+      return alertDialog(e.message);
+    }
+  }
+  if (d.nudge) {
+    try {
+      await api("POST", `/clients/${d.nudge}/nudge`);
+      return toast(`Напомнил ${userName(clientById(d.nudge)?.mopId)}`);
+    } catch (e) {
+      return alertDialog(e.message);
+    }
+  }
+  if (d.restore) {
+    try {
+      const res = await api("POST", `/trash/${d.restore}/restore`);
+      replaceClient(res.client);
+      toast("Клиент восстановлен");
+      state.tab = "clients";
+      state.more = null;
+      state.clientId = res.client.id;
       return render();
     } catch (e) {
       return alertDialog(e.message);

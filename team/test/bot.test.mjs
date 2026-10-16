@@ -703,3 +703,30 @@ test("report can be filled any time: after a removed call, on a refused client; 
   assert.equal(x.calls[0].report.need, "старт в РКО");
   assert.equal(x.status, "refuse_personal");
 });
+
+test("data fix @iuuhkkk: restored from trash, held call 16.10 16:00 with Dima, Dima nudged; trash restore + nudge API", async () => {
+  const { store, sent, api } = await setup();
+  await api(1, "POST", "/users", { id: "510", role: "mop", name: "Дмитрий Сайгин" });
+  const c = (await api(1, "POST", "/clients", { name: "Артём", telegram: "@iuuhkkk" })).body.client;
+  await api(1, "POST", `/clients/${c.id}/action`, { type: "status", status: "refuse_personal" });
+  await api(1, "DELETE", `/clients/${c.id}`);
+  assert.equal((await api(1, "GET", "/trash")).body.items.length, 1);
+  const { runDataFixes } = await import("../src/api.mjs");
+  const { telegram } = await import("../src/telegram.mjs");
+  const tg = telegram("123:abc", async (url, init) => (sent.push({ chat: init.body.get("chat_id"), text: init.body.get("text") }), new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }))));
+  assert.equal((await runDataFixes({ store, env: {}, tg, appUrl: "https://t/" })).length, 1);
+  assert.equal((await runDataFixes({ store, env: {}, tg, appUrl: "https://t/" })).length, 0); // один раз
+  const x = (await store.all("client")).find((y) => y.telegram === "@iuuhkkk");
+  assert.equal(x.mopId, "510");
+  assert.equal(x.status, "in_work");
+  assert.equal(x.calls[0].outcome, "held");
+  assert.equal(x.calls[0].at, new Date(Date.parse("2026-10-16T16:00:00+03:00")).toISOString());
+  assert.match(sent.find((m) => m.chat === "510").text, /заполни итог созвона[\s\S]*Артём/);
+  // кнопка «напомнить» и восстановление из корзины
+  assert.equal((await api(1, "POST", `/clients/${x.id}/nudge`)).status, 200);
+  assert.equal((await api(510, "POST", `/clients/${x.id}/nudge`)).status, 403);
+  const d = (await api(1, "POST", "/clients", { name: "Удалёнка" })).body.client;
+  await api(1, "DELETE", `/clients/${d.id}`);
+  assert.equal((await api(1, "POST", `/trash/${d.id}/restore`)).status, 200);
+  assert.ok(await store.get("client", d.id));
+});

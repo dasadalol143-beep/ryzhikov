@@ -672,6 +672,29 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       }
 
       // выплаты команде: отмечает собственник (он платит), РОП видит
+      // корзина: удалённые клиенты — руководство видит и восстанавливает
+      if (path === "/trash" && req.method === "GET") {
+        if (!money_) return json({ error: "forbidden" }, 403);
+        return json({ items: (await store.all("trash")).sort((x, y) => (y.deletedAt || "").localeCompare(x.deletedAt || "")).slice(0, 100) });
+      }
+      const tr = path.match(/^\/trash\/([\w-]+)\/restore$/);
+      if (tr && req.method === "POST") {
+        if (!money_) return json({ error: "forbidden" }, 403);
+        const c = await restoreFromTrash(store, tr[1], by);
+        return json({ client: c });
+      }
+      // напомнить диагносту заполнить итог
+      const nudge = path.match(/^\/clients\/([\w-]+)\/nudge$/);
+      if (nudge && req.method === "POST") {
+        if (!money_) return json({ error: "forbidden" }, 403);
+        const c = await store.get("client", nudge[1]);
+        if (!c?.mopId) return json({ error: "У клиента нет диагноста" }, 400);
+        const tg = env.BOT_TOKEN ? telegram(env.BOT_TOKEN, fetchImpl) : null;
+        if (!tg) return json({ error: "Бот не подключён" }, 400);
+        await sendReportNudge(tg, c, me, env.APP_URL || `${url.origin}/`);
+        return json({ ok: true });
+      }
+
       if (path === "/payouts" && req.method === "POST") {
         if (me.role !== "owner") return json({ error: "Выплаты отмечает собственник" }, 403);
         const tg = env.BOT_TOKEN ? telegram(env.BOT_TOKEN, fetchImpl) : null;
@@ -1012,4 +1035,67 @@ export async function undoPayout(store, id) {
     }
   }
   await store.del("payout", id);
+}
+
+// ---------- корзина и напоминания ----------
+export async function restoreFromTrash(store, id, by) {
+  const t = await store.get("trash", id);
+  if (!t) throw Object.assign(new Error("В корзине такого нет"), { status: 404 });
+  const { deletedAt, deletedBy, deleteReason, ...c } = t;
+  const dup = findDup(await store.all("client"), c);
+  if (dup) throw Object.assign(new Error(`Уже есть клиент с этим ником или телефоном: ${clientTitle(dup)}`), { status: 409 });
+  log(c, by, "Восстановлен из корзины");
+  c.updatedAt = nowIso();
+  await store.put("client", c.id, c);
+  await store.del("trash", id);
+  return c;
+}
+
+export async function sendReportNudge(tg, c, from, appUrl) {
+  const held = [...(c.calls || [])].filter((x) => x.outcome === "held").sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+  const esc = (t) => String(t ?? "").replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[ch]);
+  await tg.sendMessage(c.mopId, `📝 <b>${esc(from?.name || "Руководство")}: заполни итог созвона</b>\n👤 ${esc(clientTitle(c))}${c.telegram && c.name ? ` · ${esc(c.telegram)}` : ""}${held ? `\n📅 ${fmtWhen(Date.parse(held.at))} — проведён` : ""}\n\nПотребность, род деятельности, боль, возражение, договорённости — и что решил клиент.`, { inline_keyboard: [[{ text: "Заполнить итог", web_app: { url: `${appUrl}?client=${c.id}&report=1` } }]] });
+}
+
+// Разовые исправления данных по просьбе собственника. Каждое — один раз (флаг в meta).
+export async function runDataFixes({ store, env, tg, appUrl, now = Date.now() }) {
+  const done = [];
+  // 16.10: @iuuhkkk (Артём) пропал после ошибочного НДЗ — вернуть, закрепить за Димой, созвон 16.10 16:00 проведён, напомнить про итог.
+  if (!(await store.get("meta", "fix-iuuhkkk-v1"))) {
+    const users = (await store.all("user")).filter((u) => u.active !== false);
+    const { findUserInText } = await import("./nlp.mjs");
+    const mops = users.filter((u) => ["mop", "rop"].includes(u.role));
+    const dima = mops.find((u) => /сайгин/i.test(u.name)) || findUserInText("Дима", mops) || mops.find((u) => /дмитр|дима/i.test(u.name));
+    if (dima) {
+      let c = (await store.all("client")).find((x) => nickKey(x.telegram) === "iuuhkkk");
+      if (!c) {
+        const t = (await store.all("trash")).find((x) => nickKey(x.telegram) === "iuuhkkk");
+        if (t) c = await restoreFromTrash(store, t.id, "system");
+      }
+      if (!c) {
+        c = blankClient("system");
+        Object.assign(c, { name: "Артём", telegram: "@iuuhkkk", source: "Новая заявка" });
+        log(c, "system", "Клиент восстановлен по просьбе Пети");
+      }
+      const at = new Date(Date.parse("2026-10-16T16:00:00+03:00")).toISOString();
+      c.calls ||= [];
+      let call = c.calls.find((x) => Math.abs(Date.parse(x.at) - Date.parse(at)) < 45 * 60_000 && x.outcome !== "moved");
+      if (!call) {
+        call = { id: randomUUID().slice(0, 8), at, mopId: dima.id, setAt: nowIso(), setBy: "system", outcome: "held", outcomeAt: nowIso(), outcomeBy: "system", notified: { h2: at, h1: at, m15: at, after: at } };
+        c.calls.push(call);
+      }
+      Object.assign(call, { outcome: "held", mopId: dima.id, outcomeAt: call.outcomeAt || nowIso() });
+      c.events = (c.events || []).filter((e) => !(e.t === "ndz" && Math.abs(Date.parse(e.at) - Date.parse(at)) < 86400_000));
+      if (!c.events.some((e) => e.t === "handed" && e.mop === dima.id)) c.events.push({ t: "handed", at, by: "system", mop: dima.id });
+      c.mopId = dima.id;
+      if (["new", "refuse_personal", "ndz1", "ndz2", "ndz3"].includes(c.status)) Object.assign(c, { status: "in_work", statusAt: nowIso() });
+      log(c, "system", "Созвон 16.10 16:00 отмечен проведённым, клиент закреплён за Димой (по просьбе Пети)");
+      c.updatedAt = nowIso();
+      await store.put("client", c.id, c);
+      if (tg) await sendReportNudge(tg, c, { name: "Петя" }, appUrl).catch(() => {});
+      await store.put("meta", "fix-iuuhkkk-v1", { id: "fix-iuuhkkk-v1", at: nowIso(), clientId: c.id });
+      done.push(`iuuhkkk:${c.id}`);
+    }
+  }
+  return done;
 }
