@@ -871,3 +871,93 @@ test("reschedule: «моего лида с 21:00 на 16:00» in plain text and 
   c = await store.get("client", c.id);
   assert.equal(c.calls.filter((x) => !x.outcome)[0].at, new Date(Date.parse(`${tomorrow}T13:00:00+03:00`)).toISOString());
 });
+
+test("call recordings: upload via bot after «Выгрузить созвон», archive copy, anyone in team gets it, owner-only hide, no strangers", async () => {
+  const { createHandler } = await import("../src/api.mjs");
+  const { memoryStore } = await import("../src/store.mjs");
+  const { webhookSecret } = await import("../src/telegram.mjs");
+  const store = memoryStore();
+  const calls = [];
+  let mid = 100;
+  const fetchImpl = async (url, init) => {
+    const method = url.split("/").pop();
+    const b = init?.body;
+    const get = (k) => (b && typeof b.get === "function" ? b.get(k) : null);
+    calls.push({ method, chat: get("chat_id"), from: get("from_chat_id"), file: get("document") || get("video"), protect: get("protect_content"), text: get("text") || get("caption") });
+    const result = method === "getMe" ? { id: 999, username: "ryzhikov_team_bot" } : method === "sendDocument" && typeof get("document") === "object" ? { message_id: ++mid, document: { file_id: "UPL1", file_unique_id: "uu1", file_name: "call.webm", file_size: 1000 } } : { message_id: ++mid };
+    return new Response(JSON.stringify({ ok: true, result }));
+  };
+  const env = { BOT_TOKEN: "123:abc", OWNER_IDS: "1", DEV_MODE: "1", APP_URL: "https://team.test/" };
+  const handle = createHandler({ store, env, fetch: fetchImpl });
+  const api = async (uid, method, path, body, raw) => {
+    env.DEV_USER = String(uid);
+    const res = await handle(new Request(`https://team.test/api${path}`, raw ? { method, body: raw } : { method, headers: { "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined }));
+    return { status: res.status, body: await res.json() };
+  };
+  await api(1, "POST", "/users", { id: "502", role: "mop", name: "Дима" });
+  await api(1, "POST", "/users", { id: "501", role: "mop", name: "Тема" });
+  await api(1, "POST", "/users", { id: "503", role: "lidorub", name: "Леха" });
+  const secret = await webhookSecret("123:abc");
+  let uid = 1;
+  const tell = (from, message) => handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: ++uid, message: { message_id: uid, from: { id: from, first_name: "X" }, chat: { id: from, type: "private" }, ...message } }) }));
+
+  const c = (await api(503, "POST", "/clients", { name: "Иван", telegram: "ivan_rec" })).body.client;
+  await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at: new Date(Date.now() - 3600_000).toISOString(), mopId: "502" });
+  await api(502, "POST", `/clients/${c.id}/action`, { type: "held" });
+  // чужой МОП и лидоруб выгружать не могут
+  assert.equal((await api(501, "POST", `/clients/${c.id}/recordings/wait`)).status, 403);
+  assert.equal((await api(503, "POST", `/clients/${c.id}/recordings/wait`)).status, 403);
+  // Дима: «Выгрузить созвон» → ссылка на бота, бот ждёт файл
+  const w = (await api(502, "POST", `/clients/${c.id}/recordings/wait`)).body;
+  assert.equal(w.link, `https://t.me/ryzhikov_team_bot?start=up_${c.id}`);
+  await tell(502, { video: { file_id: "VID1", file_unique_id: "v1", file_size: 300 * 1024 * 1024, duration: 2700, mime_type: "video/webm" } });
+  let cl = await store.get("client", c.id);
+  assert.equal(cl.recordings.length, 1);
+  assert.equal(cl.recordings[0].fileId, "VID1");
+  assert.equal(cl.recordings[0].callId, cl.calls[0].id);
+  // копия в архив — собственнику (канала ещё нет), тихо
+  assert.ok(calls.some((x) => x.method === "copyMessage" && x.chat === "1" && x.from === "502"));
+  // тот же файл ещё раз — не дублируем
+  await tell(502, { caption: "@ivan_rec", video: { file_id: "VID1b", file_unique_id: "v1", file_size: 10 } });
+  assert.equal((await store.get("client", c.id)).recordings.length, 1);
+  // короткое голосовое без ожидания — это команда боту, а не запись
+  // файл без ожидания и без ника → бот спрашивает, к кому; кнопка прикрепляет
+  await tell(502, { document: { file_id: "DOC2", file_unique_id: "d2", file_name: "запись.vbm", file_size: 5000 } });
+  assert.ok(await store.get("meta", "rec-file:502"));
+  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: ++uid, callback_query: { id: "cb1", from: { id: 502 }, data: `rec:${c.id}`, message: { message_id: 5, chat: { id: 502 } } } }) }));
+  cl = await store.get("client", c.id);
+  assert.equal(cl.recordings.length, 2);
+  assert.equal(cl.recordings[1].name, "запись.vbm");
+
+  // скачать может любой из команды — бот шлёт только ему в личку
+  const rid = cl.recordings[0].id;
+  const got = await api(501, "POST", `/clients/${c.id}/recordings/${rid}/send`);
+  assert.equal(got.status, 200);
+  const sent = calls.filter((x) => x.method === "sendVideo").at(-1);
+  assert.equal(sent.chat, "501");
+  assert.equal((await store.get("client", c.id)).recordings[0].downloads[0].by, "501");
+  // посторонний (нет в команде) — 401/403
+  env.DEV_USER = "777";
+  const stranger = await handle(new Request(`https://team.test/api/clients/${c.id}/recordings/${rid}/send`, { method: "POST" }));
+  assert.ok([401, 403].includes(stranger.status));
+  // скрыть — только Петя; файл в архиве остаётся
+  assert.equal((await api(502, "DELETE", `/clients/${c.id}/recordings/${rid}`)).status, 403);
+  assert.equal((await api(1, "DELETE", `/clients/${c.id}/recordings/${rid}`)).status, 200);
+  assert.equal((await api(501, "POST", `/clients/${c.id}/recordings/${rid}/send`)).status, 404);
+
+  // загрузка из приложения (маленький файл)
+  const fd = new FormData();
+  fd.append("file", new File([new Uint8Array(1000)], "call.webm", { type: "video/webm" }));
+  const up = await api(502, "POST", `/clients/${c.id}/recordings`, null, fd);
+  assert.equal(up.status, 200);
+  assert.equal(up.body.rec.fileId, "UPL1");
+  assert.equal(up.body.rec.source, "app");
+});
+
+test("recordings storage channel: only owner, only after /storage, bot and owner must be admins", async () => {
+  const { store, sent, say } = await setup();
+  // без /storage пересылка из канала — обычное пересланное сообщение
+  await say(1, "/storage");
+  assert.match(sent.at(-1).text, /Хранилище записей/);
+  assert.ok(await store.get("meta", "rec-storage-setup:1"));
+});

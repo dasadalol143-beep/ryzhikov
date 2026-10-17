@@ -141,6 +141,8 @@ export function mergeInto(to, from, by) {
   for (const f of ["name", "telegram", "phone", "chatUrl", "lidorubId", "mopId", "nextSteps", "payLinkId"]) if (!to[f] && from[f]) to[f] = from[f];
   if (from.info && !(to.info || "").includes(from.info)) to.info = [to.info, from.info].filter(Boolean).join("\n");
   if (!to.wantedSum && from.wantedSum) to.wantedSum = from.wantedSum;
+  // Записи созвонов при склейке не теряем.
+  to.recordings = [...(to.recordings || []), ...(from.recordings || []).filter((r) => !(to.recordings || []).some((x) => x.uniq === r.uniq))];
   // Статус — у кого дальше по воронке (оплата важнее «нового»).
   // Статус — самый свежий из двух (оплата важнее всего).
   if (from.status === "paid" || (to.status !== "paid" && (from.statusAt || "") > (to.statusAt || ""))) Object.assign(to, { status: from.status, statusAt: from.statusAt });
@@ -604,7 +606,8 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       const me = auth.me;
       const by = me.id;
       const money_ = canSeeMoney(me.role);
-      const body = ["POST", "PUT", "PATCH"].includes(req.method) ? await req.json().catch(() => ({})) : {};
+      const multipart = /multipart\/form-data/i.test(req.headers.get("content-type") || "");
+      const body = ["POST", "PUT", "PATCH"].includes(req.method) && !multipart ? await req.json().catch(() => ({})) : {};
       const users = Object.fromEntries((await store.all("user")).map((u) => [u.id, u]));
       users[me.id] = { ...(users[me.id] || {}), ...me };
       const settings = await loadSettings(store);
@@ -660,6 +663,45 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         await notify(ctx.notes, c);
         return json({ client: c });
       }
+      // 📼 записи созвонов: загрузить, прислать себе в Telegram, скрыть (собственник)
+      const rm = path.match(/^\/clients\/([\w-]+)\/recordings(?:\/([\w-]+)(\/send)?)?$/);
+      if (rm) {
+        const c = await store.get("client", rm[1]);
+        if (!c) return json({ error: "not_found" }, 404);
+        if (!env.BOT_TOKEN) return json({ error: "Бот не подключён" }, 400);
+        const tg = telegram(env.BOT_TOKEN, fetchImpl);
+        const R = await import("./recordings.mjs");
+        if (!rm[2] && req.method === "POST") {
+          if (!R.canUpload(me, c)) return json({ error: c.mopId ? `Запись выгружает ${users[c.mopId]?.name || "диагност"} клиента или руководство` : "Записи выгружают диагносты и руководство" }, 403);
+          if (!multipart) return json({ error: "Нужен файл" }, 400);
+          const len = Number(req.headers.get("content-length") || 0);
+          if (len > R.MAX_APP_UPLOAD + 1024 * 1024) return json({ error: "too_big", code: "too_big" }, 413);
+          const fd = await req.formData().catch(() => null);
+          const res = await R.uploadFromApp({ store, env, tg, c, file: fd?.get("file"), me, users });
+          return json({ client: c, rec: res.rec, duplicate: res.duplicate });
+        }
+        if (rm[2] === "wait" && req.method === "POST") {
+          if (!R.canUpload(me, c)) return json({ error: "Запись выгружает диагност клиента или руководство" }, 403);
+          await R.waitFor(store, me.id, c.id);
+          let bot = await store.get("meta", "bot-info");
+          if (!bot?.username) {
+            const info = await tg.getMe().catch(() => null);
+            if (info?.username) await store.put("meta", "bot-info", (bot = { id: "bot-info", username: info.username, botId: info.id }));
+          }
+          await tg.sendMessage(me.id, `📼 <b>Жду запись созвона</b> — ${clientTitle(c)}\n\nПришли сюда файл: видео, аудио или документ, любой формат, до 2 ГБ.`).catch(() => {});
+          return json({ ok: true, link: bot?.username ? `https://t.me/${bot.username}?start=up_${c.id}` : null });
+        }
+        if (rm[2] && rm[3] && req.method === "POST") {
+          const rec = await R.sendRecording({ store, tg, c, recId: rm[2], me, users, settings });
+          return json({ ok: true, client: c, rec });
+        }
+        if (rm[2] && !rm[3] && req.method === "DELETE") {
+          await R.deleteRecording({ store, c, recId: rm[2], me });
+          return json({ client: c });
+        }
+        return json({ error: "not_found" }, 404);
+      }
+
       const cm = path.match(/^\/clients\/([\w-]+)(\/action)?$/);
       if (cm) {
         const c = await store.get("client", cm[1]);

@@ -582,3 +582,7 @@ table.crm tr.is-dup td { opacity: .5; }
 /* галочка в шторке: «добавить время в окна» */
 .check-line { display: flex; gap: 10px; align-items: flex-start; margin: 10px 4px 2px; font-size: 14px; line-height: 1.4; color: var(--text); }
 .check-line input { width: 20px; height: 20px; margin: 0; flex: none; accent-color: var(--accent); }
+
+/* записи созвонов */
+.rec-ic { width: 38px; height: 38px; border-radius: 12px; background: var(--accent-wash); color: var(--accent); display: grid; place-items: center; flex: none; }
+.rec-ic svg { width: 20px; height: 20px; }

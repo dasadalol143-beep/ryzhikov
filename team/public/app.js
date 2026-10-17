@@ -2,7 +2,7 @@ import {
   ROLES, STATUSES, SOURCES, REPORT_FIELDS, AFTER_CALL, FOLLOWUP_TOUCHES, DEFAULT_RATES,
   statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState, latestReport, callKind, stuckReason,
   mskKey, mskTime, mskMidnight, addDaysKey, fmtDay, weekday, fmtWhen, monthName, payrollRow, monthSummary,
-  DEFAULT_PAY_LINKS, pace, daysInMonth, canTouchClient, canDeleteClient, payoutsOwed, nextPayday, PAYOUT_ROLES, daySlots, rangesText, cleanRanges, toMin, fromMin,
+  DEFAULT_PAY_LINKS, pace, daysInMonth, canTouchClient, canDeleteClient, payoutsOwed, nextPayday, PAYOUT_ROLES, daySlots, rangesText, cleanRanges, toMin, fromMin, isBossRole,
 } from "./lib/model.js";
 import { rnp, rnpEvents, lidorubStats, periodRange } from "./lib/stats.js";
 import { parseReportText, parseCsv, crmRowsToClients } from "./lib/report.js";
@@ -163,6 +163,8 @@ function avatar(name, seed, size = 40) {
 const ICONS = {
   bell: '<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9"/><path d="M10.3 20.5a1.9 1.9 0 0 0 3.4 0"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  upload: '<path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
+  rec: '<rect x="3" y="6" width="13" height="12" rx="3"/><path d="m16 10.5 5-3v9l-5-3"/>',
   note: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
   user: '<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.7-5.6 7-5.6s6.2 2 7 5.6"/>',
   wallet: '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12.5h2M3 9.5h18"/>',
@@ -416,6 +418,13 @@ function renderToday() {
 }
 
 // Задачи на сейчас: что требует действия, по порядку важности. Тап — сразу к нужным клиентам.
+// Созвон проведён за последние 3 дня, а записи после него нет.
+function needsRec(c, now = Date.now()) {
+  const last = (c.calls || []).filter((x) => x.outcome === "held" && !x.legacy && now - Date.parse(x.at) < 3 * 86400_000).sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+  if (!last) return false;
+  return !(c.recordings || []).some((r) => !r.deletedAt && (r.callId === last.id || Date.parse(r.at) >= Date.parse(last.at)));
+}
+
 function tasksBlock({ role, me, now, reportsOwed, unmarked, follow, todays }) {
   const mine = (c) => role === "owner" || role === "rop" || c.mopId === me.id || c.lidorubId === me.id;
   const passedToday = todays.filter(({ call }) => !call.outcome && Date.parse(call.at) + 15 * 60_000 < now && (role !== "lidorub"));
@@ -423,9 +432,11 @@ function tasksBlock({ role, me, now, reportsOwed, unmarked, follow, todays }) {
   const person = ["owner", "rop"].includes(role) ? "all" : me.id;
   const lm = role === "lidorub" ? state.clients.filter((c) => c.status === "new" && (!c.lidorubId || c.lidorubId === me.id) && !(c.events || []).some((e) => e.t === "lm")) : [];
   const toBook = role === "lidorub" ? state.clients.filter((c) => c.status === "new" && (!c.lidorubId || c.lidorubId === me.id) && (c.events || []).some((e) => e.t === "lm")) : [];
+  const noRec = role === "lidorub" ? [] : state.clients.filter((c) => (role === "owner" || role === "rop" ? true : c.mopId === me.id) && needsRec(c, now));
   const items = [
     [passedToday.length + unmarked.length, "Отметь: клиент пришёл или НДЗ", "созвон прошёл — нажми «Пришёл» или «НДЗ»", passedToday[0]?.c.id || unmarked[0]?.c.id, null, "warn"],
     [reportsOwed.length, "Заполни итог диагностики", "после созвона — потребность, боль, возражение, решение", reportsOwed[0]?.id, "report", "warn"],
+    [noRec.length, "Выгрузи запись созвона", "файл созвона — в карточку, чтобы не потерялся", noRec[0]?.id, "norec", ""],
     [role !== "lidorub" ? follow.length : 0, "Дожим: коснись клиента сегодня", "написал — отметь «тишина» или «ответил»", null, "follow", ""],
     [lm.length, "Отправь ЛМ новым лидам", "квалифицируй и отправь лид-магнит", null, "new", ""],
     [toBook.length, "Запиши на созвон — ЛМ уже отправлен", "выбери диагноста и свободное окно", null, "lm", ""],
@@ -494,6 +505,7 @@ function teamToday() {
 const FOLDERS = [
   ["active", "В работе", (c) => !isClosed(c.status)],
   ["stuck", "Зависли — нет следующего шага", (c) => !!stuckReason(c), true],
+  ["norec", "Без записи созвона", (c) => needsRec(c), true],
   ["new", "Новые, без ЛМ", (c) => c.status === "new" && !(c.events || []).some((e) => e.t === "lm")],
   ["lm", "ЛМ отправлен, ждут записи", (c) => c.status === "new" && (c.events || []).some((e) => e.t === "lm")],
   ["calls", "Созвон назначен", (c) => !!currentCall(c)],
@@ -713,6 +725,78 @@ function possibleDups(c) {
 }
 // Взял МОП — менять может только он, РОП и собственник. До этого лид общий.
 const canEdit = (c) => canTouchClient(state.me, c);
+// Запись созвона выгружает диагност клиента или руководство (как на сервере).
+const canUploadRec = (c) => isBossRole(state.me.role) || (c.mopId ? c.mopId === state.me.id : ["mop", "rop"].includes(state.me.role));
+const MAX_APP_UPLOAD = 45 * 1024 * 1024;
+const sizeText = (n) => (!n ? "" : n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} ГБ` : n >= 1024 ** 2 ? `${Math.round(n / 1024 ** 2)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
+const durText = (s) => (!s ? "" : s >= 3600 ? `${Math.floor(s / 3600)} ч ${Math.round((s % 3600) / 60)} мин` : `${Math.max(1, Math.round(s / 60))} мин`);
+
+function recordingsBlock(c) {
+  const recs = (c.recordings || []).filter((r) => !r.deletedAt).sort((a, b) => b.at.localeCompare(a.at));
+  const held = (c.calls || []).some((x) => x.outcome === "held");
+  if (!recs.length && !held && !canUploadRec(c)) return "";
+  let html = `<div class="list-head"><h2>Записи созвонов${recs.length ? ` <span class="cnt">${recs.length}</span>` : ""}</h2></div>`;
+  if (canUploadRec(c)) html += `<button class="big-cta" data-rec-up="${c.id}"><span>${icon("upload")}</span><div>Выгрузить созвон<small>${recs.length ? "добавить ещё одну запись" : held ? "созвон проведён — сохрани запись в CRM навсегда" : "видео или аудио созвона, любой формат"}</small></div></button>`;
+  if (recs.length)
+    html += `<div class="list" style="margin-top:8px">${recs
+      .map((r) => `<div class="row" style="cursor:default"><div class="rec-ic">${icon("rec")}</div><div class="grow"><div class="title" style="white-space:normal;word-break:break-word">${esc(r.name)}</div><div class="sub">${r.callAt ? `созвон ${fmtWhen(Date.parse(r.callAt))} · ` : ""}${esc(userName(r.by))}${r.size ? ` · ${sizeText(r.size)}` : ""}${r.duration ? ` · ${durText(r.duration)}` : ""}${r.downloads?.length ? ` · скачали ${r.downloads.length}` : ""}</div>${state.me.role === "owner" ? `<button class="link" style="font-size:12.5px;color:var(--hint);padding:0" data-rec-del="${c.id}|${r.id}">скрыть</button>` : ""}</div><button class="btn small" data-rec-get="${c.id}|${r.id}">Получить</button></div>`)
+      .join("")}</div><div class="sub" style="margin:6px 4px 0">«Получить» — бот пришлёт файл тебе в Telegram. Каждое скачивание видно в истории.</div>`;
+  else if (held) html += `<div class="card empty small" style="margin-top:8px">Записи пока нет</div>`;
+  return html;
+}
+
+// Выгрузить: до 45 МБ — прямо из приложения, больше — через бота (до 2 ГБ).
+function openRecUpload(c) {
+  const viaBot = async () => {
+    try {
+      const r = await api("POST", `/clients/${c.id}/recordings/wait`);
+      closeSheet();
+      toast("Бот ждёт файл — отправь запись ему в чат");
+      if (r.link) openLink(r.link);
+    } catch (e) {
+      alertDialog(e.message);
+    }
+  };
+  openSheet(
+    `<div class="sheet-title">Выгрузить созвон</div><div class="sub" style="margin:0 4px 12px">${esc(clientTitle(c))} · запись сохранится в карточке навсегда, скачать сможет вся команда</div>
+    <label class="btn block" style="display:flex;align-items:center;justify-content:center;gap:8px">${icon("upload")} Выбрать файл<input type="file" id="rec-file" hidden></label>
+    <div class="sub" style="margin:6px 4px 14px">С телефона или компьютера, до 45 МБ. Любой формат: видео, аудио, документ.</div>
+    <div id="rec-progress"></div>
+    <button class="btn block ghost" id="rec-bot">${icon("send")} Отправить через бота · до 2 ГБ</button>
+    <div class="sub" style="margin:6px 4px 0">Для больших записей: откроется чат с ботом — перешли или прикрепи файл, бот сам привяжет его к этому клиенту.</div>`,
+    (sh) => {
+      sh.querySelector("#rec-bot").onclick = viaBot;
+      sh.querySelector("#rec-file").onchange = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (file.size > MAX_APP_UPLOAD) {
+          if (await confirmDialog(`Файл ${sizeText(file.size)} — для приложения великоват. Отправить через бота (до 2 ГБ)?`)) viaBot();
+          return;
+        }
+        const box = sh.querySelector("#rec-progress");
+        box.innerHTML = `<div class="card" style="margin-bottom:10px"><div class="sub">Загружаю ${esc(file.name)} · ${sizeText(file.size)}</div><div class="bar-track"><i id="rec-bar" style="width:2%"></i></div></div>`;
+        const fd = new FormData();
+        fd.append("file", file, file.name);
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `/api/clients/${c.id}/recordings`);
+        xhr.setRequestHeader("authorization", `tma ${initData()}`);
+        xhr.upload.onprogress = (ev) => ev.lengthComputable && (sh.querySelector("#rec-bar").style.width = `${Math.max(2, Math.round((ev.loaded / ev.total) * 100))}%`);
+        xhr.onload = () => {
+          const data = JSON.parse(xhr.responseText || "{}");
+          if (xhr.status === 413) return confirmDialog("Файл великоват для приложения. Отправить через бота?").then((ok) => ok && viaBot());
+          if (xhr.status >= 400) return (box.innerHTML = ""), alertDialog(data.error || "Не загрузилось — попробуй через бота");
+          replaceClient(data.client);
+          haptic("medium");
+          toast(data.duplicate ? "Эта запись уже есть" : "Запись сохранена ✅");
+          closeSheet();
+          render();
+        };
+        xhr.onerror = () => ((box.innerHTML = ""), alertDialog("Связь оборвалась — попробуй ещё раз или через бота"));
+        xhr.send(fd);
+      };
+    },
+  );
+}
 // Только что сам записал на созвон — 15 минут можно отменить или перенести, даже если лида ведёт другой.
 const freshOwn = (c) => {
   const call = currentCall(c);
@@ -744,6 +828,8 @@ function renderClient(c) {
   if (!locked && !latestReport(c) && st.kind !== "report") html += `<button class="big-cta" data-report-new="${c.id}" style="margin-top:10px"><span>${icon("note")}</span><div>Заполнить итог диагностики<small>${(c.calls || []).some((x) => x.outcome === "held") ? "созвон проведён, итога нет" : "созвона в карточке нет — итог создаст проведённый созвон на дату диагностики"}</small></div></button>`;
 
   html += `<div class="card" style="margin-top:10px"><label class="field" style="margin:0"><span>Дальнейшие шаги и договорённости</span><textarea ${locked ? "disabled" : ""} data-f="nextSteps" style="min-height:52px" placeholder="пересозвон 24.10 в 20:00, ждём снятия самозапрета…">${esc(c.nextSteps || "")}</textarea></label></div>`;
+
+  html += recordingsBlock(c);
 
   // Итог диагностики — один на клиента; пересозвоны его дополняют, а не дублируют.
   const lr = latestReport(c);
@@ -1562,6 +1648,7 @@ const GUIDES = {
     ["Планы поменялись", "«Перенести» у созвона в списке или в карточке: ±1 час, «завтра так же» или любое время. Вне окна — время само добавится в окна. Или боту: «моего лида с 21:00 перенеси на 16:00»."],
     ["Созвон прошёл", "В карточке или на «Сегодня» нажми «Пришёл, провёл» или «Не пришёл (НДЗ)». Бот тоже спросит через 15 минут после начала."],
     ["Сразу после созвона — итог", "«Заполнить итог»: потребность, род деятельности, боль, возражение, договорённости. Можно вставить свой текст целиком. Не заполнишь — бот напомнит 3 раза, потом сообщит РОПу."],
+    ["Запись созвона", "В карточке «Выгрузить созвон»: до 45 МБ — прямо отсюда, больше (до 2 ГБ) — через бота: откроется чат, кидаешь файл, бот сам привяжет его к лиду."],
     ["Решение клиента", "В карточке «Что решил клиент?»: Оплатил / Предоплата / Думает / Перенос / Отказы. «Оплатил» сам падает в ведомость. Пересозвон — итог заново не нужен, просто выбери решение."],
     ["Дожим", "«Думает» и НДЗ — коснись каждый день: «Написал — тишина» или «Ответил». 3 раза тишина — «Игнор» сам."],
     ["Окна", "«Окна» → «+ Окна»: когда ты берёшь созвоны. Лидоруб записывает в свободные слоты."],
@@ -1944,6 +2031,34 @@ $app.addEventListener("click", async (e) => {
   if (d.book) {
     e.stopPropagation();
     return openBooking(clientById(d.book));
+  }
+  if (d.recUp) return openRecUpload(clientById(d.recUp));
+  if (d.recGet) {
+    const [cid, rid] = d.recGet.split("|");
+    t.disabled = true;
+    try {
+      const r = await api("POST", `/clients/${cid}/recordings/${rid}/send`);
+      replaceClient(r.client);
+      haptic("medium");
+      toast("Отправил тебе в Telegram — открой чат с ботом");
+      render();
+    } catch (err) {
+      alertDialog(err.message);
+    } finally {
+      t.disabled = false;
+    }
+    return;
+  }
+  if (d.recDel) {
+    const [cid, rid] = d.recDel.split("|");
+    if (!(await confirmDialog("Скрыть запись из карточки? Копия в архиве останется."))) return;
+    try {
+      replaceClient((await api("DELETE", `/clients/${cid}/recordings/${rid}`)).client);
+      render();
+    } catch (err) {
+      alertDialog(err.message);
+    }
+    return;
   }
   if (d.reportOpen) return openReport(clientById(d.reportOpen));
   if (d.reportNew) return openReport(clientById(d.reportNew));
