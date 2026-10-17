@@ -610,7 +610,6 @@ async function handleBooking(book, { me, text, clients, closers, store, tg, appU
   let c = findDup(clients, { telegram: nick, phone: book.phone });
   if (c && !canTouchClient(me, c)) return reply(lockText(c, usersMap));
   let created = false;
-  if (!["mop", "rop"].includes(me.role) && !c?.mopId) return reply("Отчёт пишет диагност (МОП или РОП). Сначала закрепи клиента за МОПом.");
   if (!c) {
     c = blankClient(me.id);
     Object.assign(c, { name: book.name, telegram: nick, phone: book.phone, lidorubId: me.role === "lidorub" ? me.id : null });
