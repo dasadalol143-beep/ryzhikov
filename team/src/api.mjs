@@ -1163,5 +1163,24 @@ export async function runDataFixes({ store, env, tg, appUrl, now = Date.now() })
       done.push(`iuuhkkk:${c.id}`);
     }
   }
+  // 17.10: Петя попросил разослать всем полную инструкцию по их роли. Каждому — один раз (отметка по человеку).
+  if (tg && !(await store.get("meta", "guides-v1"))?.done) {
+    const { sendGuide } = await import("./guides.mjs");
+    const mark = (await store.get("meta", "guides-v1")) || { id: "guides-v1", sent: [] };
+    const users = (await store.all("user")).filter((u) => u.active && u.role && /^\d+$/.test(String(u.id)));
+    for (const id of parseIds(env?.OWNER_IDS)) {
+      const u = users.find((x) => x.id === id);
+      if (u) u.role = "owner";
+      else users.push({ id, role: "owner", name: "Петя" });
+    }
+    for (const u of users) {
+      if (mark.sent.includes(u.id)) continue;
+      mark.sent.push(u.id); // сначала отметка — чтобы при сбое не прислать человеку дважды
+      await store.put("meta", "guides-v1", mark);
+      await sendGuide(tg, u, appUrl).catch(() => {});
+      done.push(`guide:${u.id}`);
+    }
+    await store.put("meta", "guides-v1", { ...mark, done: true, at: nowIso() });
+  }
   return done;
 }

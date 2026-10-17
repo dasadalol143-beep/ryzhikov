@@ -180,6 +180,10 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
     return reply(`🆕 Лид заведён: <b>${who(c)}</b>${nick ? "" : "\n⚠️ Ника нет (скрыт) — допиши телефон или ник в карточке."}\n\nЗаписать: <code>созвон завтра в 15 к Тёме ${nick || h(name)}</code>`, { inline_keyboard: [[openApp(appUrl, "📅 Записать на созвон", `?client=${c.id}&book=1`)]] });
   }
 
+  if (/^\/guide/.test(text) || /^(инструкция|как пользоваться)\??$/i.test(text)) {
+    const { sendGuide } = await import("./guides.mjs");
+    return sendGuide(tg, me, appUrl);
+  }
   if (/^\/today/.test(text) || /^(сегодня|мои созвоны)\??$/i.test(text)) {
     return reply(dayPlan(me, clients, now) || "На сегодня созвонов и долгов нет 👌", { inline_keyboard: [[openApp(appUrl)]] });
   }

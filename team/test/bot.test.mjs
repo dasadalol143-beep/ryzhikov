@@ -720,7 +720,7 @@ test("data fix @iuuhkkk: restored from trash, held call 16.10 16:00 with Dima, D
   const { runDataFixes } = await import("../src/api.mjs");
   const { telegram } = await import("../src/telegram.mjs");
   const tg = telegram("123:abc", async (url, init) => (sent.push({ chat: init.body.get("chat_id"), text: init.body.get("text") }), new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }))));
-  assert.equal((await runDataFixes({ store, env: {}, tg, appUrl: "https://t/" })).length, 1);
+  assert.equal((await runDataFixes({ store, env: {}, tg, appUrl: "https://t/" })).filter((d) => d.startsWith("iuuhkkk")).length, 1);
   assert.equal((await runDataFixes({ store, env: {}, tg, appUrl: "https://t/" })).length, 0); // один раз
   const x = (await store.all("client")).find((y) => y.telegram === "@iuuhkkk");
   assert.equal(x.mopId, "510");
@@ -824,4 +824,17 @@ test("audit: lidorub can't write a report as diagnost, can fix own fresh booking
   const moved = await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at: new Date(Date.now() + 2 * 86400_000).toISOString(), mopId: "502" });
   assert.equal(moved.status, 200);
   assert.equal((await store.get("client", c.id)).calls.filter((x) => !x.outcome).length, 1);
+});
+
+test("role guides: everyone gets their guide once, /guide resends", async () => {
+  const { store, sent, say } = await setup();
+  const { runDataFixes } = await import("../src/api.mjs");
+  const tg = { sendMessage: async (chat, text) => sent.push({ chat: String(chat), text }) };
+  await runDataFixes({ store, env: { OWNER_IDS: "1" }, tg, appUrl: "https://team.test/" });
+  for (const [id, re] of [["1", /Только для тебя, Петя/], ["501", /Заполнить итог/], ["503", /заводить лидов/]]) assert.match(sent.filter((m) => m.chat === id).map((m) => m.text).join("\n"), re);
+  const n = sent.length;
+  await runDataFixes({ store, env: { OWNER_IDS: "1" }, tg, appUrl: "https://team.test/" });
+  assert.equal(sent.length, n);
+  await say(502, "/guide");
+  assert.match(sent.filter((m) => m.chat === "502").at(-1).text, /\/guide/);
 });
