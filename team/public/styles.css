@@ -578,3 +578,7 @@ table.crm tr.is-dup td { opacity: .5; }
 .task.warn .task-n { background: var(--bad); color: #fff; }
 .tasks.done { display: flex; flex-direction: column; gap: 2px; background: var(--good-wash); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
 .tasks.done b { color: var(--good); }
+
+/* галочка в шторке: «добавить время в окна» */
+.check-line { display: flex; gap: 10px; align-items: flex-start; margin: 10px 4px 2px; font-size: 14px; line-height: 1.4; color: var(--text); }
+.check-line input { width: 20px; height: 20px; margin: 0; flex: none; accent-color: var(--accent); }

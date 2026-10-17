@@ -297,7 +297,9 @@ function callRow(c, call) {
   const btns = noReport
     ? `<div class="quick"><button class="qbtn g-ndz" data-report-open="${c.id}">Заполнить итог</button></div>`
     : passed && !call.outcome && mayMark
-    ? `<div class="quick"><button class="qbtn g-won" data-held="${c.id}" data-call="${call.id}">Пришёл</button><button class="qbtn g-ndz" data-ndz="${c.id}" data-call="${call.id}">НДЗ</button>${c.chatUrl ? `<button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>` : ""}</div>`
+    ? `<div class="quick"><button class="qbtn g-won" data-held="${c.id}" data-call="${call.id}">Пришёл</button><button class="qbtn g-ndz" data-ndz="${c.id}" data-call="${call.id}">НДЗ</button><button class="qbtn g-work" data-book="${c.id}">Перенести</button>${c.chatUrl ? `<button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>` : ""}</div>`
+    : !call.outcome && mayMark
+    ? `<div class="quick"><button class="qbtn g-work" data-book="${c.id}">Перенести</button>${c.chatUrl ? `<button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>` : c.telegram ? `<button class="qbtn g-lead" data-link="${esc(tgUrl(c.telegram))}">Написать</button>` : ""}</div>`
     : c.chatUrl ? `<div class="quick"><button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>${c.telegram ? `<button class="qbtn g-lead" data-link="${esc(tgUrl(c.telegram))}">Написать</button>` : ""}</div>` : "";
   const outcome = call.outcome === "held" ? (call.reportAt ? "проведён" : "проведён · нет отчёта") : call.outcome === "ndz" ? "НДЗ" : "";
   return `<div class="tl-row ${cls}" data-open="${c.id}"><div class="tl-time">${mskTime(at)}<small>${fmtDay(mskKey(at))}</small></div><div class="tl-body"><div class="title">${esc(clientTitle(c))}</div><div class="sub">${statusBadge(c.status)}<span class="sub">· ${esc(userName(call.mopId))}${outcome ? ` · ${outcome}` : ""}</span></div>${c.info ? `<div class="sub">${esc(c.info.slice(0, 90))}</div>` : ""}${btns}</div></div>`;
@@ -917,33 +919,57 @@ function openNewClient() {
 const SLOT_HOURS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"];
 function openBooking(c, day = null) {
   const cur = currentCall(c);
+  const moving = !!cur;
   let pickDay = day || (cur ? mskKey(Date.parse(cur.at)) : today());
   let mop = cur?.mopId || c.mopId || (state.me.role === "mop" ? state.me.id : closers()[0]?.id) || null;
   let time = null;
+  let addWin = true;
+  const curDay = cur ? mskKey(Date.parse(cur.at)) : null;
+  const curTime = cur ? mskTime(Date.parse(cur.at)) : null;
+  // Быстрый перенос: ±час, вечером, завтра в то же время.
+  const quick = cur
+    ? [
+        ["−1 час", curDay, fromMin(toMin(curTime) - 60)],
+        ["+1 час", curDay, fromMin(toMin(curTime) + 60)],
+        ["+2 часа", curDay, fromMin(toMin(curTime) + 120)],
+        ["Завтра так же", addDaysKey(curDay, 1), curTime],
+        ["Послезавтра", addDaysKey(curDay, 2), curTime],
+      ].filter(([, d, t]) => toMin(t) >= 7 * 60 && toMin(t) <= 23 * 60 && Date.parse(`${d}T${t}:00+03:00`) > Date.now())
+    : [];
   const draw = (sh) => {
-    const busy = new Set(callsOn(pickDay, (call) => call.mopId === mop && !call.outcome).map(({ call }) => mskTime(Date.parse(call.at))));
+    // Свой же созвон не считаем занятым — его и переносим.
+    const mine = (call) => cur && call.id === cur.id;
+    const busyList = busyOn(mop, pickDay).filter((x) => !mine(x.call));
+    const busy = new Set(callsOn(pickDay, (call) => call.mopId === mop && !call.outcome && !mine(call)).map(({ call }) => mskTime(Date.parse(call.at))));
     const days = Array.from({ length: 10 }, (_, i) => addDaysKey(today(), i));
     const w = winOf(mop, pickDay);
     // Есть окна — показываем их слоты (свободные зелёным), нет — часовую сетку 10–21.
     const grid = w
-      ? daySlots(pickDay, w.ranges, busyOn(mop, pickDay)).filter((x) => x.state !== "busy" || x.inWindow).map((x) => `<button class="slot ${x.state === "free" ? "free" : "busy"} ${time === x.time ? "active" : ""}" data-time="${x.time}">${x.time}</button>`).join("")
+      ? daySlots(pickDay, w.ranges, busyList).filter((x) => x.state !== "busy" || x.inWindow).map((x) => `<button class="slot ${x.state === "free" ? "free" : "busy"} ${time === x.time ? "active" : ""}" data-time="${x.time}">${x.time}</button>`).join("")
       : SLOT_HOURS.map((t) => `<button class="slot ${busy.has(t) || Date.parse(`${pickDay}T${t}:00+03:00`) < Date.now() ? "busy" : ""} ${time === t ? "active" : ""}" data-time="${t}">${t}</button>`).join("");
-    sh.innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">Созвон с ${esc(clientTitle(c))}</div>
-      ${cur ? `<div class="sub" style="margin:0 4px 10px">Сейчас: ${fmtWhen(Date.parse(cur.at))} — будет перенесён</div>` : ""}
+    const outside = time && w && !w.ranges.some((r) => toMin(r.from) <= toMin(time) && toMin(time) < toMin(r.to));
+    const noWin = time && !w;
+    const label = time ? `${moving ? "Перенести" : "Записать"} на ${fmtDay(pickDay)} в ${time}` : "Выбери время";
+    sh.innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">${moving ? "Перенести созвон" : "Записать на созвон"}</div>
+      <div class="sub" style="margin:0 4px 10px">${esc(clientTitle(c))}${cur ? ` · сейчас <b>${fmtWhen(Date.parse(cur.at))}</b> · ${esc(userName(cur.mopId))}` : ""}</div>
+      ${quick.length ? `<div class="sheet-label">Быстро</div><div class="chips tight">${quick.map(([l, d, t]) => `<button class="chip ${pickDay === d && time === t ? "active" : ""}" data-qd="${d}" data-qt="${t}">${l} · ${t}</button>`).join("")}</div>` : ""}
       <div class="sheet-label">Диагност</div>
       <div class="chips tight">${closers().map((u) => `<button class="chip ${u.id === mop ? "active" : ""}" data-mop="${u.id}">${esc(u.name)}</button>`).join("") || `<span class="sub">Добавь менеджеров в «Ещё → Команда»</span>`}</div>
       <div class="sheet-label">День</div>
       <div class="days">${days.map((d) => `<button class="day ${d === pickDay ? "active" : ""}" data-day="${d}"><small>${weekday(d)}</small><b>${d.slice(8)}</b><i class="${winOf(mop, d) ? "win" : callsOn(d, (call) => call.mopId === mop && !call.outcome).length ? "has" : ""}"></i></button>`).join("")}</div>
-      <div class="sheet-label">${w ? `Окно ${rangesText(w.ranges)} · зелёное — свободно` : "Окна не заданы · зачёркнуто — уже созвон"}</div>
+      <div class="sheet-label">${w ? `Окно ${rangesText(w.ranges)} · зелёное — свободно` : "Окна на этот день не заданы · зачёркнуто — уже созвон"}</div>
       <div class="slots">${grid || `<span class="sub">В окне всё занято — выбери другое время ниже</span>`}</div>
-      <label class="field" style="margin-top:10px"><span>Другое время</span><input type="time" id="b-time" value="${time && !SLOT_HOURS.includes(time) && !w ? time : ""}"></label>
-      <button class="btn block" id="b-save" ${mop && time ? "" : "disabled"}>${time ? `Записать на ${fmtDay(pickDay)} в ${time}` : "Выбери время"}</button>`;
+      <label class="field" style="margin-top:10px"><span>Любое другое время</span><input type="time" id="b-time" value="${time || ""}"></label>
+      ${outside || noWin ? `<label class="check-line"><input type="checkbox" id="b-addwin" ${addWin ? "checked" : ""}> <span>${time} ${noWin ? "— окон нет" : "вне окна"}. Добавить это время в окна ${esc(userName(mop))}</span></label>` : ""}
+      <button class="btn block" id="b-save" ${mop && time ? "" : "disabled"}>${label}</button>
+      ${moving ? `<div class="row-links" style="justify-content:center"><button class="link" id="b-cancel" style="color:var(--bad)">Отменить созвон совсем</button></div>` : ""}`;
     sh.onclick = (e) => {
-      const b = e.target.closest("[data-mop],[data-day],[data-time]");
+      const b = e.target.closest("[data-mop],[data-day],[data-time],[data-qd]");
       if (!b) return;
       if (b.dataset.mop) mop = b.dataset.mop;
       if (b.dataset.day) pickDay = b.dataset.day;
       if (b.dataset.time) time = b.dataset.time;
+      if (b.dataset.qd) [pickDay, time] = [b.dataset.qd, b.dataset.qt];
       haptic();
       draw(sh);
     };
@@ -951,11 +977,30 @@ function openBooking(c, day = null) {
       time = e.target.value || null;
       draw(sh);
     };
+    const aw = sh.querySelector("#b-addwin");
+    if (aw) aw.onchange = () => (addWin = aw.checked);
+    const cancel = sh.querySelector("#b-cancel");
+    if (cancel) cancel.onclick = async () => {
+      if (!(await confirmDialog(`Отменить созвон ${fmtWhen(Date.parse(cur.at))}?`))) return;
+      if (await act(c.id, { type: "uncall", callId: cur.id }, "Созвон отменён")) closeSheet();
+    };
     sh.querySelector("#b-save").onclick = async () => {
-      const at = new Date(Date.parse(`${pickDay}T${time}:00+03:00`)).toISOString();
-      if (busy.has(time) && !(await confirmDialog("У диагноста уже есть созвон в это время. Всё равно записать?"))) return;
+      const ts = Date.parse(`${pickDay}T${time}:00+03:00`);
+      if (ts < Date.now() - 5 * 60_000) return alertDialog("Это время уже прошло — выбери другое.");
+      if ([...busy].some((t) => Math.abs(toMin(t) - toMin(time)) < 45) && !(await confirmDialog("У диагноста уже есть созвон в это время. Всё равно записать?"))) return;
+      const btn = sh.querySelector("#b-save");
+      btn.disabled = true;
+      const res = await act(c.id, { type: "call", at: new Date(ts).toISOString(), mopId: mop }, `${moving ? "Перенесено" : "Записан"}: ${userName(mop)} · ${fmtDay(pickDay)}, ${time}`);
+      btn.disabled = false;
+      if (!res) return;
+      // Время вне окна — сразу расширяем окно, чтобы в «Окнах» всё было честно.
+      if ((outside || noWin) && addWin) {
+        const end = fromMin(Math.min(toMin(time) + 60, 24 * 60));
+        await api("PUT", "/windows", { mopId: mop, days: [pickDay], ranges: [...(w?.ranges || []), { from: time, to: end }] })
+          .then((r) => ((state.windows = r.windows), render()))
+          .catch(() => {});
+      }
       closeSheet();
-      await act(c.id, { type: "call", at, mopId: mop }, `Записан: ${userName(mop)} · ${fmtDay(pickDay)}, ${time}`);
     };
   };
   openSheet("", draw);
@@ -1514,6 +1559,7 @@ const GUIDES = {
   ],
   mop: [
     ["Утро", "Открой «Сегодня» → блок «Что сделать сейчас». Всё, что там есть, — твои задачи по порядку. Пусто — значит всё сделано."],
+    ["Планы поменялись", "«Перенести» у созвона в списке или в карточке: ±1 час, «завтра так же» или любое время. Вне окна — время само добавится в окна. Или боту: «моего лида с 21:00 перенеси на 16:00»."],
     ["Созвон прошёл", "В карточке или на «Сегодня» нажми «Пришёл, провёл» или «Не пришёл (НДЗ)». Бот тоже спросит через 15 минут после начала."],
     ["Сразу после созвона — итог", "«Заполнить итог»: потребность, род деятельности, боль, возражение, договорённости. Можно вставить свой текст целиком. Не заполнишь — бот напомнит 3 раза, потом сообщит РОПу."],
     ["Решение клиента", "В карточке «Что решил клиент?»: Оплатил / Предоплата / Думает / Перенос / Отказы. «Оплатил» сам падает в ведомость. Пересозвон — итог заново не нужен, просто выбери решение."],

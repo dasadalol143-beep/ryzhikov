@@ -4,7 +4,7 @@ import {
   ROLES, isClosed, currentCall, clientTitle, mskKey, mskTime, fmtWhen, needsReport, followupState, statusLabel, monthSummary, addDaysKey, weekday,
 } from "../public/lib/model.js";
 import { rnp } from "../public/lib/stats.js";
-import { parseBooking, parseBookings, parseWindows, parseRelay, parseSetWindows } from "./nlp.mjs";
+import { parseBooking, parseBookings, parseWindows, parseRelay, parseSetWindows, parseReschedule, findUserInText } from "./nlp.mjs";
 import { addFeed } from "./notify.mjs";
 import { isReportText, parseReportText } from "../public/lib/report.js";
 import { dispatch } from "./notify.mjs";
@@ -226,11 +226,17 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
   const win = /^\/windows/.test(text) ? { day: addDaysKey(mskKey(now), 1), mop: null } : !ask && parseWindows(text, closers, now);
   if (win) return reply(windowsText(win.day, win.mop ? [win.mop] : closers, clients, await loadWindows(store)));
 
+  // «Моего лида с 21:00 переставь на 16:00», «перенеси @ivan на завтра в 18»
+  const rs = !ask && parseReschedule(text, now);
+  if (rs) return handleReschedule(rs, { me, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env, now });
+
   // Один или несколько созвонов одним сообщением: «Теме в 18 с Антоном, Диме в 19 @ivan»
   const many = ask ? [] : parseBookings(text, closers, { now, sender: ["mop", "rop"].includes(me.role) ? me : null });
-  if (many.length) return handleBookings(many, { me, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env });
+  // Не поняли, кого записать, — а ИИ включён: пусть он разберёт живую речь.
+  const vague = (x) => !x.nick && !x.name && !x.phone;
+  if (many.length && !(aiOn && many.some(vague))) return handleBookings(many, { me, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env });
   const book = !ask && parseBooking(text, closers, now);
-  if (book) return handleBooking(book, { me, msg, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env });
+  if (book && !(aiOn && vague(book))) return handleBooking(book, { me, msg, text, clients, closers, store, tg, appUrl, reply, usersMap, settings, env });
 
   // «@ivan оплатил 100к», «@ivan ндз», «@ivan пришел», «@ivan думает 80к», «@ivan отказ банки»
   const st = !ask && parseStatusCommand(text);
@@ -360,6 +366,51 @@ async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, 
         await store.put("client", c.id, c);
         return reply(`🆕 Лид заведён: <b>${who(c)}</b>`, { inline_keyboard: [[openApp(appUrl, "📅 Записать на созвон", `?client=${c.id}&book=1`)]] });
       }
+      if (name === "reschedule_call") {
+        const day = /^\d{4}-\d{2}-\d{2}$/.test(inp.to_date || "") ? inp.to_date : null;
+        const time = /^\d{1,2}:\d{2}$/.test(inp.to_time || "") ? inp.to_time.padStart(5, "0") : null;
+        if (!day || !time) return reply("На какое время перенести? Например: <code>перенеси @ivan на завтра в 18</code>");
+        const rs = { client: inp.client || null, findClient, fromDay: inp.from_date || mskKey(now), fromTime: /^\d{1,2}:\d{2}$/.test(inp.from_time || "") ? inp.from_time.padStart(5, "0") : null, mop: closers.find((u) => u.name === inp.mop) || null };
+        if (!rs.client && !rs.fromTime) return reply("Какой созвон перенести? Назови клиента или время созвона.");
+        const hit = findCallToMove(rs, { me, clients, closers });
+        if (hit.error) return reply(hit.error);
+        const c = (await store.get("client", hit.c.id)) || hit.c;
+        const call = c.calls.find((x) => x.id === hit.call.id) || hit.call;
+        const toMop = closers.find((u) => u.name === inp.to_mop);
+        return moveCall({ c, call, at: Date.parse(`${day}T${time}:00+03:00`), mopId: toMop?.id || null }, { me, clients, store, tg, appUrl, reply, usersMap, settings, env });
+      }
+      if (name === "update_client") {
+        const c = await pick(inp.client);
+        if (!c) return;
+        if (!canTouchClient(me, c)) return reply(lockText(c, usersMap));
+        const { applyFields: apply, findDup: dupOf } = await import("./api.mjs");
+        const patch = {};
+        if (inp.name) patch.name = String(inp.name);
+        if (inp.nick) patch.telegram = `@${nickOf(inp.nick)}`;
+        if (inp.phone) patch.phone = String(inp.phone).replace(/[^\d+]/g, "");
+        if (inp.info) patch.info = [c.info, String(inp.info)].filter(Boolean).join("\n");
+        if (inp.next_steps) patch.nextSteps = String(inp.next_steps);
+        if (Number(inp.wanted_sum) > 0) patch.wantedSum = Number(inp.wanted_sum);
+        if (!Object.keys(patch).length) return reply("Что поменять в карточке?");
+        if (patch.telegram || patch.phone) {
+          const dup = dupOf(await store.all("client"), { telegram: patch.telegram || c.telegram, phone: patch.phone || c.phone }, c.id);
+          if (dup) return reply(`Такой клиент уже есть: <b>${who(dup)}</b> — ${statusLabel(dup.status)}. Если это дубль — открой карточку и нажми «Склеить».`);
+        }
+        apply(c, patch);
+        log(c, me.id, `Изменены данные (бот): ${Object.keys(patch).map((k) => ({ name: "имя", telegram: "ник", phone: "телефон", info: "инфо", nextSteps: "договорённости", wantedSum: "сумма" })[k]).join(", ")}`);
+        await save(c, ctx);
+        return reply(`✏️ Обновил карточку <b>${who(c)}</b>`, { inline_keyboard: [[openApp(appUrl, "Карточка", `?client=${c.id}`)]] });
+      }
+      if (name === "delete_client") {
+        const c = await pick(inp.client);
+        if (!c) return;
+        const { canDeleteClient } = await import("../public/lib/model.js");
+        if (!canDeleteClient(me, c)) return reply(c.mopId ? lockText(c, usersMap) : "Удалить может тот, кто завёл лида, его МОП или руководство.");
+        const { moveToTrash } = await import("./api.mjs");
+        await moveToTrash(store, c, me.id, `удалён в боте${inp.reason ? `: ${String(inp.reason).slice(0, 100)}` : ""}`);
+        await addFeed(store, { type: "comment", text: `🗑 ${me.name} удалил клиента ${who(c)} (бот)`, by: me.id, to: [c.mopId, c.lidorubId].filter((x) => x && x !== me.id), clientId: null });
+        return reply(`🗑 Удалил <b>${who(c)}</b> — лежит в корзине, Петя или РОП могут вернуть.`);
+      }
       if (name === "cancel_call") {
         const c = await pick(inp.client);
         if (!c) return;
@@ -458,6 +509,63 @@ async function handleReportMessage(text, { me, clients, store, tg, appUrl, reply
 
 // Свободные окна: 10:00–21:00 по часу, занятые — с именем клиента.
 const SLOTS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"];
+// Найти открытый созвон для переноса: по клиенту или по времени (+ диагност из текста / сам автор).
+export function findCallToMove(rs, { me, clients, closers, text = "" }) {
+  const open = [];
+  for (const c of clients) for (const call of c.calls || []) if (!call.outcome) open.push({ c, call });
+  let list = open;
+  if (rs.client) {
+    const hit = rs.findClient(clients, rs.client);
+    if (!hit.c) return { error: hit.list?.length > 1 ? `Таких клиентов несколько: ${hit.list.slice(0, 5).map(who).join(", ")}. Уточни @ником.` : `Не нашёл «${h(rs.client)}» в CRM.` };
+    list = open.filter((x) => x.c.id === hit.c.id);
+  } else if (rs.nick) list = open.filter((x) => nickKey(x.c.telegram) === rs.nick.toLowerCase());
+  if (rs.fromTime) list = list.filter((x) => mskKey(Date.parse(x.call.at)) === rs.fromDay && Math.abs(toMin(mskTime(Date.parse(x.call.at))) - toMin(rs.fromTime)) <= 10);
+  const mop = rs.mop || findUserInText(text, closers);
+  if (mop) list = list.filter((x) => x.call.mopId === mop.id);
+  else if (list.length > 1 && ["mop", "rop"].includes(me.role)) {
+    const mine = list.filter((x) => x.call.mopId === me.id);
+    if (mine.length) list = mine;
+  }
+  list.sort((a, b) => Date.parse(a.call.at) - Date.parse(b.call.at));
+  if (!list.length) return { error: rs.fromTime ? `Не нашёл назначенного созвона на ${rs.fromDay === mskKey(Date.now()) ? "сегодня" : rs.fromDay.split("-").reverse().slice(0, 2).join(".")} в ${rs.fromTime}${mop ? ` у ${h(mop.name)}` : ""}.` : "У клиента нет назначенного созвона — запиши заново: <code>созвон завтра в 15 к Диме @ник</code>" };
+  if (list.length > 1 && !rs.client && !rs.nick) return { error: `В это время несколько созвонов: ${list.map((x) => `${mskTime(Date.parse(x.call.at))} ${who(x.c)}`).join(", ")}. Уточни @ником клиента.` };
+  return list[0];
+}
+
+// Перенос созвона: те же проверки, что в приложении; диагност и лидоруб получат уведомление.
+export async function moveCall({ c, call, at, mopId = null }, { me, clients, store, tg, appUrl, reply, usersMap, settings, env }) {
+  if (!canTouchClient(me, c) && !freshOwnCall(me, call)) return reply(lockText(c, usersMap));
+  if (at < Date.now() - 5 * 60_000) return reply("Это время уже прошло 🙂 Назови другое.");
+  const mop = usersMap[mopId || call.mopId];
+  const day = mskKey(at);
+  const clash = busyOf(mop.id, day, clients).find((b) => b.c.id !== c.id && Math.abs(Date.parse(`${day}T${b.time}:00+03:00`) - at) < 45 * 60_000);
+  if (clash) return reply(`⛔️ У ${h(mop.name)} уже созвон в ${clash.time} — ${who(clash.c)}.\n\n${windowsText(day, [mop], clients, await loadWindows(store))}`);
+  const { applyAction } = await import("./api.mjs");
+  const ctx = { by: me.id, store, users: usersMap, settings, notes: [] };
+  const was = call.at;
+  await applyAction(c, { type: "call", at: new Date(at).toISOString(), mopId: mop.id }, ctx);
+  c.updatedAt = new Date().toISOString();
+  await store.put("client", c.id, c);
+  await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
+  const fresh = ctx.call || c.calls.at(-1);
+  // Вне окон — подскажем, но не запрещаем: диагност сам решил.
+  const w = (await loadWindows(store)).find((x) => x.mopId === mop.id && x.day === day);
+  const tm = toMin(mskTime(at));
+  const outside = w?.ranges?.length && !w.ranges.some((r) => toMin(r.from) <= tm && tm < toMin(r.to));
+  return reply(
+    `🔁 <b>Перенёс созвон</b>\n👤 ${who(c)}\nБыло: ${fmtWhen(Date.parse(was))}\nСтало: <b>${fmtWhen(at)} МСК</b> · ${h(mop.name)}${outside ? `\n⚠️ Это вне окна ${h(mop.name)} (${rangesText(w.ranges)}) — созвон всё равно стоит.` : ""}${mop.id !== me.id ? `\n\n${h(mop.name)} получил уведомление.` : ""}`,
+    { inline_keyboard: [[openApp(appUrl, "Карточка", `?client=${c.id}`), { text: "Отменить созвон", callback_data: `uncall:${c.id}:${fresh.id}` }]] },
+  );
+}
+
+async function handleReschedule(rs, deps) {
+  const { me, clients, closers, text, reply } = deps;
+  const hit = findCallToMove(rs, { me, clients, closers, text });
+  if (hit.error) return reply(hit.error);
+  const toDay = rs.toDayExplicit || rs.fromTime ? rs.toDay : mskKey(Date.parse(hit.call.at));
+  return moveCall({ c: hit.c, call: hit.call, at: Date.parse(`${toDay}T${rs.toTime}:00+03:00`) }, deps);
+}
+
 function busyOf(mopId, day, clients) {
   const out = [];
   for (const c of clients) for (const call of c.calls || []) if (call.mopId === mopId && !["moved", "ndz"].includes(call.outcome) && mskKey(Date.parse(call.at)) === day) out.push({ time: mskTime(Date.parse(call.at)), c });

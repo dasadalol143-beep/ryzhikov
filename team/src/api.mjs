@@ -239,7 +239,7 @@ export async function reconcilePaid(store, now = Date.now()) {
   return { linked: linked.length, created: created.length, removed };
 }
 
-async function moveToTrash(store, c, by, reason = "") {
+export async function moveToTrash(store, c, by, reason = "") {
   await store.put("trash", c.id, { ...c, deletedAt: nowIso(), deletedBy: by, deleteReason: reason });
   await store.del("client", c.id);
 }
@@ -253,7 +253,7 @@ const event = (c, t, by, extra = {}) => {
   c.events = [...(c.events || []), { t, at: nowIso(), by, ...extra }];
 };
 
-function applyFields(c, body) {
+export function applyFields(c, body) {
   if ("name" in body) c.name = str(body.name, 120);
   if ("telegram" in body) c.telegram = normTelegram(body.telegram);
   if ("phone" in body) c.phone = str(body.phone, 40);

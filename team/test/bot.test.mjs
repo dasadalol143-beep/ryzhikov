@@ -290,7 +290,8 @@ test("AI fallback: unparsed phrase → booking, status, message, answer; questio
   // вопрос с именем менеджера — не пересылается Диме, а уходит ИИ
   await tell(1, "сколько продаж у Димы?");
   assert.equal(asks.length, 1);
-  assert.equal(asks[0].model, "claude-haiku-5-5");
+  assert.equal(asks[0].model, "claude-sonnet-5-5");
+  assert.deepEqual(asks[0].thinking, { type: "between_tools" });
   assert.match(asks[0].messages[0].content, /Диагносты: .*Тема/);
   assert.ok(!sent.some((m) => m.chat === "502"));
   assert.match(sent.at(-1).text, /У Димы 0 продаж/);
@@ -837,4 +838,36 @@ test("role guides: everyone gets their guide once, /guide resends", async () => 
   assert.equal(sent.length, n);
   await say(502, "/guide");
   assert.match(sent.filter((m) => m.chat === "502").at(-1).text, /\/guide/);
+});
+
+test("reschedule: «моего лида с 21:00 на 16:00» in plain text and via AI; clash refused; lidorub of the lead notified", async () => {
+  const { store, sent, say } = await setup();
+  const { mskKey } = await import("../public/lib/model.js");
+  const now = Date.now();
+  const tomorrow = mskKey(now + 86400_000);
+  await say(503, `созвон завтра в 21 к Диме @late_lead Олег`);
+  await say(503, `созвон завтра в 18 к Диме @busy_lead Пётр`);
+  // Дима сам, текстом, без ника
+  await say(502, "завтрашнего моего лида с 21:00 переставь на 16:00");
+  let c = (await store.all("client")).find((x) => x.telegram === "@late_lead");
+  const open = c.calls.filter((x) => !x.outcome);
+  assert.equal(open.length, 1);
+  assert.equal(open[0].at, new Date(Date.parse(`${tomorrow}T16:00:00+03:00`)).toISOString());
+  assert.match(sent.filter((m) => m.chat === "502").at(-1).text, /Перенёс созвон[\s\S]*16:00/);
+  assert.ok(sent.some((m) => m.chat === "503" && /Перенос созвона/.test(m.text))); // лидоруб в курсе
+  // на занятое время — нельзя
+  await say(502, "перенеси @late_lead на завтра в 18");
+  assert.match(sent.filter((m) => m.chat === "502").at(-1).text, /уже созвон в 18:00/);
+
+  // через ИИ: reschedule_call по времени
+  const { createHandler } = await import("../src/api.mjs");
+  const { webhookSecret } = await import("../src/telegram.mjs");
+  let next = [{ type: "tool_use", id: "t1", name: "reschedule_call", input: { client: null, from_date: tomorrow, from_time: "16:00", mop: null, to_date: tomorrow, to_time: "13:00", to_mop: null } }];
+  const aiClient = { messages: { create: async () => { const content = next; next = []; return { stop_reason: content.length ? "tool_use" : "end_turn", content: content.length ? content : [{ type: "text", text: "ок" }] }; } } };
+  const env = { BOT_TOKEN: "123:abc", OWNER_IDS: "1", APP_URL: "https://team.test/", ANTHROPIC_API_KEY: "test", __aiClient: aiClient };
+  const handle = createHandler({ store, env, fetch: async (url, init) => (sent.push({ chat: init.body.get("chat_id"), text: init.body.get("text") }), new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }))) });
+  const secret = await webhookSecret("123:abc");
+  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: 991, message: { message_id: 991, from: { id: 502, first_name: "X" }, chat: { id: 502, type: "private" }, text: "слушай, давай того что в 4 поставим на час дня" } }) }));
+  c = await store.get("client", c.id);
+  assert.equal(c.calls.filter((x) => !x.outcome)[0].at, new Date(Date.parse(`${tomorrow}T13:00:00+03:00`)).toISOString());
 });

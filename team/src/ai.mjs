@@ -5,9 +5,18 @@ import Anthropic from "@anthropic-ai/sdk";
 import { ROLES, REPORT_FIELDS, isClosed, mskKey, mskTime, addDaysKey, weekday, statusLabel, pace, fmtWhen, daySlots, rangesText } from "../public/lib/model.js";
 import { rnp, lidorubStats, periodRange } from "../public/lib/stats.js";
 
-export const AI_MODEL = "claude-haiku-5-5";
+// Основная модель — Sonnet: понимает сложные просьбы и сама находит, что поменять в CRM.
+// Потратили 80% месячного бюджета — до 1-го числа переключаемся на дешёвый Haiku, ИИ не выключается.
+export const AI_MODEL = "claude-sonnet-5-5";
+export const CHEAP_MODEL = "claude-haiku-5-5";
 export const DAILY_LIMIT = 300; // запросов в день
-export const MONTHLY_BUDGET = 15; // $ в месяц — дальше ИИ молчит до 1-го числа
+export const MONTHLY_BUDGET = 30; // $ в месяц — дальше ИИ молчит до 1-го числа
+export const pickModel = (env, use) => env.AI_MODEL || (use && use.cost >= 0.8 * (Number(env.AI_MONTHLY_BUDGET) || MONTHLY_BUDGET) ? CHEAP_MODEL : AI_MODEL);
+// У каждой модели свой способ выключить долгие размышления: бот должен отвечать за секунды.
+const modelOpts = (model) =>
+  model.startsWith("claude-sonnet-5-5") ? { thinking: { type: "between_tools" }, output_config: { effort: "medium" } }
+  : model.startsWith("claude-haiku") ? { thinking: { type: "disabled" }, output_config: { effort: "low" } }
+  : { output_config: { effort: "low" } };
 const HISTORY_TURNS = 8;
 const HISTORY_TTL = 6 * 3600_000;
 const MAX_STEPS = 4;
@@ -32,7 +41,9 @@ const SYSTEM = `Ты — ассистент отдела продаж «Кома
 - Отчёт после диагностики своими словами → save_report (разложи по полям, чего нет — null; итог, если назван, — в status).
 - Заметка, договорённость, «запиши что…» по клиенту → add_comment.
 - Окна — когда диагност готов брать созвоны. «Окна Тёме завтра с 18 до 21», «Дима всю неделю свободен с 12 до 15» → set_windows. Записывая на созвон, предлагай свободные слоты из окон (в контексте); если просят время вне окна — запиши, но скажи об этом.
-- Новый лид без созвона → create_lead. Отменить созвон → cancel_call. Перенести — book_calls на новое время (старый закроется сам).
+- Новый лид без созвона → create_lead. Отменить созвон → cancel_call.
+- Перенести созвон → reschedule_call. «Мой лид с 21:00 на 16:00» — ищи в «Предстоящие созвоны» созвон автора на это время; клиента можно не называть, передай from_date/from_time. «Перенеси на завтра» без времени — то же время на завтра.
+- Поменять имя, ник, телефон, инфо, договорённости, сумму → update_client. Удалить клиента (дубль, мусор) → delete_client, только по прямой просьбе.
 - Передать что-то человеку или всем → send_message (текст от первого лица автора).
 Клиента указывай @ником без @, телефоном или именем — как в контексте. Сомневаешься, кто это, — сначала client_info или list_clients.
 После действия не пересказывай его — бот сам пришлёт подтверждение. Можно добавить одну короткую фразу по делу или ничего.
@@ -57,6 +68,9 @@ export function aiTools({ closers, team }) {
     { name: "add_comment", description: "Добавить комментарий/заметку в карточку клиента. Все, кто ведёт клиента, получат уведомление.", input_schema: obj({ client: clientRef, text: { type: "string" } }) },
     { name: "create_lead", description: "Завести нового лида без записи на созвон.", input_schema: obj({ name: nullable("string"), nick: nullable("string", { description: "без @" }), phone: nullable("string"), info: nullable("string", { description: "что известно о клиенте" }) }) },
     { name: "cancel_call", description: "Отменить ближайший назначенный созвон клиента.", input_schema: obj({ client: clientRef }) },
+    { name: "reschedule_call", description: "Перенести назначенный созвон на другое время/день (или другому диагносту). Созвон находим по клиенту, а если клиент не назван («мой лид с 21:00») — по дню и времени из списка созвонов в контексте. Старое время освобождается, диагност и лидоруб получают уведомление.", input_schema: obj({ client: nullable("string", { description: "@ник без @, телефон или имя; null — искать по времени" }), from_date: nullable("string", { description: "YYYY-MM-DD текущего созвона" }), from_time: nullable("string", { description: "HH:MM текущего созвона" }), mop: nullable("string", { enum: [...mops, null], description: "чей созвон (если не автора)" }), to_date: { type: "string", description: "YYYY-MM-DD новая дата" }, to_time: { type: "string", description: "HH:MM по Москве" }, to_mop: nullable("string", { enum: [...mops, null], description: "передать другому диагносту; null — тот же" }) }) },
+    { name: "update_client", description: "Изменить данные карточки клиента: имя, ник, телефон, инфо, договорённости/дальнейшие шаги, сумму тарифа. null — не менять.", input_schema: obj({ client: clientRef, name: nullable("string"), nick: nullable("string", { description: "без @" }), phone: nullable("string"), info: nullable("string", { description: "дописать к инфо" }), next_steps: nullable("string"), wanted_sum: nullable("number") }) },
+    { name: "delete_client", description: "Удалить клиента (уходит в корзину, руководство может восстановить). Только если прямо просят удалить — дубль, мусор, ошибочно заведён.", input_schema: obj({ client: clientRef, reason: nullable("string") }) },
     { name: "set_windows", description: "Открыть или закрыть окна диагноста (когда он готов брать созвоны) на один или несколько дней. Пустой ranges — закрыть окна на эти дни. «С 18 до 21» = from 18:00, to 21:00.", input_schema: obj({ mop: { type: "string", enum: mops.length ? mops : ["—"] }, dates: { type: "array", items: { type: "string", description: "YYYY-MM-DD" } }, ranges: { type: "array", items: obj({ from: { type: "string", description: "HH:MM" }, to: { type: "string", description: "HH:MM" } }) } }) },
     { name: "send_message", description: "Передать сообщение члену команды от имени автора или всем.", input_schema: obj({ to: { type: "string", enum: [...team.map((u) => u.name), "всем"] }, text: { type: "string" } }) },
     { name: "client_info", description: "Карточка клиента: контакты, статус, созвоны, отчёты, история, комментарии.", input_schema: obj({ client: clientRef }) },
@@ -110,6 +124,11 @@ export function snapshot({ me, users, clients, legacy = {}, settings = {}, windo
   }
   calls.sort((a, b) => (a.day + a.t).localeCompare(b.day + b.t));
   const outcome = { held: "пришёл", ndz: "НДЗ", moved: "перенесён/отменён" };
+  const upcoming = [];
+  for (const c of clients) for (const call of c.calls || []) if (!call.outcome && Date.parse(call.at) > now - 3 * 3600_000 && Date.parse(call.at) < now + 8 * 86400_000) upcoming.push({ c, call });
+  upcoming.sort((a, b) => Date.parse(a.call.at) - Date.parse(b.call.at));
+  out.push(`\nПредстоящие созвоны (назначены, 7 дней): дата время — диагност — клиент — кто записал`);
+  out.push(upcoming.slice(0, 80).map(({ c, call }) => `  ${mskKey(Date.parse(call.at))} ${mskTime(Date.parse(call.at))} — ${name(call.mopId)}${call.mopId === me.id ? " (автор)" : ""} — ${cname(c)} — ${name(call.setBy)}`).join("\n") || "  нет");
   out.push(`\nСозвоны сегодня и завтра:\n${calls.map((x) => `  ${x.day === today ? "сегодня" : "завтра"} ${x.t} — ${name(x.call.mopId)} — ${cname(x.c)}${x.call.outcome ? ` (${outcome[x.call.outcome] || x.call.outcome}${x.call.outcome === "held" && !x.call.reportAt ? ", нет отчёта" : ""})` : ""}`).join("\n") || "  нет"}`);
   const wl = [];
   for (let i = 0; i < 7; i++) {
@@ -216,7 +235,7 @@ export async function chat(text, { me, users, clients, legacy = {}, settings = {
   if (use.n >= (Number(env.AI_DAILY_LIMIT) || DAILY_LIMIT)) return { error: "limit" };
   if (use.cost >= budgetOf(env)) return { error: "budget" };
   const ai = client || new Anthropic({ apiKey: env.ANTHROPIC_API_KEY, maxRetries: 1, timeout: 25_000 });
-  const model = env.AI_MODEL || AI_MODEL;
+  const model = pickModel(env, use);
   const closers = users.filter((u) => ["mop", "rop"].includes(u.role));
   const tools = aiTools({ closers, team: users.filter((u) => u.id !== me.id) });
   const data = { users, clients, legacy, settings };
@@ -233,9 +252,8 @@ export async function chat(text, { me, users, clients, legacy = {}, settings = {
     for (let step = 0; step < MAX_STEPS; step++) {
       const res = await ai.messages.create({
         model,
-        max_tokens: 1500,
-        thinking: { type: "disabled" },
-        output_config: { effort: "low" },
+        max_tokens: 2000,
+        ...modelOpts(model),
         system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
         tools,
         tool_choice: { type: "auto" },
@@ -272,8 +290,8 @@ export async function chat(text, { me, users, clients, legacy = {}, settings = {
 
 // Проверка ключа и статистика расхода — для /ai.
 export async function aiStatus({ store, env, users = [], now = Date.now(), client = null }) {
-  const model = env.AI_MODEL || AI_MODEL;
   const use = await usage(store, now);
+  const model = pickModel(env, use);
   const day = Number(mskKey(now).slice(8, 10));
   const dim = new Date(Date.UTC(+use.month.slice(0, 4), +use.month.slice(5, 7), 0)).getUTCDate();
   const lines = [];
@@ -289,8 +307,8 @@ export async function aiStatus({ store, env, users = [], now = Date.now(), clien
       const t = Date.now();
       // С теми же инструментами и системным промптом, что в бою: ошибка схемы всплывёт здесь, а не у команды.
       const closers = users.filter((u) => ["mop", "rop"].includes(u.role));
-      await ai.messages.create({ model, max_tokens: 16, thinking: { type: "disabled" }, output_config: { effort: "low" }, system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }], tools: aiTools({ closers, team: users }), tool_choice: { type: "auto" }, messages: [{ role: "user", content: "Ответь одним словом: ок" }] });
-      lines.push(`🟢 ИИ работает: ключ принят, модель ${model}, ответ за ${((Date.now() - t) / 1000).toFixed(1)} с.`);
+      await ai.messages.create({ model, max_tokens: 64, ...modelOpts(model), system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }], tools: aiTools({ closers, team: users }), tool_choice: { type: "auto" }, messages: [{ role: "user", content: "Ответь одним словом: ок" }] });
+      lines.push(`🟢 ИИ работает: ключ принят, модель ${model}${model === CHEAP_MODEL && !env.AI_MODEL ? " (экономный режим: потрачено 80% бюджета)" : ""}, ответ за ${((Date.now() - t) / 1000).toFixed(1)} с.`);
     } catch (e) {
       const st = e?.status;
       lines.push(`🔴 ИИ не отвечает: ${st === 401 ? "ключ не подходит — проверь секрет ANTHROPIC_API_KEY" : /credit|balance/i.test(e?.message || "") ? "на балансе Anthropic нет денег" : String(e?.message || e).slice(0, 160)}`);
