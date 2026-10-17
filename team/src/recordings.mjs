@@ -5,17 +5,20 @@ import { randomUUID } from "node:crypto";
 import { escapeHtml as h } from "./telegram.mjs";
 import { clientTitle, fmtWhen, isBossRole } from "../public/lib/model.js";
 
-export const MAX_APP_UPLOAD = 45 * 1024 * 1024; // из приложения через Bot API — до 50 МБ, берём с запасом
-export const WAIT_MS = 3 * 3600_000; // «жду файл записи» после кнопки или отчёта
+export const MAX_APP_UPLOAD = 20 * 1024 * 1024; // из приложения: Worker держит файл в памяти — больше гоним через бота
+export const WAIT_MS = 3 * 3600_000; // «жду файл записи» после кнопки «Выгрузить созвон»
+export const SOFT_WAIT_MS = 3600_000; // после «Пришёл» — подсказка, но с подтверждением
 const SEND_LIMIT = 30; // скачиваний на человека в час
 const nowIso = () => new Date().toISOString();
 const ownersOf = (env) => String(env?.OWNER_IDS || "").split(",").map((s) => s.trim()).filter(Boolean);
 
-// Что в сообщении похоже на запись созвона. Короткие голосовые — это команды боту, их не трогаем.
-export function fileOf(msg, { anyVoice = false } = {}) {
-  const f = msg.document || msg.video || msg.audio || msg.video_note || ((msg.voice?.duration || 0) > (anyVoice ? 60 : 300) && msg.voice);
+// Что в сообщении похоже на запись созвона. Голосовые, кружки и короткие аудио — это команды боту, их не трогаем.
+// explicit — человек сам нажал «Выгрузить созвон»: тогда берём и длинное голосовое.
+export function fileOf(msg, { explicit = false } = {}) {
+  const long = (x, sec) => x && (x.duration || 0) > sec && x;
+  const f = msg.document || msg.video || long(msg.audio, explicit ? 60 : 300) || long(msg.voice, explicit ? 60 : 1e9);
   if (!f) return null;
-  const kind = msg.document ? "document" : msg.video ? "video" : msg.audio ? "audio" : msg.video_note ? "video_note" : "voice";
+  const kind = f === msg.document ? "document" : f === msg.video ? "video" : f === msg.audio ? "audio" : "voice";
   return {
     kind,
     fileId: f.file_id,
@@ -48,36 +51,81 @@ const caption = (c, rec, users) =>
   `📼 <b>Запись созвона</b>\n👤 ${h(clientTitle(c))}${c.telegram && c.name ? ` · ${h(c.telegram)}` : ""}${rec.callAt ? `\n📅 ${fmtWhen(Date.parse(rec.callAt))}` : ""}\n🎧 ${h(users?.[rec.by]?.name || "")}${rec.size ? ` · ${sizeText(rec.size)}` : ""}${rec.duration ? ` · ${durText(rec.duration)}` : ""}`;
 
 // Копия в архив: канал-хранилище, если подключён, иначе — тихо в личку собственнику.
-async function archive(store, env, tg, { fromChat, msgId, file, c, rec, users }) {
+export async function archive(store, env, tg, { fromChat, msgId, file, c, rec, users }) {
   const st = await store.get("meta", "rec-storage");
-  const targets = st?.chatId ? [st.chatId] : ownersOf(env).filter((id) => id !== String(fromChat));
-  const out = [];
-  for (const chat of targets) {
+  const owners = ownersOf(env);
+  const copy = async (chat) => {
+    const m = fromChat && msgId
+      ? await tg.copyMessage(chat, fromChat, msgId, { caption: caption(c, rec, users), parse_mode: "HTML", disable_notification: true })
+      : await tg.sendFileById(file.kind, chat, file.fileId, caption(c, rec, users), { disable_notification: true });
+    return { chat: String(chat), msg: m?.message_id || null };
+  };
+  // Канал → иначе собственнику. Собственник сам прислал файл — его сообщение и есть копия.
+  for (const chat of [st?.chatId, ...owners].filter(Boolean)) {
+    if (!st?.chatId && String(chat) === String(fromChat) && msgId) return [{ chat: String(chat), msg: msgId }];
     try {
-      const m = fromChat && msgId
-        ? await tg.copyMessage(chat, fromChat, msgId, { caption: caption(c, rec, users), parse_mode: "HTML", disable_notification: true })
-        : await tg.sendFileById(file.kind, chat, file.fileId, caption(c, rec, users), { disable_notification: true });
-      out.push({ chat: String(chat), msg: m?.message_id || null });
+      return [await copy(chat)];
     } catch {
-      // архив не главное: сама запись уже в карточке
+      // следующий вариант
     }
   }
-  return out;
+  return [];
+}
+
+// Копию в архив сделать не удалось — запомним и повторим кроном, Пете — сигнал.
+async function noteArchiveFail(store, c, rec) {
+  const doc = (await store.get("meta", "rec-archive-retry")) || { id: "rec-archive-retry", items: [] };
+  doc.items = [...doc.items.filter((x) => x.recId !== rec.id), { clientId: c.id, recId: rec.id, at: Date.now(), tries: 0 }].slice(-200);
+  await store.put("meta", "rec-archive-retry", doc);
+  const { addFeed } = await import("./notify.mjs");
+  await addFeed(store, { type: "comment", text: `⚠️ Запись созвона ${clientTitle(c)} не скопировалась в архив — повторю сам. Проверь, что бот админ в канале-хранилище (/storage).`, by: "system", to: [] });
+}
+
+// Раз в минуту: повторить копии в архив (не больше 5 за раз).
+export async function retryArchive({ store, env, tg }) {
+  const doc = await store.get("meta", "rec-archive-retry");
+  if (!doc?.items?.length) return 0;
+  const users = Object.fromEntries((await store.all("user")).map((u) => [u.id, u]));
+  const left = [];
+  let done = 0;
+  for (const it of doc.items) {
+    if (done >= 5) {
+      left.push(it);
+      continue;
+    }
+    const c = (await store.get("client", it.clientId)) || (await store.get("trash", it.clientId));
+    const rec = c?.recordings?.find((r) => r.id === it.recId);
+    if (!rec || rec.archive?.length) continue;
+    const out = await archive(store, env, tg, { file: rec, c, rec, users });
+    done++;
+    if (out.length) {
+      rec.archive = out;
+      await store.put(c.deletedAt ? "trash" : "client", c.id, c);
+    } else if (it.tries < 50) left.push({ ...it, tries: it.tries + 1 });
+  }
+  await store.put("meta", "rec-archive-retry", { ...doc, items: left });
+  return done;
 }
 
 // Прикрепить файл к клиенту. Повтор того же файла — не дублируем.
+// Карточку перечитываем ПОСЛЕ сетевых вызовов: пока шла копия в архив, её могли поменять.
 export async function attachRecording({ store, env, tg, c, file, by, users, fromChat = null, msgId = null, source = "bot" }) {
-  c.recordings ||= [];
-  const dup = c.recordings.find((r) => r.uniq === file.uniq && !r.deletedAt);
-  if (dup) return { rec: dup, duplicate: true };
+  const dup0 = (c.recordings || []).find((r) => r.uniq === file.uniq && !r.deletedAt);
+  if (dup0) return { rec: dup0, duplicate: true, client: c };
   const call = callFor(c);
   const rec = { id: randomUUID().slice(0, 8), ...file, by, at: nowIso(), callId: call?.id || null, callAt: call?.at || null, source, downloads: [] };
   rec.archive = await archive(store, env, tg, { fromChat, msgId, file, c, rec, users });
-  c.recordings.push(rec);
-  c.history = [{ at: rec.at, by, text: `📼 Выгружена запись созвона${rec.callAt ? ` ${fmtWhen(Date.parse(rec.callAt))}` : ""} (${rec.name}${rec.size ? `, ${sizeText(rec.size)}` : ""})` }, ...(c.history || [])].slice(0, 80);
-  c.updatedAt = nowIso();
-  await store.put("client", c.id, c);
-  return { rec, duplicate: false };
+  const fresh = await store.get("client", c.id);
+  if (!fresh) throw Object.assign(new Error("Клиента только что удалили или склеили — восстанови его из корзины и пришли файл ещё раз"), { status: 409 });
+  fresh.recordings ||= [];
+  const dup = fresh.recordings.find((r) => r.uniq === file.uniq && !r.deletedAt);
+  if (dup) return { rec: dup, duplicate: true, client: fresh };
+  fresh.recordings.push(rec);
+  fresh.history = [{ at: rec.at, by, text: `📼 Выгружена запись созвона${rec.callAt ? ` ${fmtWhen(Date.parse(rec.callAt))}` : ""} (${rec.name}${rec.size ? `, ${sizeText(rec.size)}` : ""})` }, ...(fresh.history || [])].slice(0, 80);
+  fresh.updatedAt = nowIso();
+  await store.put("client", fresh.id, fresh);
+  if (!rec.archive.length) await noteArchiveFail(store, fresh, rec).catch(() => {});
+  return { rec, duplicate: false, client: fresh };
 }
 
 // Прислать запись человеку в личку. Только себе и только участнику команды.
@@ -88,18 +136,26 @@ export async function sendRecording({ store, tg, c, recId, me, users, settings =
   const log = (await store.get("meta", `rec-sends:${me.id}`))?.at || [];
   const recent = log.filter((t) => t > hourAgo);
   if (recent.length >= SEND_LIMIT) throw Object.assign(new Error("Слишком много скачиваний за час — подожди немного"), { status: 429 });
-  try {
-    await tg.sendFileById(rec.kind, me.id, rec.fileId, caption(c, rec, users), settings.recProtect ? { protect_content: true } : {});
-  } catch (e) {
-    // Файл у Telegram мог «протухнуть» у этого file_id — пробуем копию из архива.
-    const a = (rec.archive || []).find((x) => x.msg);
-    if (!a) throw Object.assign(new Error(/chat not found|bot was blocked|initiate/i.test(e.message) ? "Сначала открой бота и нажми «Старт» — иначе он не может прислать файл" : `Telegram не отдал файл: ${e.message}`), { status: 400 });
-    await tg.copyMessage(me.id, a.chat, a.msg, settings.recProtect ? { protect_content: true } : {});
-  }
+  // Считаем до отправки: параллельные запросы не обойдут лимит.
   await store.put("meta", `rec-sends:${me.id}`, { id: `rec-sends:${me.id}`, at: [...recent, Date.now()] });
-  rec.downloads = [...(rec.downloads || []), { by: me.id, at: nowIso() }].slice(-50);
-  c.history = [{ at: nowIso(), by: me.id, text: `⬇️ Скачал запись созвона (${rec.name})` }, ...(c.history || [])].slice(0, 80);
-  await store.put("client", c.id, c);
+  const startHint = (e) => (/chat not found|bot was blocked|initiate|user is deactivated/i.test(e.message) ? "Сначала открой бота и нажми «Старт» — иначе он не может прислать файл" : `Telegram не отдал файл: ${e.message}`);
+  const opts = settings.recProtect ? { protect_content: true } : {};
+  try {
+    await tg.sendFileById(rec.kind, me.id, rec.fileId, caption(c, rec, users), opts);
+  } catch (e) {
+    // Файл у этого file_id мог «протухнуть» — пробуем копию из архива.
+    const a = (rec.archive || []).find((x) => x.msg);
+    if (!a || /chat not found|bot was blocked|initiate|deactivated/i.test(e.message)) throw Object.assign(new Error(startHint(e)), { status: 400 });
+    await tg.copyMessage(me.id, a.chat, a.msg, opts).catch((e2) => {
+      throw Object.assign(new Error(startHint(e2)), { status: 400 });
+    });
+  }
+  const fresh = (await store.get("client", c.id)) || c;
+  const fr = (fresh.recordings || []).find((r) => r.id === recId) || rec;
+  fr.downloads = [...(fr.downloads || []), { by: me.id, at: nowIso() }].slice(-50);
+  fresh.history = [{ at: nowIso(), by: me.id, text: `⬇️ Скачал запись созвона (${rec.name})` }, ...(fresh.history || [])].slice(0, 80);
+  await store.put("client", fresh.id, fresh);
+  Object.assign(c, fresh);
   // Много скачиваний подряд — сигнал собственнику.
   if (recent.length + 1 === 10) {
     const { addFeed } = await import("./notify.mjs");
@@ -111,11 +167,13 @@ export async function sendRecording({ store, tg, c, recId, me, users, settings =
 // Удалить может только собственник: запись скрывается, файл в архиве остаётся.
 export async function deleteRecording({ store, c, recId, me }) {
   if (me.role !== "owner") throw Object.assign(new Error("Удалять записи может только Петя"), { status: 403 });
-  const rec = (c.recordings || []).find((r) => r.id === recId && !r.deletedAt);
+  const fresh = (await store.get("client", c.id)) || c;
+  const rec = (fresh.recordings || []).find((r) => r.id === recId && !r.deletedAt);
   if (!rec) throw Object.assign(new Error("Запись не найдена"), { status: 404 });
   Object.assign(rec, { deletedAt: nowIso(), deletedBy: me.id });
-  c.history = [{ at: nowIso(), by: me.id, text: `🗑 Скрыта запись созвона (${rec.name}) — копия в архиве осталась` }, ...(c.history || [])].slice(0, 80);
-  await store.put("client", c.id, c);
+  fresh.history = [{ at: nowIso(), by: me.id, text: `🗑 Скрыта запись созвона (${rec.name}) — копия в архиве осталась` }, ...(fresh.history || [])].slice(0, 80);
+  await store.put("client", fresh.id, fresh);
+  Object.assign(c, fresh);
   return rec;
 }
 
@@ -124,7 +182,8 @@ export async function uploadFromApp({ store, env, tg, c, file, me, users }) {
   if (!file || typeof file.arrayBuffer !== "function") throw Object.assign(new Error("Нет файла"), { status: 400 });
   if (file.size > MAX_APP_UPLOAD) throw Object.assign(new Error(`Файл ${sizeText(file.size)} — из приложения до ${sizeText(MAX_APP_UPLOAD)}. Большие файлы — через бота.`), { status: 413, code: "too_big" });
   const name = String(file.name || "запись").replace(/[\\/\0]/g, "_").slice(0, 120);
-  const m = await tg.uploadDocument(me.id, new File([await file.arrayBuffer()], name, { type: file.type || "application/octet-stream" }), `📼 Запись созвона — ${h(clientTitle(c))}\nСохранена в CRM ✅`).catch((e) => {
+  // Файл из formData отдаём как есть — без лишних копий в памяти Worker.
+  const m = await tg.uploadDocument(me.id, file, `📼 Запись созвона — ${h(clientTitle(c))}\nСохранена в CRM ✅`, {}, name).catch((e) => {
     throw Object.assign(new Error(/chat not found|initiate|blocked/i.test(e.message) ? "Сначала открой бота и нажми «Старт» — файл проходит через него" : `Telegram не принял файл: ${e.message}`), { status: 400 });
   });
   const f = fileOf(m) || fileOf({ document: m?.document });
@@ -134,10 +193,11 @@ export async function uploadFromApp({ store, env, tg, c, file, me, users }) {
 }
 
 // ---------- ожидание файла в боте ----------
-export const waitFor = (store, userId, clientId) => store.put("meta", `rec-wait:${userId}`, { id: `rec-wait:${userId}`, clientId, at: Date.now() });
+// explicit — нажал «Выгрузить созвон» (файл сразу к этому клиенту); иначе — подсказка после «Пришёл» (спросим «к нему?»).
+export const waitFor = (store, userId, clientId, { explicit = true } = {}) => store.put("meta", `rec-wait:${userId}`, { id: `rec-wait:${userId}`, clientId, explicit, at: Date.now() });
 export async function waiting(store, userId) {
   const w = await store.get("meta", `rec-wait:${userId}`);
-  return w && Date.now() - w.at < WAIT_MS ? w : null;
+  return w && Date.now() - w.at < (w.explicit === false ? SOFT_WAIT_MS : WAIT_MS) ? w : null;
 }
 export const stopWaiting = (store, userId) => store.del("meta", `rec-wait:${userId}`);
 

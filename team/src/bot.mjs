@@ -121,22 +121,31 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
     await store.put("user", me.id, { ...me, botStarted: true, username: msg.from.username || me.username || "" });
   }
   let text = (msg.text || msg.caption || "").trim();
-  // 📼 Запись созвона: файл после «Выгрузить созвон», с @ником в подписи или любой видео/аудио/документ.
+  // 📼 Запись созвона: файл после «Выгрузить созвон», с @ником в подписи или любое видео/документ/длинное аудио.
   {
     const R = await import("./recordings.mjs");
     const wait = await R.waiting(store, me.id);
     const forwarded = msg.forward_origin || msg.forward_from || msg.forward_sender_name;
-    // Собственник подключает канал-хранилище: пересылает сообщение из канала.
-    if (forwarded && msg.forward_origin?.type === "channel" && me.role === "owner" && (await store.get("meta", `rec-storage-setup:${me.id}`))) return connectStorage(msg.forward_origin.chat, { me, reply, store, tg });
-    const file = (!forwarded || wait) && R.fileOf(msg, { anyVoice: !!wait });
-    if (file) return handleRecordingFile(msg, file, wait, { me, users, reply, store, env, tg, appUrl });
-    // Выбрали клиента для присланной записи @ником
+    // Собственник подключает канал-хранилище: пересылает сообщение из канала (в течение 15 минут после /storage).
+    const setup = me.role === "owner" && msg.forward_origin?.type === "channel" && (await store.get("meta", `rec-storage-setup:${me.id}`));
+    if (setup && Date.now() - setup.at < 15 * 60_000) return connectStorage(msg.forward_origin.chat, { me, reply, store, tg });
+    const file = R.fileOf(msg, { explicit: !!wait?.explicit });
+    if (file && !(forwarded && !msg.document && !msg.video && !msg.audio)) {
+      // В подписи — отчёт: сначала сохраняем отчёт, потом файл к тому же клиенту.
+      if (isReportText(text)) {
+        const all = await store.all("client");
+        await handleReportMessage(text, { me, clients: all, store, tg, appUrl, reply, usersMap: Object.fromEntries(users.map((u) => [u.id, u])), settings: (await store.get("meta", "settings")) || {}, env, users });
+      }
+      return handleRecordingFile(msg, file, wait, { me, users, reply, store, env, tg, appUrl });
+    }
+    // Ответ @ником на «к какому клиенту?» — прикрепляем все файлы, что ждут.
     const nick = (text.match(/^@([A-Za-z][\w]{3,31})\s*$/) || [])[1];
-    const pendingFile = nick && (await store.get("meta", `rec-file:${me.id}`));
-    if (pendingFile && Date.now() - pendingFile.at < R.WAIT_MS) {
+    const pend = nick ? (await store.all("recpending")).filter((x) => x.userId === me.id && Date.now() - x.at < R.WAIT_MS) : [];
+    if (pend.length) {
       const c = byNick(await store.all("client"), nick);
       if (!c) return reply(`Не нашёл @${h(nick)} в CRM. Проверь ник или открой карточку и нажми «Выгрузить созвон».`);
-      return finishRecording(c, pendingFile, { me, users, reply, store, env, tg, appUrl });
+      for (const p of pend.sort((a, b) => a.at - b.at)) await finishRecording(c, p, { me, users, reply, store, env, tg, appUrl });
+      return;
     }
     const up = text.match(/^\/start\s+up_([\w-]+)/);
     if (up) {
@@ -144,12 +153,12 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
       if (!c) return reply("Клиент не найден — открой карточку в приложении ещё раз.");
       if (!R.canUpload(me, c)) return reply(lockText(c, Object.fromEntries(users.map((u) => [u.id, u]))));
       await R.waitFor(store, me.id, c.id);
-      return reply(`📼 <b>Жду запись созвона</b> — ${who(c)}\n\nПришли сюда файл: видео, аудио или документ, любой формат, до 2 ГБ. Можно просто переслать из чата или с компьютера через Telegram Desktop.`);
+      return reply(`📼 <b>Жду запись созвона</b> — ${who(c)}\n\nПришли сюда файл: видео, аудио или документ, любой формат, до 2 ГБ. Можно переслать из другого чата или отправить с компьютера через Telegram Desktop.`);
     }
     if (/^\/storage\b/.test(text) && me.role === "owner") {
       await store.put("meta", `rec-storage-setup:${me.id}`, { id: `rec-storage-setup:${me.id}`, at: Date.now() });
       const st = await store.get("meta", "rec-storage");
-      return reply(`🗄 <b>Хранилище записей</b>${st ? `\nСейчас: «${h(st.title || st.chatId)}»` : "\nСейчас: копии идут тебе в личку (тихо)."}\n\n1. Создай в Telegram <b>закрытый канал</b> (например «Записи созвонов»).\n2. Добавь этого бота в канал <b>администратором</b> (право публиковать).\n3. Напиши в канале любое сообщение и <b>перешли его сюда</b>.\n\nПосле этого копия каждой записи будет лежать в канале — даже если кто-то удалит чат с ботом.`);
+      return reply(`🗄 <b>Хранилище записей</b>${st ? `\nСейчас: «${h(st.title || st.chatId)}»` : "\nСейчас: копии идут тебе в личку (тихо)."}\n\n1. Создай в Telegram <b>закрытый канал</b> (например «Записи созвонов»).\n2. Добавь этого бота в канал <b>администратором</b> (право публиковать).\n3. Напиши в канале любое сообщение и <b>перешли его сюда</b> в течение 15 минут.\n\nПосле этого копия каждой записи будет лежать в канале — даже если кто-то удалит чат с ботом.`);
     }
   }
   // Голосовое / кружок → текст (Whisper в Cloudflare), дальше как обычное сообщение.
@@ -318,7 +327,7 @@ async function applyStatus(c, st, { me, store, tg, appUrl, reply, usersMap, sett
   await store.put("client", c.id, c);
   await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
   const kb = [[openApp(appUrl, st.action === "held" ? "Заполнить отчёт" : "Карточка", `?client=${c.id}${st.action === "held" ? "&report=1" : ""}`)]];
-  if (st.action === "held") await (await import("./recordings.mjs")).waitFor(store, me.id, c.id);
+  if (st.action === "held") await (await import("./recordings.mjs")).waitFor(store, me.id, c.id, { explicit: false });
   return reply(`✅ ${who(c)} → <b>${st.action === "held" ? "созвон проведён" : statusLabel(c.status)}</b>${st.sum ? ` · ${rub(st.sum)}` : ""}${st.action === "held" ? "\nТеперь итог диагностики: пришли блок «Потребность/запрос клиента: …» с @ником или заполни в приложении.\n📼 Запись созвона пришли сюда файлом — прикреплю к карточке." : ""}`, { inline_keyboard: kb });
 }
 
@@ -327,16 +336,19 @@ async function handleRecordingFile(msg, file, wait, { me, users, reply, store, e
   const caption = String(msg.caption || "");
   const nick = (caption.match(/@([A-Za-z][\w]{3,31})/) || [])[1];
   const clients = await store.all("client");
+  // Каждый файл ждёт отдельно: два файла подряд не затирают друг друга.
+  const pending = { id: `${me.id}:${msg.message_id}`, userId: me.id, file, chat: msg.chat.id, msgId: msg.message_id, at: Date.now() };
+  await store.put("recpending", pending.id, pending);
   let c = nick ? byNick(clients, nick) : null;
-  if (!c && wait) c = clients.find((x) => x.id === wait.clientId) || null;
-  const pending = { id: `rec-file:${me.id}`, file, chat: msg.chat.id, msgId: msg.message_id, at: Date.now() };
+  if (!c && wait?.explicit) c = clients.find((x) => x.id === wait.clientId) || null;
   if (c) return finishRecording(c, pending, { me, users, reply, store, env, tg, appUrl });
-  await store.put("meta", pending.id, pending);
   const { likelyClients } = await import("./recordings.mjs");
-  const opts = likelyClients(clients, me);
+  const hint = wait && clients.find((x) => x.id === wait.clientId);
+  const opts = likelyClients(clients, me).filter(({ c: x }) => x.id !== hint?.id);
+  const rows = [...(hint ? [[{ text: `✅ Да, к ${clientTitle(hint).slice(0, 40)}`, callback_data: `rec:${hint.id}:${msg.message_id}` }]] : []), ...opts.slice(0, 5).map(({ c: x, call }) => [{ text: `${clientTitle(x).slice(0, 40)} · ${fmtWhen(Date.parse(call.at)).replace(/^\d\d\.\d\d /, "")}`, callback_data: `rec:${x.id}:${msg.message_id}` }])];
   return reply(
-    `📼 <b>К какому клиенту эта запись?</b>${nick ? `\nНе нашёл @${h(nick)} в CRM.` : ""}\n${opts.length ? "Выбери ниже или напиши @ник клиента." : "Напиши @ник клиента."}\n\n<i>В следующий раз нажми в карточке «Выгрузить созвон» — бот сам поймёт, чей это файл.</i>`,
-    opts.length ? { inline_keyboard: opts.map(({ c: x, call }) => [{ text: `${clientTitle(x).slice(0, 40)} · ${fmtWhen(Date.parse(call.at)).replace(/^\d\d\.\d\d /, "")}`, callback_data: `rec:${x.id}` }]) } : undefined,
+    `📼 <b>${hint ? `Это запись созвона с ${h(clientTitle(hint))}?` : "К какому клиенту эта запись?"}</b>${nick ? `\nНе нашёл @${h(nick)} в CRM.` : ""}\n${rows.length ? "Выбери ниже или напиши @ник клиента." : "Напиши @ник клиента."}\n\n<i>В карточке есть кнопка «Выгрузить созвон» — тогда бот сразу поймёт, чей файл.</i>`,
+    rows.length ? { inline_keyboard: rows } : undefined,
   );
 }
 
@@ -344,10 +356,20 @@ async function finishRecording(c, pending, { me, users, reply, store, env, tg, a
   const R = await import("./recordings.mjs");
   const usersMap = Object.fromEntries(users.map((u) => [u.id, u]));
   if (!R.canUpload(me, c)) return reply(lockText(c, usersMap));
-  const { rec, duplicate } = await R.attachRecording({ store, env, tg, c, file: pending.file, by: me.id, users: usersMap, fromChat: pending.chat, msgId: pending.msgId });
-  await store.del("meta", `rec-file:${me.id}`);
-  await R.stopWaiting(store, me.id);
-  const saved = rec.archive?.length ? "копия в архиве ✅" : "⚠️ копию в архив сделать не удалось — файл всё равно в карточке";
+  let res;
+  try {
+    res = await R.attachRecording({ store, env, tg, c, file: pending.file, by: me.id, users: usersMap, fromChat: pending.chat, msgId: pending.msgId });
+  } catch (e) {
+    // Файл не потерян: он ждёт в recpending, можно выбрать клиента ещё раз.
+    return reply(`⚠️ Не сохранил запись: ${h(e.message)}`);
+  }
+  await store.del("recpending", pending.id);
+  // После «Выгрузить созвон» ещё 20 минут принимаем вторую часть записи к тому же клиенту.
+  const w = await R.waiting(store, me.id);
+  if (w?.explicit && w.clientId === c.id) await store.put("meta", w.id, { ...w, at: Date.now() - (R.WAIT_MS - 20 * 60_000) });
+  else if (w) await R.stopWaiting(store, me.id);
+  const { rec, duplicate } = res;
+  const saved = rec.archive?.length ? "копия в архиве ✅" : "⚠️ копию в архив пока сделать не удалось — повторю сам, файл уже в карточке";
   return reply(
     duplicate ? `Эта запись уже есть у ${who(c)} — второй раз не сохраняю.` : `✅ <b>Запись сохранена</b>\n👤 ${who(c)}${rec.callAt ? `\n📅 созвон ${fmtWhen(Date.parse(rec.callAt))}` : ""}\n📼 ${h(rec.name)}${rec.size ? ` · ${R.sizeText(rec.size)}` : ""}\n${saved}`,
     { inline_keyboard: [[openApp(appUrl, "Открыть карточку", `?client=${c.id}`)]] },
@@ -842,7 +864,8 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
     return;
   }
   if (action === "rec") {
-    const pending = await store.get("meta", `rec-file:${me.id}`);
+    // rec:<clientId>:<msgId> — файл ищем только среди своих (ключ начинается с id нажавшего).
+    const pending = await store.get("recpending", `${me.id}:${callId}`);
     if (!pending) return answer("Файл уже сохранён или устарел — пришли его ещё раз");
     const c = await store.get("client", clientId);
     if (!c) return answer("Клиент не найден");
@@ -897,7 +920,7 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
     await store.put("client", c.id, c);
     await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
     await answer(action === "held" ? "Отмечено: созвон проведён" : `Отмечено: ${statusLabel(c.status)}`);
-    if (action === "held") await (await import("./recordings.mjs")).waitFor(store, me.id, c.id);
+    if (action === "held") await (await import("./recordings.mjs")).waitFor(store, me.id, c.id, { explicit: false });
     const tail = action === "held" ? "\n\n✅ Проведён. Заполни отчёт — без него созвон не закрыт.\n📼 Запись созвона пришли сюда файлом — прикреплю к карточке." : `\n\n❌ ${statusLabel(c.status)}. Клиент ушёл в дожим.`;
     const kb = { inline_keyboard: [[openApp(appUrl, action === "held" ? "Заполнить отчёт" : "Открыть карточку", `?client=${c.id}${action === "held" ? "&report=1" : ""}`)]] };
     await tg.editMessage(cb.message.chat.id, cb.message.message_id, `${cb.message.text || ""}${tail}`, kb).catch(() => {});

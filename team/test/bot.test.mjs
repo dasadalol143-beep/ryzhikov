@@ -920,14 +920,31 @@ test("call recordings: upload via bot after «Выгрузить созвон»,
   // тот же файл ещё раз — не дублируем
   await tell(502, { caption: "@ivan_rec", video: { file_id: "VID1b", file_unique_id: "v1", file_size: 10 } });
   assert.equal((await store.get("client", c.id)).recordings.length, 1);
-  // короткое голосовое без ожидания — это команда боту, а не запись
-  // файл без ожидания и без ника → бот спрашивает, к кому; кнопка прикрепляет
+  // вторая часть в течение 20 минут — к тому же клиенту
+  await tell(502, { document: { file_id: "PART2", file_unique_id: "p2", file_name: "часть2.mp4", file_size: 5000 } });
+  assert.equal((await store.get("client", c.id)).recordings.length, 2);
+  await store.del("meta", "rec-wait:502");
+  // кружок и короткое аудио — команды боту, не записи
+  await tell(502, { video_note: { file_id: "VN", file_unique_id: "vn", duration: 20 } });
+  await tell(502, { audio: { file_id: "AU", file_unique_id: "au", duration: 30 } });
+  assert.equal((await store.all("recpending")).length, 0);
+  // два файла без ожидания и без ника → каждый ждёт отдельно; кнопка у первого прикрепляет именно первый
   await tell(502, { document: { file_id: "DOC2", file_unique_id: "d2", file_name: "запись.vbm", file_size: 5000 } });
-  assert.ok(await store.get("meta", "rec-file:502"));
-  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: ++uid, callback_query: { id: "cb1", from: { id: 502 }, data: `rec:${c.id}`, message: { message_id: 5, chat: { id: 502 } } } }) }));
+  const firstMsg = uid;
+  await tell(502, { document: { file_id: "DOC3", file_unique_id: "d3", file_name: "часть.vbm", file_size: 5000 } });
+  assert.equal((await store.all("recpending")).length, 2);
+  // чужой не может нажать кнопку за Диму
+  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: ++uid, callback_query: { id: "cb0", from: { id: 501 }, data: `rec:${c.id}:${firstMsg}`, message: { message_id: 5, chat: { id: 501 } } } }) }));
+  assert.equal((await store.get("client", c.id)).recordings.length, 2);
+  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: ++uid, callback_query: { id: "cb1", from: { id: 502 }, data: `rec:${c.id}:${firstMsg}`, message: { message_id: 5, chat: { id: 502 } } } }) }));
   cl = await store.get("client", c.id);
-  assert.equal(cl.recordings.length, 2);
-  assert.equal(cl.recordings[1].name, "запись.vbm");
+  assert.equal(cl.recordings.length, 3);
+  assert.equal(cl.recordings[2].name, "запись.vbm");
+  // оставшийся — ответом @ником
+  await tell(502, { text: "@ivan_rec" });
+  cl = await store.get("client", c.id);
+  assert.equal(cl.recordings.length, 4);
+  assert.equal((await store.all("recpending")).length, 0);
 
   // скачать может любой из команды — бот шлёт только ему в личку
   const rid = cl.recordings[0].id;
@@ -960,4 +977,44 @@ test("recordings storage channel: only owner, only after /storage, bot and owner
   await say(1, "/storage");
   assert.match(sent.at(-1).text, /Хранилище записей/);
   assert.ok(await store.get("meta", "rec-storage-setup:1"));
+});
+
+test("recordings audit: concurrent edit during upload survives, failed archive is retried, deleted client keeps the file pending", async () => {
+  const { memoryStore } = await import("../src/store.mjs");
+  const R = await import("../src/recordings.mjs");
+  const store = memoryStore();
+  const c = { id: "c1", name: "Иван", telegram: "@ivan", calls: [], history: [], mopId: "502" };
+  await store.put("client", c.id, c);
+  let fail = true;
+  const tg = {
+    copyMessage: async () => {
+      // пока шла копия, кто-то оставил комментарий
+      const x = await store.get("client", "c1");
+      x.history = [{ at: new Date().toISOString(), by: "1", text: "💬 комментарий" }, ...x.history];
+      await store.put("client", "c1", x);
+      if (fail) throw new Error("bot is not a member");
+      return { message_id: 7 };
+    },
+    sendFileById: async () => {
+      if (fail) throw new Error("nope");
+      return { message_id: 8 };
+    },
+  };
+  const env = { OWNER_IDS: "1" };
+  const file = { kind: "video", fileId: "F1", uniq: "u1", name: "call.mp4", size: 10 };
+  const { rec } = await R.attachRecording({ store, env, tg, c, file, by: "502", users: {}, fromChat: "502", msgId: 3 });
+  let x = await store.get("client", "c1");
+  assert.ok(x.history.some((h) => h.text === "💬 комментарий")); // правка не потерялась
+  assert.equal(x.recordings.length, 1);
+  assert.equal(rec.archive.length, 0);
+  assert.equal((await store.get("meta", "rec-archive-retry")).items.length, 1);
+  fail = false;
+  assert.equal(await R.retryArchive({ store, env, tg }), 1);
+  x = await store.get("client", "c1");
+  assert.equal(x.recordings[0].archive[0].chat, "1");
+  assert.equal((await store.get("meta", "rec-archive-retry")).items.length, 0);
+  // клиента удалили во время загрузки — ошибка, а не «воскрешение» карточки
+  await store.del("client", "c1");
+  await assert.rejects(R.attachRecording({ store, env, tg, c: x, file: { ...file, uniq: "u2" }, by: "502", users: {} }), /удалили/);
+  assert.equal(await store.get("client", "c1"), null);
 });

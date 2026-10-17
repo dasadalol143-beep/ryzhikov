@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { checkInitData, parseIds } from "./auth.mjs";
-import { telegram, webhookSecret } from "./telegram.mjs";
+import { telegram, webhookSecret, escapeHtml } from "./telegram.mjs";
 import { handleUpdate, BOT_COMMANDS } from "./bot.mjs";
 import { dispatch } from "./notify.mjs";
 import {
@@ -678,7 +678,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           if (len > R.MAX_APP_UPLOAD + 1024 * 1024) return json({ error: "too_big", code: "too_big" }, 413);
           const fd = await req.formData().catch(() => null);
           const res = await R.uploadFromApp({ store, env, tg, c, file: fd?.get("file"), me, users });
-          return json({ client: c, rec: res.rec, duplicate: res.duplicate });
+          return json({ client: res.client || c, rec: res.rec, duplicate: res.duplicate });
         }
         if (rm[2] === "wait" && req.method === "POST") {
           if (!R.canUpload(me, c)) return json({ error: "Запись выгружает диагност клиента или руководство" }, 403);
@@ -688,7 +688,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
             const info = await tg.getMe().catch(() => null);
             if (info?.username) await store.put("meta", "bot-info", (bot = { id: "bot-info", username: info.username, botId: info.id }));
           }
-          await tg.sendMessage(me.id, `📼 <b>Жду запись созвона</b> — ${clientTitle(c)}\n\nПришли сюда файл: видео, аудио или документ, любой формат, до 2 ГБ.`).catch(() => {});
+          await tg.sendMessage(me.id, `📼 <b>Жду запись созвона</b> — ${escapeHtml(clientTitle(c))}\n\nПришли сюда файл: видео, аудио или документ, любой формат, до 2 ГБ.`).catch(() => {});
           return json({ ok: true, link: bot?.username ? `https://t.me/${bot.username}?start=up_${c.id}` : null });
         }
         if (rm[2] && rm[3] && req.method === "POST") {

@@ -727,7 +727,7 @@ function possibleDups(c) {
 const canEdit = (c) => canTouchClient(state.me, c);
 // Запись созвона выгружает диагност клиента или руководство (как на сервере).
 const canUploadRec = (c) => isBossRole(state.me.role) || (c.mopId ? c.mopId === state.me.id : ["mop", "rop"].includes(state.me.role));
-const MAX_APP_UPLOAD = 45 * 1024 * 1024;
+const MAX_APP_UPLOAD = 20 * 1024 * 1024;
 const sizeText = (n) => (!n ? "" : n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} ГБ` : n >= 1024 ** 2 ? `${Math.round(n / 1024 ** 2)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
 const durText = (s) => (!s ? "" : s >= 3600 ? `${Math.floor(s / 3600)} ч ${Math.round((s % 3600) / 60)} мин` : `${Math.max(1, Math.round(s / 60))} мин`);
 
@@ -745,7 +745,7 @@ function recordingsBlock(c) {
   return html;
 }
 
-// Выгрузить: до 45 МБ — прямо из приложения, больше — через бота (до 2 ГБ).
+// Выгрузить: до 20 МБ — прямо из приложения, больше — через бота (до 2 ГБ).
 function openRecUpload(c) {
   const viaBot = async () => {
     try {
@@ -760,7 +760,7 @@ function openRecUpload(c) {
   openSheet(
     `<div class="sheet-title">Выгрузить созвон</div><div class="sub" style="margin:0 4px 12px">${esc(clientTitle(c))} · запись сохранится в карточке навсегда, скачать сможет вся команда</div>
     <label class="btn block" style="display:flex;align-items:center;justify-content:center;gap:8px">${icon("upload")} Выбрать файл<input type="file" id="rec-file" hidden></label>
-    <div class="sub" style="margin:6px 4px 14px">С телефона или компьютера, до 45 МБ. Любой формат: видео, аудио, документ.</div>
+    <div class="sub" style="margin:6px 4px 14px">С телефона или компьютера, до 20 МБ. Любой формат: видео, аудио, документ.</div>
     <div id="rec-progress"></div>
     <button class="btn block ghost" id="rec-bot">${icon("send")} Отправить через бота · до 2 ГБ</button>
     <div class="sub" style="margin:6px 4px 0">Для больших записей: откроется чат с ботом — перешли или прикрепи файл, бот сам привяжет его к этому клиенту.</div>`,
@@ -768,6 +768,7 @@ function openRecUpload(c) {
       sh.querySelector("#rec-bot").onclick = viaBot;
       sh.querySelector("#rec-file").onchange = async (e) => {
         const file = e.target.files?.[0];
+        e.target.value = ""; // тот же файл можно выбрать ещё раз
         if (!file) return;
         if (file.size > MAX_APP_UPLOAD) {
           if (await confirmDialog(`Файл ${sizeText(file.size)} — для приложения великоват. Отправить через бота (до 2 ГБ)?`)) viaBot();
@@ -781,8 +782,15 @@ function openRecUpload(c) {
         xhr.open("POST", `/api/clients/${c.id}/recordings`);
         xhr.setRequestHeader("authorization", `tma ${initData()}`);
         xhr.upload.onprogress = (ev) => ev.lengthComputable && (sh.querySelector("#rec-bar").style.width = `${Math.max(2, Math.round((ev.loaded / ev.total) * 100))}%`);
+        xhr.timeout = 10 * 60_000;
+        xhr.ontimeout = () => ((box.innerHTML = ""), alertDialog("Загрузка слишком долгая — отправь через бота"));
         xhr.onload = () => {
-          const data = JSON.parse(xhr.responseText || "{}");
+          let data = {};
+          try {
+            data = JSON.parse(xhr.responseText || "{}");
+          } catch {
+            // HTML-страница ошибки Cloudflare
+          }
           if (xhr.status === 413) return confirmDialog("Файл великоват для приложения. Отправить через бота?").then((ok) => ok && viaBot());
           if (xhr.status >= 400) return (box.innerHTML = ""), alertDialog(data.error || "Не загрузилось — попробуй через бота");
           replaceClient(data.client);
@@ -1648,7 +1656,7 @@ const GUIDES = {
     ["Планы поменялись", "«Перенести» у созвона в списке или в карточке: ±1 час, «завтра так же» или любое время. Вне окна — время само добавится в окна. Или боту: «моего лида с 21:00 перенеси на 16:00»."],
     ["Созвон прошёл", "В карточке или на «Сегодня» нажми «Пришёл, провёл» или «Не пришёл (НДЗ)». Бот тоже спросит через 15 минут после начала."],
     ["Сразу после созвона — итог", "«Заполнить итог»: потребность, род деятельности, боль, возражение, договорённости. Можно вставить свой текст целиком. Не заполнишь — бот напомнит 3 раза, потом сообщит РОПу."],
-    ["Запись созвона", "В карточке «Выгрузить созвон»: до 45 МБ — прямо отсюда, больше (до 2 ГБ) — через бота: откроется чат, кидаешь файл, бот сам привяжет его к лиду."],
+    ["Запись созвона", "В карточке «Выгрузить созвон»: до 20 МБ — прямо отсюда, больше (до 2 ГБ) — через бота: откроется чат, кидаешь файл, бот сам привяжет его к лиду."],
     ["Решение клиента", "В карточке «Что решил клиент?»: Оплатил / Предоплата / Думает / Перенос / Отказы. «Оплатил» сам падает в ведомость. Пересозвон — итог заново не нужен, просто выбери решение."],
     ["Дожим", "«Думает» и НДЗ — коснись каждый день: «Написал — тишина» или «Ответил». 3 раза тишина — «Игнор» сам."],
     ["Окна", "«Окна» → «+ Окна»: когда ты берёшь созвоны. Лидоруб записывает в свободные слоты."],

@@ -32,7 +32,11 @@ export function telegram(botToken, fetchImpl = fetch) {
       return call(method, form({ chat_id: chatId, [field]: fileId, caption: kind === "video_note" ? undefined : caption, parse_mode: "HTML", ...opts }));
     },
     // Загрузка файла из приложения (Bot API принимает до 50 МБ).
-    uploadDocument: (chatId, file, caption, opts = {}) => call("sendDocument", form({ chat_id: chatId, document: file, caption, parse_mode: "HTML", ...opts })),
+    uploadDocument: (chatId, file, caption, opts = {}, filename = undefined) => {
+      const fd = form({ chat_id: chatId, caption, parse_mode: "HTML", ...opts });
+      fd.append("document", file, filename || file.name || "file");
+      return call("sendDocument", fd);
+    },
     downloadFile: async (fileId) => {
       const f = await call("getFile", form({ file_id: fileId }));
       const res = await fetchImpl(`https://api.telegram.org/file/bot${botToken}/${f.file_path}`);
