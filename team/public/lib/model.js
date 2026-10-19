@@ -35,7 +35,7 @@ export const statusGroup = (id) => STATUSES.find((s) => s.id === id)?.group || "
 export const isClosed = (status) => ["paid", "refuse_personal", "refuse_bank", "ignore", "invalid", "archive"].includes(status);
 
 // Чем закончился созвон / что ставит диагност после созвона.
-export const AFTER_CALL = ["paid", "prepaid", "thinking", "resched", "refuse_personal", "refuse_bank"];
+export const AFTER_CALL = ["paid", "prepaid", "thinking", "resched", "refuse_personal", "refuse_bank", "invalid"];
 
 export const SOURCES = ["Новая заявка", "Работа по базе", "Интенсив", "Рекомендация", "Другое"];
 

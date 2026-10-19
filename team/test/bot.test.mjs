@@ -1018,3 +1018,13 @@ test("recordings audit: concurrent edit during upload survives, failed archive i
   await assert.rejects(R.attachRecording({ store, env, tg, c: x, file: { ...file, uniq: "u2" }, by: "502", users: {} }), /удалили/);
   assert.equal(await store.get("client", "c1"), null);
 });
+
+test("report can close a lead as «Невалид»", async () => {
+  const { api } = await setup();
+  const c = (await api(503, "POST", "/clients", { name: "Пустой", telegram: "empty_lead" })).body.client;
+  await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at: new Date(Date.now() - 3600_000).toISOString(), mopId: "502" });
+  await api(502, "POST", `/clients/${c.id}/action`, { type: "held" });
+  const r = (await api(502, "POST", `/clients/${c.id}/action`, { type: "report", report: { need: "ничего" }, status: "invalid" })).body.client;
+  assert.equal(r.status, "invalid");
+  assert.ok(r.calls[0].reportAt);
+});
