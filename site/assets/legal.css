@@ -1,0 +1,28 @@
+:root{--bg:#fff;--bg2:#f5f5f7;--ink:#1d1d1f;--ink2:#6e6e73;--line:#d2d2d7;--gold:#a8771f;
+  --f:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color-scheme:light}
+*{box-sizing:border-box}
+html{background:var(--bg);-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:17px;line-height:1.6;letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
+a{color:var(--gold)}
+.bar{position:sticky;top:0;z-index:5;background:rgba(255,255,255,.94);box-shadow:0 1px 0 rgba(0,0,0,.08)}
+.bar div{max-width:760px;margin:0 auto;padding:0 max(20px,env(safe-area-inset-left,0px));height:52px;display:flex;align-items:center;justify-content:space-between;font-size:14px}
+.bar a{color:var(--ink);text-decoration:none;font-weight:600}
+.bar span{color:var(--ink2)}
+main{max-width:760px;margin:0 auto;padding:48px max(20px,env(safe-area-inset-left,0px)) 96px}
+.eyebrow{display:block;color:var(--gold);font-weight:600;font-size:17px;margin-bottom:8px}
+h1{font-size:clamp(32px,5vw,48px);line-height:1.08;letter-spacing:-.03em;margin:0 0 12px}
+.meta{color:var(--ink2);font-size:15px;margin:0 0 32px}
+.toc{background:var(--bg2);border-radius:20px;padding:22px 24px;margin:0 0 40px}
+.toc b{display:block;font-size:15px;margin-bottom:8px}
+.toc ol{margin:0;padding-left:22px;columns:2;column-gap:28px;font-size:15px}
+.toc a{color:var(--ink);text-decoration:none}.toc a:hover{color:var(--gold)}
+h2{font-size:22px;letter-spacing:-.02em;margin:44px 0 12px;scroll-margin-top:72px}
+p{margin:0 0 12px}
+ul{margin:0 0 12px;padding-left:22px}li{margin-bottom:6px}
+.note{background:#fbf6ea;border-radius:16px;padding:16px 20px;font-size:15px;color:#5c4614}
+.req{display:grid;gap:0;margin:0;border-top:1px solid var(--line)}
+.req div{display:grid;grid-template-columns:180px 1fr;gap:16px;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+.req dt{color:var(--ink2)}.req dd{margin:0}
+footer{border-top:1px solid var(--line);color:var(--ink2);font-size:13px;padding:24px max(20px,env(safe-area-inset-left,0px)) 40px;text-align:center}
+footer a{color:var(--ink2);margin:0 8px}
+@media (max-width:600px){.toc ol{columns:1}.req div{grid-template-columns:1fr;gap:2px}}

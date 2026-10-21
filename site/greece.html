@@ -211,6 +211,49 @@ section.blk{padding-block:clamp(90px,13vh,150px)}
 .cap .av{width:64px;height:64px;border-radius:18px;object-fit:cover;margin:0 auto 14px;border:2px solid var(--gold2)}
 .stage.parch .shade{background:linear-gradient(0deg,rgba(20,12,4,.88) 0%,rgba(20,12,4,.45) 30%,rgba(20,12,4,0) 56%)}
 
+[hidden]{display:none!important}
+/* ---------- меню на телефоне ---------- */
+.burger{display:none;position:relative;flex:none;width:40px;height:40px;margin-right:-8px;padding:0;border:0;background:none;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.burger i{position:absolute;left:9px;right:9px;height:2px;border-radius:2px;background:currentColor;transition:transform .4s cubic-bezier(.2,.7,.2,1),left .4s cubic-bezier(.2,.7,.2,1)}
+.burger i:first-child{top:15px}.burger i:last-child{top:23px;left:17px}
+.menu-open .burger i:first-child{transform:translateY(4px) rotate(45deg)}
+.menu-open .burger i:last-child{left:9px;transform:translateY(-4px) rotate(-45deg)}
+.menu-open .nav{background:transparent!important;color:#f5f5f7!important;box-shadow:none!important}
+.menu{position:fixed;inset:0;z-index:49;display:flex;flex-direction:column;background:#060607;color:#f5f5f7;padding:calc(88px + env(safe-area-inset-top,0px)) var(--gr) calc(28px + env(safe-area-inset-bottom,0px)) var(--gl);opacity:0;visibility:hidden;transition:opacity .35s,visibility 0s .35s;overflow-y:auto;overscroll-behavior:contain}
+.menu-open .menu{opacity:1;visibility:visible;transition:opacity .35s}
+.menu ol{list-style:none;margin:0;padding:0}
+.menu ol a,.menu .btn,.menu .mdocs{opacity:0;transform:translate3d(0,14px,0);transition:opacity .45s,transform .5s cubic-bezier(.2,.7,.2,1);transition-delay:calc(var(--i,0) * 40ms + 60ms)}
+.menu ol a{display:block;padding:7px 0;font-size:30px;font-weight:600;letter-spacing:-.03em;color:inherit;text-decoration:none}
+.menu ol a span{color:var(--gold2);font-size:14px;font-weight:600;margin-right:12px;vertical-align:middle}
+.menu .btn{align-self:flex-start;margin-top:28px}
+.menu .mdocs{margin-top:auto;padding-top:28px;display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px}
+.menu .mdocs a{color:#86868b;text-decoration:none}
+.menu-open .menu ol a,.menu-open .menu .btn,.menu-open .menu .mdocs{opacity:1;transform:none}
+@media (max-width:820px){.burger{display:block}.nav .wrap{gap:12px}.nav .btn{margin-left:auto}}
+
+/* ---------- подвал: открывается из-под последнего блока ---------- */
+main{position:relative;z-index:1;background:var(--bg)}
+.final{border-radius:0 0 clamp(24px,3vw,40px) clamp(24px,3vw,40px);box-shadow:0 40px 80px -30px rgba(0,0,0,.6)}
+.foot{position:relative;z-index:0;overflow:hidden;background:#0b0b0c;color:#a1a1a6;font-size:15px;line-height:1.5;padding-block:clamp(64px,10vh,104px) calc(28px + env(safe-area-inset-bottom,0px))}
+.foot.reveal{position:sticky;bottom:0}
+.foot .wrap{position:relative;z-index:1;will-change:transform,opacity}
+.fgrid{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:40px}
+.flogo{display:inline-block;font-size:30px;font-weight:700;letter-spacing:-.035em;color:#f5f5f7;text-decoration:none}
+.flogo small{display:block;margin-top:2px;font-size:14px;font-weight:600;letter-spacing:0;color:var(--gold2)}
+.fbrand p{margin:14px 0 22px;max-width:30ch}
+.fcol h4{margin:0 0 12px;font-size:15px;font-weight:600;color:#f5f5f7}
+.fcol a{display:block;padding:5px 0;color:#a1a1a6;text-decoration:none;transition:color .2s}
+.fcol a:hover,.fbot a:hover{color:#f5f5f7}
+.freq{display:flex;flex-wrap:wrap;gap:6px 26px;margin-top:56px;padding-top:24px;border-top:1px solid rgba(255,255,255,.12);font-size:14px;color:#d2d2d7}
+.fdisc{margin:16px 0 0;max-width:1000px;font-size:12.5px;line-height:1.6;color:#86868b}
+.fbot{display:flex;justify-content:space-between;gap:16px;margin-top:30px;font-size:13px;color:#86868b}
+.fbot a{color:#86868b;text-decoration:none}
+.foot [data-f]{opacity:0;transform:translate3d(0,18px,0);transition:opacity .7s,transform .8s cubic-bezier(.2,.7,.2,1);transition-delay:calc(var(--i,0) * 70ms)}
+.foot.in [data-f]{opacity:1;transform:none}
+.horizon{position:absolute;left:-20%;right:-20%;top:calc(100% - 90px);height:clamp(300px,42vw,640px);border-radius:50%;border-top:1px solid rgba(227,181,91,.6);background:radial-gradient(ellipse at 50% 0,rgba(227,181,91,.22),rgba(227,181,91,0) 45%);box-shadow:0 -14px 70px rgba(227,181,91,.18);pointer-events:none}
+@media (max-width:900px){.fgrid{grid-template-columns:1fr 1fr;gap:34px 20px}.fbrand{grid-column:1/-1}.freq{margin-top:40px}.fbot{flex-direction:column;gap:6px}.horizon{left:-70%;right:-70%;top:calc(100% - 70px)}}
+@media (prefers-reduced-motion:reduce){.foot [data-f],.menu ol a,.menu .btn,.menu .mdocs{transition:none;opacity:1;transform:none}}
+
 /* ---------- переходы между блоками: что-то падает из сцены выше ---------- */
 .drop{display:block;position:relative;z-index:7;margin:0 0 18px;opacity:0;will-change:transform,opacity;pointer-events:none;user-select:none}
 .head.center .drop{margin-inline:auto}
@@ -433,8 +476,22 @@ footer a{color:var(--ink)}
       <li><a href="#faq">Вопросы</a></li>
     </ul>
     <a class="btn btn-gold" data-cta href="#final">Бесплатный разбор</a>
+    <button class="burger" id="burger" type="button" aria-label="Открыть меню" aria-expanded="false" aria-controls="menu"><i></i><i></i></button>
   </div>
 </nav>
+<div class="menu" id="menu" aria-label="Меню" aria-hidden="true">
+  <ol>
+    <li><a href="#me" style="--i:0"><span>01</span>Кто я</a></li>
+    <li><a href="#how" style="--i:1"><span>02</span>Как это работает</a></li>
+    <li><a href="#income" style="--i:2"><span>03</span>Доход</a></li>
+    <li><a href="#start" style="--i:3"><span>04</span>С чего начать</a></li>
+    <li><a href="#students" style="--i:4"><span>05</span>Ученики</a></li>
+    <li><a href="#academy" style="--i:5"><span>06</span>Академия</a></li>
+    <li><a href="#faq" style="--i:6"><span>07</span>Вопросы</a></li>
+  </ol>
+  <a class="btn btn-gold" data-cta href="#final" style="--i:7">Бесплатный разбор</a>
+  <div class="mdocs" style="--i:8"><a href="oferta.html">Оферта</a><a href="privacy.html">Конфиденциальность</a><a data-channel href="#final">Telegram-канал</a></div>
+</div>
 <div class="progress"><i id="prog"></i></div>
 <div class="hint" id="hint" aria-hidden="true"><span class="mouse"></span>Листай вниз</div>
 
@@ -828,13 +885,22 @@ footer a{color:var(--ink)}
 
 </main>
 
-<footer>
+<footer class="foot" id="foot">
   <div class="wrap">
-    <p>© Пётр Рыжиков · Ryzhikov Academy · 2026 · <a data-channel href="#hero">Telegram-канал</a></p>
-    <p>Ставки указаны как ориентир на начало октября 2026 и меняются. Цифры в кейсах — личные результаты конкретных людей и не являются гарантией дохода. Сайт не является финансовой или инвестиционной рекомендацией.</p>
+    <div class="fgrid">
+      <div class="fbrand" data-f><a class="flogo" href="#hero">Рыжиков<small>Ryzhikov Academy</small></a><p>Учу зарабатывать на партнёрских программах банков с нуля. Без вложений и без продаж.</p><a class="btn btn-gold" data-cta href="#final">Бесплатный разбор</a></div>
+      <nav class="fcol" data-f style="--i:1" aria-label="Разделы сайта"><h4>Навигация</h4><a href="#how">Как это работает</a><a href="#income">Доход</a><a href="#start">С чего начать</a><a href="#students">Ученики</a><a href="#academy">Академия</a><a href="#faq">Вопросы</a></nav>
+      <div class="fcol" data-f style="--i:2"><h4>Связь</h4><a data-channel href="#final">Telegram-канал</a><a data-cta href="#final">Записаться на разбор</a><a data-req="telegram" href="#final">Telegram для связи</a><a data-req="email" href="#final">Почта</a></div>
+      <div class="fcol" data-f style="--i:3"><h4>Документы</h4><a href="oferta.html">Публичная оферта</a><a href="privacy.html">Политика конфиденциальности</a><a href="consent.html">Согласие на обработку данных</a></div>
+    </div>
+    <div class="freq" data-f style="--i:4"><span>ИП <span data-req="name"></span></span><span data-req="inn">ИНН <span data-v></span></span><span data-req="ogrnip">ОГРНИП <span data-v></span></span></div>
+    <p class="fdisc" data-f style="--i:5">Ryzhikov Academy — информационно-консультационный проект ИП Рыжикова П. А. Материалы сайта, разборов и программ носят информационный характер и не являются финансовой, инвестиционной или юридической консультацией. ИП Рыжиков П. А. не является банком, кредитной или микрофинансовой организацией и не оказывает финансовых услуг. Названия банков и их товарные знаки принадлежат правообладателям и приводятся для информации, это не реклама их продуктов. Размеры вознаграждений указаны как ориентир на октябрь 2026 года, их устанавливают партнёрские программы, и они меняются. Цифры в кейсах — личные результаты конкретных людей, а не гарантия дохода. Финансовые продукты оформляются только на себя или с личного согласия человека, передавать карты и доступы к счетам другим людям запрещено законом. 18+</p>
+    <div class="fbot" data-f style="--i:6"><span>© 2026 Ryzhikov Academy. Все права защищены.</span><a href="#hero">Наверх ↑</a></div>
   </div>
+  <div class="horizon" aria-hidden="true"></div>
 </footer>
 
+<script src="assets/legal.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
 <script>
 /* ===== ССЫЛКИ: поменять на свои ===== */
@@ -843,7 +909,7 @@ const LINKS = {
   channel: 'https://t.me/'                   // Telegram-канал в подвале
 };
 document.querySelectorAll('[data-cta]').forEach(a => { a.href = LINKS.diagnostic; a.target = '_blank'; a.rel = 'noopener'; });
-document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channel; a.target = '_blank'; a.rel = 'noopener'; });
+document.querySelectorAll('[data-channel]').forEach(a => { if (LINKS.channel.length < 15) { a.hidden = true; return; } a.href = LINKS.channel; a.target = '_blank'; a.rel = 'noopener'; });
 
 (() => {
   'use strict';
@@ -878,6 +944,16 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
       const t = document.querySelector(a.getAttribute('href')); if (t) { e.preventDefault(); lenis.scrollTo(t, { duration: 1.6 }); }
     }));
   }
+
+  /* меню на телефоне */
+  const burger = $('burger'), menu = $('menu');
+  const setMenu = open => {
+    root.classList.toggle('menu-open', open); burger.setAttribute('aria-expanded', open); burger.setAttribute('aria-label', open ? 'Закрыть меню' : 'Открыть меню');
+    menu.setAttribute('aria-hidden', !open); if (lenis) open ? lenis.stop() : lenis.start(); else root.style.overflow = open ? 'hidden' : '';
+  };
+  burger.addEventListener('click', () => setMenu(!root.classList.contains('menu-open')));
+  menu.addEventListener('click', e => { if (e.target.closest('a')) setMenu(false); }, true);
+  addEventListener('keydown', e => { if (e.key === 'Escape' && root.classList.contains('menu-open')) { setMenu(false); burger.focus(); } });
 
   /* ===== геометрия: меряем при изменении размеров, не на каждом кадре ===== */
   let W = innerWidth, H = innerHeight, mob = W < 900;
@@ -1181,7 +1257,8 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
   /* остальное, что движется */
   const pipe = $('pipe'), pipeFill = $('pipeFill'), pipeCoin = $('pipeCoin'), pipeSteps = [...pipe.querySelectorAll('.st')];
   const nav = $('nav'), prog = $('prog'), hint = $('hint'), finalBg = document.querySelector('.final-bg img'), finalSec = $('final');
-  let PIPE = {}, FIN = {}, maxY = 1, lastY = -1;
+  let PIPE = {}, FIN = {}, FOOT = {}, maxY = 1, lastY = -1;
+  const foot = $('foot'), footIn = foot.querySelector('.wrap');
   function layout() {
     W = innerWidth; H = innerHeight; mob = W < 900;
     scenes.forEach(s => { s.top = absTop(s.sec); s.h = s.sec.offsetHeight; s.p = -1; });
@@ -1189,7 +1266,8 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     const vertical = getComputedStyle(pipe).gridTemplateColumns.split(' ').length === 1;
     PIPE = { top: absTop(pipe), vertical, pts: pipeSteps.map(s => vertical ? s.offsetTop + 10 : s.offsetLeft + s.offsetWidth / 2) };
     FIN = { top: absTop(finalSec), h: finalSec.offsetHeight };
-    maxY = Math.max(1, root.scrollHeight - H); lastY = -1;
+    foot.classList.toggle('reveal', !reduce && foot.offsetHeight < H * .92);
+    maxY = Math.max(1, root.scrollHeight - H); FOOT = { h: foot.offsetHeight, top: root.scrollHeight - foot.offsetHeight }; lastY = -1;
   }
 
   /* ===== один кадр на всё ===== */
@@ -1204,7 +1282,7 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     lastY = y;
     prog.style.transform = `scaleX(${y / maxY})`;
     const dark = scenes.find(s => s.dark && y >= s.top - 1 && y < s.top + s.h - H * .2);
-    const mode = y < 30 && dark ? 'clear' : dark || (y >= FIN.top - 52 && y < FIN.top + FIN.h - 52) ? 'dim' : 'light';
+    const mode = y < 30 && dark ? 'clear' : dark || y >= FIN.top - 52 ? 'dim' : 'light';
     if (mode !== navMode) { navMode = mode; nav.className = 'nav ' + mode; }
     scenes.forEach(s => {
       if (y < s.top - H || y > s.top + s.h) return;
@@ -1213,6 +1291,9 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
       DRAW[s.kind](p);
     });
     drops.forEach(d => drawDrop(d, y));
+    // подвал выезжает из-под финала: лёгкий подъём и проявление, колонки раскрываются по очереди
+    const fr0 = y + H - FOOT.top;
+    if (fr0 > -50) { const r = clamp(fr0 / Math.min(FOOT.h, H)); if (!reduce) { footIn.style.transform = `translate3d(0,${(1 - ease(r)) * 70}px,0)`; footIn.style.opacity = .25 + .75 * r; } if (r > .3) foot.classList.add('in'); }
     const pr = PIPE.top - y;
     if (pr < H + 50 && pr > -600) {
       const pp = clamp((H * .85 - pr) / (H * .5)), pts = PIPE.pts, f = pp * (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(f)), pos = pts[i] + (pts[i + 1] - pts[i]) * (f - i);
