@@ -257,7 +257,9 @@ section{position:relative;padding-block:clamp(80px,12vh,150px)}
 .hud-cap p{color:var(--mist);margin-top:6px;max-width:56ch;font-size:.96rem}
 .hud-cap .step{font-family:var(--f-mono);font-size:.72rem;color:var(--mist);letter-spacing:.1em;margin-bottom:6px}
 .seabed{position:relative;min-height:0;display:flex;flex-direction:column;justify-content:flex-end}
-.towers{position:relative;z-index:1;display:flex;align-items:flex-end;height:min(52svh,440px);padding-inline:1%}
+.towers{position:relative;z-index:1;display:flex;align-items:flex-end;flex:1 1 auto;min-height:110px;max-height:440px;padding-inline:1%}
+.city-stage>.wrap{justify-content:flex-start;padding-block:calc(82px + env(safe-area-inset-top,0px)) 14px}
+@media (max-height:820px){.hud .total{font-size:clamp(2.2rem,1.2rem + 3vw,3.4rem)}.hud-cap{min-height:0}.hud-cap p{font-size:.9rem}}
 .tw{flex:1 1 0;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;padding-inline:3px}
 .tw-v{font-family:var(--f-mono);font-size:clamp(.62rem,.5rem + .4vw,.82rem);text-align:center;color:var(--coin);margin-bottom:6px;white-space:nowrap;opacity:0;transition:opacity .4s}
 .tw.up .tw-v{opacity:1}
@@ -282,38 +284,63 @@ section{position:relative;padding-block:clamp(80px,12vh,150px)}
   .hud{grid-template-columns:1fr;gap:10px}
   .hud-cap{border-left:0;padding-left:0;min-height:120px}
   .hud .total{font-size:2.5rem}
-  .towers{height:38svh;padding-inline:0}
+  .towers{padding-inline:0}
   .tw{padding-inline:2px}
   .tw-body{border-radius:5px 5px 1px 1px}
   .tw-v{font-size:.56rem}
 }
 
 /* ---------- продукты ---------- */
-.prods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-top:50px}
-.prod{display:flex;flex-direction:column;gap:12px}
-.prod .tag{font-family:var(--f-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--glow)}
-.prod h3{font-family:var(--f-body);font-weight:700;font-size:1.12rem;letter-spacing:0}
-.prod .pay{font-family:var(--f-display);font-size:var(--s1);color:var(--coin);white-space:nowrap}
-.prod p{color:var(--mist);font-size:.92rem}
+.stackbar{margin-top:44px}
+.sb-top{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 20px}
+.sb-top span{color:var(--mist)}
+.sb-total{font-family:var(--f-display);font-weight:800;font-size:var(--s3);color:var(--glow);white-space:nowrap;font-variant-numeric:tabular-nums}
+.sb-bar{display:flex;gap:3px;height:22px;border-radius:12px;overflow:hidden;margin:18px 0 20px}
+.sb-bar i{flex:0 0 auto;width:var(--w);background:var(--c);box-shadow:0 0 18px -2px var(--c)}
+.sb-legend{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.sb-legend div{min-width:0;padding-left:14px;border-left:3px solid var(--c)}
+.sb-legend b{display:block;font-size:.95rem}
+.sb-legend strong{display:block;font-family:var(--f-display);font-size:var(--s1);margin-top:2px;white-space:nowrap}
+.sb-legend span{font-size:.8rem;color:var(--mist)}
+@media (max-width:760px){.sb-legend{grid-template-columns:1fr 1fr}}
+.prods{display:grid;grid-template-columns:1fr;gap:16px;margin-top:44px}
+
+.prod{display:flex;flex-direction:column;gap:16px}
+.prod-head{display:flex;gap:16px;align-items:center}
+.prod .num{font-family:var(--f-display);font-size:2.6rem;font-weight:800;line-height:1;color:transparent;-webkit-text-stroke:1px var(--glow);flex:none}
+.prod .tag{display:block;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--glow)}
+.prod h3{font-family:var(--f-body);font-weight:700;font-size:clamp(1.15rem,1rem + .5vw,1.4rem);letter-spacing:0;margin-top:2px}
+.prod .lbl{display:block;font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mist);margin-bottom:4px}
+.prod p{font-size:.96rem;line-height:1.5}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin:0;background:var(--line);border-radius:14px;overflow:hidden}
+.facts div{background:rgba(2,12,20,.65);padding:12px 14px;min-width:0}
+.facts dt{font-size:.74rem;color:var(--mist);line-height:1.3}
+.facts dd{margin:4px 0 0;font-family:var(--f-display);font-weight:700;font-size:clamp(.95rem,.85rem + .35vw,1.15rem);color:var(--coin);font-variant-numeric:tabular-nums;white-space:nowrap}
+.facts div:last-child dd{color:var(--glow)}
 .meter{display:grid;gap:6px;margin-top:auto}
-.meter span{display:flex;justify-content:space-between;font-size:.78rem;color:var(--mist)}
+.meter span{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.8rem;color:var(--mist)}
+.meter span b{color:var(--ink);font-weight:600}
 .meter i{display:block;height:5px;border-radius:5px;background:var(--line);overflow:hidden}
 .meter i::after{content:"";display:block;height:100%;width:var(--w);background:var(--glow);border-radius:5px;transform-origin:left;transform:scaleX(0);transition:transform 1.4s cubic-bezier(.2,.7,.1,1) .3s}
 .in .meter i::after,.meter.in i::after{transform:scaleX(1)}
 .prod.main{border-color:rgba(126,246,224,.45);background:linear-gradient(170deg,rgba(126,246,224,.1),var(--panel) 50%)}
-@media (max-width:1000px){.prods{grid-template-columns:1fr 1fr}}
-@media (max-width:540px){.prods{grid-template-columns:1fr}}
-.vs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
+.foot{font-size:.82rem;color:var(--mist);margin-top:14px}
+@media (max-width:420px){.facts{grid-template-columns:1fr 1fr}.facts div:last-child{grid-column:1/-1}}
+@media (min-width:900px){
+  .prod{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:14px 36px;align-items:start}
+  .prod-head,.prod .meter{grid-column:1/-1}
+  .prod>div:nth-child(2){grid-column:1;grid-row:2}
+  .prod>div:nth-child(3){grid-column:1;grid-row:3}
+  .prod .facts{grid-column:2;grid-row:2/span 2;grid-template-columns:1fr}
+  .facts div{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .facts dd{margin:0}
+}.vs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
 .vs .panel h3{font-family:var(--f-body);font-size:1.05rem;font-weight:700;letter-spacing:0;margin-bottom:12px}
 .vs ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;color:var(--mist);font-size:.95rem}
 .vs .pay{font-family:var(--f-display);font-size:var(--s2);margin-top:14px}
 .vs .ip{border-color:rgba(126,246,224,.45)}
 .vs .ip .pay{color:var(--glow)}
 @media (max-width:640px){.vs{grid-template-columns:1fr}}
-.order{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:26px}
-.order span{padding:10px 16px;border-radius:999px;border:1px solid var(--line);font-weight:700;font-size:.92rem}
-.order span:first-child{border-color:var(--glow);color:var(--glow)}
-.order i{font-style:normal;color:var(--mist)}
 .chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
 .chips span{padding:10px 16px;border-radius:999px;background:var(--glow-dim);border:1px solid rgba(126,246,224,.3);font-weight:600;font-size:.92rem}
 
@@ -632,14 +659,51 @@ footer p{max-width:70ch}
 <section id="products" data-depth="420" data-name="За что платят">
   <div class="wrap">
     <div class="mark" data-r>Глубина 420 м · За что платят</div>
-    <h2 class="h2" data-r style="--i:1">Вся ниша <em>на 4 продуктах</em></h2>
-    <p class="lead" data-r style="--i:2;margin-top:22px">Банки платят не за всё подряд, а за четыре вещи. Главная из них РКО.</p>
-    <div class="prods">
-      <div class="panel prod main" data-r><span class="tag">Главный</span><h3>РКО: счёт для ИП</h3><div class="pay">6 000–20 000 ₽</div><p>Та же дебетовая карта, только оформлена на ИП. Один человек открывает такой счёт в 8–10 банках, за каждый платят отдельно.</p><div class="meter"><span>одобряют<b>~90%</b></span><i style="--w:90%"></i></div></div>
-      <div class="panel prod" data-r style="--i:1"><span class="tag">База</span><h3>Дебетовые карты</h3><div class="pay">~1 500 ₽</div><p>Обычная карта для покупок. Одобряют почти всем. С трёх банков набегает ещё около 6 тысяч.</p><div class="meter"><span>одобряют<b>~98%</b></span><i style="--w:98%"></i></div></div>
-      <div class="panel prod" data-r style="--i:2"><span class="tag">Апгрейд</span><h3>Кредитные карты</h3><div class="pay">~4 000 ₽</div><p>Карта с лимитом. Тратишь и возвращаешь в беспроцентный период. Смотрят на кредитную историю.</p><div class="meter"><span>одобряют<b>~60%</b></span><i style="--w:60%"></i></div></div>
-      <div class="panel prod" data-r style="--i:3"><span class="tag">Последний шаг</span><h3>Микрозаймы</h3><div class="pay">2 600–6 000 ₽</div><p>Небольшой заём на 1–2 недели. Новым клиентам часто первые 7 дней без процентов: взял, вернул, переплата ноль.</p><div class="meter"><span>одобряют<b>~80%</b></span><i style="--w:80%"></i></div></div>
+    <h2 class="h2" data-r style="--i:1">Откуда берутся <em>100 000+ ₽</em> с одного человека</h2>
+    <p class="lead" data-r style="--i:2;margin-top:22px">Впервые слышишь слово «РКО»? Нормально, почти никто не слышал. Банки платят за четыре простые вещи. Человек проходит их по очереди, и из этого складывается сумма.</p>
+
+    <div class="stackbar" data-r>
+      <div class="sb-top"><span>Один человек, полный маршрут</span><span class="sb-total">110 877 ₽</span></div>
+      <div class="sb-bar" data-r="sweep"><i style="--w:71%;--c:var(--glow)"></i><i style="--w:5.4%;--c:#8fb0ff"></i><i style="--w:8.4%;--c:#5f7fd6"></i><i style="--w:15%;--c:var(--coin)"></i></div>
+      <div class="sb-legend">
+        <div style="--c:var(--glow)"><b>Счета для ИП</b><strong>79 000 ₽</strong><span>71% дохода · 8 банков</span></div>
+        <div style="--c:#8fb0ff"><b>Дебетовые карты</b><strong>6 000 ₽</strong><span>5% · 3 банка</span></div>
+        <div style="--c:#5f7fd6"><b>Кредитные карты</b><strong>9 300 ₽</strong><span>8% · 2 банка</span></div>
+        <div style="--c:var(--coin)"><b>Микрозаймы</b><strong>16 577 ₽</strong><span>15% · 4 МФО</span></div>
+      </div>
     </div>
+
+    <div class="prods">
+      <article class="panel prod main" data-r>
+        <div class="prod-head"><span class="num">1</span><div><span class="tag">Главный · на нём 71% денег</span><h3>РКО: счёт для ИП</h3></div></div>
+        <div><span class="lbl">Простыми словами</span><p>Расчётный счёт для ИП. По сути та же дебетовая карта: приложение, карта, переводы. Только оформлена на ИП, а за бизнес-клиента банк платит в разы больше.</p></div>
+        <div><span class="lbl">Что делаешь</span><p>Открываешь счёт по ссылке с партнёрки и делаешь одно действие: пополнение или пару платежей.</p></div>
+        <dl class="facts"><div><dt>Платят за 1 банк</dt><dd>6–20 тыс. ₽</dd></div><div><dt>Банков на человека</dt><dd>8–10</dd></div><div><dt>С человека</dt><dd>~79 000 ₽</dd></div></dl>
+        <div class="meter"><span><span>Одобряют <b>~90%</b></span><span>Своих денег: <b>0 ₽*</b></span></span><i style="--w:90%"></i></div>
+      </article>
+      <article class="panel prod" data-r style="--i:1">
+        <div class="prod-head"><span class="num">2</span><div><span class="tag">База · одобряют почти всем</span><h3>Дебетовые карты</h3></div></div>
+        <div><span class="lbl">Простыми словами</span><p>Обычная карта для своих денег, как та, что у тебя в кармане. Не кредит и не займ.</p></div>
+        <div><span class="lbl">Что делаешь</span><p>Оформляешь и тратишь с неё около 500 ₽ на свои же покупки. Платят только за новых клиентов банка.</p></div>
+        <dl class="facts"><div><dt>Платят за 1 карту</dt><dd>900–2 300 ₽</dd></div><div><dt>Карт на человека</dt><dd>3</dd></div><div><dt>С человека</dt><dd>~6 000 ₽</dd></div></dl>
+        <div class="meter"><span><span>Одобряют <b>~98%</b></span><span>Своих денег: <b>~500 ₽</b></span></span><i style="--w:98%"></i></div>
+      </article>
+      <article class="panel prod" data-r>
+        <div class="prod-head"><span class="num">3</span><div><span class="tag">Апгрейд · по желанию</span><h3>Кредитные карты</h3></div></div>
+        <div><span class="lbl">Простыми словами</span><p>Карта с лимитом от банка. Тратишь и возвращаешь в беспроцентный период, переплата ноль.</p></div>
+        <div><span class="lbl">Что делаешь</span><p>Оформляешь, делаешь одну покупку и гасишь вовремя. Кредитная история от этого становится только лучше.</p></div>
+        <dl class="facts"><div><dt>Платят за 1 карту</dt><dd>2 200–5 000 ₽</dd></div><div><dt>Карт на человека</dt><dd>2</dd></div><div><dt>С человека</dt><dd>~9 300 ₽</dd></div></dl>
+        <div class="meter"><span><span>Одобряют <b>~60%</b></span><span>Своих денег: <b>~1 000 ₽</b></span></span><i style="--w:60%"></i></div>
+      </article>
+      <article class="panel prod" data-r style="--i:1">
+        <div class="prod-head"><span class="num">4</span><div><span class="tag">Последний шаг · лучшая математика</span><h3>Микрозаймы</h3></div></div>
+        <div><span class="lbl">Простыми словами</span><p>Небольшой заём на 1–2 недели в МФО. Новым клиентам часто дают первые 7 дней без процентов.</p></div>
+        <div><span class="lbl">Что делаешь</span><p>Берёшь и сразу возвращаешь ту же сумму. Галочки со страховок снимаешь. Только последним шагом.</p></div>
+        <dl class="facts"><div><dt>Платят за 1 заём</dt><dd>2 600–6 000 ₽</dd></div><div><dt>МФО на человека</dt><dd>4</dd></div><div><dt>С человека</dt><dd>~16 600 ₽</dd></div></dl>
+        <div class="meter"><span><span>Одобряют <b>~80%</b></span><span>Своих денег: <b>~100 ₽</b></span></span><i style="--w:80%"></i></div>
+      </article>
+    </div>
+    <p class="foot" data-r>Своих денег значит сколько нужно потратить или прогнать через карту, чтобы банк засчитал клиента. Не плата кому-то за вход. * Иногда банк просит пополнить счёт: это твои же деньги, они проходят через счёт и остаются у тебя.</p>
 
     <div class="sub">
       <h3 class="h3" data-r>РКО = та же карта, <span class="hl">только для ИП</span></h3>
@@ -647,8 +711,7 @@ footer p{max-width:70ch}
         <div class="panel" data-r="left"><h3>Обычная карта</h3><ul><li>Оформляешь на себя</li><li>Приложение, карта, переводы</li></ul><div class="pay">1–2 тыс. ₽</div><p class="lead" style="font-size:.88rem;margin-top:4px">столько банк платит за клиента</p></div>
         <div class="panel ip" data-r="right"><h3>Счёт для ИП (РКО)</h3><ul><li>Оформляешь на себя как на ИП</li><li>То же приложение, карта, переводы</li></ul><div class="pay">6–20 тыс. ₽</div><p class="lead" style="font-size:.88rem;margin-top:4px">через бизнес-клиента идут платежи и налоги, поэтому банки за него дерутся</p></div>
       </div>
-      <div class="order" data-r="sweep"><span>РКО</span><i>→</i><span>Дебетовые</span><i>→</i><span>Кредитные</span><i>→</i><span>Займы</span></div>
-      <p class="lead" data-r style="margin-top:14px;font-size:1rem">Порядок решает. Начинаешь с того, что приносит больше всего. Человек получает первую выплату, видит, что всё честно, и дальше соглашается на остальное.</p>
+      <p class="lead" data-r style="margin-top:26px;font-size:1rem"><strong>Порядок решает: 1 → 2 → 3 → 4.</strong> Начинаешь с того, что приносит больше всего. Человек получает первую выплату, видит, что всё честно, и дальше соглашается на остальное.</p>
     </div>
   </div>
 </section>
