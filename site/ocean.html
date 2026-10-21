@@ -1,0 +1,1317 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Пётр Рыжиков · РКО</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Банки платят 100 000+ ₽ за одного человека. Пётр Рыжиков показывает нишу РКО по шагам: откуда деньги, за что платят банки, кейсы учеников и бесплатная диагностика.">
+<meta property="og:title" content="Пётр Рыжиков · Погружение в РКО">
+<meta property="og:description" content="Банки платят 100 000+ ₽ за одного человека. Вся ниша по шагам и кейсы учеников.">
+<meta property="og:image" content="assets/img/petr.jpg">
+<meta name="theme-color" content="#02070d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2302070d' stroke='%237ef6e0' stroke-width='2'/%3E%3Ctext x='32' y='42' font-size='28' text-anchor='middle' fill='%237ef6e0' font-family='Arial' font-weight='700'%3EР%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: одна вертикаль-погружение. Зоны глубины меняют цвет воды, две сцены закреплены (кольцо денег, город банков), на дне сейф. */
+:root{
+  --abyss:#02070d;   /* дно */
+  --deep:#061a2b;    /* толща */
+  --ink:#e8f3f6;     /* основной текст */
+  --mist:#8eb1bf;    /* второстепенный */
+  --glow:#7ef6e0;    /* биолюминесценция, акцент */
+  --coin:#f3c969;    /* деньги в движении */
+  --warn:#ef8a8a;    /* потери, «не платит» */
+  --glow-dim:rgba(126,246,224,.14);
+  --line:rgba(170,220,235,.14);
+  --panel:rgba(4,20,32,.58);
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --s-1:clamp(.78rem,.74rem + .2vw,.86rem);
+  --s0:clamp(1rem,.96rem + .2vw,1.08rem);
+  --s1:clamp(1.15rem,1.05rem + .45vw,1.35rem);
+  --s2:clamp(1.5rem,1.2rem + 1.3vw,2.2rem);
+  --s3:clamp(2rem,1.4rem + 2.8vw,3.6rem);
+  --s4:clamp(2.3rem,1.3rem + 4.4vw,5.2rem);
+  --gl:max(16px,env(safe-area-inset-left,0px));
+  --gr:max(16px,env(safe-area-inset-right,0px));
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--abyss);-webkit-text-size-adjust:100%}
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+body{margin:0;background:var(--abyss);color:var(--ink);font-family:var(--f-body);font-size:var(--s0);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:var(--abyss)}
+img,video{max-width:100%;display:block}
+main,footer{position:relative;z-index:1}
+main{overflow-x:clip}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--glow);outline-offset:3px;border-radius:6px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;line-height:1.08;letter-spacing:-.02em;margin:0;text-wrap:balance}
+p{margin:0}
+.mono{font-family:var(--f-mono)}
+
+/* ---------- океан ---------- */
+.ocean{position:fixed;inset:0;z-index:0;background:#0e405c}
+.rays{position:fixed;inset:-10% -20% auto;height:90vh;z-index:0;pointer-events:none;mix-blend-mode:screen}
+.rays i{position:absolute;top:0;width:14vw;min-width:90px;height:100%;background:linear-gradient(180deg,rgba(170,240,255,.22),rgba(170,240,255,0) 85%);filter:blur(18px);transform-origin:50% 0;animation:sway 11s ease-in-out infinite alternate}
+.rays i:nth-child(1){left:18%;transform:rotate(14deg);animation-duration:13s}
+.rays i:nth-child(2){left:34%;width:8vw;transform:rotate(8deg);opacity:.7;animation-duration:9s}
+.rays i:nth-child(3){left:52%;transform:rotate(-4deg);animation-duration:15s}
+.rays i:nth-child(4){left:66%;width:6vw;transform:rotate(-10deg);opacity:.6;animation-duration:10s}
+.rays i:nth-child(5){left:80%;transform:rotate(-16deg);opacity:.8;animation-duration:12s}
+@keyframes sway{to{translate:3vw 0;opacity:.35}}
+.caustics{position:fixed;inset:0 0 auto;height:45vh;z-index:0;pointer-events:none;opacity:.5;
+  background:radial-gradient(40% 18% at 20% 0%,rgba(190,250,255,.35),transparent 70%),radial-gradient(30% 14% at 70% 0%,rgba(190,250,255,.28),transparent 70%),radial-gradient(60% 30% at 50% -10%,rgba(120,220,240,.35),transparent 70%);
+  animation:shimmer 7s ease-in-out infinite alternate}
+@keyframes shimmer{to{transform:translateX(4%) scaleY(1.15);opacity:.32}}
+.abyss-glow{position:fixed;inset:auto 0 0;height:60vh;z-index:0;pointer-events:none;opacity:0;background:radial-gradient(60% 70% at 50% 110%,rgba(126,246,224,.22),transparent 70%)}
+#sea{position:fixed;inset:0;z-index:0;pointer-events:none;width:100%;height:100%}
+.torch{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0;background:radial-gradient(circle at var(--mx,50%) var(--my,40%),transparent 0,transparent 240px,rgba(0,3,8,.75) 720px)}
+.grain{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.06;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.flash{position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;background:linear-gradient(180deg,transparent 30%,rgba(126,246,224,.10) 50%,transparent 70%);background-size:100% 300%}
+.flash.go{animation:thermo 1.3s ease-out}
+@keyframes thermo{0%{opacity:1;background-position:0 100%}100%{opacity:0;background-position:0 0}}
+
+/* ---------- шапка ---------- */
+.top{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:14px;padding-left:var(--gl);padding-right:var(--gr);transition:background .4s}
+.top.solid{background:rgba(2,10,18,.6);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.logo{font-family:var(--f-display);font-weight:800;letter-spacing:.14em;font-size:.92rem;text-decoration:none}
+.logo span{color:var(--glow)}
+.btn{--h:52px;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:var(--h);padding:0 26px;border-radius:999px;font-family:var(--f-body);font-weight:700;font-size:1rem;text-decoration:none;cursor:pointer;border:0;transition:transform .25s,box-shadow .25s,border-color .25s,color .25s}
+.btn-main{background:var(--glow);color:#021813;box-shadow:0 10px 40px -10px rgba(126,246,224,.6)}
+.btn-main:hover{transform:translateY(-2px);box-shadow:0 0 0 6px rgba(126,246,224,.12),0 16px 50px -10px rgba(126,246,224,.75)}
+.btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--glow);color:var(--glow)}
+.top .btn{--h:42px;padding:0 18px;font-size:.92rem}
+.btn svg{width:18px;height:18px;flex:none}
+
+/* ---------- глубиномер ---------- */
+.gauge{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);z-index:40;display:flex;align-items:center;gap:14px;font-family:var(--f-mono);pointer-events:none}
+.gauge-track{position:relative;width:2px;height:46vh;background:linear-gradient(var(--line),var(--line)) center/1px 100% no-repeat}
+.gauge-track b{position:absolute;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--glow);box-shadow:0 0 14px var(--glow);top:0;transform:translateY(-50%)}
+.gauge-ticks{position:absolute;inset:0}
+.gauge-ticks i{position:absolute;left:-4px;width:10px;height:1px;background:var(--mist);opacity:.45}
+.gauge-read{text-align:right;min-width:100px;order:-1}
+.gauge-read strong{display:block;font-size:1.05rem;font-variant-numeric:tabular-nums;font-weight:500}
+.gauge-read span{font-size:.68rem;color:var(--mist);letter-spacing:.12em;text-transform:uppercase}
+.depth-pill{display:none}
+@media (max-width:900px){
+  .gauge{display:none}
+  .depth-pill{display:block;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:40;font-family:var(--f-mono);font-size:.76rem;padding:7px 14px;border-radius:999px;background:rgba(2,12,20,.72);border:1px solid var(--line);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:var(--mist);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .depth-pill b{color:var(--glow);font-weight:500}
+}
+
+/* ---------- сетка ---------- */
+.wrap{width:100%;max-width:1180px;margin:0 auto;padding-left:var(--gl);padding-right:var(--gr)}
+@media (min-width:901px){.wrap{padding-right:max(150px,env(safe-area-inset-right,0px))}}
+section{position:relative;padding-block:clamp(80px,12vh,150px)}
+.mark{display:flex;align-items:center;gap:12px;font-family:var(--f-mono);font-size:var(--s-1);color:var(--glow);letter-spacing:.14em;text-transform:uppercase;margin-bottom:22px}
+.mark::before{content:"";width:28px;height:1px;background:var(--glow)}
+.lead{color:var(--mist);font-size:var(--s1);max-width:62ch;line-height:1.55}
+.lead strong{color:var(--ink)}
+.h2{font-size:var(--s3);max-width:20ch}
+.h2 em,.hl{font-style:normal;color:var(--glow)}
+.h3{font-size:var(--s2)}
+.stack{display:grid;gap:22px}
+.sub{margin-top:clamp(70px,10vh,120px)}
+.panel{border:1px solid var(--line);border-radius:22px;padding:clamp(20px,3vw,30px);background:var(--panel);min-width:0}
+
+/* ---------- переходы появления ---------- */
+.js [data-r]{opacity:0;transform:translateY(46px);filter:blur(10px);transition:opacity 1.1s cubic-bezier(.2,.7,.1,1),transform 1.3s cubic-bezier(.2,.7,.1,1),filter 1.1s ease,clip-path 1.4s cubic-bezier(.6,0,.2,1);transition-delay:calc(var(--i,0) * 110ms)}
+.js [data-r="left"]{transform:translateX(-70px)}
+.js [data-r="right"]{transform:translateX(70px)}
+.js [data-r="sink"]{transform:translateY(-50px)}
+.js [data-r="iris"]{opacity:1;filter:none;transform:scale(1.08);clip-path:circle(0% at 50% 50%)}
+.js [data-r="sweep"]{opacity:1;filter:none;transform:none;clip-path:inset(0 100% 0 0)}
+.js [data-r].in{opacity:1;transform:none;filter:none}
+.js [data-r="iris"].in{clip-path:circle(75% at 50% 50%)}
+.js [data-r="sweep"].in{clip-path:inset(0 0 0 0)}
+
+/* ---------- граница зон ---------- */
+.gate{position:relative;height:22vh;display:grid;place-items:center;pointer-events:none}
+.gate i{position:absolute;left:0;right:0;top:50%;height:1px;background:linear-gradient(90deg,transparent,var(--glow),transparent);transform:scaleX(0);opacity:0}
+.gate span{position:relative;font-family:var(--f-mono);font-size:.74rem;letter-spacing:.24em;text-transform:uppercase;color:var(--glow);padding:6px 14px;background:var(--abyss);border:1px solid rgba(126,246,224,.3);border-radius:999px;opacity:0}
+
+/* ---------- HERO ---------- */
+.hero{min-height:min(100svh,960px);display:flex;align-items:center;padding-block:110px 100px}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:clamp(30px,5vw,70px);align-items:center;will-change:transform,opacity,filter}
+.hero .eyebrow{font-family:var(--f-mono);font-size:var(--s-1);color:var(--mist);letter-spacing:.16em;text-transform:uppercase;margin-bottom:26px}
+.hero .eyebrow b{color:var(--glow);font-weight:500}
+.hero h1{font-size:var(--s4);font-weight:800}
+.hero h1 .ln{display:block;overflow:hidden;padding-bottom:.06em}
+.hero h1 .ln>span{display:inline-block}
+.js .hero h1 .ln>span{transform:translateY(105%);transition:transform 1.4s cubic-bezier(.2,.8,.1,1)}
+.js.loaded .hero h1 .ln>span{transform:none}
+.hero h1 .ln:nth-child(2)>span{transition-delay:.12s}
+.hero h1 .ln:nth-child(3)>span{transition-delay:.24s}
+.hero h1 .glow{color:var(--glow);text-shadow:0 0 40px rgba(126,246,224,.35)}
+.hero .lead{margin-top:28px}
+.cta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px}
+.hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,auto));gap:clamp(18px,4vw,50px);margin-top:54px;padding-top:26px;border-top:1px solid var(--line);max-width:700px}
+.hero-stats div{min-width:0}
+.hero-stats strong{display:block;font-family:var(--f-display);font-size:var(--s2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.hero-stats span{font-size:var(--s-1);color:var(--mist)}
+.port{position:relative;width:min(100%,440px);aspect-ratio:1;justify-self:end;border-radius:50%;padding:18px;
+  background:conic-gradient(from 210deg,#3c5966,#0e2430,#5f808c,#14303c,#3c5966);box-shadow:0 30px 80px -20px rgba(0,0,0,.8),inset 0 0 0 1px rgba(255,255,255,.08)}
+.port::before{content:"";position:absolute;inset:7px;border-radius:50%;background:repeating-conic-gradient(from 0deg,transparent 0 40deg,#a9c4cc 40deg 41.5deg,transparent 41.5deg 45deg);-webkit-mask:radial-gradient(circle,transparent 0 calc(50% - 6px),#000 calc(50% - 5px) calc(50% - 1px),transparent 50%);mask:radial-gradient(circle,transparent 0 calc(50% - 6px),#000 calc(50% - 5px) calc(50% - 1px),transparent 50%);opacity:.6}
+.port-glass{position:relative;width:100%;height:100%;border-radius:50%;overflow:hidden;box-shadow:inset 0 0 40px rgba(0,0,0,.8)}
+.port-glass img{width:100%;height:100%;object-fit:cover;object-position:52% 60%;transform:scale(1.25);animation:breathe 9s ease-in-out infinite alternate;filter:saturate(.85) contrast(1.05)}
+.port-glass::after{content:"";position:absolute;inset:0;border-radius:50%;background:radial-gradient(120% 80% at 30% 15%,rgba(255,255,255,.22),transparent 40%),linear-gradient(180deg,rgba(14,64,92,.15),rgba(2,20,30,.45))}
+@keyframes breathe{to{transform:scale(1.32) translate(-1%,1%)}}
+.port-tag{position:absolute;right:6%;bottom:6%;font-family:var(--f-mono);font-size:.72rem;padding:6px 12px;border-radius:999px;background:rgba(2,12,20,.8);border:1px solid var(--line);color:var(--mist)}
+.scroll-cue{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:10px;font-family:var(--f-mono);font-size:.68rem;letter-spacing:.2em;color:var(--mist);text-transform:uppercase}
+.scroll-cue i{width:1px;height:46px;background:linear-gradient(var(--glow),transparent);animation:cue 2.2s ease-in-out infinite}
+@keyframes cue{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+@media (max-width:900px){
+  .hero-grid{grid-template-columns:1fr}
+  .port{order:-1;width:190px;justify-self:start;padding:11px}
+  .port::before{inset:4px}
+  .port-tag{display:none}
+  .scroll-cue{display:none}
+}
+@media (max-width:560px){.hero-stats{grid-template-columns:1fr 1fr}.hero-stats div:last-child{grid-column:1/-1}}
+
+/* ---------- история ---------- */
+.story{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:clamp(40px,7vw,100px);align-items:start}
+.story-head{position:sticky;top:110px}
+.story-head .lead{margin-top:22px}
+.kopilka{margin:34px 0 0;border-radius:22px;overflow:hidden;position:relative;max-width:100%}
+.kopilka img{width:100%;aspect-ratio:4/3;object-fit:cover}
+.kopilka figcaption{position:absolute;left:0;right:0;bottom:0;padding:44px 20px 18px;background:linear-gradient(transparent,rgba(2,7,13,.92));font-size:.9rem;color:var(--mist)}
+.kopilka figcaption b{display:block;font-family:var(--f-display);font-size:var(--s2);color:var(--glow);font-variant-numeric:tabular-nums}
+.tl{list-style:none;margin:0;padding:0;position:relative}
+.tl::before{content:"";position:absolute;left:7px;top:10px;bottom:10px;width:1px;background:linear-gradient(var(--line),var(--glow))}
+.tl li{position:relative;padding:0 0 42px 44px}
+.tl li:last-child{padding-bottom:0}
+.tl li::before{content:"";position:absolute;left:0;top:7px;width:15px;height:15px;border-radius:50%;border:1px solid var(--mist);background:var(--abyss)}
+.tl li.hot::before{border-color:var(--glow);background:var(--glow);box-shadow:0 0 18px var(--glow)}
+.tl .when{font-family:var(--f-mono);font-size:var(--s-1);color:var(--mist);letter-spacing:.08em}
+.tl h3{font-size:var(--s1);margin:6px 0 8px}
+.tl li.hot h3{font-size:var(--s2);color:var(--glow)}
+.tl p{color:var(--mist);max-width:52ch}
+.ba{display:grid;grid-template-columns:1fr auto 1fr;gap:14px;align-items:center;margin-top:46px}
+.ba div{padding:20px;border-radius:18px;border:1px solid var(--line);background:var(--panel);min-width:0}
+.ba div:last-child{border-color:rgba(126,246,224,.4)}
+.ba small{display:block;font-family:var(--f-mono);font-size:.72rem;color:var(--mist);letter-spacing:.1em;text-transform:uppercase}
+.ba b{display:block;font-family:var(--f-display);font-size:var(--s1);margin:6px 0 2px;white-space:nowrap}
+.ba div:last-child b{color:var(--glow)}
+.ba span{font-size:.85rem;color:var(--mist)}
+.ba>i{font-style:normal;color:var(--glow);font-size:1.4rem}
+@media (max-width:900px){.story{grid-template-columns:1fr}.story-head{position:static}}
+
+/* ---------- закреплённые сцены ---------- */
+.pin{padding:0;height:calc(var(--len,4) * 100svh)}
+.pin-stage{position:sticky;top:0;height:100svh;overflow:hidden;display:flex;align-items:center}
+.pin-stage>.wrap{height:100%;display:flex;flex-direction:column;justify-content:center;padding-block:76px 30px}
+
+/* кольцо денег */
+.flow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:clamp(24px,5vw,70px);align-items:center}
+.ring{width:100%;max-width:520px;max-height:68svh;justify-self:center;overflow:visible}
+.ring .base{fill:none;stroke:var(--line);stroke-width:2;stroke-dasharray:3 9}
+.ring .arc{fill:none;stroke:var(--glow);stroke-width:3;stroke-linecap:round;filter:drop-shadow(0 0 6px rgba(126,246,224,.7))}
+.ring .arc.gold{stroke:var(--coin);filter:drop-shadow(0 0 8px rgba(243,201,105,.8))}
+.ring .node circle{fill:#04131f;stroke:rgba(170,220,235,.3);stroke-width:1.5;transition:stroke .5s,fill .5s}
+.ring .node.on circle{stroke:var(--glow);fill:#08303a}
+.ring .node.you circle{stroke:var(--glow);stroke-width:2.5}
+.ring .node text{fill:var(--ink);font-family:var(--f-display);font-size:19px;font-weight:700;text-anchor:middle}
+.ring .node text.s{fill:var(--mist);font-family:var(--f-body);font-size:13px;font-weight:500}
+.ring .tok circle{fill:var(--glow)}
+.ring .tok.gold circle{fill:var(--coin)}
+.ring .tok text{font-family:var(--f-mono);font-size:15px;fill:var(--ink);text-anchor:middle}
+.ring .center{font-family:var(--f-display);text-anchor:middle}
+.ring .center .big{font-size:48px;font-weight:800;fill:var(--coin)}
+.ring .center .cap{font-size:14px;fill:var(--mist);font-family:var(--f-body)}
+.flow-steps{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.flow-steps li{display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;padding:14px 16px;border-radius:16px;border:1px solid transparent;color:var(--mist);transition:all .5s}
+.flow-steps li b{font-family:var(--f-mono);font-weight:500;font-size:.85rem;padding-top:2px}
+.flow-steps li.on{border-color:rgba(126,246,224,.4);background:rgba(10,44,58,.55);color:var(--ink)}
+.flow-steps li.on b{color:var(--glow)}
+.flow-steps li.done{opacity:.5}
+.flow-head{margin-bottom:22px}
+.flow-head .h3{max-width:18ch}
+@media (max-width:900px){
+  .flow{grid-template-columns:1fr;gap:12px}
+  .ring{max-width:min(330px,40svh)}
+  .flow-steps li{display:none}
+  .flow-steps li.on{display:grid}
+  .flow-head{margin-bottom:8px}
+  .flow-head .h3{font-size:1.3rem}
+  .flow-head .mark{margin-bottom:10px}
+}
+
+/* город банков */
+.city-stage{background:radial-gradient(80% 50% at 50% 100%,rgba(126,246,224,.08),transparent 70%)}
+.city{display:grid;grid-template-rows:auto minmax(0,1fr);height:100%;gap:18px}
+.hud{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:clamp(20px,4vw,60px);align-items:end}
+.hud .lab{font-family:var(--f-mono);font-size:var(--s-1);letter-spacing:.12em;text-transform:uppercase;color:var(--mist)}
+.hud .total{font-family:var(--f-display);font-weight:800;font-size:clamp(2.4rem,1.4rem + 4vw,4.8rem);line-height:1;margin-top:8px;font-variant-numeric:tabular-nums;color:var(--glow);text-shadow:0 0 50px rgba(126,246,224,.3);white-space:nowrap}
+.hud-cap{min-height:96px;border-left:1px solid var(--line);padding-left:clamp(16px,3vw,30px)}
+.hud-cap .bn{font-family:var(--f-display);font-size:var(--s1);display:flex;gap:12px;flex-wrap:wrap;align-items:baseline}
+.hud-cap .bn em{font-style:normal;font-family:var(--f-mono);font-size:.95rem;color:var(--coin)}
+.hud-cap .bn em.zero{color:var(--warn)}
+.hud-cap p{color:var(--mist);margin-top:6px;max-width:56ch;font-size:.96rem}
+.hud-cap .step{font-family:var(--f-mono);font-size:.72rem;color:var(--mist);letter-spacing:.1em;margin-bottom:6px}
+.seabed{position:relative;min-height:0;display:flex;flex-direction:column;justify-content:flex-end}
+.towers{position:relative;z-index:1;display:flex;align-items:flex-end;flex:1 1 auto;min-height:110px;max-height:440px;padding-inline:1%}
+.city-stage>.wrap{justify-content:flex-start;padding-block:calc(82px + env(safe-area-inset-top,0px)) 14px}
+@media (max-height:820px){.hud .total{font-size:clamp(2.2rem,1.2rem + 3vw,3.4rem)}.hud-cap{min-height:0}.hud-cap p{font-size:.9rem}}
+.tw{flex:1 1 0;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;padding-inline:3px}
+.tw-v{font-family:var(--f-mono);font-size:clamp(.62rem,.5rem + .4vw,.82rem);text-align:center;color:var(--coin);margin-bottom:6px;white-space:nowrap;opacity:0;transition:opacity .4s}
+.tw.up .tw-v{opacity:1}
+.tw-body{position:relative;height:0;border-radius:8px 8px 2px 2px;overflow:hidden;
+  background:repeating-linear-gradient(0deg,transparent 0 9px,rgba(2,10,16,.55) 9px 11px),linear-gradient(180deg,rgba(126,246,224,.55),rgba(20,90,100,.35) 60%,rgba(6,40,50,.6));
+  border:1px solid rgba(126,246,224,.55);box-shadow:0 0 24px -4px rgba(126,246,224,.45);transition:filter .5s,background .5s,border-color .5s}
+.tw-body::before{content:"";position:absolute;inset:0;background:repeating-linear-gradient(90deg,transparent 0 30%,rgba(2,10,16,.35) 30% 36%);opacity:.8}
+.tw-n{position:absolute;left:50%;bottom:10px;transform:translateX(-50%) rotate(180deg);writing-mode:vertical-rl;font-family:var(--f-body);font-weight:700;font-size:clamp(.66rem,.55rem + .35vw,.86rem);color:#eafffb;white-space:nowrap;text-shadow:0 1px 6px rgba(0,0,0,.8)}
+.tw.card .tw-body{background:repeating-linear-gradient(0deg,transparent 0 9px,rgba(2,10,16,.5) 9px 11px),linear-gradient(180deg,rgba(130,170,255,.6),rgba(40,60,130,.4));border-color:rgba(150,185,255,.6);box-shadow:0 0 24px -4px rgba(130,170,255,.45)}
+.tw.mfo .tw-body{background:repeating-linear-gradient(0deg,transparent 0 9px,rgba(2,10,16,.5) 9px 11px),linear-gradient(180deg,rgba(243,201,105,.6),rgba(120,80,20,.4));border-color:rgba(243,201,105,.6);box-shadow:0 0 24px -4px rgba(243,201,105,.45)}
+.tw.dead .tw-body{background:linear-gradient(180deg,rgba(239,138,138,.5),rgba(80,20,20,.4));border-color:var(--warn);box-shadow:0 0 24px -4px rgba(239,138,138,.5);filter:saturate(.7)}
+.tw.dead .tw-v{color:var(--warn)}
+.tw.now .tw-body{filter:brightness(1.35)}
+.floor{position:relative;height:56px;margin-top:-1px}
+.floor svg{position:absolute;inset:0;width:100%;height:100%}
+.floor .legend{position:absolute;left:0;right:0;bottom:6px;display:flex;justify-content:center;gap:18px;flex-wrap:wrap;font-size:.74rem;color:var(--mist);z-index:1}
+.floor .legend span::before{content:"";display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:0;background:var(--c)}
+.sonar{position:absolute;left:50%;bottom:30%;width:10px;height:10px;border-radius:50%;border:1px solid var(--glow);transform:translate(-50%,50%);opacity:0;pointer-events:none}
+.sonar.go{animation:sonar 2.4s ease-out}
+@keyframes sonar{0%{opacity:.8;width:10px;height:10px}100%{opacity:0;width:140vmax;height:140vmax}}
+@media (max-width:900px){
+  .hud{grid-template-columns:1fr;gap:10px}
+  .hud-cap{border-left:0;padding-left:0;min-height:120px}
+  .hud .total{font-size:2.5rem}
+  .towers{padding-inline:0}
+  .tw{padding-inline:2px}
+  .tw-body{border-radius:5px 5px 1px 1px}
+  .tw-v{font-size:.56rem}
+}
+
+/* ---------- продукты ---------- */
+.stackbar{margin-top:44px}
+.sb-top{display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px 20px}
+.sb-top span{color:var(--mist)}
+.sb-total{font-family:var(--f-display);font-weight:800;font-size:var(--s3);color:var(--glow);white-space:nowrap;font-variant-numeric:tabular-nums}
+.sb-bar{display:flex;gap:3px;height:22px;border-radius:12px;overflow:hidden;margin:18px 0 20px}
+.sb-bar i{flex:0 0 auto;width:var(--w);background:var(--c);box-shadow:0 0 18px -2px var(--c)}
+.sb-legend{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.sb-legend div{min-width:0;padding-left:14px;border-left:3px solid var(--c)}
+.sb-legend b{display:block;font-size:.95rem}
+.sb-legend strong{display:block;font-family:var(--f-display);font-size:var(--s1);margin-top:2px;white-space:nowrap}
+.sb-legend span{font-size:.8rem;color:var(--mist)}
+@media (max-width:760px){.sb-legend{grid-template-columns:1fr 1fr}}
+.prods{display:grid;grid-template-columns:1fr;gap:16px;margin-top:44px}
+
+.prod{display:flex;flex-direction:column;gap:16px}
+.prod-head{display:flex;gap:16px;align-items:center}
+.prod .num{font-family:var(--f-display);font-size:2.6rem;font-weight:800;line-height:1;color:transparent;-webkit-text-stroke:1px var(--glow);flex:none}
+.prod .tag{display:block;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--glow)}
+.prod h3{font-family:var(--f-body);font-weight:700;font-size:clamp(1.15rem,1rem + .5vw,1.4rem);letter-spacing:0;margin-top:2px}
+.prod .lbl{display:block;font-family:var(--f-mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--mist);margin-bottom:4px}
+.prod p{font-size:.96rem;line-height:1.5}
+.facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin:0;background:var(--line);border-radius:14px;overflow:hidden}
+.facts div{background:rgba(2,12,20,.65);padding:12px 14px;min-width:0}
+.facts dt{font-size:.74rem;color:var(--mist);line-height:1.3}
+.facts dd{margin:4px 0 0;font-family:var(--f-display);font-weight:700;font-size:clamp(.95rem,.85rem + .35vw,1.15rem);color:var(--coin);font-variant-numeric:tabular-nums;white-space:nowrap}
+.facts div:last-child dd{color:var(--glow)}
+.meter{display:grid;gap:6px;margin-top:auto}
+.meter span{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:.8rem;color:var(--mist)}
+.meter span b{color:var(--ink);font-weight:600}
+.meter i{display:block;height:5px;border-radius:5px;background:var(--line);overflow:hidden}
+.meter i::after{content:"";display:block;height:100%;width:var(--w);background:var(--glow);border-radius:5px;transform-origin:left;transform:scaleX(0);transition:transform 1.4s cubic-bezier(.2,.7,.1,1) .3s}
+.in .meter i::after,.meter.in i::after{transform:scaleX(1)}
+.prod.main{border-color:rgba(126,246,224,.45);background:linear-gradient(170deg,rgba(126,246,224,.1),var(--panel) 50%)}
+.foot{font-size:.82rem;color:var(--mist);margin-top:14px}
+@media (max-width:420px){.facts{grid-template-columns:1fr 1fr}.facts div:last-child{grid-column:1/-1}}
+@media (min-width:900px){
+  .prod{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:14px 36px;align-items:start}
+  .prod-head,.prod .meter{grid-column:1/-1}
+  .prod>div:nth-child(2){grid-column:1;grid-row:2}
+  .prod>div:nth-child(3){grid-column:1;grid-row:3}
+  .prod .facts{grid-column:2;grid-row:2/span 2;grid-template-columns:1fr}
+  .facts div{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+  .facts dd{margin:0}
+}.vs{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:22px}
+.vs .panel h3{font-family:var(--f-body);font-size:1.05rem;font-weight:700;letter-spacing:0;margin-bottom:12px}
+.vs ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;color:var(--mist);font-size:.95rem}
+.vs .pay{font-family:var(--f-display);font-size:var(--s2);margin-top:14px}
+.vs .ip{border-color:rgba(126,246,224,.45)}
+.vs .ip .pay{color:var(--glow)}
+@media (max-width:640px){.vs{grid-template-columns:1fr}}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}
+.chips span{padding:10px 16px;border-radius:999px;background:var(--glow-dim);border:1px solid rgba(126,246,224,.3);font-weight:600;font-size:.92rem}
+
+/* ---------- вход ---------- */
+.enter{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:50px}
+.enter .n{font-family:var(--f-display);font-size:2.6rem;font-weight:800;color:transparent;-webkit-text-stroke:1px var(--glow);line-height:1}
+.enter h3{font-family:var(--f-body);font-weight:700;font-size:1.15rem;letter-spacing:0;margin:14px 0 8px}
+.enter p{color:var(--mist);font-size:.95rem}
+.enter .why{margin-top:12px;font-size:.88rem;color:var(--ink);opacity:.85}
+@media (max-width:860px){.enter{grid-template-columns:1fr}}
+.pipe{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:40px;padding-top:34px}
+.pipe-line{position:absolute;left:10%;right:10%;top:9px;height:2px;background:var(--line)}
+.pipe-line i{display:block;height:100%;width:0;background:var(--glow);box-shadow:0 0 12px var(--glow)}
+.pipe-coin{position:absolute;top:0;left:10%;width:20px;height:20px;border-radius:50%;background:var(--coin);box-shadow:0 0 18px var(--coin);transform:translate(-50%,0);z-index:1}
+.pipe>.st{text-align:center;min-width:0;position:relative}
+.pipe>.st::before{content:"";display:block;width:12px;height:12px;border-radius:50%;margin:-31px auto 16px;background:var(--abyss);border:2px solid var(--mist);transition:all .4s}
+.pipe>.st.on::before{border-color:var(--glow);background:var(--glow);box-shadow:0 0 12px var(--glow)}
+.pipe b{display:block;font-size:.98rem}
+.pipe span{display:block;font-size:.84rem;color:var(--mist);margin-top:4px;line-height:1.4}
+@media (max-width:760px){
+  .pipe{grid-template-columns:1fr;gap:22px;padding-top:0;padding-left:40px}
+  .pipe-line{left:9px;right:auto;top:6px;bottom:6px;width:2px;height:auto}
+  .pipe-line i{width:100%;height:0}
+  .pipe-coin{left:0;top:0;transform:translate(0,-50%)}
+  .pipe>.st{text-align:left}
+  .pipe>.st::before{position:absolute;margin:0;left:-36px;top:5px}
+}
+.who-gets{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:40px}
+.who-gets h3{font-family:var(--f-body);font-size:1.05rem;font-weight:700;letter-spacing:0;margin-bottom:8px}
+.who-gets p{color:var(--mist);font-size:.95rem}
+@media (max-width:640px){.who-gets{grid-template-columns:1fr}}
+
+/* ---------- ловушки ---------- */
+.traps{list-style:none;margin:46px 0 0;padding:0;border-top:1px solid var(--line)}
+.traps li{display:grid;grid-template-columns:52px minmax(0,1fr) auto;gap:16px;align-items:start;padding:22px 0;border-bottom:1px solid var(--line)}
+.traps .n{font-family:var(--f-mono);font-size:.85rem;color:var(--mist);padding-top:4px}
+.traps h3{font-family:var(--f-body);font-weight:700;font-size:1.1rem;letter-spacing:0}
+.traps p{color:var(--mist);font-size:.94rem;margin-top:4px;max-width:62ch}
+.traps p b{color:var(--glow);font-weight:600}
+.traps .loss{font-family:var(--f-display);font-size:1.05rem;color:var(--warn);white-space:nowrap;padding-top:2px}
+@media (max-width:640px){.traps li{grid-template-columns:36px minmax(0,1fr)}.traps .loss{grid-column:2}}
+
+/* ---------- ученики ---------- */
+.big-stats{display:flex;flex-wrap:wrap;gap:clamp(28px,6vw,90px);margin:44px 0 clamp(50px,8vh,90px)}
+.big-stats strong{display:block;font-family:var(--f-display);font-weight:800;font-size:var(--s3);font-variant-numeric:tabular-nums;line-height:1}
+.big-stats span{color:var(--mist);font-size:var(--s-1)}
+.feat{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(24px,4vw,60px);align-items:center;padding-block:clamp(34px,6vh,56px);border-top:1px solid var(--line)}
+.feat.flip .feat-photo{order:2}
+.feat-photo{position:relative;border-radius:22px;overflow:hidden;aspect-ratio:4/5;max-width:100%;margin:0}
+.feat-photo img{width:100%;height:100%;object-fit:cover}
+.feat-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(2,7,13,.75))}
+.feat-photo figcaption{position:absolute;left:20px;bottom:18px;z-index:1;font-family:var(--f-mono);font-size:.78rem;letter-spacing:.06em}
+.feat .sum{font-family:var(--f-display);font-weight:800;font-size:var(--s3);color:var(--glow);line-height:1;font-variant-numeric:tabular-nums}
+.feat .sum-l{color:var(--mist);margin:10px 0 20px}
+.feat h3{font-size:var(--s2);margin-bottom:12px}
+.feat .txt{color:var(--mist);max-width:56ch}
+.feat .txt strong{color:var(--ink)}
+.feat blockquote{margin:18px 0 0;padding-left:16px;border-left:2px solid var(--glow);font-size:.95rem;color:var(--ink);font-style:italic;max-width:56ch}
+.proof{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px}
+.proof img{border-radius:12px;border:1px solid var(--line);max-height:150px;width:auto;max-width:100%}
+.proof-l{width:100%;font-family:var(--f-mono);font-size:.72rem;color:var(--mist);letter-spacing:.08em;text-transform:uppercase}
+@media (max-width:760px){.feat{grid-template-columns:1fr}.feat.flip .feat-photo{order:0}.feat-photo{aspect-ratio:1/1}.proof img{max-height:none;width:100%}}
+.cases{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:clamp(36px,6vh,60px)}
+.case{position:relative;border-radius:20px;overflow:hidden;aspect-ratio:3/4;background:var(--deep);max-width:100%}
+.case img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.2s cubic-bezier(.2,.7,.1,1)}
+.case::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(2,7,13,0) 35%,rgba(2,7,13,.92))}
+.case:hover img{transform:scale(1.05)}
+.case-t{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:20px}
+.case-t .sum{font-family:var(--f-display);font-weight:800;font-size:var(--s2);color:var(--glow);line-height:1.05}
+.case-t .who{font-weight:700;margin-top:8px}
+.case-t p{color:var(--mist);font-size:.9rem;margin-top:4px;line-height:1.45}
+@media (max-width:900px){.cases{grid-template-columns:1fr 1fr}}
+@media (max-width:540px){.cases{grid-template-columns:1fr}.case{aspect-ratio:4/5}}
+
+/* ---------- обучение ---------- */
+.mods{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:46px}
+.mod{display:grid;grid-template-columns:48px minmax(0,1fr);gap:6px 14px}
+.mod .n{font-family:var(--f-mono);color:var(--glow);font-size:.9rem;padding-top:3px;grid-row:span 3}
+.mod h3{font-family:var(--f-body);font-size:1.12rem;font-weight:700;letter-spacing:0}
+.mod p{color:var(--mist);font-size:.93rem}
+.mod .res{font-size:.9rem;color:var(--ink);padding-top:10px;margin-top:4px;border-top:1px dashed var(--line)}
+.mod .res::before{content:"Итог: ";color:var(--glow);font-weight:700}
+.mod.wide{grid-column:1/-1}
+@media (max-width:760px){.mods{grid-template-columns:1fr}.mod{grid-template-columns:38px minmax(0,1fr)}}
+.format{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:16px;margin-top:16px}
+.curators{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.cur{display:flex;gap:12px;align-items:center;min-width:0}
+.cur img{width:52px;height:52px;border-radius:50%;object-fit:cover;flex:none;border:1px solid var(--line)}
+.cur b{display:block;font-size:.95rem}
+.cur span{display:block;font-size:.8rem;color:var(--mist);line-height:1.35}
+.panel h3.ph{font-size:1.02rem;margin-bottom:18px}
+.ticks{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.ticks li{position:relative;padding-left:26px;color:var(--mist);font-size:.95rem}
+.ticks li::before{content:"";position:absolute;left:0;top:.55em;width:12px;height:6px;border-left:2px solid var(--glow);border-bottom:2px solid var(--glow);transform:rotate(-45deg)}
+.honest{margin-top:16px;padding:22px 26px;border-left:2px solid var(--glow);background:linear-gradient(90deg,var(--glow-dim),transparent);font-family:var(--f-display);font-size:var(--s1);line-height:1.4;font-weight:500}
+@media (max-width:900px){.format{grid-template-columns:1fr}}
+@media (max-width:420px){.curators{grid-template-columns:1fr}}
+
+/* ---------- вопросы ---------- */
+.faq{margin-top:40px;border-top:1px solid var(--line)}
+.faq details{border-bottom:1px solid var(--line)}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 0;font-weight:700;font-size:1.08rem}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"";flex:none;width:12px;height:12px;border-right:2px solid var(--glow);border-bottom:2px solid var(--glow);transform:rotate(45deg) translateY(-4px);transition:transform .35s}
+.faq details[open] summary::after{transform:rotate(-135deg) translateY(-2px)}
+.faq .a{padding:0 0 24px;color:var(--mist);max-width:70ch;display:grid;gap:10px}
+.faq .a strong{color:var(--ink)}
+
+/* ---------- тест ---------- */
+.quiz{margin-top:40px;display:grid;gap:12px;max-width:760px}
+.q{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding:18px 20px;border-radius:18px;border:1px solid var(--line);background:var(--panel)}
+.q p{font-weight:600;min-width:0;flex:1 1 260px}
+.q .opts{display:flex;gap:8px}
+.q button{font:inherit;font-weight:700;font-size:.9rem;padding:10px 18px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;transition:all .25s}
+.q button:hover{border-color:var(--glow)}
+.q button[aria-pressed="true"]{background:var(--glow);color:#021813;border-color:var(--glow)}
+.verdict{margin-top:8px;padding:22px 24px;border-radius:18px;border:1px dashed var(--line);color:var(--mist);transition:all .4s}
+.verdict.ok{border-style:solid;border-color:rgba(126,246,224,.5);background:linear-gradient(160deg,rgba(126,246,224,.12),transparent);color:var(--ink)}
+.verdict.no{border-style:solid;border-color:rgba(239,138,138,.45);color:var(--ink)}
+.verdict b{display:block;font-family:var(--f-display);font-size:1.15rem;margin-bottom:6px}
+.verdict .btn{margin-top:14px}
+
+/* ---------- дно ---------- */
+.final{padding-block:clamp(100px,14vh,170px) clamp(80px,12vh,130px)}
+.final-top{display:grid;justify-items:center;text-align:center}
+.final .mark{justify-content:center}
+.final .mark::after{content:"";width:28px;height:1px;background:var(--glow)}
+.vault{position:relative;width:min(300px,62vw);aspect-ratio:1;margin:0 auto 46px;perspective:1100px}
+.vault-in{position:absolute;inset:6%;border-radius:50%;display:grid;place-items:center;text-align:center;background:radial-gradient(circle,rgba(126,246,224,.55),rgba(126,246,224,.08) 60%,transparent 72%);color:#03201a}
+.vault-in b{display:block;font-family:var(--f-display);font-size:1.25rem;color:var(--ink);text-shadow:0 0 20px rgba(0,0,0,.6)}
+.vault-in span{display:block;font-family:var(--f-mono);font-size:.78rem;color:var(--ink);letter-spacing:.08em;margin-top:4px}
+.door{position:absolute;inset:0;transform-origin:4% 50%;transform-style:preserve-3d;will-change:transform}
+.door svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 20px 40px rgba(0,0,0,.6))}
+.door .wheel{transform-origin:150px 150px}
+.final h2{font-size:var(--s4);max-width:16ch;font-weight:800}
+.final .lead{margin:24px auto 0;text-align:center}
+.final-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(24px,4vw,50px);margin-top:60px;align-items:start}
+.vid{position:relative;border-radius:22px;overflow:hidden;border:1px solid var(--line);background:#000;aspect-ratio:16/9;max-width:100%}
+.vid video{width:100%;height:100%;object-fit:cover}
+.vid-cap{font-size:var(--s-1);color:var(--mist);margin-top:10px}
+.plan h3{font-size:var(--s1);margin-bottom:16px}
+.plan ol{margin:0;padding:0;list-style:none;counter-reset:p;display:grid;gap:12px}
+.plan li{counter-increment:p;display:grid;grid-template-columns:30px minmax(0,1fr);gap:10px;color:var(--mist);font-size:.96rem}
+.plan li::before{content:counter(p);font-family:var(--f-mono);color:var(--glow);font-size:.85rem;padding-top:2px}
+.final-cta{margin-top:56px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center}
+.final-cta .btn{--h:64px;padding:0 40px;font-size:1.1rem;animation:pulse 3.2s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 14px rgba(126,246,224,0),0 0 70px -6px rgba(126,246,224,.8)}}
+.final-cta small{color:var(--mist);font-size:var(--s-1);max-width:52ch}
+.why-free{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}
+.why-free h3{font-family:var(--f-body);font-size:1rem;font-weight:700;letter-spacing:0;margin-bottom:6px}
+.why-free p{color:var(--mist);font-size:.93rem}
+@media (max-width:860px){.final-grid,.why-free{grid-template-columns:1fr}}
+
+footer{border-top:1px solid var(--line);padding-block:34px calc(80px + env(safe-area-inset-bottom,0px));color:var(--mist);font-size:var(--s-1)}
+footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px 30px}
+footer a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
+footer p{max-width:70ch}
+
+@media (prefers-reduced-motion:reduce){
+  .js [data-r],.js .hero h1 .ln>span{opacity:1;transform:none;filter:none;clip-path:none;transition:none}
+  .rays i,.caustics,.final-cta .btn,.scroll-cue i,.port-glass img{animation:none}
+}
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+
+<div class="ocean" id="ocean"></div>
+<div class="caustics" id="caustics"></div>
+<div class="rays" id="rays"><i></i><i></i><i></i><i></i><i></i></div>
+<div class="abyss-glow" id="abyssGlow"></div>
+<canvas id="sea" aria-hidden="true"></canvas>
+<div class="torch" id="torch"></div>
+<div class="grain"></div>
+<div class="flash" id="flash"></div>
+
+<header class="top" id="top">
+  <a class="logo" href="#surface">РЫЖИКОВ<span>.</span></a>
+  <a class="btn btn-main" data-cta href="#dive">Диагностика</a>
+</header>
+
+<aside class="gauge" aria-hidden="true">
+  <div class="gauge-read"><strong id="gDepth">0 м</strong><span id="gName">Поверхность</span></div>
+  <div class="gauge-track"><div class="gauge-ticks" id="gTicks"></div><b id="gDot"></b></div>
+</aside>
+<div class="depth-pill" aria-hidden="true"><b id="pDepth">0 м</b> · <span id="pName">Поверхность</span></div>
+
+<main>
+
+<!-- ========== 0 · ПОВЕРХНОСТЬ ========== -->
+<section class="hero" id="surface" data-depth="0" data-name="Поверхность">
+  <div class="wrap hero-grid" id="heroIn">
+    <div>
+      <div class="eyebrow">Пётр Рыжиков · <b>Ryzhikov Academy</b></div>
+      <h1>
+        <span class="ln"><span>Банки платят</span></span>
+        <span class="ln"><span class="glow">100 000+ ₽</span></span>
+        <span class="ln"><span>за одного человека</span></span>
+      </h1>
+      <p class="lead">Банкам нужны новые клиенты, и за каждого они платят. Ты их приводишь: сначала себя, потом друзей. Без товара и без вложений. Мне 20, я начинал с&nbsp;долга <strong>90&nbsp;000&nbsp;₽</strong>, а сейчас делаю на&nbsp;этом <strong>больше миллиона в&nbsp;месяц</strong>. Листай вниз, покажу всю нишу по шагам.</p>
+      <div class="cta-row">
+        <a class="btn btn-main" data-cta href="#dive">Записаться на диагностику</a>
+        <a class="btn btn-ghost" href="#story">Погрузиться
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg></a>
+      </div>
+      <div class="hero-stats">
+        <div><strong data-count="150" data-suf="+">150+</strong><span>учеников прошли путь</span></div>
+        <div><strong data-count="25" data-suf=" млн ₽">25 млн ₽</strong><span>заработали ученики</span></div>
+        <div><strong>1 млн+ ₽</strong><span>мой доход в месяц</span></div>
+      </div>
+    </div>
+    <div class="port" aria-hidden="true">
+      <div class="port-glass"><img src="assets/img/petr.jpg" alt=""></div>
+      <span class="port-tag">Пётр · 20 лет</span>
+    </div>
+  </div>
+  <div class="scroll-cue"><i></i>вниз</div>
+</section>
+
+<div class="gate" data-flash><i></i><span>−100 м · откуда я</span></div>
+
+<!-- ========== 1 · ИСТОРИЯ ========== -->
+<section id="story" data-depth="100" data-name="Откуда я">
+  <div class="wrap story">
+    <div class="story-head">
+      <div class="mark" data-r>Глубина 100 м · Откуда я</div>
+      <h2 class="h2" data-r style="--i:1">Я начинал <em>с&nbsp;долга 90&nbsp;000&nbsp;₽</em></h2>
+      <p class="lead" data-r style="--i:2">Ни богатых родителей, ни связей, ни капитала. Всё, что ниже, я делал сам. Это не пересказ из интернета.</p>
+      <figure class="kopilka" data-r="iris">
+        <img src="assets/img/kopilka.jpg" alt="Пётр показывает баланс копилки 4 476 439 ₽ в приложении банка" loading="lazy">
+        <figcaption><b>4 476 439 ₽</b>Моя копилка. Не скрин из интернета, а мой телефон.</figcaption>
+      </figure>
+    </div>
+    <div>
+      <ol class="tl">
+        <li data-r="right"><div class="when">Точка ноль</div><h3>Ставки и минус 90 000 ₽</h3><p>«Темки», ставки, поиск кнопки «бабло». Итог: долг и понимание, что иду не туда.</p></li>
+        <li data-r="right"><div class="when">Найм</div><h3>Грузчик</h3><p>Оранжевая жилетка, бетонный пол, копейки в конце смены.</p></li>
+        <li data-r="right"><div class="when">Год</div><h3>Армия</h3><p>Отдал долг стране. Вернулся с тем же вопросом: где деньги.</p></li>
+        <li data-r="right"><div class="when">22 000 ₽ в месяц</div><h3>Вейпшоп</h3><p>Стоял 24/7. И понял простую вещь: на 22 тысячи из долгов не вылезешь, как ни экономь. Надо не урезать расходы, а найти работу, где платят в разы больше.</p></li>
+        <li data-r="right"><div class="when">Поворот</div><h3>Банковские партнёрки</h3><p>Нашёл рынок, где банки платят за каждого нового клиента. Начал с себя, потом повёл людей.</p></li>
+        <li class="hot" data-r="right"><div class="when">Сейчас</div><h3>1 000 000+ ₽ в месяц</h3><p>Со мной уже 150 ребят, которые прошли этот путь. Деньги дал не случай, а маршрут, который можно повторить.</p></li>
+      </ol>
+      <div class="ba" data-r>
+        <div><small>Было</small><b>22 000 ₽</b><span>в месяц, вейпшоп</span></div>
+        <i>→</i>
+        <div><small>Стало</small><b>1 000 000 ₽</b><span>в месяц, партнёрки</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="gate" data-flash><i></i><span>−250 м · откуда деньги</span></div>
+
+<!-- ========== 2 · ОТКУДА ДЕНЬГИ ========== -->
+<section id="money" data-depth="250" data-name="Откуда деньги" style="padding-bottom:40px">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 250 м · Откуда деньги</div>
+    <h2 class="h2" data-r style="--i:1">Банки <em>воюют</em> за клиентов</h2>
+    <p class="lead" data-r style="--i:2;margin-top:22px">Банки каждый год тратят около <strong>200 миллиардов рублей</strong> только на рекламу, чтобы привлечь новых клиентов. Часть этих денег они отдают обычным людям, которые приводят клиентов. Новый клиент приносит банку деньги годами, поэтому банку выгодно заплатить за него 10–20 тысяч сразу. Ему неважно, привела его реклама или ты.</p>
+  </div>
+</section>
+
+<section class="pin" id="flowPin" style="--len:4" data-depth="320" data-name="Как идут деньги">
+  <div class="pin-stage">
+    <div class="wrap">
+      <div class="flow">
+        <svg class="ring" id="ring" viewBox="-20 -20 640 640" role="img" aria-label="Схема: партнёрка, ты, человек, банк и выплата 7 000 рублей">
+          <circle class="base" cx="300" cy="300" r="210"/>
+          <path class="arc" id="a0" d="M300 90 A210 210 0 0 0 90 300"/>
+          <path class="arc" id="a1" d="M90 300 A210 210 0 0 0 300 510"/>
+          <path class="arc" id="a2" d="M300 510 A210 210 0 0 0 510 300"/>
+          <path class="arc gold" id="a3" d="M510 300 A210 210 0 0 0 300 90"/>
+          <path class="arc gold" id="a4" d="M300 90 A210 210 0 0 0 90 300"/>
+          <g class="center" id="ringCenter">
+            <text class="big" x="300" y="300" id="ringBig">1 / 5</text>
+            <text class="cap" x="300" y="332" id="ringCap">листай вниз</text>
+          </g>
+          <g class="node" id="nP" transform="translate(300 90)"><circle r="68"/><text y="2">Партнёрка</text><text class="s" y="24">посредник банка</text></g>
+          <g class="node you" id="nY" transform="translate(90 300)"><circle r="68"/><text y="8">Ты</text></g>
+          <g class="node" id="nH" transform="translate(300 510)"><circle r="68"/><text y="2">Человек</text><text class="s" y="24">ты сам или друг</text></g>
+          <g class="node" id="nB" transform="translate(510 300)"><circle r="68"/><text y="2">Банк</text><text class="s" y="24">например, ВТБ</text></g>
+          <g class="tok" id="tok"><circle r="11"/><text y="-20" id="tokT">ссылка</text></g>
+        </svg>
+        <div>
+          <div class="flow-head">
+            <div class="mark">Вся ниша на одном примере</div>
+            <h3 class="h3">Один круг — и&nbsp;<span class="hl">7&nbsp;000&nbsp;₽</span> у&nbsp;тебя</h3>
+          </div>
+          <ol class="flow-steps" id="flowSteps">
+            <li class="on"><b>01</b><span>Регистрируешься на партнёрке и берёшь там ссылку на счёт в ВТБ.</span></li>
+            <li><b>02</b><span>По этой ссылке открываешь счёт сам или отдаёшь её другу.</span></li>
+            <li><b>03</b><span>Человек открывает счёт. Бесплатно, с телефона, минут 15.</span></li>
+            <li><b>04</b><span>Банк видит, что клиент пришёл по твоей ссылке, и платит партнёрке 7 000 ₽.</span></li>
+            <li><b>05</b><span>Партнёрка переводит деньги тебе. Всё, это и есть ниша. Дальше повторяешь в других банках и с другими людьми.</span></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:40px" data-depth="380" data-name="Как идут деньги">
+  <div class="wrap">
+    <p class="lead" data-r>Знаешь кнопку «Пригласи друга» в приложении банка? Пригласил, получил бонус. Здесь то же самое, только через официальные партнёрские программы <strong>и в десятки раз крупнее.</strong> Партнёрки: РКО Групп, Бизнес Система, FinCPA, LeadGid, РКО Партнёр.</p>
+    <div class="chips">
+      <span data-r>Не продаёшь товар</span>
+      <span data-r style="--i:1">Не вкладываешь свои деньги</span>
+      <span data-r style="--i:2">Не трогаешь чужие деньги</span>
+    </div>
+  </div>
+</section>
+
+<div class="gate" data-flash><i></i><span>−420 м · за что платят</span></div>
+
+<!-- ========== 3 · ЗА ЧТО ПЛАТЯТ ========== -->
+<section id="products" data-depth="420" data-name="За что платят">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 420 м · За что платят</div>
+    <h2 class="h2" data-r style="--i:1">Откуда берутся <em>100 000+ ₽</em> с одного человека</h2>
+    <p class="lead" data-r style="--i:2;margin-top:22px">Впервые слышишь слово «РКО»? Нормально, почти никто не слышал. Банки платят за четыре простые вещи. Человек проходит их по очереди, и из этого складывается сумма.</p>
+
+    <div class="stackbar" data-r>
+      <div class="sb-top"><span>Один человек, полный маршрут</span><span class="sb-total">110 877 ₽</span></div>
+      <div class="sb-bar" data-r="sweep"><i style="--w:71%;--c:var(--glow)"></i><i style="--w:5.4%;--c:#8fb0ff"></i><i style="--w:8.4%;--c:#5f7fd6"></i><i style="--w:15%;--c:var(--coin)"></i></div>
+      <div class="sb-legend">
+        <div style="--c:var(--glow)"><b>Счета для ИП</b><strong>79 000 ₽</strong><span>71% дохода · 8 банков</span></div>
+        <div style="--c:#8fb0ff"><b>Дебетовые карты</b><strong>6 000 ₽</strong><span>5% · 3 банка</span></div>
+        <div style="--c:#5f7fd6"><b>Кредитные карты</b><strong>9 300 ₽</strong><span>8% · 2 банка</span></div>
+        <div style="--c:var(--coin)"><b>Микрозаймы</b><strong>16 577 ₽</strong><span>15% · 4 МФО</span></div>
+      </div>
+    </div>
+
+    <div class="prods">
+      <article class="panel prod main" data-r>
+        <div class="prod-head"><span class="num">1</span><div><span class="tag">Главный · на нём 71% денег</span><h3>РКО: счёт для ИП</h3></div></div>
+        <div><span class="lbl">Простыми словами</span><p>Расчётный счёт для ИП. По сути та же дебетовая карта: приложение, карта, переводы. Только оформлена на ИП, а за бизнес-клиента банк платит в разы больше.</p></div>
+        <div><span class="lbl">Что делаешь</span><p>Открываешь счёт по ссылке с партнёрки и делаешь одно действие: пополнение или пару платежей.</p></div>
+        <dl class="facts"><div><dt>Платят за 1 банк</dt><dd>6–20 тыс. ₽</dd></div><div><dt>Банков на человека</dt><dd>8–10</dd></div><div><dt>С человека</dt><dd>~79 000 ₽</dd></div></dl>
+        <div class="meter"><span><span>Одобряют <b>~90%</b></span><span>Своих денег: <b>0 ₽*</b></span></span><i style="--w:90%"></i></div>
+      </article>
+      <article class="panel prod" data-r style="--i:1">
+        <div class="prod-head"><span class="num">2</span><div><span class="tag">База · одобряют почти всем</span><h3>Дебетовые карты</h3></div></div>
+        <div><span class="lbl">Простыми словами</span><p>Обычная карта для своих денег, как та, что у тебя в кармане. Не кредит и не займ.</p></div>
+        <div><span class="lbl">Что делаешь</span><p>Оформляешь и тратишь с неё около 500 ₽ на свои же покупки. Платят только за новых клиентов банка.</p></div>
+        <dl class="facts"><div><dt>Платят за 1 карту</dt><dd>900–2 300 ₽</dd></div><div><dt>Карт на человека</dt><dd>3</dd></div><div><dt>С человека</dt><dd>~6 000 ₽</dd></div></dl>
+        <div class="meter"><span><span>Одобряют <b>~98%</b></span><span>Своих денег: <b>~500 ₽</b></span></span><i style="--w:98%"></i></div>
+      </article>
+      <article class="panel prod" data-r>
+        <div class="prod-head"><span class="num">3</span><div><span class="tag">Апгрейд · по желанию</span><h3>Кредитные карты</h3></div></div>
+        <div><span class="lbl">Простыми словами</span><p>Карта с лимитом от банка. Тратишь и возвращаешь в беспроцентный период, переплата ноль.</p></div>
+        <div><span class="lbl">Что делаешь</span><p>Оформляешь, делаешь одну покупку и гасишь вовремя. Кредитная история от этого становится только лучше.</p></div>
+        <dl class="facts"><div><dt>Платят за 1 карту</dt><dd>2 200–5 000 ₽</dd></div><div><dt>Карт на человека</dt><dd>2</dd></div><div><dt>С человека</dt><dd>~9 300 ₽</dd></div></dl>
+        <div class="meter"><span><span>Одобряют <b>~60%</b></span><span>Своих денег: <b>~1 000 ₽</b></span></span><i style="--w:60%"></i></div>
+      </article>
+      <article class="panel prod" data-r style="--i:1">
+        <div class="prod-head"><span class="num">4</span><div><span class="tag">Последний шаг · лучшая математика</span><h3>Микрозаймы</h3></div></div>
+        <div><span class="lbl">Простыми словами</span><p>Небольшой заём на 1–2 недели в МФО. Новым клиентам часто дают первые 7 дней без процентов.</p></div>
+        <div><span class="lbl">Что делаешь</span><p>Берёшь и сразу возвращаешь ту же сумму. Галочки со страховок снимаешь. Только последним шагом.</p></div>
+        <dl class="facts"><div><dt>Платят за 1 заём</dt><dd>2 600–6 000 ₽</dd></div><div><dt>МФО на человека</dt><dd>4</dd></div><div><dt>С человека</dt><dd>~16 600 ₽</dd></div></dl>
+        <div class="meter"><span><span>Одобряют <b>~80%</b></span><span>Своих денег: <b>~100 ₽</b></span></span><i style="--w:80%"></i></div>
+      </article>
+    </div>
+    <p class="foot" data-r>Своих денег значит сколько нужно потратить или прогнать через карту, чтобы банк засчитал клиента. Не плата кому-то за вход. * Иногда банк просит пополнить счёт: это твои же деньги, они проходят через счёт и остаются у тебя.</p>
+
+    <div class="sub">
+      <h3 class="h3" data-r>РКО = та же карта, <span class="hl">только для ИП</span></h3>
+      <div class="vs">
+        <div class="panel" data-r="left"><h3>Обычная карта</h3><ul><li>Оформляешь на себя</li><li>Приложение, карта, переводы</li></ul><div class="pay">1–2 тыс. ₽</div><p class="lead" style="font-size:.88rem;margin-top:4px">столько банк платит за клиента</p></div>
+        <div class="panel ip" data-r="right"><h3>Счёт для ИП (РКО)</h3><ul><li>Оформляешь на себя как на ИП</li><li>То же приложение, карта, переводы</li></ul><div class="pay">6–20 тыс. ₽</div><p class="lead" style="font-size:.88rem;margin-top:4px">через бизнес-клиента идут платежи и налоги, поэтому банки за него дерутся</p></div>
+      </div>
+      <p class="lead" data-r style="margin-top:26px;font-size:1rem"><strong>Порядок решает: 1 → 2 → 3 → 4.</strong> Начинаешь с того, что приносит больше всего. Человек получает первую выплату, видит, что всё честно, и дальше соглашается на остальное.</p>
+    </div>
+  </div>
+</section>
+
+<div class="gate" data-flash><i></i><span>−550 м · город банков</span></div>
+
+<!-- ========== 4 · ГОРОД БАНКОВ ========== -->
+<section class="pin" id="cityPin" style="--len:6" data-depth="550" data-name="Город банков">
+  <div class="pin-stage city-stage">
+    <div class="sonar" id="sonar"></div>
+    <div class="wrap">
+      <div class="city">
+        <div class="hud">
+          <div>
+            <div class="lab">Город банков · один человек</div>
+            <div class="total" id="cityTotal">0 ₽</div>
+          </div>
+          <div class="hud-cap" id="cityCap" aria-live="polite">
+            <div class="step" id="cityStep">ДНО · −550 М</div>
+            <div class="bn" id="cityName">Здесь стоят банки</div>
+            <p id="cityDesc">Один человек может открыть счёт не в одном банке, а в 8–10. Листай вниз: каждый банк будет подниматься со дна, а сумма расти.</p>
+          </div>
+        </div>
+        <div class="seabed">
+          <div class="towers" id="towers"></div>
+          <div class="floor">
+            <svg viewBox="0 0 1000 56" preserveAspectRatio="none" aria-hidden="true"><path d="M0 8 C80 2 140 14 230 8 S400 0 520 9 S720 16 820 6 S940 4 1000 10 L1000 56 L0 56 Z" fill="#051520"/><path d="M0 8 C80 2 140 14 230 8 S400 0 520 9 S720 16 820 6 S940 4 1000 10" fill="none" stroke="rgba(126,246,224,.25)"/></svg>
+            <div class="legend"><span style="--c:var(--glow)">Счета для ИП</span><span style="--c:#8fb0ff">Карты</span><span style="--c:var(--coin)">Займы</span><span style="--c:var(--warn)">Не платят за НПД</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top:30px" data-depth="620" data-name="Город банков">
+  <div class="wrap">
+    <p class="lead" data-r>Ставки максимальные на начало октября 2026. Они меняются каждый месяц, и один и тот же банк на разных партнёрках оплачивают по-разному. Платежи по счёту это не траты: деньги проходят через счёт и остаются твоими.</p>
+  </div>
+</section>
+
+<div class="gate" data-flash><i></i><span>−650 м · как зайти с нуля</span></div>
+
+<!-- ========== 5 · ВХОД ========== -->
+<section id="enter" data-depth="650" data-name="Как зайти с нуля">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 650 м · Как зайти с нуля</div>
+    <h2 class="h2" data-r style="--i:1">Три шага, и <em>банки платят</em></h2>
+    <p class="lead" data-r style="--i:2;margin-top:22px">Ничего покупать не нужно. Всё делается с телефона и бесплатно.</p>
+    <div class="enter">
+      <div class="panel" data-r="iris"><div class="n">1</div><h3>Самозанятость</h3><p>Качаешь «Мой налог» и жмёшь «Стать самозанятым». 10 минут, бесплатно, никаких взносов.</p><p class="why">Зачем: чтобы партнёрки официально переводили тебе деньги.</p></div>
+      <div class="panel" data-r="iris" style="--i:1"><div class="n">2</div><h3>ИП на НПД</h3><p>ИП, который платит налоги как самозанятый: без отчётов и взносов, 4–6% только с заработка. Через Альфа-Банк банк сразу платит около 16 000 ₽ за саму регистрацию.</p><p class="why">Зачем: без ИП банк не откроет счёт для бизнеса, а за него платят больше всего.</p></div>
+      <div class="panel" data-r="iris" style="--i:2"><div class="n">3</div><h3>Счета в банках</h3><p>Берёшь ссылку на партнёрке, открываешь счёт, делаешь одно простое действие: пополнить или купить. Потом следующий банк.</p><p class="why">Порядок: сначала проходишь всё сам и получаешь первые деньги на себе. Потом ведёшь друзей.</p></div>
+    </div>
+
+    <div class="sub">
+      <h3 class="h3" data-r>Как приходят деньги</h3>
+      <div class="pipe" id="pipe">
+        <div class="pipe-line"><i id="pipeFill"></i></div>
+        <div class="pipe-coin" id="pipeCoin"></div>
+        <div class="st"><b>Заявка</b><span>человек открыл счёт по твоей ссылке</span></div>
+        <div class="st"><b>Целевое действие</b><span>сделал то, что просит банк</span></div>
+        <div class="st"><b>Холд</b><span>банк проверяет клиента: от пары дней до пары недель</span></div>
+        <div class="st"><b>Апрув</b><span>банк подтвердил, деньги засчитаны</span></div>
+        <div class="st"><b>Выплата</b><span>выводишь с партнёрки на свой счёт</span></div>
+      </div>
+      <p class="lead" data-r style="margin-top:28px;font-size:1rem">Деньги не приходят на следующий день. Это обычная проверка, а не обман. Кто знает об этом заранее, тот не паникует и спокойно ведёт следующего человека.</p>
+    </div>
+
+    <div class="who-gets">
+      <div class="panel" data-r="left"><h3>Проходишь сам</h3><p>Все деньги твои. Так начинает каждый: первые деньги получаешь на себе.</p></div>
+      <div class="panel" data-r="right"><h3>Проходит друг</h3><p>Банк платит тебе, другу отдаёшь его часть, например 5 000 ₽ за вечер. С одного человека у тебя остаётся больше 100 тысяч.</p></div>
+    </div>
+  </div>
+</section>
+
+<div class="gate" data-flash><i></i><span>−750 м · где все сгорают</span></div>
+
+<!-- ========== 6 · ЛОВУШКИ ========== -->
+<section id="traps" data-depth="750" data-name="Где все сгорают">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 750 м · Где все сгорают</div>
+    <h2 class="h2" data-r style="--i:1">Ниша простая. <em>Но не лёгкая.</em></h2>
+    <p class="lead" data-r style="--i:2;margin-top:22px">Семь ошибок, на которых новички теряют деньги и бросают. Каждая стоит дороже, чем полчаса разговора.</p>
+    <ol class="traps">
+      <li data-r="sweep"><span class="n">01</span><div><h3>Бросают человека после одного банка</h3><p>15 000 ₽ вместо 100 000. <b>Решение:</b> вести каждого по всем банкам до конца.</p></div><span class="loss">−85 000 ₽</span></li>
+      <li data-r="sweep"><span class="n">02</span><div><h3>Работают через посредника</h3><p>Отдают половину денег «знакомому в теме». <b>Решение:</b> регистрироваться на партнёрках самому.</p></div><span class="loss">−50%</span></li>
+      <li data-r="sweep"><span class="n">03</span><div><h3>Открывают ПСБ первым</h3><p>Выплата зависает на проверке «живой ли бизнес». <b>Решение:</b> ПСБ через месяц после регистрации ИП.</p></div><span class="loss">−10 000 ₽</span></li>
+      <li data-r="sweep"><span class="n">04</span><div><h3>Ошибаются в целевом действии</h3><p>Счёт открыт, а банк не засчитал. У каждого банка свои условия. <b>Решение:</b> знать их до того, как вести человека.</p></div><span class="loss">−8 000 ₽</span></li>
+      <li data-r="sweep"><span class="n">05</span><div><h3>Закрывают счёт сразу после выплаты</h3><p>Партнёрка отменяет уже засчитанную выплату, это называется срез. <b>Решение:</b> счета сразу не закрывать.</p></div><span class="loss">−7 000 ₽</span></li>
+      <li data-r="sweep"><span class="n">06</span><div><h3>Ведут туда, где человек уже был</h3><p>Банк платит только за новых клиентов. <b>Решение:</b> перед ссылкой спросить «у тебя тут что-то было?».</p></div><span class="loss">−2 300 ₽</span></li>
+      <li data-r="sweep"><span class="n">07</span><div><h3>Сидят на старых ставках</h3><p>Ставки меняются каждый месяц, на разных партнёрках разные. <b>Решение:</b> сверять каждую неделю или держаться рядом с теми, кто это делает.</p></div><span class="loss">каждый месяц</span></li>
+    </ol>
+  </div>
+</section>
+
+<div class="gate" data-flash><i></i><span>−850 м · ученики</span></div>
+
+<!-- ========== 7 · УЧЕНИКИ ========== -->
+<section id="students" data-depth="850" data-name="Ученики">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 850 м · Ученики</div>
+    <h2 class="h2" data-r style="--i:1">Это работает <em>не только у меня</em></h2>
+    <div class="big-stats">
+      <div data-r><strong data-count="150" data-suf="+">150+</strong><span>учеников</span></div>
+      <div data-r style="--i:1"><strong data-count="25" data-suf=" млн ₽">25 млн ₽</strong><span>заработали в сумме</span></div>
+      <div data-r style="--i:2"><strong data-count="4">4</strong><span>куратора на связи каждый день</span></div>
+    </div>
+
+    <article class="feat">
+      <figure class="feat-photo" data-r="iris"><img src="assets/img/vitya.jpg" alt="Витя, ученик" loading="lazy"><figcaption>Витя · @GauzRko</figcaption></figure>
+      <div>
+        <div class="sum" data-r>119 385 ₽</div>
+        <div class="sum-l" data-r>за месяц, напрямую от партнёрок</div>
+        <h3 data-r>Перестал кормить посредника</h3>
+        <p class="txt" data-r>Витя уже работал в теме, но через знакомого. Банк платил знакомому, а тот отдавал Вите <strong>по 5 000 ₽ за человека</strong>, хотя договаривались делить пополам. На первом созвоне за 20 минут Витя узнал, где регистрироваться самому, и стал получать всю выплату.</p>
+        <div class="proof" data-r><span class="proof-l">Выплаты партнёрок · скрины со счёта</span><img src="assets/img/vitya-pay2.jpg" alt="Поступление 90 385 ₽ от ООО «Бизнес Система»" loading="lazy"><img src="assets/img/vitya-pay1.jpg" alt="Поступление 29 000 ₽ от ООО «РКО Групп»" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feat flip">
+      <figure class="feat-photo" data-r="iris"><img src="assets/img/anton.jpg" alt="Антон, ученик" loading="lazy"><figcaption>Антон · @takemmn</figcaption></figure>
+      <div>
+        <div class="sum" data-r>230 000+ ₽</div>
+        <div class="sum-l" data-r>за сентябрь, люди из интернета</div>
+        <h3 data-r>Студент, подрабатывал где придётся</h3>
+        <p class="txt" data-r>Увидел моё видео на YouTube и написал. В первый месяц прошёл все банки сам и заработал <strong>100 000+ ₽</strong>. Потом начал искать людей через рекламу: сначала ошибался, но разобрался. На момент скрина ещё <strong>184 400 ₽</strong> в обработке.</p>
+        <blockquote data-r>«Лёгких денег здесь нет. Это такая же работа, где нужно быть сфокусированным. При правильном подходе она окупается в разы».</blockquote>
+        <div class="proof" data-r><span class="proof-l">Оплаченные счета, сделки по банкам и вывод · личные данные закрыл сам Антон</span><img src="assets/img/anton-pay1.jpg" alt="Оплаченные счета на 110 900, 49 000 и 46 400 ₽" loading="lazy"><img src="assets/img/anton-deals.jpg" alt="Успешные сделки по банкам: ПСБ, Уралсиб, ВТБ, Альфа-Банк" loading="lazy"><img src="assets/img/anton-balance.jpg" alt="184 400 ₽ в обработке" loading="lazy"></div>
+      </div>
+    </article>
+
+    <div class="cases">
+      <div class="case" data-r><img src="assets/img/case-damir.jpg" alt="Дамир" loading="lazy"><div class="case-t"><div class="sum">900 000 ₽</div><div class="who">Дамир</div><p>за 3 месяца. Перестал прыгать по темкам. Сейчас старший куратор.</p></div></div>
+      <div class="case" data-r style="--i:1"><img src="assets/img/case-kirill.jpg" alt="Кирилл с машиной" loading="lazy"><div class="case-t"><div class="sum">500 000 ₽</div><div class="who">Кирилл</div><p>за месяц. Работал в магазине у брата, на третий месяц купил Ford Focus.</p></div></div>
+      <div class="case" data-r style="--i:2"><img src="assets/img/case-dima.jpg" alt="Дима" loading="lazy"><div class="case-t"><div class="sum">400 000 ₽</div><div class="who">Дима</div><p>в месяц. До этого был монтажником при −40.</p></div></div>
+      <div class="case" data-r><img src="assets/img/case-slava.jpg" alt="Слава" loading="lazy"><div class="case-t"><div class="sum">300 000 ₽</div><div class="who">Слава, Ишимбай</div><p>в месяц. Маленький город не приговор.</p></div></div>
+      <div class="case" data-r style="--i:1"><img src="assets/img/case-maxim.jpg" alt="Максим" loading="lazy"><div class="case-t"><div class="sum">200 000 ₽</div><div class="who">Максим, 26</div><p>в месяц.</p></div></div>
+      <div class="case" data-r style="--i:2"><img src="assets/img/case-timur.jpg" alt="Тимур" loading="lazy"><div class="case-t"><div class="sum">159 000 ₽</div><div class="who">Тимур, 18</div><p>в первый месяц, с нулевым опытом в онлайне.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<div class="gate" data-flash><i></i><span>−920 м · как я веду</span></div>
+
+<!-- ========== 8 · ОБУЧЕНИЕ ========== -->
+<section id="academy" data-depth="920" data-name="Как я веду">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 920 м · Ryzhikov Academy</div>
+    <h2 class="h2" data-r style="--i:1">Не курс в записи. <em>Маршрут с людьми.</em></h2>
+    <p class="lead" data-r style="--i:2;margin-top:22px">Семь модулей по порядку: от «что такое РКО» до своего потока людей. После каждого ты умеешь что-то конкретное.</p>
+    <div class="mods">
+      <div class="panel mod" data-r><span class="n">00</span><h3>Вводный</h3><p>Словарь ниши: РКО, КЭП, 115-ФЗ, CPA, лид, оффер. Разбор твоей точки старта.</p><p class="res">понимаешь нишу и знаешь, с чего начать именно тебе.</p></div>
+      <div class="panel mod" data-r style="--i:1"><span class="n">01</span><h3>Мир продуктов</h3><p>Партнёрки RKO Group, FCN, Бизнес Система. Самозанятость и ИП на НПД через Альфу.</p><p class="res">ты зарегистрирован везде и получил первые деньги на себе.</p></div>
+      <div class="panel mod" data-r><span class="n">02</span><h3>РКО: 13 банков</h3><p>Каждый банк по шагам: условия, целевые действия, порядок, тонкости, из-за которых режут выплаты.</p><p class="res">ведёшь человека по всем банкам: от 30 до 130 тысяч с одного.</p></div>
+      <div class="panel mod" data-r style="--i:1"><span class="n">03</span><h3>Карты и МФО-связки</h3><p>Как добрать с того же человека карты и займы без риска для него.</p><p class="res">доход с одного лида в 1,5–2 раза выше.</p></div>
+      <div class="panel mod" data-r><span class="n">04</span><h3>Трафик и безопасность</h3><p>Вакансии, кредитование, реклама в каналах, бесплатные ролики. Как работать по 115-ФЗ без блокировок.</p><p class="res">люди пишут тебе сами, а счета работают.</p></div>
+      <div class="panel mod" data-r style="--i:1"><span class="n">05</span><h3>Масштабирование</h3><p>Модуль от Андрея Фадеева: команда, партнёры, системный поток.</p><p class="res">выход на 500 000+ ₽ в месяц.</p></div>
+      <div class="panel mod wide" data-r><span class="n">06</span><h3>Личный бренд · моя связка</h3><p>Как я снимаю ролики, которые бесплатно приводят людей. Эту схему я собирал весь последний год, и на ней заработал больше всего.</p><p class="res">клиенты приходят через контент, и ты спокойно идёшь к 1–2 млн+.</p></div>
+    </div>
+    <div class="format">
+      <div class="panel" data-r="left">
+        <h3 class="ph">Кураторы с результатом в нише</h3>
+        <div class="curators">
+          <div class="cur"><img src="assets/img/case-damir.jpg" alt="" loading="lazy"><div><b>Дамир</b><span>старший, 900к за квартал</span></div></div>
+          <div class="cur"><img src="assets/img/case-dima.jpg" alt="" loading="lazy"><div><b>Дима</b><span>400к в месяц</span></div></div>
+          <div class="cur"><img src="assets/img/cur-roma.jpg" alt="" loading="lazy"><div><b>Рома</b><span>800к за первый месяц бренда</span></div></div>
+          <div class="cur"><img src="assets/img/cur-astemir.jpg" alt="" loading="lazy"><div><b>Астемир</b><span>250к в месяц</span></div></div>
+        </div>
+      </div>
+      <div class="panel" data-r="right">
+        <h3 class="ph">Что ещё внутри</h3>
+        <ul class="ticks">
+          <li>Закрытый чат с учениками, 24/7</li>
+          <li>Скрипты общения с лидами</li>
+          <li>Мини-обучение по продажам, 50+ возражений</li>
+          <li>Живые эфиры и разборы</li>
+          <li>Ставки по банкам, которые обновляются</li>
+        </ul>
+      </div>
+    </div>
+    <div class="honest" data-r>Честно: из нуля в стабильный миллион за три месяца ты не выйдешь. Кто обещает, тот врёт. А первые деньги на себе реально получить уже в этом месяце.</div>
+  </div>
+</section>
+
+<div class="gate" data-flash><i></i><span>−960 м · честные ответы</span></div>
+
+<!-- ========== 9 · ВОПРОСЫ ========== -->
+<section id="faq" data-depth="960" data-name="Честные ответы">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 960 м · Честные ответы</div>
+    <h2 class="h2" data-r style="--i:1">Вопросы, которые ты <em>сейчас задаёшь</em></h2>
+    <div class="faq" data-r>
+      <details><summary>Это вообще легально?</summary><div class="a"><p>Да. ИП на НПД оформляется в налоговой официально. Партнёрские программы у банков открытые, они есть на их сайтах. Я плачу налоги с каждой выплаты.</p></div></details>
+      <details><summary>Это не дроповодство?</summary><div class="a"><p>Нет. Дроп получается, когда ты отдаёшь свою карту или пароль чужим людям, и через тебя переводят чужие деньги. Здесь карта всегда у тебя, деньги на ней твои, доступ ты никому не даёшь.</p><p><strong>Простое правило:</strong> если просят передать карту, пароль или код из СМС, это не РКО. Сразу отказывайся.</p></div></details>
+      <details><summary>Испорчу кредитную историю?</summary><div class="a"><p>Счёт и обычная карта не кредит, в кредитной истории их нет. Кредитки и займы туда попадают, поэтому их берёшь только по желанию и возвращаешь вовремя. Если гасить кредитку вовремя, история становится даже лучше.</p></div></details>
+      <details><summary>Нужны вложения?</summary><div class="a"><p>Нет. Самозанятость и ИП оформляются бесплатно. Некоторые банки просят положить на новый счёт несколько тысяч рублей. Это твои же деньги, через пару дней их можно снять.</p></div></details>
+      <details><summary>Ниша уже занята?</summary><div class="a"><p>Нет. Каждый месяц появляются новые банки: только в сентябре добавился банк, который платит 20 000 ₽. И подумай, сколько твоих знакомых вообще слышали слово «РКО». Почти никто.</p></div></details>
+      <details><summary>Я не умею продавать</summary><div class="a"><p>И не надо. Ты не просишь у человека денег, а помогаешь ему заработать. Предложить другу 5 000 ₽ за вечер намного проще, чем что-то продать. А начинаешь ты вообще с себя.</p></div></details>
+      <details><summary>А налоги?</summary><div class="a"><p>На НПД 6% с денег от компаний, а партнёрки это компании. С зарплаты на работе снимают 13%, здесь в два раза меньше. Считает и напоминает приложение «Мой налог», отчёты не нужны.</p></div></details>
+      <details><summary>У меня нет времени, я работаю</summary><div class="a"><p>Почти все начинают параллельно с работой или учёбой. Оформить всё на себя можно за пару вечеров. Антон так и начинал: студентом, между подработками.</p></div></details>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 10 · ТЕСТ ========== -->
+<section id="fit" data-depth="980" data-name="Тебе подходит?" style="padding-top:20px">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 980 м · 30 секунд</div>
+    <h2 class="h2" data-r style="--i:1">Тебе подходит <em>ниша?</em></h2>
+    <p class="lead" data-r style="--i:2;margin-top:18px">Четыре вопроса. Отвечай честно, это для тебя.</p>
+    <div class="quiz" id="quiz" data-r>
+      <div class="q" data-k="age"><p>Тебе уже есть 18?</p><div class="opts"><button type="button" data-v="1">Да</button><button type="button" data-v="0">Нет</button></div></div>
+      <div class="q" data-k="gov"><p>Ты работаешь на госслужбе, в полиции, армии или на оборонном заводе?</p><div class="opts"><button type="button" data-v="1">Нет</button><button type="button" data-v="0">Да</button></div></div>
+      <div class="q" data-k="time"><p>Готов уделять нише 2–3 часа в день?</p><div class="opts"><button type="button" data-v="1">Да</button><button type="button" data-v="0">Пока нет</button></div></div>
+      <div class="q" data-k="talk"><p>Готов общаться с людьми, а не ждать кнопку «бабло»?</p><div class="opts"><button type="button" data-v="1">Готов</button><button type="button" data-v="0">Не уверен</button></div></div>
+      <div class="verdict" id="verdict" aria-live="polite">Ответь на все четыре, и я скажу честно.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ========== 11 · ДНО ========== -->
+<section class="final" id="dive" data-depth="1000" data-name="Дно · диагностика">
+  <div class="wrap">
+    <div class="final-top">
+      <div class="mark" data-r>Глубина 1000 м · Дно</div>
+      <div class="vault" id="vault" aria-hidden="true">
+        <div class="vault-in"><div><b>Диагностика</b><span>1 на 1 · 30 минут · бесплатно</span></div></div>
+        <div class="door" id="door">
+          <svg viewBox="0 0 300 300">
+            <defs>
+              <radialGradient id="vg" cx="40%" cy="35%" r="75%"><stop offset="0" stop-color="#5d7f8b"/><stop offset=".55" stop-color="#21414e"/><stop offset="1" stop-color="#0b1e27"/></radialGradient>
+              <radialGradient id="vg2" cx="45%" cy="40%" r="70%"><stop offset="0" stop-color="#3f6370"/><stop offset="1" stop-color="#0f2731"/></radialGradient>
+            </defs>
+            <circle cx="150" cy="150" r="148" fill="url(#vg)" stroke="#7ef6e0" stroke-opacity=".35"/>
+            <circle cx="150" cy="150" r="124" fill="url(#vg2)" stroke="#9fc1cb" stroke-opacity=".4"/>
+            <g fill="#9fc1cb" opacity=".8">
+              <circle cx="150" cy="14" r="5"/><circle cx="150" cy="286" r="5"/><circle cx="14" cy="150" r="5"/><circle cx="286" cy="150" r="5"/>
+              <circle cx="54" cy="54" r="5"/><circle cx="246" cy="54" r="5"/><circle cx="54" cy="246" r="5"/><circle cx="246" cy="246" r="5"/>
+            </g>
+            <g class="wheel" id="wheel" stroke="#cfe6ec" stroke-width="9" stroke-linecap="round" fill="none">
+              <circle cx="150" cy="150" r="58" stroke-width="7"/>
+              <path d="M150 92V40M150 208v52M92 150H40M208 150h52M109 109l-37-37M191 191l37 37M191 109l37-37M109 191l-37 37"/>
+              <circle cx="150" cy="150" r="20" fill="#cfe6ec" stroke="none"/>
+            </g>
+            <text x="150" y="232" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="11" fill="#9fc1cb" letter-spacing="3">RYZHIKOV</text>
+          </svg>
+        </div>
+      </div>
+      <h2 data-r>Ты дошёл до дна. <span class="hl">Осталось начать.</span></h2>
+      <p class="lead" data-r style="--i:1">Теперь ты знаешь, как всё устроено. Но знать мало. Большинство, кто начинает в одиночку, пробуют всё сразу и за месяц ничего не доводят до денег. Получается у тех, кто выбрал 1–2 способа под себя и делал их до результата.</p>
+    </div>
+
+    <div class="final-grid">
+      <div data-r="left">
+        <div class="vid"><video controls preload="none" playsinline poster="assets/video/petr-40s.jpg"><source src="assets/video/petr-40s.mp4" type="video/mp4"></video></div>
+        <p class="vid-cap">40 секунд от меня лично. Включи со звуком.</p>
+      </div>
+      <div class="panel plan" data-r="right">
+        <h3>За 30 минут: план на первые 200к</h3>
+        <ol>
+          <li>Разберём связку под тебя: источник людей, банки и сценарий, которые работают в этом месяце.</li>
+          <li>Покажем тонкости по банкам: как делать целевые действия, чтобы выплаты не резали.</li>
+          <li>Подберём 1–2 способа искать людей под твой город и твоё время.</li>
+          <li>Разложим маршрут на месяц: где пойдут первые деньги.</li>
+          <li>Дадим первый шаг на завтра: не «разберись сам», а что сделать утром.</li>
+        </ol>
+      </div>
+    </div>
+    <div class="why-free">
+      <div class="panel" data-r><h3>Почему бесплатно</h3><p>Мне нужны люди с результатом. Каждый, кто через меня заработал, рассказывает об этом другим. Мне выгоднее, чтобы у тебя получилось.</p></div>
+      <div class="panel" data-r style="--i:1"><h3>Гарантия</h3><p>Если за 30 минут мы не дадим тебе минимум 3 конкретных шага на завтра, считай, зря потратил полчаса. Такого ещё не было.</p></div>
+    </div>
+    <div class="final-cta" data-r>
+      <a class="btn btn-main" data-cta href="#dive">Записаться на диагностику
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg></a>
+      <small>Отвечает мой менеджер в Telegram. Выбираете ближайший свободный слот.</small>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© Пётр Рыжиков · Ryzhikov Academy · 2026 · <a data-channel href="#surface">Telegram-канал</a></span>
+    <p>Ставки указаны как ориентир на начало октября 2026 и меняются. Цифры в кейсах показывают личные результаты конкретных людей и не являются гарантией дохода. Сайт не является финансовой или инвестиционной рекомендацией.</p>
+  </div>
+</footer>
+
+<script src="assets/lenis.min.js"></script>
+<script>
+/* ===== ССЫЛКИ: поменять на свои ===== */
+const LINKS = {
+  diagnostic: 'https://t.me/m/TklPmdWqNWYy', // кнопки «Записаться на диагностику» (сейчас ссылка менеджера из гайда)
+  channel: 'https://t.me/'                   // Telegram-канал в подвале
+};
+document.querySelectorAll('[data-cta]').forEach(a => { a.href = LINKS.diagnostic; a.target = '_blank'; a.rel = 'noopener'; });
+document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channel; a.target = '_blank'; a.rel = 'noopener'; });
+
+(() => {
+  const root = document.documentElement;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const ease = t => 1 - Math.pow(1 - t, 3);
+  const fmt = n => Math.round(n).toLocaleString('ru-RU');
+  requestAnimationFrame(() => setTimeout(() => root.classList.add('loaded'), 80));
+
+  /* ---- плавный скролл ---- */
+  let lenis = null;
+  if (!reduce && window.Lenis) {
+    lenis = new Lenis({ duration: 1.35, easing: t => 1 - Math.pow(1 - t, 4), smoothWheel: true });
+    document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', e => {
+      const t = document.querySelector(a.getAttribute('href'));
+      if (t) { e.preventDefault(); lenis.scrollTo(t, { offset: -20, duration: 2.4 }); }
+    }));
+  }
+
+  /* ---- появление ---- */
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+  }), { rootMargin: '0px 0px -8% 0px', threshold: .08 });
+  // элементы с clip-path наблюдатель не видит, их проверяем по скроллу
+  let clipEls = [];
+  document.querySelectorAll('[data-r]').forEach(el => (el.dataset.r === 'iris' || el.dataset.r === 'sweep') ? clipEls.push(el) : io.observe(el));
+  const checkClips = vh => { if (!clipEls.length) return; clipEls = clipEls.filter(el => { const r = el.getBoundingClientRect(); if (r.top < vh * .9 && r.bottom > 0) { el.classList.add('in'); return false; } return true; }); };
+
+  /* ---- счётчики ---- */
+  const cio = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return; cio.unobserve(e.target);
+    const el = e.target, to = +el.dataset.count, suf = el.dataset.suf || '';
+    if (reduce) return;
+    const t0 = performance.now();
+    const tick = t => { const k = Math.min(1, (t - t0) / 1600); el.textContent = fmt(to * ease(k)) + suf; if (k < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  }), { threshold: .6 });
+  document.querySelectorAll('[data-count]').forEach(el => cio.observe(el));
+
+  /* ---- кольцо денег ---- */
+  const flowPin = $('flowPin'), arcs = [0, 1, 2, 3, 4].map(i => $('a' + i)), lens = arcs.map(a => a.getTotalLength());
+  arcs.forEach((a, i) => { a.style.strokeDasharray = lens[i]; a.style.strokeDashoffset = lens[i]; });
+  const tok = $('tok'), tokT = $('tokT'), flowLis = [...$('flowSteps').children];
+  const nodes = { P: $('nP'), Y: $('nY'), H: $('nH'), B: $('nB') };
+  const stepNodes = [['P', 'Y'], ['Y', 'H'], ['H', 'B'], ['B', 'P'], ['P', 'Y']];
+  const tokLabels = ['ссылка', 'ссылка', 'счёт', '7 000 ₽', '7 000 ₽'];
+  const ringBig = $('ringBig'), ringCap = $('ringCap');
+  let flowStep = -1;
+  function updateFlow(p) {
+    const s = clamp(p * 1.08) * 5, i = Math.min(4, Math.floor(s)), k = clamp(s - i);
+    arcs.forEach((a, j) => { const d = j < i ? 1 : j === i ? ease(k) : 0; a.style.strokeDashoffset = lens[j] * (1 - d); });
+    const pt = arcs[i].getPointAtLength(lens[i] * ease(k));
+    tok.setAttribute('transform', `translate(${pt.x} ${pt.y})`);
+    if (i !== flowStep) {
+      flowStep = i;
+      tokT.textContent = tokLabels[i];
+      tok.classList.toggle('gold', i >= 3);
+      flowLis.forEach((li, j) => { li.classList.toggle('on', j === i); li.classList.toggle('done', j < i); });
+      Object.values(nodes).forEach(n => n.classList.remove('on'));
+      stepNodes[i].forEach(n => nodes[n].classList.add('on'));
+    }
+    if (i === 4 && k > .85) { ringBig.textContent = '+7 000 ₽'; ringCap.textContent = 'у тебя на счёте'; }
+    else { ringBig.textContent = (i + 1) + ' / 5'; ringCap.textContent = i < 3 ? 'листай вниз' : 'деньги пошли'; }
+  }
+
+  /* ---- город банков ---- */
+  const BANKS = [
+    { n: 'Альфа-Банк', v: 16000, t: 'rko', d: 'Регистрация ИП через Альфу по ссылке с партнёрки. Банк платит за саму регистрацию.' },
+    { n: 'Инго Банк', v: 20000, t: 'rko', d: 'Новый банк, платит больше всех. 3 оплаты со счёта на 50 000 ₽ за 30 дней или депозит на месяц.' },
+    { n: 'ВТБ', v: 7000, t: 'rko', d: 'Открыть счёт и пополнить. Заявку можно завести ещё до регистрации ИП.' },
+    { n: 'Т-Банк', v: 0, t: 'dead', h: 9000, d: 'За ИП на НПД через партнёрки не платит. Вести туда людей нет смысла. Убираем из маршрута.' },
+    { n: 'ПСБ', v: 10000, t: 'rko', d: 'Пополнять ничего не нужно, но банк проверяет, что бизнес живой. Не первым: лучше через месяц после регистрации ИП.' },
+    { n: 'Озон Банк', v: 8000, t: 'rko', d: 'Положить на счёт чуть больше 3 000 ₽ и подержать 4–9 дней.' },
+    { n: 'Уралсиб', v: 6000, t: 'rko', d: 'Переводы со счёта на 15 000 ₽ в сумме: одним платежом или двумя.' },
+    { n: 'Точка', v: 0, t: 'dead', h: 8000, d: 'Тоже не платит за ИП на НПД через партнёрки. Убираем.' },
+    { n: 'Контур', v: 6000, t: 'rko', d: 'Три платежа со счёта.' },
+    { n: 'Свой Банк', v: 6000, t: 'rko', d: 'Три платежа на 20 000 ₽ в сумме.' },
+    { n: 'Дебетовые ×3', v: 6000, t: 'card', d: 'ВТБ, Т-Банк, Озон. Потратить около 500 ₽ на свои же покупки. Только если человек раньше не был клиентом.' },
+    { n: 'Кредитные ×2', v: 9300, t: 'card', d: 'Яндекс Сплит и Т-Банк. Одобряют не всем, смотрят кредитную историю.' },
+    { n: 'Займы ×4', v: 16577, t: 'mfo', d: 'Последним шагом. Первые 7 дней часто без процентов: взял, вернул, переплата ноль. Галочки со страховок снимаешь.' }
+  ];
+  const TOTAL = BANKS.reduce((s, b) => s + b.v, 0);
+  const towersEl = $('towers');
+  const short = v => v >= 1000 ? (Math.round(v / 100) / 10).toString().replace('.', ',').replace(',0', '') + 'к' : '0';
+  BANKS.forEach(b => {
+    const tw = document.createElement('div'); tw.className = 'tw ' + b.t;
+    tw.innerHTML = `<span class="tw-v">${b.v ? '+' + short(b.v) : '0 ₽'}</span><div class="tw-body"><span class="tw-n">${b.n}</span></div>`;
+    b.el = tw; b.body = tw.lastChild; b.hh = (b.h || b.v) / 20000; b.burst = false;
+    towersEl.appendChild(tw);
+  });
+  const cityTotal = $('cityTotal'), cityName = $('cityName'), cityDesc = $('cityDesc'), cityStep = $('cityStep'), sonar = $('sonar');
+  let cityIdx = -2, sonarDone = false;
+  function updateCity(p) {
+    if (p > 0 && !sonarDone) { sonarDone = true; sonar.classList.add('go'); }
+    const A = .06, B = .9, n = BANKS.length, seg = (B - A) / n;
+    let sum = 0, idx = p < A ? -1 : p >= B ? n : Math.floor((p - A) / seg);
+    BANKS.forEach((b, i) => {
+      const k = clamp((p - A - i * seg) / seg);
+      const g = ease(clamp(k * 1.7));
+      let h = b.hh * g, gone = 0;
+      if (b.t === 'dead') { gone = ease(clamp((k - .6) / .4)); h *= (1 - gone); b.el.classList.toggle('up', g > .9 && gone < .9); }
+      else b.el.classList.toggle('up', g > .9);
+      b.body.style.height = (h * 100) + '%';
+      b.el.style.flexGrow = 1 - gone;
+      b.el.style.paddingInline = gone ? (3 * (1 - gone)) + 'px' : '';
+      b.el.classList.toggle('now', i === idx);
+      sum += b.v * g;
+      if (g > .03 && !b.burst) {
+        b.burst = true;
+        const r = b.el.getBoundingClientRect();
+        window.seaBurst && window.seaBurst(r.left + r.width / 2, r.bottom - 4, 10);
+      }
+      if (g < .01) b.burst = false;
+    });
+    cityTotal.textContent = fmt(sum) + ' ₽';
+    if (idx !== cityIdx) {
+      cityIdx = idx;
+      if (idx < 0) {
+        cityStep.textContent = 'ДНО · −550 М'; cityName.textContent = 'Здесь стоят банки';
+        cityDesc.textContent = 'Один человек может открыть счёт не в одном банке, а в 8–10. Листай вниз: каждый банк будет подниматься со дна, а сумма расти.';
+      } else if (idx >= n) {
+        cityStep.textContent = 'ИТОГ';
+        cityName.innerHTML = `С одного человека <em>${fmt(TOTAL)} ₽</em>`;
+        cityDesc.textContent = 'Восемь счетов для ИП, плюс карты и займы для того же человека. И это один человек. А вокруг тебя их сотни.';
+      } else {
+        const b = BANKS[idx];
+        cityStep.textContent = `${idx + 1} ИЗ ${n}`;
+        cityName.innerHTML = `${b.n} <em class="${b.v ? '' : 'zero'}">${b.v ? '+' + fmt(b.v) + ' ₽' : '0 ₽'}</em>`;
+        cityDesc.textContent = b.d;
+      }
+    }
+  }
+
+  /* ---- путь выплаты ---- */
+  const pipe = $('pipe'), pipeFill = $('pipeFill'), pipeCoin = $('pipeCoin'), pipeSteps = [...pipe.querySelectorAll('.st')];
+  function updatePipe(vh) {
+    const r = pipe.getBoundingClientRect();
+    if (r.bottom < -50 || r.top > vh + 50) return;
+    const p = clamp((vh * .85 - r.top) / (vh * .55));
+    const vertical = getComputedStyle(pipe).gridTemplateColumns.split(' ').length === 1;
+    const pts = pipeSteps.map(s => { const q = s.getBoundingClientRect(); return vertical ? q.top - r.top + 8 : q.left - r.left + q.width / 2; });
+    const f = p * (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(f)), pos = pts[i] + (pts[i + 1] - pts[i]) * (f - i);
+    pipeSteps.forEach((s, j) => s.classList.toggle('on', j <= f + .05));
+    if (vertical) { pipeCoin.style.left = '0'; pipeCoin.style.top = pos + 'px'; pipeFill.style.height = ((pos - pts[0]) / (pts.at(-1) - pts[0]) * 100) + '%'; pipeFill.style.width = ''; }
+    else { pipeCoin.style.top = '0'; pipeCoin.style.left = pos + 'px'; pipeFill.style.width = ((pos - pts[0]) / (pts.at(-1) - pts[0]) * 100) + '%'; pipeFill.style.height = ''; }
+  }
+
+  /* ---- сейф ---- */
+  const vault = $('vault'), door = $('door'), wheel = $('wheel');
+  function updateVault(vh) {
+    const r = vault.getBoundingClientRect();
+    if (r.bottom < -100 || r.top > vh + 100) return;
+    const p = clamp((vh * .95 - r.top) / (vh * .7));
+    wheel.style.transform = `rotate(${ease(clamp(p / .6)) * 300}deg)`;
+    const o = ease(clamp((p - .6) / .4));
+    door.style.transform = `rotateY(${-o * 78}deg)`;
+    door.style.opacity = 1 - o * .35;
+  }
+
+  /* ---- границы зон ---- */
+  const gates = [...document.querySelectorAll('.gate')].map(g => ({ g, line: g.querySelector('i'), tag: g.querySelector('span'), fired: false }));
+  const flash = $('flash');
+  function updateGates(vh) {
+    gates.forEach(o => {
+      const r = o.g.getBoundingClientRect(), c = r.top + r.height / 2;
+      const v = clamp(1 - Math.abs(c - vh * .5) / (vh * .5));
+      o.line.style.transform = `scaleX(${ease(v)})`; o.line.style.opacity = v;
+      o.tag.style.opacity = clamp(v * 1.6); o.tag.style.transform = `translateY(${(1 - v) * 14}px)`;
+      const crossed = c < vh * .5;
+      if (crossed && !o.fired) { o.fired = true; if (!reduce) { flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go'); window.seaBurst && window.seaBurst(innerWidth / 2, vh * .55, 18); } }
+      if (!crossed) o.fired = false;
+    });
+  }
+
+  /* ---- глубина, цвет воды, герой ---- */
+  const secs = [...document.querySelectorAll('section[data-depth]')];
+  const ocean = $('ocean'), rays = $('rays'), caus = $('caustics'), glow = $('abyssGlow'), hero = $('heroIn'), top = $('top'), torch = $('torch');
+  const gD = $('gDepth'), gN = $('gName'), gDot = $('gDot'), pD = $('pDepth'), pN = $('pName');
+  [0, .25, .5, .75, 1].forEach(k => { const i = document.createElement('i'); i.style.top = k * 100 + '%'; $('gTicks').appendChild(i); });
+  const tint = [[0, [14, 64, 92]], [120, [10, 50, 78]], [320, [8, 36, 64]], [550, [10, 26, 54]], [750, [6, 16, 36]], [900, [4, 10, 22]], [1000, [2, 6, 12]]];
+  const water = d => { for (let i = 1; i < tint.length; i++) if (d <= tint[i][0]) { const [a, ca] = tint[i - 1], [b, cb] = tint[i], k = (d - a) / (b - a); return ca.map((c, j) => Math.round(c + (cb[j] - c) * k)); } return tint.at(-1)[1]; };
+  let depthM = 0, lastY = scrollY, vel = 0;
+  const pinProg = el => { const r = el.getBoundingClientRect(); return clamp(-r.top / (r.height - innerHeight)); };
+
+  function onScroll() {
+    const y = scrollY, vh = innerHeight, max = Math.max(1, root.scrollHeight - vh);
+    vel += (y - lastY); lastY = y;
+    // глубина по отметкам секций
+    let cur = secs[0], d = 0;
+    for (let i = 0; i < secs.length; i++) {
+      const s = secs[i], t = Math.max(0, s.offsetTop - vh * .5);
+      if (y >= t) { cur = s; const nx = secs[i + 1], d0 = +s.dataset.depth; if (nx) { const t2 = Math.max(t + 1, nx.offsetTop - vh * .5); d = d0 + (+nx.dataset.depth - d0) * clamp((y - t) / (t2 - t)); } else d = d0; }
+    }
+    if (y >= max - 4) d = 1000;
+    depthM = Math.round(d);
+    const [r, g, b] = water(d), [r2, g2, b2] = water(Math.min(1000, d + 140));
+    ocean.style.background = `linear-gradient(180deg, rgb(${r},${g},${b}), rgb(${r2},${g2},${b2}))`;
+    const light = clamp(1 - d / 300);
+    rays.style.opacity = light; caus.style.opacity = .5 * light;
+    glow.style.opacity = clamp((d - 900) / 100);
+    torch.style.opacity = clamp((d - 700) / 200) * .6;
+    top.classList.toggle('solid', y > 40);
+    if (!reduce) {
+      const k = Math.min(1, y / (vh * .9));
+      hero.style.transform = `translate3d(0, ${y * .35}px, 0) scale(${1 - k * .06})`;
+      hero.style.opacity = 1 - k * 1.1;
+      hero.style.filter = k > .02 ? `blur(${k * 8}px)` : 'none';
+    }
+    gD.textContent = pD.textContent = (depthM ? '−' : '') + depthM + ' м';
+    gN.textContent = pN.textContent = cur.dataset.name;
+    gDot.style.top = (depthM / 10) + '%';
+    updateFlow(pinProg(flowPin));
+    updateCity(pinProg($('cityPin')));
+    updatePipe(vh); updateVault(vh); updateGates(vh); checkClips(vh);
+  }
+  if (lenis) { lenis.on('scroll', onScroll); const raf = t => { lenis.raf(t); requestAnimationFrame(raf); }; requestAnimationFrame(raf); }
+  else addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', onScroll);
+  onScroll();
+
+  // фонарь на глубине
+  addEventListener('pointermove', e => { torch.style.setProperty('--mx', e.clientX + 'px'); torch.style.setProperty('--my', e.clientY + 'px'); }, { passive: true });
+
+  /* ---- тест ---- */
+  const answers = {}, verdict = $('verdict');
+  $('quiz').addEventListener('click', e => {
+    const btn = e.target.closest('button'); if (!btn) return;
+    const q = btn.closest('.q'); answers[q.dataset.k] = +btn.dataset.v;
+    q.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b === btn));
+    if (Object.keys(answers).length < 4) { verdict.className = 'verdict'; verdict.textContent = `Осталось ответить: ${4 - Object.keys(answers).length}.`; return; }
+    let cls = 'verdict ok', html;
+    if (!answers.age) { cls = 'verdict no'; html = '<b>Пока рано, но не зря</b>ИП, счета, кредитки и займы только с 18. С 14 лет можно оформить дебетовую карту с письменного согласия родителей. Начни с неё и изучай нишу, а в 18 зайдёшь уже подготовленным.'; }
+    else if (!answers.gov) { cls = 'verdict no'; html = '<b>Тебе ИП открыть нельзя</b>Госслужащим и работникам оборонных предприятий ИП запрещено, а без ИП в РКО не зайти. Честно говорю, чтобы ты не терял время.'; }
+    else if (!answers.time || !answers.talk) { cls = 'verdict no'; html = '<b>Честно: пока не зайдёт</b>Без 2–3 часов в день и общения с людьми результата не будет. Это работа, а не кнопка. Вернись, когда будешь готов, сайт никуда не денется.'; }
+    else html = `<b>Ниша тебе подходит</b>У тебя нет ни одного ограничения. Следующий шаг: 30 минут на диагностике, где разберём маршрут под тебя.<br><a class="btn btn-main" href="${LINKS.diagnostic}" target="_blank" rel="noopener">Записаться на диагностику</a>`;
+    verdict.className = cls; verdict.innerHTML = html;
+  });
+
+  /* ---- морской снег, пузыри, стайки рыб ---- */
+  const cv = $('sea'), cx = cv.getContext('2d');
+  let W, H, DPR, parts = [], bubbles = [], school = null, nextSchool = performance.now() + 5000;
+  const mobile = matchMedia('(max-width: 760px)').matches;
+  const sprite = document.createElement('canvas'); sprite.width = sprite.height = 32;
+  { const s = sprite.getContext('2d'), gr = s.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(200,255,250,1)'); gr.addColorStop(.25, 'rgba(126,246,224,.55)'); gr.addColorStop(1, 'rgba(126,246,224,0)'); s.fillStyle = gr; s.fillRect(0, 0, 32, 32); }
+  function size() {
+    DPR = Math.min(devicePixelRatio || 1, 1.5); W = innerWidth; H = innerHeight;
+    cv.width = W * DPR; cv.height = H * DPR; cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const n = mobile ? 55 : 130;
+    parts = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H, z: .25 + Math.random() * .75, r: .4 + Math.random() * 1.6, ph: Math.random() * 6.28, sp: .08 + Math.random() * .25 }));
+  }
+  size(); addEventListener('resize', size);
+  window.seaBurst = (x, y, n = 8) => { if (reduce) return; for (let i = 0; i < n && bubbles.length < 90; i++) bubbles.push({ x: x + (Math.random() - .5) * 30, y: y + Math.random() * 10, r: 1 + Math.random() * 3.5, sp: .8 + Math.random() * 1.6, ph: Math.random() * 6.28 }); };
+  const spawnSchool = () => {
+    const dir = Math.random() < .5 ? 1 : -1, n = mobile ? 14 : 26;
+    school = { dir, x: dir > 0 ? -160 : W + 160, y: H * (.25 + Math.random() * .5), sp: 1 + Math.random() * .6,
+      fish: Array.from({ length: n }, () => ({ dx: (Math.random() - .5) * 150, dy: (Math.random() - .5) * 70, s: .6 + Math.random() * .7, ph: Math.random() * 6.28 })) };
+  };
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(48, now - last) / 16.67; last = now;
+    const v = vel; vel = 0;
+    const deep = Math.min(1, depthM / 1000);
+    cx.clearRect(0, 0, W, H);
+    for (const p of parts) {
+      p.y -= (p.sp * dt + v * .55 * p.z);
+      p.x += Math.sin(now * .0004 + p.ph) * .15 * p.z;
+      if (p.y < -10) { p.y = H + 10; p.x = Math.random() * W; } else if (p.y > H + 10) { p.y = -10; p.x = Math.random() * W; }
+      const a = (.18 + .45 * p.z) * (.55 + .45 * Math.sin(now * .001 + p.ph * 3));
+      if (deep > .35 && p.z > .8) { const s = p.r * 9 * (.6 + deep); cx.globalAlpha = a * (deep - .3); cx.drawImage(sprite, p.x - s / 2, p.y - s / 2, s, s); }
+      cx.globalAlpha = a; cx.fillStyle = '#cdeef5';
+      cx.beginPath(); cx.arc(p.x, p.y, p.r * p.z, 0, 6.283); cx.fill();
+    }
+    // стайка рыб на средних глубинах
+    if (!school && now > nextSchool && depthM > 60 && depthM < 800) spawnSchool();
+    if (school) {
+      school.x += school.sp * school.dir * dt; school.y -= v * .35;
+      cx.fillStyle = '#bfe3ec';
+      for (const f of school.fish) {
+        const fx = school.x + f.dx + Math.sin(now * .002 + f.ph) * 6, fy = school.y + f.dy + Math.sin(now * .0015 + f.ph) * 4, s = f.s * (mobile ? 5 : 6), w = Math.sin(now * .012 + f.ph) * .35;
+        cx.globalAlpha = .35 + .25 * f.s;
+        cx.save(); cx.translate(fx, fy); cx.scale(school.dir, 1);
+        cx.beginPath(); cx.ellipse(0, 0, s * 1.6, s * .5, 0, 0, 6.283); cx.fill();
+        cx.beginPath(); cx.moveTo(-s * 1.4, 0); cx.lineTo(-s * 2.4, -s * (.6 + w)); cx.lineTo(-s * 2.4, s * (.6 - w)); cx.closePath(); cx.fill();
+        cx.restore();
+      }
+      if ((school.dir > 0 && school.x > W + 220) || (school.dir < 0 && school.x < -220)) { school = null; nextSchool = now + 9000 + Math.random() * 9000; }
+    }
+    if (Math.random() < (1 - deep) * .05 * dt && bubbles.length < 40) bubbles.push({ x: Math.random() * W, y: H + 10, r: 1.5 + Math.random() * 4, sp: .6 + Math.random() * 1.2, ph: Math.random() * 6.28 });
+    cx.strokeStyle = 'rgba(200,245,255,.55)'; cx.lineWidth = 1;
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const b = bubbles[i]; b.y -= b.sp * dt * 2 + v * .2; b.x += Math.sin(now * .003 + b.ph) * .4;
+      if (b.y < -20) { bubbles.splice(i, 1); continue; }
+      cx.globalAlpha = .55; cx.beginPath(); cx.arc(b.x, b.y, b.r, 0, 6.283); cx.stroke();
+      cx.globalAlpha = .35; cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .25, 0, 6.283); cx.fill();
+    }
+    cx.globalAlpha = 1;
+    if (!document.hidden) requestAnimationFrame(frame);
+  }
+  if (!reduce) { requestAnimationFrame(frame); document.addEventListener('visibilitychange', () => { if (!document.hidden) { last = performance.now(); requestAnimationFrame(frame); } }); }
+})();
+</script>
+</body>
+</html>
