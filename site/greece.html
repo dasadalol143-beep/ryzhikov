@@ -116,19 +116,28 @@ section{position:relative;padding-block:clamp(80px,12vh,150px)}
 .sepia img{filter:sepia(.85) saturate(.6) contrast(.95);transition:filter 2.4s ease .4s,transform 2.4s cubic-bezier(.2,.7,.1,1)}
 .sepia.in img{filter:none}
 
-/* ---------- ФИЛЬМ: кадры листаются скроллом ---------- */
-.film{position:relative;padding:0;height:calc(var(--units) * var(--u,48svh))}
-.film-stage{position:sticky;top:0;height:100svh;overflow:hidden;background:#1a120a}
-.film-cv{position:absolute;inset:0;width:100%;height:100%;display:block}
-.film-shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(0deg,rgba(18,11,4,.82) 0%,rgba(18,11,4,.45) 30%,rgba(18,11,4,0) 58%),radial-gradient(120% 90% at 50% 45%,transparent 60%,rgba(18,11,4,.45))}
-.film-fade{position:absolute;inset:0;pointer-events:none;background:var(--paper);opacity:0}
-.film-grain{position:absolute;inset:0;pointer-events:none;opacity:.22;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-.cap{position:absolute;left:0;right:0;bottom:0;z-index:2;padding-bottom:calc(clamp(40px,8vh,90px) + env(safe-area-inset-bottom,0px));color:#fbf3e2;pointer-events:none;visibility:hidden}
+/* ---------- СЦЕНЫ: картинки, которые двигает скролл ---------- */
+.scene{position:relative;padding:0;height:calc(var(--len) * 100svh)}
+.stage{position:sticky;top:0;height:100svh;overflow:hidden;background:#1a120a}
+.stage.light{background:#efe4cc}
+.scv{position:absolute;inset:0;width:100%;height:100%;display:block}
+.shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(0deg,rgba(18,11,4,.82) 0%,rgba(18,11,4,.42) 30%,rgba(18,11,4,0) 58%),radial-gradient(120% 90% at 50% 45%,transparent 60%,rgba(18,11,4,.4))}
+.grainy{position:absolute;inset:0;pointer-events:none;opacity:.2;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.to-paper{position:absolute;inset:0;pointer-events:none;background:var(--paper);opacity:0;z-index:6}
+.glowflash{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:3;background:radial-gradient(60% 60% at 62% 48%,rgba(255,236,190,.95),rgba(255,214,140,.4) 40%,transparent 70%)}
+.obj{position:absolute;left:0;top:0;z-index:2;pointer-events:none;will-change:transform,opacity;opacity:0;filter:drop-shadow(0 16px 22px rgba(20,10,0,.45))}
+.ring{position:absolute;left:0;top:0;z-index:2;width:80px;height:80px;margin:-40px 0 0 -40px;border-radius:50%;border:3px solid var(--gold-hi);box-shadow:0 0 30px var(--gold-hi),inset 0 0 20px var(--gold-hi);opacity:0;pointer-events:none}
+.tag{position:absolute;left:0;top:0;z-index:3;transform:translate(-50%,-100%);opacity:0;pointer-events:none;display:flex;flex-direction:column;align-items:center}
+.tag b{font-family:var(--f-sc);font-weight:700;letter-spacing:.14em;font-size:.84rem;color:var(--ink);background:rgba(251,246,235,.94);border:1px solid rgba(168,119,31,.6);padding:5px 12px;border-radius:999px;white-space:nowrap;box-shadow:0 8px 20px -8px rgba(0,0,0,.5)}
+.tag i{width:1px;height:34px;background:linear-gradient(var(--gold-hi),rgba(224,182,90,0))}
+.tag.you b{background:var(--gold-hi);border-color:var(--gold-hi)}
+.count{position:absolute;left:0;top:0;z-index:3;transform:translate(-50%,0);font-family:var(--f-display);font-weight:600;font-size:clamp(2rem,1.4rem + 2.4vw,3.6rem);color:var(--gold-hi);text-shadow:0 4px 24px rgba(0,0,0,.6);opacity:0;white-space:nowrap;pointer-events:none}
+.cap{position:absolute;left:0;right:0;bottom:0;z-index:4;padding-bottom:calc(clamp(40px,8vh,90px) + env(safe-area-inset-bottom,0px));color:#fbf3e2;pointer-events:none;visibility:hidden}
+.cap.top{bottom:auto;top:calc(86px + env(safe-area-inset-top,0px));padding-bottom:0}
 .cap.on{visibility:visible;pointer-events:auto}
-.cap .wrap{max-width:1160px}
 .cap .inner{max-width:760px}
 .cap .kicker{color:var(--gold-hi);opacity:0;transform:translateY(14px);transition:opacity .9s,transform .9s}
-.cap h2,.cap h1{font-size:clamp(2.4rem,1.5rem + 3.6vw,5.2rem);font-weight:600;line-height:1;margin-top:10px;text-shadow:0 4px 30px rgba(0,0,0,.45)}
+.cap h2,.cap h1{font-size:clamp(2.3rem,1.5rem + 3.4vw,5rem);font-weight:600;line-height:1;margin-top:10px;text-shadow:0 4px 30px rgba(0,0,0,.45)}
 .cap h1{font-size:clamp(2.8rem,1.6rem + 5vw,6.6rem)}
 .cap h1 em,.cap h2 em{color:var(--gold-hi);font-style:italic}
 .cap .w{display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.08em;margin-bottom:-.08em}
@@ -138,41 +147,74 @@ section{position:relative;padding-block:clamp(80px,12vh,150px)}
 .cap.show .kicker,.cap.show p,.cap.show .cta-row{opacity:1;transform:none;filter:none}
 .cap.show .w>span{transform:none}
 .cap .btn-ghost{color:#fbf3e2;border-color:rgba(251,243,226,.5)}
-.cap .btn-ghost:hover{border-color:#fff}
-.cap .stepn{font-family:var(--f-display);font-style:italic;font-size:1.2em;color:var(--gold-hi);margin-right:.25em}
-.film-hint{position:absolute;right:calc(24px + env(safe-area-inset-right,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));z-index:3;font-family:var(--f-sc);font-size:.8rem;letter-spacing:.2em;color:rgba(251,243,226,.75);display:flex;align-items:center;gap:10px;transition:opacity .6s}
-.film-hint i{width:1px;height:36px;background:linear-gradient(var(--gold-hi),transparent);animation:cue 2.2s ease-in-out infinite}
+.cap.ink{color:var(--ink)}
+.cap.ink p{color:var(--ink-2)}
+.cap.ink h2{text-shadow:none}
+.cap.ink .kicker{color:var(--gold)}
+.hint{position:absolute;right:calc(24px + env(safe-area-inset-right,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));z-index:5;font-family:var(--f-sc);font-size:.8rem;letter-spacing:.2em;color:rgba(251,243,226,.75);display:flex;align-items:center;gap:10px;transition:opacity .6s}
+.hint i{width:1px;height:36px;background:linear-gradient(var(--gold-hi),transparent);animation:cue 2.2s ease-in-out infinite}
 @keyframes cue{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
-.film-bar{position:absolute;left:0;right:0;bottom:0;height:2px;z-index:3;background:rgba(251,243,226,.15)}
-.film-bar i{display:block;height:100%;width:0;background:var(--gold-hi)}
-.loader{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;font-family:var(--f-sc);letter-spacing:.2em;color:rgba(251,243,226,.6);font-size:.8rem}
-/* книга банков поверх стройки */
-.ledger{position:absolute;z-index:2;right:calc(clamp(16px,4vw,60px) + env(safe-area-inset-right,0px));top:calc(90px + env(safe-area-inset-top,0px));width:min(330px,36vw);padding:20px 22px;border-radius:6px;color:var(--ink);
-  background:linear-gradient(180deg,rgba(251,246,235,.94),rgba(240,229,206,.94));box-shadow:0 30px 60px -30px rgba(0,0,0,.7),0 0 0 1px rgba(168,119,31,.45);opacity:0;transform:translateX(30px);transition:opacity .8s,transform .8s;pointer-events:none}
-.ledger.show{opacity:1;transform:none}
-.ledger .kicker{font-size:.74rem}
-.ledger .tot{font-family:var(--f-display);font-weight:600;font-size:2.6rem;line-height:1;color:var(--gold);margin:6px 0 12px;font-variant-numeric:lining-nums tabular-nums;white-space:nowrap}
-.ledger ol{list-style:none;margin:0;padding:0;display:grid;gap:2px}
-.ledger li{display:flex;justify-content:space-between;gap:10px;font-size:.86rem;padding:3px 0;border-bottom:1px dashed rgba(42,34,24,.14);opacity:.28;transition:opacity .4s,color .4s}
-.ledger li b{font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
-.ledger li.on{opacity:1}
-.ledger li.dead.on{color:var(--warn)}
-.ledger li.dead.on span{text-decoration:line-through}
-.ledger li.grp{margin-top:6px}
-.ledger .note{font-size:.76rem;color:var(--ink-2);margin-top:10px;line-height:1.4}
+.sbar{position:absolute;left:0;right:0;bottom:0;height:2px;z-index:5;background:rgba(251,243,226,.15)}
+.sbar i{display:block;height:100%;width:0;background:var(--gold-hi)}
+/* груша и зёрна */
+.lines{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:visible}
+.lines path,.lines line{fill:none;stroke:var(--gold-hi);stroke-width:1.5}
+.lines .slash{stroke:#fff7df;stroke-width:3;filter:drop-shadow(0 0 8px #ffd98a)}
+.core{position:absolute;left:0;top:0;z-index:1;width:240px;height:240px;margin:-120px 0 0 -120px;border-radius:50%;background:radial-gradient(circle,rgba(255,226,150,.9),rgba(255,200,100,.3) 40%,transparent 70%);opacity:0;pointer-events:none}
+.seedcard{position:absolute;z-index:4;width:min(300px,30vw);padding:16px 18px 16px 22px;border-radius:6px;background:linear-gradient(180deg,rgba(251,246,235,.95),rgba(240,229,206,.95));color:var(--ink);box-shadow:0 24px 50px -24px rgba(0,0,0,.8),0 0 0 1px rgba(168,119,31,.5);opacity:0;transform:translateY(14px) scale(.97);transition:opacity .7s,transform .7s;pointer-events:none}
+.seedcard.show{opacity:1;transform:none}
+.seedcard .dot{position:absolute;left:-7px;top:22px;width:14px;height:14px;border-radius:50%;background:var(--gold-hi);box-shadow:0 0 12px var(--gold-hi)}
+.seedcard .n{font-family:var(--f-display);font-style:italic;color:var(--gold);font-size:1.3rem;line-height:1}
+.seedcard h3{font-size:1.45rem;margin:2px 0 6px}
+.seedcard p{font-size:.86rem;color:var(--ink-2);line-height:1.4}
+.seedcard .sum{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px dashed rgba(42,34,24,.2);font-size:.82rem;color:var(--ink-2)}
+.seedcard .sum b{font-family:var(--f-display);font-size:1.4rem;color:var(--gold);font-weight:600;white-space:nowrap}
+.sc1{left:max(130px,7vw);top:15vh}.sc2{right:max(40px,6vw);top:15vh}.sc3{left:max(130px,7vw);top:50vh}.sc4{right:max(40px,6vw);top:50vh}
+.sc2 .dot,.sc4 .dot{left:auto;right:-7px}
+.pear-total{position:absolute;left:0;right:0;bottom:calc(5vh + env(safe-area-inset-bottom,0px));z-index:4;text-align:center;color:#fbf3e2;opacity:0;transform:translateY(16px);transition:opacity .8s,transform .8s;pointer-events:none}
+.pear-total.show{opacity:1;transform:none}
+.pear-total span{font-family:var(--f-sc);letter-spacing:.16em;font-size:.86rem;color:var(--gold-hi)}
+.pear-total b{display:block;font-family:var(--f-display);font-weight:600;font-size:clamp(2.4rem,1.6rem + 3vw,4.6rem);line-height:1.05;text-shadow:0 4px 30px rgba(0,0,0,.6)}
 @media (max-width:900px){
-  .film{--u:42svh}
-  .cap h2{font-size:2.2rem}.cap h1{font-size:2.7rem}
-  .film-hint{display:none}
-  .ledger{left:var(--gl);right:var(--gr);width:auto;top:calc(76px + env(safe-area-inset-top,0px));padding:14px 16px}
-  .ledger ol{display:none}
-  .ledger .tot{font-size:2rem;margin:4px 0 2px}
-  .ledger .cur{display:block}
+  .seedcard{width:calc(50vw - 24px);padding:10px 10px 10px 14px}
+  .seedcard h3{font-size:1.05rem}.seedcard p{display:none}.seedcard .sum{margin-top:4px;padding-top:4px}.seedcard .sum b{font-size:1.1rem}
+  .seedcard .dot{top:14px;width:10px;height:10px;left:-5px}
+  .sc1{left:16px;top:calc(80px + env(safe-area-inset-top,0px))}.sc2{right:16px;top:calc(80px + env(safe-area-inset-top,0px))}
+  .sc3{left:16px;top:calc(176px + env(safe-area-inset-top,0px))}.sc4{right:16px;top:calc(176px + env(safe-area-inset-top,0px))}
+  .seedcard .sum span{display:none}.seedcard .sum{justify-content:flex-start}
+  .sc2 .dot,.sc4 .dot{right:-5px}
+}
+/* храм */
+.thud{position:absolute;left:0;right:0;top:calc(80px + env(safe-area-inset-top,0px));z-index:4;color:var(--ink);pointer-events:none}
+.thud .row{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:clamp(18px,4vw,50px);align-items:end}
+.thud .kicker{color:var(--ink-2)}
+.thud .total{font-family:var(--f-display);font-weight:600;font-size:clamp(2.4rem,1.6rem + 3.4vw,4.4rem);line-height:1;margin-top:4px;color:var(--gold);white-space:nowrap;font-variant-numeric:lining-nums tabular-nums}
+.thud .capt{border-left:1px solid var(--line);padding-left:clamp(14px,3vw,28px);min-height:84px}
+.thud .st{font-family:var(--f-sc);font-size:.8rem;letter-spacing:.14em;color:var(--ink-2)}
+.thud .bn{font-family:var(--f-display);font-size:var(--s1);font-weight:600;display:flex;flex-wrap:wrap;gap:10px;align-items:baseline}
+.thud .bn em{font-style:normal;font-family:var(--f-body);font-weight:700;font-size:.95rem;color:var(--gold)}
+.thud .bn em.zero{color:var(--warn)}
+.thud p{color:var(--ink-2);margin-top:4px;max-width:60ch;font-size:.95rem}
+.collbl{position:absolute;left:0;top:0;z-index:3;transform:translate(-50%,-50%) rotate(-90deg);font-family:var(--f-sc);font-weight:700;font-size:.92rem;letter-spacing:.08em;color:#3a2604;white-space:nowrap;opacity:0;transition:opacity .5s;pointer-events:none;text-shadow:0 1px 0 rgba(255,240,200,.6)}
+.collbl.on{opacity:1}
+.collbl small{font-family:var(--f-body);font-weight:700;letter-spacing:0;margin-left:8px;color:#5a3a06}
+.bandlbl{position:absolute;left:0;top:0;z-index:3;transform:translate(-50%,-50%);font-family:var(--f-sc);font-weight:700;font-size:.9rem;letter-spacing:.1em;color:#3a2604;white-space:nowrap;opacity:0;transition:opacity .5s;pointer-events:none;background:rgba(255,236,190,.55);padding:2px 10px;border-radius:3px}
+.bandlbl.on{opacity:1}
+.deadcard{position:absolute;z-index:5;left:50%;top:48%;width:min(360px,80vw);margin-left:calc(min(360px,80vw) / -2);padding:16px 20px;border-radius:6px;background:#f7ebe4;border:1px solid var(--warn);color:var(--ink);box-shadow:0 30px 60px -20px rgba(80,20,10,.5);opacity:0;pointer-events:none;text-align:center}
+.deadcard b{display:block;font-family:var(--f-display);font-size:1.7rem;color:var(--warn)}
+.deadcard span{font-size:.9rem;color:var(--ink-2)}
+.deadcard .stamp{display:inline-block;margin-top:8px;font-family:var(--f-sc);font-weight:700;letter-spacing:.2em;color:var(--warn);border:2px solid var(--warn);padding:2px 10px;transform:rotate(-6deg)}
+@media (max-width:900px){
+  .thud .row{grid-template-columns:1fr;gap:6px}
+  .thud .capt{border-left:0;padding-left:0;min-height:110px}
+  .thud .total{font-size:2.4rem}
+  .collbl,.bandlbl{display:none}
+  .cap h2{font-size:2.1rem}.cap h1{font-size:2.6rem}
+  .hint{display:none}
+  .shade{background:linear-gradient(0deg,rgba(18,11,4,.9) 0%,rgba(18,11,4,.6) 40%,rgba(18,11,4,0) 72%)}
+  .tag b{font-size:.7rem;padding:4px 9px}.tag i{height:22px}
 }
 /* живописные перебивки */
-.ledger .cur{display:none;font-size:.9rem;font-weight:600}
-.ledger .cur em{font-style:normal;color:var(--gold)}
-@media (max-width:900px){.ledger .cur{display:block}.film-shade{background:linear-gradient(0deg,rgba(18,11,4,.9) 0%,rgba(18,11,4,.6) 40%,rgba(18,11,4,0) 72%)}}
 .plate{position:relative;height:clamp(320px,62vh,640px);overflow:hidden;background:#1a120a}
 .plate img{position:absolute;left:0;top:-15%;width:100%;height:130%;object-fit:cover;will-change:transform}
 .plate::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(18,11,4,.75),rgba(18,11,4,0) 60%),linear-gradient(180deg,var(--paper),rgba(242,233,216,0) 14%),linear-gradient(0deg,var(--paper),rgba(242,233,216,0) 10%)}
@@ -443,7 +485,7 @@ footer p{max-width:70ch}
 <div class="progress"><i id="prog"></i></div>
 <nav class="rail" id="rail" aria-label="Главы">
   <a href="#story"><b>I</b><span>Откуда я</span></a>
-  <a href="#products"><b>II</b><span>За что платят</span></a>
+  <a href="#pear"><b>II</b><span>За что платят</span></a>
   <a href="#templePin"><b>III</b><span>Храм дохода</span></a>
   <a href="#enter"><b>IV</b><span>Как зайти</span></a>
   <a href="#traps"><b>V</b><span>Ловушки</span></a>
@@ -454,13 +496,22 @@ footer p{max-width:70ch}
 
 <main>
 
-<!-- ========== ПРОЛОГ: ФИЛЬМ ========== -->
-<section class="film" id="hero" style="--units:16">
-  <div class="film-stage">
-    <canvas class="film-cv" aria-label="Фильм: храм у моря, банкир, печать и золотые монеты"></canvas>
-    <div class="loader">ЗАГРУЖАЮ КАДРЫ</div>
-    <div class="film-shade"></div><div class="film-grain"></div>
-    <div class="cap" data-a="0" data-b="1.7">
+<!-- ========== ПРОЛОГ: ОТ РУКИ К РУКЕ ========== -->
+<section class="scene" id="hero" style="--len:10" data-scene="prologue" data-dark>
+  <div class="stage">
+    <canvas class="scv" aria-label="Храм у моря, банк, ссылка из рук в руки и золотые монеты"></canvas>
+    <img class="obj" id="olive" src="assets/scene/olive.webp" alt="">
+    <img class="obj" id="scrollObj" src="assets/scene/scroll.webp" alt="">
+    <div class="ring" id="sealRing"></div>
+    <div id="coins"></div>
+    <div class="tag you" id="tYou"><b>Ты</b><i></i></div>
+    <div class="tag" id="tPartner"><b>Партнёрка</b><i></i></div>
+    <div class="tag" id="tFriend"><b>Друг</b><i></i></div>
+    <div class="tag" id="tBank"><b>Банк</b><i></i></div>
+    <div class="count" id="coinCount">+0 ₽</div>
+    <div class="glowflash" id="flashIn"></div>
+    <div class="shade"></div><div class="grainy"></div>
+    <div class="cap" data-a="0" data-b=".1">
       <div class="wrap"><div class="inner">
         <span class="kicker">Пётр Рыжиков · Ryzhikov Academy</span>
         <h1 data-split>Банки платят <em>100 000+ ₽</em> за одного человека</h1>
@@ -471,51 +522,39 @@ footer p{max-width:70ch}
         </div>
       </div></div>
     </div>
-    <div class="cap" data-a="2.7" data-b="4.9">
-      <div class="wrap"><div class="inner">
-        <span class="kicker">Пролог · Откуда деньги</span>
-        <h2 data-split>Банки <em>воюют</em> за клиентов</h2>
-        <p>Около 200 миллиардов рублей в год только на рекламу. Часть этих денег банки отдают обычным людям, которые приводят им клиентов.</p>
-      </div></div>
-    </div>
-    <div class="cap" data-a="5.1" data-b="6.7">
-      <div class="wrap"><div class="inner">
-        <span class="kicker">Шаг I</span>
-        <h2 data-split>Партнёрка даёт тебе <em>ссылку</em></h2>
-        <p>Регистрируешься на официальной партнёрке банка и берёшь там ссылку на счёт, например в ВТБ.</p>
-      </div></div>
-    </div>
-    <div class="cap" data-a="7.2" data-b="8.9">
-      <div class="wrap"><div class="inner">
-        <span class="kicker">Шаг II</span>
-        <h2 data-split>Отдаёшь её <em>другу</em></h2>
-        <p>Или проходишь по ней сам. Так начинает каждый: первые деньги получаешь на себе.</p>
-      </div></div>
-    </div>
-    <div class="cap" data-a="9.4" data-b="11.1">
-      <div class="wrap"><div class="inner">
-        <span class="kicker">Шаг III</span>
-        <h2 data-split>Банк ставит <em>печать</em></h2>
-        <p>Человек открывает счёт: бесплатно, с телефона, минут 15. Банк видит, что клиент пришёл по твоей ссылке.</p>
-      </div></div>
-    </div>
-    <div class="cap" data-a="11.7" data-b="13.5">
-      <div class="wrap"><div class="inner">
-        <span class="kicker">Шаг IV</span>
-        <h2 data-split>Банк платит. <em>7 000 ₽</em> у тебя</h2>
-        <p>Банк платит партнёрке, партнёрка переводит деньги тебе. Всё, это и есть ниша.</p>
-      </div></div>
-    </div>
-    <div class="cap" data-a="13.8" data-b="16">
-      <div class="wrap"><div class="inner">
-        <span class="kicker">А теперь умножь</span>
-        <h2 data-split>Один банк — <em>7 000 ₽.</em> Банков в маршруте 8–10</h2>
-        <p>И это с одного человека. Не продаёшь товар, не вкладываешь свои деньги, не трогаешь чужие.</p>
-      </div></div>
-    </div>
-    <div class="film-hint"><i></i>ЛИСТАЙ</div>
-    <div class="film-bar"><i></i></div>
-    <div class="film-fade"></div>
+    <div class="cap" data-a=".2" data-b=".3"><div class="wrap"><div class="inner">
+      <span class="kicker">Пролог · Откуда деньги</span>
+      <h2 data-split>Банки <em>воюют</em> за клиентов</h2>
+      <p>Около 200 миллиардов рублей в год только на рекламу. Часть этих денег банки отдают обычным людям, которые приводят им клиентов.</p>
+    </div></div></div>
+    <div class="cap" data-a=".31" data-b=".43"><div class="wrap"><div class="inner">
+      <span class="kicker">Шаг I</span>
+      <h2 data-split>Партнёрка даёт тебе <em>ссылку</em></h2>
+      <p>Регистрируешься на официальной партнёрке банка и берёшь там ссылку на счёт, например в ВТБ.</p>
+    </div></div></div>
+    <div class="cap" data-a=".47" data-b=".6"><div class="wrap"><div class="inner">
+      <span class="kicker">Шаг II</span>
+      <h2 data-split>Отдаёшь её <em>другу</em></h2>
+      <p>Или проходишь по ней сам. Так начинает каждый: первые деньги получаешь на себе.</p>
+    </div></div></div>
+    <div class="cap" data-a=".61" data-b=".7"><div class="wrap"><div class="inner">
+      <span class="kicker">Шаг III</span>
+      <h2 data-split>Банк ставит <em>печать</em></h2>
+      <p>Друг открывает счёт по твоей ссылке: бесплатно, с телефона, минут 15. Банк видит, откуда пришёл клиент.</p>
+    </div></div></div>
+    <div class="cap" data-a=".71" data-b=".86"><div class="wrap"><div class="inner">
+      <span class="kicker">Шаг IV</span>
+      <h2 data-split>Банк платит. <em>7 000 ₽</em> у тебя</h2>
+      <p>Банк платит партнёрке, партнёрка переводит деньги тебе. Всё, это и есть ниша.</p>
+    </div></div></div>
+    <div class="cap" data-a=".87" data-b="1"><div class="wrap"><div class="inner">
+      <span class="kicker">А теперь умножь</span>
+      <h2 data-split>Один банк — <em>7 000 ₽.</em> Банков в маршруте 8–10</h2>
+      <p>И это с одного человека. Не продаёшь товар, не вкладываешь свои деньги, не трогаешь чужие.</p>
+    </div></div></div>
+    <div class="hint"><i></i>ЛИСТАЙ</div>
+    <div class="sbar"><i></i></div>
+    <div class="to-paper"></div>
   </div>
 </section>
 
@@ -551,23 +590,40 @@ footer p{max-width:70ch}
   </div>
 </section>
 
+<!-- ========== II · ГРУША ========== -->
+<section class="scene" id="pear" style="--len:7" data-scene="pear" data-dark>
+  <div class="stage">
+    <canvas class="scv" aria-label="Груша разрезается, из неё выходят четыре золотых зерна: РКО, дебетовые карты, кредитные карты, микрозаймы"></canvas>
+    <div class="core" id="pearCore"></div>
+    <img class="obj" id="pearWhole" src="assets/scene/pear.webp" alt="">
+    <img class="obj" id="pearL" src="assets/scene/pear-l.webp" alt="">
+    <img class="obj" id="pearR" src="assets/scene/pear-r.webp" alt="">
+    <svg class="lines" id="pearLines"><line class="slash" id="slash"/><path id="ln0"/><path id="ln1"/><path id="ln2"/><path id="ln3"/></svg>
+    <img class="obj" id="seed0" src="assets/scene/seed.webp" alt=""><img class="obj" id="seed1" src="assets/scene/seed.webp" alt="">
+    <img class="obj" id="seed2" src="assets/scene/seed.webp" alt=""><img class="obj" id="seed3" src="assets/scene/seed.webp" alt="">
+    <div class="seedcard sc1" id="card0"><span class="dot"></span><span class="n">I</span><h3>РКО: счёт для ИП</h3><p>Та же карта, только на ИП. Платят за каждый банк отдельно.</p><div class="sum"><span>8 банков × 6–20 тыс.</span><b>79 000 ₽</b></div></div>
+    <div class="seedcard sc2" id="card1"><span class="dot"></span><span class="n">II</span><h3>Дебетовые карты</h3><p>Обычная карта. Потратить ~500 ₽ на свои покупки.</p><div class="sum"><span>3 карты</span><b>6 000 ₽</b></div></div>
+    <div class="seedcard sc3" id="card2"><span class="dot"></span><span class="n">III</span><h3>Кредитные карты</h3><p>Покупка и возврат в беспроцентный период.</p><div class="sum"><span>2 карты</span><b>9 300 ₽</b></div></div>
+    <div class="seedcard sc4" id="card3"><span class="dot"></span><span class="n">IV</span><h3>Микрозаймы</h3><p>Последним шагом. Первые 7 дней часто без процентов.</p><div class="sum"><span>4 МФО</span><b>16 577 ₽</b></div></div>
+    <div class="pear-total" id="pearTotal"><span>I + II + III + IV · с одного человека</span><b>110 877 ₽</b></div>
+    <div class="shade" style="opacity:.55"></div><div class="grainy"></div>
+    <div class="cap top" data-a="0" data-b=".3"><div class="wrap"><div class="inner">
+      <span class="kicker">Глава вторая · За что платят</span>
+      <h2 data-split>Одна груша. <em>Четыре зерна</em></h2>
+      <p>Один человек — это не одна выплата. Внутри него четыре продукта, за которые банки платят отдельно.</p>
+    </div></div></div>
+    <div class="sbar"><i></i></div>
+    <div class="to-paper"></div>
+  </div>
+</section>
+
 <!-- ========== III ========== -->
 <section id="products">
   <div class="wrap">
-    <div class="chap"><span class="rn" data-r>II</span><div><span class="kicker" data-r>Глава вторая · За что платят</span><h2 class="h2" data-r style="--i:1">Откуда берутся <em>100 000+ ₽</em> с одного человека</h2></div></div>
+    <div class="chap"><span class="rn" data-r>II</span><div><span class="kicker" data-r>Глава вторая · Четыре зерна подробно</span><h2 class="h2" data-r style="--i:1">Каждое зерно <em>по шагам</em></h2></div></div>
     <svg class="meander" data-meander aria-hidden="true"><path/></svg>
-    <p class="lead" data-r>Впервые слышишь слово «РКО»? Нормально, почти никто не слышал. Банки платят за четыре простые вещи. Человек проходит их по очереди, и из этого складывается сумма.</p>
+    <p class="lead" data-r>Впервые слышишь слово «РКО»? Нормально, почти никто не слышал. Вот что такое каждое зерно, что ты делаешь и сколько за него платят.</p>
 
-    <div class="stackbar" data-r>
-      <div class="sb-top"><span>Один человек, полный маршрут</span><span class="sb-total">110 877 ₽</span></div>
-      <div class="sb-bar" data-r="ink"><i style="--w:71%;--c:var(--gold)"></i><i style="--w:5.4%;--c:#7aa3c9"></i><i style="--w:8.4%;--c:var(--aegean)"></i><i style="--w:15%;--c:#c98a3a"></i></div>
-      <div class="sb-legend">
-        <div style="--c:var(--gold)"><b>Счета для ИП</b><strong>79 000 ₽</strong><span>71% дохода · 8 банков</span></div>
-        <div style="--c:#7aa3c9"><b>Дебетовые карты</b><strong>6 000 ₽</strong><span>5% · 3 банка</span></div>
-        <div style="--c:var(--aegean)"><b>Кредитные карты</b><strong>9 300 ₽</strong><span>8% · 2 банка</span></div>
-        <div style="--c:#c98a3a"><b>Микрозаймы</b><strong>16 577 ₽</strong><span>15% · 4 МФО</span></div>
-      </div>
-    </div>
 
     <div class="prods">
       <article class="card prod main" data-r>
@@ -612,43 +668,20 @@ footer p{max-width:70ch}
   </div>
 </section>
 
-<!-- ========== III · ХРАМ: ФИЛЬМ ========== -->
-<section class="film" id="templePin" style="--units:12">
-  <div class="film-stage">
-    <canvas class="film-cv" aria-label="Фильм: монеты превращаются в чертёж, строится храм, храм становится золотым"></canvas>
-    <div class="loader">ЗАГРУЖАЮ КАДРЫ</div>
-    <div class="film-shade"></div><div class="film-grain"></div>
-    <div class="cap" data-a="0" data-b="2.3">
-      <div class="wrap"><div class="inner">
-        <span class="kicker">Глава третья · Храм одного человека</span>
-        <h2 data-split>Один банк — <em>одна колонна</em></h2>
-        <p>А один человек может открыть счёт в 8–10 банках. Из этих колонн и строится храм дохода.</p>
+<!-- ========== III · ХРАМ ========== -->
+<section class="scene" id="templePin" style="--len:7" data-scene="temple">
+  <div class="stage light">
+    <canvas class="scv" aria-label="Чертёж храма превращается в золотой храм: фундамент, колонны-банки и крыша из карт и займов"></canvas>
+    <div id="colLabels"></div>
+    <div class="thud">
+      <div class="wrap"><div class="row">
+        <div><span class="kicker">Глава третья · Храм одного человека</span><div class="total" id="tTotal">0 ₽</div></div>
+        <div class="capt" aria-live="polite"><div class="st" id="tStep">ЧЕРТЁЖ</div><div class="bn" id="tName">Построим храм дохода</div><p id="tDesc">Фундамент, колонны из банков и крыша из карт и займов. Листай: чертёж будет превращаться в золото.</p></div>
       </div></div>
     </div>
-    <div class="cap" data-a="2.6" data-b="4.6">
-      <div class="wrap"><div class="inner">
-        <span class="kicker">Фундамент</span>
-        <h2 data-split>Самозанятость и <em>ИП на НПД</em></h2>
-        <p>Бесплатно, с телефона, за пару дней. Без фундамента банк не откроет счёт для бизнеса, а за него платят больше всего.</p>
-      </div></div>
-    </div>
-    <div class="cap" data-a="9.5" data-b="12">
-      <div class="wrap"><div class="inner">
-        <span class="kicker">Храм построен</span>
-        <h2 data-split>С одного человека <em>110 877 ₽</em></h2>
-        <p>Восемь колонн-банков, плюс карты и займы того же человека. Это один храм. А людей вокруг тебя сотни.</p>
-        <div class="cta-row"><a class="btn btn-gold" data-cta href="#final">Разобрать мой маршрут</a></div>
-      </div></div>
-    </div>
-    <div class="ledger" id="ledger" aria-live="polite">
-      <span class="kicker">Колонны храма · октябрь 2026</span>
-      <div class="tot" id="ledTot">0 ₽</div>
-      <div class="cur" id="ledCur"></div>
-      <ol id="ledList"></ol>
-      <p class="note">Т-Банк и Точка за ИП на НПД через партнёрки не платят. Такие колонны храм не держат.</p>
-    </div>
-    <div class="film-bar"><i></i></div>
-    <div class="film-fade"></div>
+    <div class="deadcard" id="deadCard"><b id="deadName">Т-Банк</b><span>За ИП на НПД через партнёрки не платит.<br>Такая колонна храм не держит.</span><br><span class="stamp">0 ₽ · УБИРАЕМ</span></div>
+    <div class="sbar" style="background:rgba(42,34,24,.12)"><i style="background:var(--gold)"></i></div>
+    <div class="to-paper"></div>
   </div>
 </section>
 
@@ -928,71 +961,242 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
   }), { threshold: .6 });
   document.querySelectorAll('[data-count]').forEach(n => cio.observe(n));
 
-  /* ===== ФИЛЬМ: кадры по скроллу ===== */
-  const FRAMES = [50, 50, 50, 50, 50, 50];           // кадров в каждом переходе c0..c5
-  const PER = 10, FW = 960, FH = 540; // кадров в листе, размер кадра
-  const FOC = [.36, .42, .38, .45, .45, .3, .42]; // куда смотреть при узком экране, для кадров k0..k6
-  const sheets = {}, stills = [];
-  const sheetKey = (c, s) => c + '_' + s;
-  const loadImg = src => new Promise(res => { const im = new Image(); im.decoding = 'async'; im.onload = () => res(im); im.onerror = () => res(null); im.src = src; });
-  for (let k = 0; k < 7; k++) loadImg(`assets/film/k${k}.webp`).then(im => { stills[k] = im; dirty = true; });
-  const queue = [];
-  const nSheets = c => Math.ceil(FRAMES[c] / PER);
-  for (let c = 0; c < 6; c++) queue.push([c, 0]);
-  for (let c = 0; c < 6; c++) for (let s = 1; s < nSheets(c); s++) queue.push([c, s]);
-  let active = 0;
-  const pump = () => {
-    while (active < 4 && queue.length) {
-      const [c, s] = queue.shift(); active++;
-      loadImg(`assets/film/c${c}_${s}.webp`).then(im => { active--; if (im) sheets[sheetKey(c, s)] = im; dirty = true; pump(); });
-    }
+  /* ===== СЦЕНЫ: картинки, которые двигает скролл ===== */
+  const IM = {};
+  ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b5b'].forEach(n => { const im = new Image(); im.decoding = 'async'; im.onload = () => { IM[n] = im; dirtyAll(); }; im.src = `assets/scene/${n}.webp`; });
+  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+  const bump = (a, m, b, x) => x < m ? smooth(a, m, x) : 1 - smooth(m, b, x);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const bounce = t => { const n = 7.5625, d = 2.75; if (t < 1 / d) return n * t * t; if (t < 2 / d) return n * (t -= 1.5 / d) * t + .75; if (t < 2.5 / d) return n * (t -= 2.25 / d) * t + .9375; return n * (t -= 2.625 / d) * t + .984375; };
+  // картинка «под обрез» с точкой фокуса и наезд камеры к точке
+  const coverRect = (W, H, iw, ih, fx, fy) => { const s = Math.max(W / iw, H / ih), dw = iw * s, dh = ih * s; return { dx: clamp(W / 2 - fx * dw, W - dw, 0), dy: clamp(H / 2 - fy * dh, H - dh, 0), dw, dh }; };
+  const zoomRect = (r, ox, oy, z) => { const px = r.dx + ox * r.dw, py = r.dy + oy * r.dh, dw = r.dw * z, dh = r.dh * z; return { dx: px - ox * dw, dy: py - oy * dh, dw, dh }; };
+  const at = (r, fx, fy) => [r.dx + fx * r.dw, r.dy + fy * r.dh];
+  const drawImg = (cx, im, r, a = 1) => { if (!im || a <= 0) return; cx.globalAlpha = a; cx.drawImage(im, r.dx, r.dy, r.dw, r.dh); cx.globalAlpha = 1; };
+  const place = (el, x, y, w, rot = 0, op = 1, sc = 1) => {
+    const h = el.naturalWidth ? w * el.naturalHeight / el.naturalWidth : w;
+    el.style.width = w + 'px'; el.style.opacity = op;
+    el.style.transform = `translate(${x - w / 2}px, ${y - h / 2}px) rotate(${rot}deg) scale(${sc})`;
   };
-  pump();
-  const prioritize = (c, s) => { const i = queue.findIndex(q => q[0] === c && q[1] === s); if (i > 0) queue.unshift(queue.splice(i, 1)[0]); };
 
-  const films = [...document.querySelectorAll('.film')].map(sec => {
-    const isFirst = sec.id === 'hero';
-    const segs = isFirst
-      ? [['h', 0, 0, 1.4], ['c', 0, 0, 2.6], ['h', 1, 0, 1.4], ['c', 1, 0, 2.2], ['h', 2, 0, 1.2], ['c', 2, 0, 2.2], ['h', 3, 0, 1.2], ['c', 3, 0, 2.2], ['h', 3, 1, 1.6]]
-      : [['h', 4, 0, 1.2], ['c', 4, 0, 3.0], ['h', 5, 0, .8], ['c', 5, 0, 4.4], ['h', 5, 1, 2.6]];
-    const U = segs.reduce((s, x) => s + x[3], 0);
-    const cv = sec.querySelector('.film-cv');
-    return { sec, segs, U, cv, cx: cv.getContext('2d'), caps: [...sec.querySelectorAll('.cap')].map(c => ({ el: c, a: +c.dataset.a, b: +c.dataset.b })),
-      fade: sec.querySelector('.film-fade'), bar: sec.querySelector('.film-bar i'), hint: sec.querySelector('.film-hint'), loader: sec.querySelector('.loader'), u: 0, drawn: false };
+  const scenes = [...document.querySelectorAll('.scene')].map(sec => {
+    const cv = sec.querySelector('.scv');
+    return { sec, kind: sec.dataset.scene, dark: sec.hasAttribute('data-dark'), cv, cx: cv.getContext('2d'), p: 0, dirty: true,
+      caps: [...sec.querySelectorAll('.cap')].map(c => ({ el: c, a: +c.dataset.a, b: +c.dataset.b })),
+      paper: sec.querySelector('.to-paper'), bar: sec.querySelector('.sbar i'), hint: sec.querySelector('.hint') };
   });
+  function dirtyAll() { scenes.forEach(s => s.dirty = true); }
+  function prepCanvas(s) {
+    const D = Math.min(devicePixelRatio || 1, 1.75), W = s.cv.clientWidth, H = s.cv.clientHeight;
+    if (s.cv.width !== Math.round(W * D) || s.cv.height !== Math.round(H * D)) { s.cv.width = Math.round(W * D); s.cv.height = Math.round(H * D); }
+    s.cx.setTransform(D, 0, 0, D, 0, 0); return [W, H];
+  }
 
-  // где мы в фильме: какой переход, какой кадр, куда смотреть, насколько приблизить
-  function frameAt(f, u) {
-    let acc = 0;
-    for (let si = 0; si < f.segs.length; si++) {
-      const [type, c, end, len] = f.segs[si];
-      if (u <= acc + len || si === f.segs.length - 1) {
-        const t = clamp((u - acc) / len), n = FRAMES[c];
-        if (type === 'c') return { c, i: Math.round(t * (n - 1)), foc: FOC[c] + (FOC[c + 1] - FOC[c]) * t, zoom: 1, k: t < .5 ? c : c + 1 };
-        return { c, i: end ? n - 1 : 0, foc: end ? FOC[c + 1] : FOC[c], zoom: 1 + .04 * t, k: end ? c + 1 : c };
-      }
-      acc += len;
+  /* — пролог: храм → зал банка → ссылка из рук в руки → печать → монеты — */
+  const olive = $('olive'), scrollObj = $('scrollObj'), sealRing = $('sealRing'), coinCount = $('coinCount'), flashIn = $('flashIn');
+  const tYou = $('tYou'), tPartner = $('tPartner'), tFriend = $('tFriend'), tBank = $('tBank');
+  const COINS = Array.from({ length: 14 }, (_, i) => {
+    const im = document.createElement('img'); im.className = 'obj'; im.src = 'assets/scene/coin.webp'; im.alt = ''; $('coins').appendChild(im);
+    return { im, t0: .69 + i * .011, ox: ((i * 37) % 11 - 5) * .004, oy: ((i * 53) % 7 - 3) * .003, rot: (i * 71) % 360 };
+  });
+  const MERCH = [.535, .615], YOU1 = [.44, .64], YOU2 = [.447, .645], FRIEND = [.552, .632], BOWL = [.52, .565], LIP = [.515, .575], HANDS = [.456, .69];
+  const arc = (A, B, t, h) => { const e = ease(clamp(t)); return [lerp(A[0], B[0], e), lerp(A[1], B[1], e) - Math.sin(Math.PI * e) * h]; };
+  function drawPrologue(s, p) {
+    const [W, H] = prepCanvas(s), cx = s.cx, mob = W < 700;
+    cx.fillStyle = '#1a120a'; cx.fillRect(0, 0, W, H);
+    const b0 = IM.b0;
+    if (b0 && p < .21) {
+      const r0 = coverRect(W, H, b0.naturalWidth, b0.naturalHeight, mob ? .62 : .5, .5);
+      const z = p < .1 ? 1 + .05 * p / .1 : 1.05 + 1.9 * Math.pow(clamp((p - .1) / .1), 2);
+      cx.filter = z > 1.3 ? `blur(${Math.min(8, (z - 1.3) * 5)}px)` : 'none';
+      drawImg(cx, b0, zoomRect(r0, .645, .5, z)); cx.filter = 'none';
     }
+    const hz = 1.02 + .05 * clamp((p - .2) / .8);
+    // на телефоне картинка занимает верх экрана, чтобы оба героя попадали в кадр, подписи идут ниже
+    const hall = im => im ? zoomRect(coverRect(W, mob ? H * .66 : H, im.naturalWidth, im.naturalHeight, .49, .55), .48, .6, hz) : null;
+    const r1 = hall(IM.b1 || IM.b2 || IM.b3);
+    const a1 = smooth(.16, .205, p), a2 = smooth(.43, .5, p), a3 = smooth(.6, .67, p);
+    if (a1 > 0 && a2 < 1) drawImg(cx, IM.b1, hall(IM.b1), a1);
+    if (a2 > 0 && a3 < 1) drawImg(cx, IM.b2, hall(IM.b2), a2);
+    if (a3 > 0) drawImg(cx, IM.b3, hall(IM.b3), a3);
+    flashIn.style.opacity = bump(.15, .185, .23, p);
+    const ow = Math.max(W * .42, 320);
+    place(olive, ow * .4 - p * W * 1.4, ow * .25 - p * H * .9, ow, -4 + p * 30, 1 - smooth(.07, .14, p));
+    if (!r1) return;
+    // свиток-ссылка
+    let f = null, op = 1, sc = 1, rot = -8;
+    if (p >= .29 && p < .34) { f = MERCH; op = smooth(.29, .33, p); sc = .6 + .4 * op; }
+    else if (p >= .34 && p < .42) f = arc(MERCH, YOU1, (p - .34) / .08, .05);
+    else if (p >= .42 && p < .5) f = arc(YOU1, YOU2, (p - .42) / .08, 0);
+    else if (p >= .5 && p < .6) f = arc(YOU2, FRIEND, (p - .5) / .1, .05);
+    else if (p >= .6 && p < .68) { const t = (p - .6) / .08; f = arc(FRIEND, BOWL, t, .06); op = 1 - smooth(.64, .68, p); sc = 1 - .6 * t; rot = -8 - 40 * t; }
+    if (f) { const [x, y] = at(r1, f[0], f[1]); place(scrollObj, x, y, r1.dw * .11, rot, op, sc); } else scrollObj.style.opacity = 0;
+    // печать банка
+    const rs = smooth(.655, .72, p), [bx, by] = at(r1, BOWL[0], BOWL[1]);
+    sealRing.style.opacity = rs > 0 && rs < 1 ? 1 - rs : 0;
+    sealRing.style.transform = `translate(${bx}px, ${by}px) scale(${.3 + rs * 3})`;
+    // монеты из чаши в ладони
+    const cw = r1.dw * .026;
+    COINS.forEach(c => {
+      if (p < c.t0) { c.im.style.opacity = 0; return; }
+      const t = clamp((p - c.t0) / .045);
+      const fx = lerp(LIP[0], HANDS[0] + c.ox, t), fy = lerp(LIP[1], HANDS[1] + c.oy, t * t) - Math.sin(Math.PI * t) * .03;
+      const [x, y] = at(r1, fx, fy); place(c.im, x, y, cw, c.rot + t * 540, 1 - smooth(.95, 1, p));
+    });
+    const [hx, hy] = at(r1, .455, .5);
+    coinCount.style.opacity = smooth(.7, .74, p) * (1 - smooth(.92, .96, p));
+    coinCount.style.transform = `translate(${hx}px, ${hy}px) translate(-50%, -100%)`;
+    coinCount.textContent = '+' + fmt(7000 * clamp((p - .69) / .17)) + ' ₽';
+    // подписи «кто есть кто»
+    const tg = (el, fx, fy, o) => { const [x, y] = at(r1, fx, fy); el.style.opacity = o; el.style.transform = `translate(${clamp(x, 60, W - 60)}px, ${Math.max(y, 140)}px) translate(-50%, -100%)`; };
+    tg(tYou, .32, .1, smooth(.22, .26, p) * (1 - smooth(.9, .95, p)));
+    tg(tPartner, .77, .1, smooth(.23, .27, p) * (1 - smooth(.42, .46, p)));
+    tg(tFriend, .83, .11, smooth(.48, .52, p) * (1 - smooth(.6, .64, p)));
+    tg(tBank, .75, .15, smooth(.64, .68, p) * (1 - smooth(.9, .95, p)));
   }
-  function sizeCanvas(f) {
-    const D = Math.min(devicePixelRatio || 1, 1.5), w = f.cv.clientWidth, h = f.cv.clientHeight;
-    if (f.cv.width !== Math.round(w * D) || f.cv.height !== Math.round(h * D)) { f.cv.width = Math.round(w * D); f.cv.height = Math.round(h * D); }
-    return [f.cv.width, f.cv.height];
+
+  /* — груша: разрез и четыре зерна-продукта — */
+  const pearWhole = $('pearWhole'), pearL = $('pearL'), pearR = $('pearR'), pearCore = $('pearCore'), slash = $('slash'), pearTotal = $('pearTotal');
+  const seeds = [0, 1, 2, 3].map(i => $('seed' + i)), cards = [0, 1, 2, 3].map(i => $('card' + i)), lns = [0, 1, 2, 3].map(i => $('ln' + i));
+  const SEED = [1.3, .8, .9, 1];
+  function drawPear(s, p) {
+    const [W, H] = prepCanvas(s), cx = s.cx, mob = W < 900;
+    cx.fillStyle = '#120b05'; cx.fillRect(0, 0, W, H);
+    const b4 = IM.b4; let tableY = H * .7;
+    if (b4) { const r = zoomRect(coverRect(W, H, b4.naturalWidth, b4.naturalHeight, .55, mob ? .62 : .5), .5, .66, 1.02 + .04 * p); drawImg(cx, b4, r); tableY = r.dy + .665 * r.dh; }
+    const ph = mob ? Math.min(H * .24, W * .5) : H * .36, pw = ph * 564 / 800, px = W * .5, py = tableY - ph * .47;
+    const drop = clamp(p / .12), cut = p >= .22;
+    place(pearWhole, px, lerp(-ph, py, bounce(drop)), pw, (1 - drop) * -14, cut ? 0 : 1);
+    const sl = clamp((p - .14) / .07), x1 = px + pw * .5, y1 = py - ph * .45, x2 = px - pw * .5, y2 = py + ph * .45;
+    slash.setAttribute('x1', x1); slash.setAttribute('y1', y1); slash.setAttribute('x2', lerp(x1, x2, sl)); slash.setAttribute('y2', lerp(y1, y2, sl));
+    slash.style.opacity = sl > 0 && p < .25 ? 1 : 0;
+    const open = ease(clamp((p - .22) / .1)), spread = (mob ? W * .09 : W * .12) * open;
+    const hh = ph * .85, wL = hh * 388 / 600, wR = hh * 404 / 600, hy = py + ph * .07;
+    place(pearL, px - wL / 2 - spread, hy, wL, -8 * open, cut ? 1 : 0);
+    place(pearR, px + wR / 2 + spread, hy + hh * .033, wR, 8 * open, cut ? 1 : 0);
+    pearCore.style.opacity = open;
+    pearCore.style.transform = `translate(${px}px, ${hy}px) scale(${.4 + open * .9})`;
+    const st = s.cv.getBoundingClientRect();
+    seeds.forEach((sd, i) => {
+      const t0 = .33 + i * .11, t = clamp((p - t0) / .08), e = ease(t);
+      const d = cards[i].querySelector('.dot').getBoundingClientRect();
+      const tx = d.left + d.width / 2 - st.left, ty = d.top + d.height / 2 - st.top;
+      const mx = (px + tx) / 2, my = Math.min(hy, ty) - H * .12;
+      const qx = (1 - e) * (1 - e) * px + 2 * (1 - e) * e * mx + e * e * tx, qy = (1 - e) * (1 - e) * hy + 2 * (1 - e) * e * my + e * e * ty;
+      place(sd, qx, qy, (mob ? 22 : 34) * SEED[i], e * 360, p >= t0 ? 1 : 0, .4 + .6 * Math.min(1, t * 3));
+      cards[i].classList.toggle('show', t >= .85);
+      lns[i].setAttribute('d', p >= t0 ? `M${px} ${hy} Q${mx} ${my} ${qx} ${qy}` : '');
+    });
+    pearTotal.classList.toggle('show', p > .8);
   }
-  function drawFilm(f) {
-    const p = frameAt(f, f.u); if (!p) return;
-    const [W, H] = sizeCanvas(f);
-    let src = null, sy = 0, sw = FW, sh = FH;
-    const s = Math.floor(p.i / PER);
-    for (let ss = s; ss >= 0 && !src; ss--) { const im = sheets[sheetKey(p.c, ss)]; if (im) { src = im; sy = ss === s ? (p.i % PER) * FH : (Math.min(PER, FRAMES[p.c] - ss * PER) - 1) * FH; } }
-    if (!sheets[sheetKey(p.c, s)]) prioritize(p.c, s);
-    if (!src && stills[p.k]) { src = stills[p.k]; sw = src.naturalWidth; sh = src.naturalHeight; sy = 0; }
-    if (!src) return;
-    const sc = Math.max(W / sw, H / sh) * p.zoom, dw = sw * sc, dh = sh * sc;
-    const dx = clamp(W / 2 - p.foc * dw, W - dw, 0), dy = (H - dh) / 2;
-    f.cx.drawImage(src, 0, sy, sw, sh, dx, dy, dw, dh);
-    if (!f.drawn) { f.drawn = true; f.loader && f.loader.remove(); }
+
+  /* — храм: чертёж превращается в золото по колоннам — */
+  const COLX = [[.175, .241], [.266, .33], [.358, .415], [.44, .4975], [.51, .565], [.5875, .645], [.671, .729], [.759, .8225]], COLY = [.383, .848];
+  const BANKS = [
+    ['Альфа-Банк', 16000, 'Регистрация ИП через Альфу по ссылке с партнёрки. Банк платит за саму регистрацию.'],
+    ['Инго Банк', 20000, 'Новый банк, платит больше всех. 3 оплаты со счёта на 50 000 ₽ за 30 дней или депозит на месяц.'],
+    ['ВТБ', 7000, 'Открыть счёт и пополнить. Заявку можно завести ещё до регистрации ИП.'],
+    ['Т-Банк', 0, ''],
+    ['ПСБ', 10000, 'Пополнять ничего не нужно, но банк проверяет, что бизнес живой. Лучше через месяц после регистрации ИП.'],
+    ['Озон Банк', 8000, 'Положить на счёт чуть больше 3 000 ₽ и подержать 4–9 дней.'],
+    ['Уралсиб', 6000, 'Переводы со счёта на 15 000 ₽ в сумме: одним платежом или двумя.'],
+    ['Точка', 0, ''],
+    ['Контур', 6000, 'Три платежа со счёта.'],
+    ['Свой Банк', 6000, 'Три платежа на 20 000 ₽ в сумме.']
+  ];
+  const ROOF = [
+    ['Дебетовые карты ×3', 6000, 'АРХИТРАВ', 'ВТБ, Т-Банк, Озон. Потратить около 500 ₽ на свои же покупки.', [.165, .835, .318, .386]],
+    ['Кредитные карты ×2', 9300, 'ФРИЗ', 'Яндекс Сплит и Т-Банк. Одобряют не всем, смотрят кредитную историю.', [.16, .84, .252, .32]],
+    ['Микрозаймы ×4', 16577, 'ФРОНТОН', 'Последним шагом. Первые 7 дней часто без процентов: взял, вернул, переплата ноль.', [.15, .85, .02, .258]]
+  ];
+  const TTOTAL = BANKS.reduce((a, b) => a + b[1], 0) + ROOF.reduce((a, r) => a + r[1], 0);
+  const colLbls = [], bandLbls = [];
+  { const box = $('colLabels'); let ci = 0;
+    BANKS.forEach(b => { if (!b[1]) return; const l = document.createElement('div'); l.className = 'collbl'; l.innerHTML = `${b[0]}<small>+${fmt(b[1])}</small>`; box.appendChild(l); colLbls[ci++] = l; });
+    ROOF.forEach((r, i) => { const l = document.createElement('div'); l.className = 'bandlbl'; l.textContent = `${r[0]} · +${fmt(r[1])} ₽`; box.appendChild(l); bandLbls[i] = l; }); }
+  const tTotal = $('tTotal'), tStep = $('tStep'), tName = $('tName'), tDesc = $('tDesc'), deadCard = $('deadCard'), deadName = $('deadName');
+  let tKey = '';
+  function drawTemple(s, p) {
+    const [W, H] = prepCanvas(s), cx = s.cx, mob = W < 900;
+    cx.fillStyle = '#efe4cc'; cx.fillRect(0, 0, W, H);
+    const bp = IM.b5b, gd = IM.b5; if (!bp) return;
+    const iw = bp.naturalWidth, ih = bp.naturalHeight, top = mob ? 260 : 220, bot = 16;
+    const sc = Math.min(W / iw, (H - top - bot) / ih) * (mob ? 1.45 : 1);
+    const dw = iw * sc, dh = ih * sc, dx = (W - dw) / 2, dy = top + (H - top - bot - dh) / 2;
+    cx.drawImage(bp, dx, dy, dw, dh);
+    const gold = (x0, x1, y0, y1, k, dir) => {
+      if (!gd || k <= 0) return;
+      if (dir === 'up') y0 = y1 - (y1 - y0) * k; else x1 = x0 + (x1 - x0) * k;
+      const gw = gd.naturalWidth, gh = gd.naturalHeight;
+      cx.drawImage(gd, x0 * gw, y0 * gh, (x1 - x0) * gw, (y1 - y0) * gh, dx + x0 * dw, dy + y0 * dh, (x1 - x0) * dw, (y1 - y0) * dh);
+      if (k < 1) { cx.fillStyle = 'rgba(255,232,170,.95)'; if (dir === 'up') cx.fillRect(dx + x0 * dw, dy + y0 * dh - 1.5, (x1 - x0) * dw, 3); else cx.fillRect(dx + x1 * dw - 1.5, dy + y0 * dh, 3, (y1 - y0) * dh); }
+    };
+    let sum = 0, key = 'bp';
+    // фундамент
+    const ks = ease(clamp((p - .05) / .07)); gold(.12, .88, .845, .965, ks, 'right'); if (p >= .05 && p < .13) key = 'base';
+    // колонны-банки
+    const T0 = .14, SEG = .055; let ci = 0;
+    deadCard.style.opacity = 0;
+    BANKS.forEach((b, i) => {
+      const t0 = T0 + i * SEG, k = ease(clamp((p - t0) / (SEG * .85)));
+      if (p >= t0 && p < t0 + SEG) key = 'b' + i;
+      if (!b[1]) {
+        const o = bump(t0, t0 + SEG * .25, t0 + SEG, p), fall = smooth(t0 + SEG * .55, t0 + SEG, p);
+        if (o > 0) { deadName.textContent = b[0]; deadCard.style.opacity = o; deadCard.style.transform = `translateY(${fall * 120}px) rotate(${fall * 9}deg)`; }
+        return;
+      }
+      const [x0, x1] = COLX[ci]; gold(x0 - .004, x1 + .004, COLY[0], COLY[1], k, 'up');
+      sum += b[1] * k;
+      const l = colLbls[ci]; l.classList.toggle('on', k > .97);
+      l.style.left = (dx + (x0 + x1) / 2 * dw) + 'px'; l.style.top = (dy + (COLY[0] + COLY[1]) / 2 * dh) + 'px';
+      ci++;
+    });
+    // крыша: карты и займы
+    const R0 = .7, RS = .06;
+    ROOF.forEach((r, i) => {
+      const t0 = R0 + i * RS, k = ease(clamp((p - t0) / (RS * .85))), [x0, x1, y0, y1] = r[4];
+      if (p >= t0 && p < t0 + RS) key = 'r' + i;
+      if (i === 2) { cx.save(); cx.beginPath(); cx.moveTo(dx + .15 * dw, dy + .258 * dh); cx.lineTo(dx + .5 * dw, dy + .02 * dh); cx.lineTo(dx + .85 * dw, dy + .258 * dh); cx.closePath(); cx.clip(); gold(x0, x1, y0, y1, k, 'up'); cx.restore(); }
+      else gold(x0, x1, y0, y1, k, 'up');
+      sum += r[1] * k;
+      const l = bandLbls[i]; l.classList.toggle('on', k > .97 && p < .9);
+      l.style.left = (dx + .5 * dw) + 'px'; l.style.top = (dy + (i === 2 ? .17 : (y0 + y1) / 2) * dh) + 'px';
+    });
+    // финал: весь храм в золоте и закате
+    const fin = smooth(.9, .97, p);
+    if (gd && fin > 0) { cx.globalAlpha = fin; cx.drawImage(gd, dx, dy, dw, dh); cx.globalAlpha = 1; }
+    if (p >= .9) key = 'end';
+    colLbls.forEach(l => { if (p >= .9) l.classList.remove('on'); });
+    tTotal.textContent = fmt(sum) + ' ₽';
+    if (key === tKey) return; tKey = key;
+    const cap = (st, nm, ds) => { tStep.textContent = st; tName.innerHTML = nm; tDesc.textContent = ds; };
+    if (key === 'bp') cap('ЧЕРТЁЖ', 'Построим храм дохода', 'Фундамент, колонны из банков и крыша из карт и займов. Листай: чертёж будет превращаться в золото.');
+    else if (key === 'base') cap('ФУНДАМЕНТ', 'Самозанятость и ИП на НПД', 'Бесплатно, с телефона, за пару дней. Без фундамента банк не откроет счёт для бизнеса.');
+    else if (key[0] === 'b') { const b = BANKS[+key.slice(1)], n = BANKS.slice(0, +key.slice(1) + 1).filter(x => x[1]).length;
+      if (b[1]) cap(`КОЛОННА ${n} ИЗ 8`, `${b[0]} <em>+${fmt(b[1])} ₽</em>`, b[2]);
+      else cap('НЕ КОЛОННА', `${b[0]} <em class="zero">0 ₽</em>`, 'За ИП на НПД через партнёрки не платит. Вести туда людей нет смысла.'); }
+    else if (key[0] === 'r') { const r = ROOF[+key.slice(1)]; cap(r[2], `${r[0]} <em>+${fmt(r[1])} ₽</em>`, r[3]); }
+    else cap('ХРАМ ПОСТРОЕН', `С одного человека <em>${fmt(TTOTAL)} ₽</em>`, 'Восемь колонн-банков, плюс карты и займы того же человека. Это один храм. А людей вокруг тебя сотни.');
   }
+
+  const DRAW = { prologue: drawPrologue, pear: drawPear, temple: drawTemple };
+  function updateScenes(vh) {
+    scenes.forEach(s => {
+      const r = s.sec.getBoundingClientRect();
+      s.vis = r.bottom > -50 && r.top < vh + 50;
+      if (!s.vis) return;
+      const p = clamp(-r.top / (r.height - vh));
+      if (p !== s.p) { s.p = p; s.dirty = true; }
+      s.caps.forEach(c => { c.el.classList.toggle('on', p > c.a - .03 && p < c.b + .04); c.el.classList.toggle('show', p >= c.a && p < c.b - .008); });
+      s.paper.style.opacity = s.kind === 'temple' ? 0 : clamp((p - .95) / .05);
+      s.bar.style.width = p * 100 + '%';
+      if (s.hint) s.hint.style.opacity = p < .04 ? 1 : 0;
+    });
+  }
+  (function loop() { scenes.forEach(s => { if (s.vis !== false && s.dirty) { s.dirty = false; DRAW[s.kind](s, s.p); } }); requestAnimationFrame(loop); })();
+  addEventListener('resize', dirtyAll);
+  document.querySelectorAll('.obj').forEach(o => o.addEventListener('load', dirtyAll));
+
   // разбить заголовки на слова для киношного появления
   document.querySelectorAll('[data-split]').forEach(h => {
     let d = 0;
@@ -1011,49 +1215,6 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
     });
     walk(h);
   });
-
-  // книга банков поверх стройки
-  const LEDGER = [
-    ['Альфа-Банк · регистрация ИП', 16000], ['Инго Банк', 20000], ['ВТБ', 7000], ['Т-Банк', 0], ['ПСБ', 10000], ['Озон Банк', 8000],
-    ['Уралсиб', 6000], ['Точка', 0], ['Контур', 6000], ['Свой Банк', 6000], ['Дебетовые карты ×3', 6000], ['Кредитные карты ×2', 9300], ['Микрозаймы ×4', 16577]
-  ];
-  const ledger = $('ledger'), ledList = $('ledList'), ledTot = $('ledTot'), ledCur = $('ledCur');
-  const ledRows = LEDGER.map(([n, v], i) => {
-    const li = document.createElement('li'); if (!v) li.className = 'dead'; if (i === 10) li.classList.add('grp');
-    li.innerHTML = `<span>${n}</span><b>${v ? '+' + fmt(v) + ' ₽' : '0 ₽'}</b>`; ledList.appendChild(li); return li;
-  });
-  let ledShown = 0;
-  function updateLedger(u) {
-    ledger.classList.toggle('show', u > 4.4);
-    const k = clamp((u - 4.8) / (9.4 - 4.8)) * LEDGER.length;
-    let sum = 0, cur = -1;
-    LEDGER.forEach(([n, v], i) => { const on = i < k; ledRows[i].classList.toggle('on', on); if (on) { sum += v; cur = i; } });
-    ledShown = sum;
-    ledTot.textContent = fmt(ledShown) + ' ₽';
-    ledCur.innerHTML = cur >= 0 ? `${LEDGER[cur][0]} <em>${LEDGER[cur][1] ? '+' + fmt(LEDGER[cur][1]) + ' ₽' : '0 ₽, не платит за НПД'}</em>` : 'Колонны появляются по мере стройки';
-  }
-
-  let dirty = true;
-  function updateFilms(vh) {
-    films.forEach(f => {
-      const r = f.sec.getBoundingClientRect();
-      const u = clamp(-r.top / (r.height - vh)) * f.U;
-      const visible = r.bottom > -50 && r.top < vh + 50;
-      if (u !== f.u) { f.u = u; dirty = true; }
-      f.visible = visible;
-      if (!visible) return;
-      f.caps.forEach(c => {
-        c.el.classList.toggle('on', u > c.a - .3 && u < c.b + .5);
-        c.el.classList.toggle('show', u >= c.a && u < c.b - .12);
-      });
-      f.fade.style.opacity = clamp((u - (f.U - .8)) / .8);
-      f.bar.style.width = (u / f.U * 100) + '%';
-      if (f.hint) f.hint.style.opacity = u < .5 ? 1 : 0;
-      if (f.sec.id === 'templePin') updateLedger(u);
-    });
-  }
-  (function loop() { if (dirty) { dirty = false; films.forEach(f => f.visible !== false && drawFilm(f)); } requestAnimationFrame(loop); })();
-  addEventListener('resize', () => { dirty = true; });
 
   /* живописные перебивки: параллакс */
   const plates = [...document.querySelectorAll('.plate img, .final-bg img')];
@@ -1095,8 +1256,8 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
     let cur = null; chapters.forEach(c => { if (c.s.getBoundingClientRect().top < vh * .5) cur = c; });
     chapters.forEach(c => c.a.classList.toggle('on', c === cur));
     meanders.forEach(m => { const r = m.svg.getBoundingClientRect(); const k = clamp((vh * .95 - r.top) / (vh * .5)); m.p.style.strokeDashoffset = m.L * (1 - k); });
-    updateFilms(vh); updatePlates(vh);
-    const onFilm = films.some(f => { const r = f.sec.getBoundingClientRect(); return r.top <= 0 && r.bottom > vh * .35; });
+    updateScenes(vh); updatePlates(vh);
+    const onFilm = scenes.some(f => { if (!f.dark) return false; const r = f.sec.getBoundingClientRect(); return r.top <= 0 && r.bottom > vh * .35; });
     top.classList.toggle('onfilm', onFilm); rail.classList.toggle('onfilm', onFilm);
     updatePipe(vh); updateScroll(vh); checkClips(vh);
   }
