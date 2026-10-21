@@ -211,6 +211,15 @@ section.blk{padding-block:clamp(90px,13vh,150px)}
 .cap .av{width:64px;height:64px;border-radius:18px;object-fit:cover;margin:0 auto 14px;border:2px solid var(--gold2)}
 .stage.parch .shade{background:linear-gradient(0deg,rgba(20,12,4,.88) 0%,rgba(20,12,4,.45) 30%,rgba(20,12,4,0) 56%)}
 
+/* ---------- переходы между блоками: что-то падает из сцены выше ---------- */
+.drop{display:block;position:relative;z-index:7;margin:0 0 18px;opacity:0;will-change:transform,opacity;pointer-events:none;user-select:none}
+.head.center .drop{margin-inline:auto}
+img.drop.dcoin{width:46px;height:auto}
+img.drop.dseed{width:24px;height:auto}
+.drop.dpin{width:28px;height:36px}
+.dpin i{position:absolute;left:2px;top:0;width:24px;height:24px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);background:radial-gradient(circle at 35% 35%,#ffe7a8,#d4a24c 55%,#8a6420);box-shadow:0 2px 6px rgba(0,0,0,.35)}
+.dpin i::after{content:"";position:absolute;left:8px;top:8px;width:8px;height:8px;border-radius:50%;background:#fff6dc}
+.dpin b{position:absolute;left:50%;bottom:-2px;width:44px;height:14px;margin-left:-22px;border:2px solid var(--gold);border-radius:50%;opacity:0;will-change:transform,opacity}
 /* ---------- кто я ---------- */
 .me{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(32px,6vw,80px);align-items:center}
 .photo{margin:0;border-radius:28px;overflow:hidden;background:var(--bg2);aspect-ratio:1;max-width:100%}
@@ -506,6 +515,7 @@ footer a{color:var(--ink)}
 <section class="blk" id="scheme">
   <div class="wrap">
     <div class="head center">
+      <img class="drop dcoin" data-drop="coin" src="assets/scene/coin.webp" alt="">
       <span class="eyebrow" data-r>Итак, вся ниша</span>
       <h2 class="h2" data-r>Четыре участника. Одна ссылка.</h2>
       <p class="lead" data-r>Это обычная программа «Пригласи друга», только официальная и в десятки раз крупнее.</p>
@@ -527,7 +537,9 @@ footer a{color:var(--ink)}
     <img class="layer" data-bg="b4" alt="">
     <div class="pshadow" id="pearShadow"></div>
     <div class="core" id="pearCore"></div>
+    <img class="obj" id="branch" src="assets/scene/branch.webp" alt="">
     <img class="obj" id="pearWhole" src="assets/scene/pear.webp" alt="">
+    <img class="obj" id="leafFall" src="assets/scene/leaf.webp" alt="">
     <img class="obj" id="pearL" src="assets/scene/pear-l.webp" alt="">
     <img class="obj" id="pearR" src="assets/scene/pear-r.webp" alt="">
     <div id="sparks"></div>
@@ -542,7 +554,7 @@ footer a{color:var(--ink)}
     <div class="seedcard sc3" id="card2"><span class="dot"></span><span class="n">3</span><h3>Кредитные карты</h3><b>9 300 ₽</b><span class="s">2 карты</span></div>
     <div class="seedcard sc4" id="card3"><span class="dot"></span><span class="n">4</span><h3>Микрозаймы</h3><b>16 577 ₽</b><span class="s">4 займа</span></div>
     <div class="shade" style="opacity:.6"></div>
-    <div class="cap top" data-a="0" data-b=".24"><span class="eyebrow">Доход</span><h2>Один человек — это четыре выплаты.</h2><p>Как зёрна в груше. Смотри, что внутри.</p></div>
+    <div class="cap top" data-a=".09" data-b=".25"><span class="eyebrow">Доход</span><h2>Один человек — это четыре выплаты.</h2><p>Как зёрна в груше. Смотри, что внутри.</p></div>
     <div class="pear-total" id="pearTotal"><span>Итого с одного человека</span><b id="pearSum">110 877 ₽</b></div>
   </div>
 </section>
@@ -551,6 +563,7 @@ footer a{color:var(--ink)}
 <section class="blk bg2" id="products">
   <div class="wrap">
     <div class="head">
+      <img class="drop dseed" data-drop="seed" src="assets/scene/seed.webp" alt="">
       <span class="eyebrow" data-r>Простыми словами</span>
       <h2 class="h2" data-r>Что такое каждое зерно.</h2>
       <p class="lead" data-r>Впервые слышишь слово «РКО»? Нормально. Вот всё, что нужно знать.</p>
@@ -681,6 +694,7 @@ footer a{color:var(--ink)}
 <section class="blk" id="students">
   <div class="wrap">
     <div class="head center">
+      <span class="drop dpin" data-drop="pin" aria-hidden="true"><i></i><b></b></span>
       <span class="eyebrow" data-r>Ученики</span>
       <h2 class="h2" data-r>Это работает не только у меня.</h2>
     </div>
@@ -959,23 +973,41 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
 
   /* — 5. груша — */
   const PR = S('pear');
-  const pearWhole = $('pearWhole'), pearL = $('pearL'), pearR = $('pearR'), pearCore = $('pearCore'), pearShadow = $('pearShadow'), blade = $('blade'), pearTotal = $('pearTotal'), pearSum = $('pearSum');
+  const branch = $('branch'), leafFall = $('leafFall'), pearWhole = $('pearWhole'), pearL = $('pearL'), pearR = $('pearR'), pearCore = $('pearCore'), pearShadow = $('pearShadow'), blade = $('blade'), pearTotal = $('pearTotal'), pearSum = $('pearSum');
   const seeds = [0, 1, 2, 3].map(i => $('seed' + i)), cards = [0, 1, 2, 3].map(i => $('card' + i)), lns = [0, 1, 2, 3].map(i => $('ln' + i)), SEEDK = [1.3, .8, .9, 1];
   const SPARKS = Array.from({ length: 14 }, (_, i) => { const d = document.createElement('div'); d.className = 'spark'; $('sparks').appendChild(d); return { d, a: i / 14 * Math.PI * 2, r: 70 + (i * 29) % 90 }; });
   let PG = {};
   function layoutPear() {
+    // камера сначала смотрит выше (на ветку), потом опускается вслед за грушей
     PG.rb = coverRect(.55, mob ? .62 : .5); sizeLayer(PR.bgs.b4, PG.rb);
     PG.tableY = PG.rb.dy + .665 * PG.rb.dh;
+    { const za = mob ? 1.25 : 1.6, dw = PG.rb.dw * za, dh = PG.rb.dh * za, dy = Math.min(0, H * 1.08 - .665 * dh);
+      PG.A = { za, dx: clamp(W / 2 - .55 * dw, W - dw, 0), dy }; PG.lift = dy + .665 * dh - PG.tableY; }
     PG.ph = mob ? Math.min(H * .23, W * .48) : H * .34; PG.pw = PG.ph * 564 / 800; PG.px = W * .5; PG.py = PG.tableY - PG.ph * .47; PG.hh = PG.ph * .85;
-    sizeObj(pearWhole, PG.pw); sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
+    sizeObj(pearWhole, PG.pw); sizeObj(branch, mob ? W * 1.3 : Math.min(W * .62, PG.ph * 2.6)); sizeObj(leafFall, PG.pw * .3);
+    PG.tipY = mob ? H * .17 : H * .24; PG.bx = PG.px - (.493 - .5) * branch.__w; PG.by = PG.tipY - (.626 - .5) * branch.__h;
+sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     seeds.forEach((s, i) => sizeObj(s, (mob ? 22 : 32) * SEEDK[i]));
     PG.dots = cards.map(c => { const d = c.querySelector('.dot'); return [c.offsetLeft + d.offsetLeft + d.offsetWidth / 2, c.offsetTop + d.offsetTop + d.offsetHeight / 2]; });
   }
   function drawPear(p) {
-    moveLayer(PR.bgs.b4, PG.rb, .5, .66, 1.02 + .04 * p, 1);
     const { ph, pw, px, py, hh } = PG;
-    const td = clamp(p / .1), cut = p >= .15;
-    putObj(pearWhole, px, lerp(-ph * 1.2, py, backOut(td)), 1, (1 - ease(td)) * -16, cut ? 0 : 1);
+    const cut = p >= .15, tf = clamp((p - .04) / .05), k = 1 - io3(tf), cam = -PG.lift * (1 - k);
+    { const z = 1.02 + .04 * p, r = PG.rb, A = PG.A, sc = lerp(1, A.za, k);
+      PR.bgs.b4.style.transform = `translate3d(${lerp(r.dx, A.dx, k) + .5 * r.dw * sc * (1 - z)}px,${lerp(r.dy, A.dy, k) + .66 * r.dh * sc * (1 - z)}px,0) scale(${sc * z})`; PR.bgs.b4.style.opacity = 1; PR.bgs.b4.style.visibility = 'visible'; }
+    // груша висит на ветке, качается, срывается и падает на стол
+    const sway = Math.sin(p / .04 * Math.PI * 1.5) * 5 * (1 - tf), rel = smooth(.04, .042, p);
+    const ox = (.545 - .5) * pw, oy = (.005 - .5) * ph, a = sway * Math.PI / 180;
+    const hx = px - (ox * Math.cos(a) - oy * Math.sin(a)), hy0 = PG.tipY - (ox * Math.sin(a) + oy * Math.cos(a));
+    const bounce = Math.sin(clamp((p - .09) / .012) * Math.PI) * ph * .035;
+    putObj(pearWhole, lerp(hx, px, tf), lerp(hy0, py, tf * tf) - bounce, 1, tf < 1 ? sway * (1 - tf) - 7 * Math.sin(tf * Math.PI) : 0, cut ? 0 : 1);
+    // ветка: отпружинивает и уходит вверх
+    const kick = rel * Math.sin(clamp((p - .04) / .03) * Math.PI) * -ph * .06, away = io3(clamp((p - .07) / .1));
+    putObj(branch, PG.bx, PG.by + kick + cam - away * (PG.tipY + branch.__h), 1, sway * .25 + rel * Math.sin(clamp((p - .04) / .04) * Math.PI * 2) * 1.5 * (1 - away), 1 - away * .6);
+    // листок отрывается следом и медленно планирует на стол
+    const tl = clamp((p - .045) / .17), lx = px + pw * (mob ? .75 : 1.05), ly = PG.tableY - pw * .06;
+    putObj(leafFall, lx - Math.sin(tl * Math.PI * 2.2) * pw * .5 * (1 - tl) - (1 - tl) * pw * .55, lerp(PG.tipY + 10 + cam, ly, ease(tl)), 1, tl < 1 ? Math.sin(tl * Math.PI * 3) * 35 - 20 + tl * 95 : 75, p < .045 ? 0 : 1 - smooth(.3, .36, p));
+    const td = tf;
     pearShadow.style.transform = `translate3d(${px}px,${PG.tableY - 4}px,0) scale(${(.3 + .7 * td) * pw / 200},1)`; O(pearShadow, td * .8);
     const tb = io3(clamp((p - .1) / .045)), x1 = px + pw * .55, y1 = py - ph * .55, x2 = px - pw * .55, y2 = py + ph * .5;
     blade.setAttribute('x1', x1); blade.setAttribute('y1', y1); blade.setAttribute('x2', lerp(x1, x2, tb)); blade.setAttribute('y2', lerp(y1, y2, tb));
@@ -1129,6 +1161,23 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
 
   const DRAW = { hero: drawHero, how: drawHow, pear: drawPear, temple: drawTemple, route: drawRoute, geo: drawGeo };
 
+  /* переходы: монета, зерно, метка падают из сцены выше в заголовок следующего блока */
+  const drops = reduce ? [] : [...document.querySelectorAll('[data-drop]')].map(el => ({ el, kind: el.dataset.drop, ring: el.querySelector('b'), top: 0 }));
+  if (reduce) document.querySelectorAll('[data-drop]').forEach(el => el.style.opacity = 1);
+  const layoutDrops = () => drops.forEach(d => { d.el.style.transform = 'none'; d.top = absTop(d.el); });
+  function drawDrop(d, y) {
+    const r = d.top - y; if (r > H * 1.3 || r < -H * .6) return;
+    const t = clamp((H * .92 - r) / (H * .5)), land = H * .42, g = t < .85 ? Math.pow(t / .85, 2) : 1;
+    const hop = t > .85 ? Math.sin((t - .85) / .15 * Math.PI) * 16 : 0;
+    const sy = lerp(-H * .04, land, g) - hop;
+    const dy = t >= 1 ? 0 : sy - r, sw = Math.sin(t * Math.PI * 2) * (1 - g) * 40;
+    let tr = `translate3d(${sw}px,${dy}px,0)`;
+    if (d.kind === 'coin') tr += ` rotate(${(1 - g) * -25}deg) scaleX(${Math.max(.1, Math.abs(Math.cos(g * Math.PI * 4)))})`;
+    else if (d.kind === 'seed') tr += ` rotate(${g * 720}deg)`;
+    d.el.style.transform = tr; d.el.style.opacity = smooth(0, .06, t);
+    if (d.ring) { const u = clamp((land - r) / (H * .22)); d.ring.style.transform = `scale(${.3 + u * 1.9})`; d.ring.style.opacity = u > 0 && u < 1 ? 1 - u : 0; }
+  }
+
   /* остальное, что движется */
   const pipe = $('pipe'), pipeFill = $('pipeFill'), pipeCoin = $('pipeCoin'), pipeSteps = [...pipe.querySelectorAll('.st')];
   const nav = $('nav'), prog = $('prog'), hint = $('hint'), finalBg = document.querySelector('.final-bg img'), finalSec = $('final');
@@ -1136,7 +1185,7 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
   function layout() {
     W = innerWidth; H = innerHeight; mob = W < 900;
     scenes.forEach(s => { s.top = absTop(s.sec); s.h = s.sec.offsetHeight; s.p = -1; });
-    layoutHero(); layoutHow(); layoutPear(); layoutTemple(); layoutRoute();
+    layoutHero(); layoutHow(); layoutPear(); layoutTemple(); layoutRoute(); layoutDrops();
     const vertical = getComputedStyle(pipe).gridTemplateColumns.split(' ').length === 1;
     PIPE = { top: absTop(pipe), vertical, pts: pipeSteps.map(s => vertical ? s.offsetTop + 10 : s.offsetLeft + s.offsetWidth / 2) };
     FIN = { top: absTop(finalSec), h: finalSec.offsetHeight };
@@ -1163,6 +1212,7 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
       drawCaps(s, p);
       DRAW[s.kind](p);
     });
+    drops.forEach(d => drawDrop(d, y));
     const pr = PIPE.top - y;
     if (pr < H + 50 && pr > -600) {
       const pp = clamp((H * .85 - pr) / (H * .5)), pts = PIPE.pts, f = pp * (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(f)), pos = pts[i] + (pts[i + 1] - pts[i]) * (f - i);
