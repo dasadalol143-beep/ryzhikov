@@ -1,6 +1,7 @@
 :root{--bg:#fff;--bg2:#f5f5f7;--ink:#1d1d1f;--ink2:#6e6e73;--line:#d2d2d7;--gold:#a8771f;
   --f:-apple-system,BlinkMacSystemFont,"SF Pro Text","Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;color-scheme:light}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{background:var(--bg);-webkit-text-size-adjust:100%;scroll-behavior:smooth}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:17px;line-height:1.6;letter-spacing:-.01em;-webkit-font-smoothing:antialiased}
 a{color:var(--gold)}

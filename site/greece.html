@@ -906,7 +906,7 @@ footer a{color:var(--ink)}
 /* ===== ССЫЛКИ: поменять на свои ===== */
 const LINKS = {
   diagnostic: 'https://t.me/m/TklPmdWqNWYy', // кнопки «Записаться на разбор» (сейчас ссылка менеджера из гайда)
-  channel: 'https://t.me/'                   // Telegram-канал в подвале
+  channel: 'https://t.me/+UsWi-cBf5HdlZjQ6'                   // Telegram-канал в подвале
 };
 document.querySelectorAll('[data-cta]').forEach(a => { a.href = LINKS.diagnostic; a.target = '_blank'; a.rel = 'noopener'; });
 document.querySelectorAll('[data-channel]').forEach(a => { if (LINKS.channel.length < 15) { a.hidden = true; return; } a.href = LINKS.channel; a.target = '_blank'; a.rel = 'noopener'; });
