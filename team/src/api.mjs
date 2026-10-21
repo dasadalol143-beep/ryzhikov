@@ -495,7 +495,9 @@ export async function applyAction(c, body, ctx) {
     // Исправляют уже сохранённый отчёт этого дня — тот же созвон, не новый.
     if (!call) {
       const day = mskKey(Date.parse(isoOrNull(body.date) || nowIso()));
-      call = [...c.calls].reverse().find((x) => x.outcome === "held" && mskKey(Date.parse(x.at)) === day) || null;
+      // Без даты — правка свежего отчёта: созвон за последние 12 часов (вечерний созвон, правка после полуночи).
+      const fresh = (x) => (!body.date || Math.abs(Date.parse(body.date) - Date.now()) < 10 * 60_000) && Date.now() - Date.parse(x.at) < 12 * 3600_000;
+      call = [...c.calls].reverse().find((x) => x.outcome === "held" && (mskKey(Date.parse(x.at)) === day || fresh(x))) || null;
     }
     // Созвон не назначали в приложении (как раньше в таблице) — заводим проведённый созвон на дату диагностики.
     if (!call && body.newCall) {

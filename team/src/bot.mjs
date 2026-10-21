@@ -111,6 +111,7 @@ async function seenUpdate(store, id) {
 }
 
 // Вопрос — сразу ИИ, а не правилам: «сколько созвонов у Темы завтра в 18?» — это не запись на созвон.
+const RELAY_INTENT = /^\s*(передай|перешли|скажи|напиши|сообщи|попроси|предупреди|напомни)(?![а-я])/i;
 const QUESTION = /\?\s*$|^(сколько|кто|что|чт[оа]|когда|как|почему|зачем|какой|какая|какие|каких|где|есть ли|покажи|расскажи|подскажи|помоги|объясни|напомни,? что|дай)(?![а-я])/i;
 
 async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, turn }) {
@@ -173,7 +174,8 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
   turn.text = text;
   const now = Date.now();
   const aiOn = Boolean(env.ANTHROPIC_API_KEY);
-  const ask = aiOn && QUESTION.test(text);
+  // «Передай Артёму и Диме, чтобы…» — поручение людям, а не запись на созвон: сразу ИИ, правила не трогаем.
+  const ask = aiOn && (QUESTION.test(text) || RELAY_INTENT.test(text));
   if (/^\/ai\b/.test(text) && ["owner", "rop"].includes(me.role)) {
     const { aiStatus } = await import("./ai.mjs");
     return reply(h(await aiStatus({ store, env, users, now, client: env.__aiClient || null })));
@@ -566,12 +568,26 @@ async function relay(from, to, text, { store, tg, reply, appUrl, answer = false,
     return false;
   }
   const head = answer ? `↩️ <b>Ответ от ${h(from.name)}</b>` : `📩 <b>${h(from.name)} пишет тебе</b>`;
+  // То же сообщение тому же человеку за последние 30 минут — второй раз не шлём (ИИ/двойной тап/повтор).
+  const words = (t) => new Set(String(t).toLowerCase().replace(/ё/g, "е").replace(/[^a-zа-я0-9 ]+/g, " ").split(/\s+/).filter((w) => w.length > 2));
+  const key = `relay-last:${from.id}:${to.id}`;
+  const last = !answer && (await store.get("meta", key));
+  if (last && Date.now() - last.at < 30 * 60_000) {
+    const a = words(last.text);
+    const b = words(text);
+    const common = [...b].filter((w) => a.has(w)).length;
+    if (!b.size || common / Math.max(a.size, b.size) >= 0.6) {
+      if (!silent) await reply(`☑️ ${h(to.name)} уже получил это в ${new Date(last.at + 3 * 3600_000).toISOString().slice(11, 16)}: «${h(last.text)}» — повторно не отправляю.`);
+      return true;
+    }
+  }
   try {
     const sent = await tg.sendMessage(to.id, `${head}\n\n${h(text)}\n\n<i>Ответь на это сообщение (свайп влево → «Ответить») — передам ${h(from.name)}.</i>`, { inline_keyboard: [[openApp(appUrl)]] });
     if (sent?.message_id) await store.put("relay", `${to.id}:${sent.message_id}`, { id: `${to.id}:${sent.message_id}`, from: from.id, at: new Date().toISOString() });
+    if (!answer) await store.put("meta", key, { id: key, text: String(text).slice(0, 500), at: Date.now() });
     if (!silent) {
       await addFeed(store, { type: "comment", text: `💬 ${from.name} → ${to.name}: ${text}`, by: from.id, to: [to.id] });
-      await reply(`✅ Передал ${h(to.name)}`);
+      await reply(`✅ Передал ${h(to.name)}: «${h(text)}»`);
     }
     return true;
   } catch {

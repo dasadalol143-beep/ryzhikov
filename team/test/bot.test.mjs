@@ -1028,3 +1028,32 @@ test("report can close a lead as «Невалид»", async () => {
   assert.equal(r.status, "invalid");
   assert.ok(r.calls[0].reportAt);
 });
+
+test("relay via AI: «передай Артёму и Диме…» goes to AI, confirmation shows the text, repeats are blocked, questions can't act", async () => {
+  const { store, sent } = await setup();
+  const { createHandler } = await import("../src/api.mjs");
+  const { webhookSecret } = await import("../src/telegram.mjs");
+  const asks = [];
+  let next = [];
+  const aiClient = { messages: { create: async (req) => { asks.push(req); const content = next; next = []; return { stop_reason: content.length ? "tool_use" : "end_turn", content: content.length ? content : [{ type: "text", text: "Отправил." }] }; } } };
+  const env = { BOT_TOKEN: "123:abc", OWNER_IDS: "1", APP_URL: "https://team.test/", ANTHROPIC_API_KEY: "test", __aiClient: aiClient };
+  const handle = createHandler({ store, env, fetch: async (url, init) => (sent.push({ chat: init.body.get("chat_id"), text: init.body.get("text") }), new Response(JSON.stringify({ ok: true, result: { message_id: sent.length } }))) });
+  const secret = await webhookSecret("123:abc");
+  let u = 5000;
+  const tell = (text) => handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: ++u, message: { message_id: u, from: { id: 1, first_name: "П" }, chat: { id: 1, type: "private" }, text } }) }));
+  const msgBoth = [{ type: "tool_use", id: "a", name: "send_message", input: { to: "Тема", text: "Поставьте окна до понедельника" } }, { type: "tool_use", id: "b", name: "send_message", input: { to: "Дима", text: "Поставьте окна до понедельника" } }];
+  next = msgBoth;
+  await tell("Передай артему и Диме что бы поставили окна до понедельника");
+  assert.equal(asks.length, 1); // не «Во сколько?», а ИИ
+  assert.equal(sent.filter((m) => m.chat === "501" && /пишет тебе/.test(m.text)).length, 1);
+  assert.match(sent.filter((m) => m.chat === "1").map((m) => m.text).join("\n"), /Передал Тема: «Поставьте окна до понедельника»/);
+  // ИИ решил отправить ещё раз — второй раз не уходит
+  next = msgBoth;
+  await tell("Передай им");
+  assert.equal(sent.filter((m) => m.chat === "501" && /пишет тебе/.test(m.text)).length, 1);
+  assert.equal(sent.filter((m) => m.chat === "502" && /пишет тебе/.test(m.text)).length, 1);
+  assert.match(sent.filter((m) => m.chat === "1").at(-2).text, /уже получил/);
+  // вопрос о сделанном — инструменты действий не даём
+  await tell("Какое смс передал?");
+  assert.ok(!asks.at(-1).tools.some((t) => t.name === "send_message"));
+});
