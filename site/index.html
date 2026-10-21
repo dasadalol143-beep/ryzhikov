@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Пётр Рыжиков · РКО</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Пётр Рыжиков: от долга 90 000 ₽ до 1 000 000 ₽ за месяц на РКО. Как устроена ниша, кейсы учеников и запись на диагностику.">
+<meta property="og:title" content="Пётр Рыжиков · Погружение в РКО">
+<meta property="og:description" content="Банки платят за клиентов. Моя история, маршрут одного клиента до 130 000 ₽ и результаты учеников.">
+<meta name="theme-color" content="#02070d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%2302070d' stroke='%237ef6e0' stroke-width='2'/%3E%3Ctext x='32' y='42' font-size='28' text-anchor='middle' fill='%237ef6e0' font-family='Arial' font-weight='700'%3EР%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: одна вертикаль-погружение. Фон темнеет с глубиной, справа глубиномер, секции — «отметки глубины». */
+:root{
+  --abyss:#02070d;   /* дно */
+  --deep:#061a2b;    /* толща */
+  --shelf:#0c3a57;   /* у поверхности */
+  --ink:#e8f3f6;     /* основной текст */
+  --mist:#8eb1bf;    /* второстепенный */
+  --glow:#7ef6e0;    /* биолюминесценция, акцент */
+  --glow-dim:rgba(126,246,224,.16);
+  --line:rgba(170,220,235,.14);
+  --glass:rgba(8,30,46,.55);
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --s-1:clamp(.78rem,.74rem + .2vw,.86rem);
+  --s0:clamp(1rem,.96rem + .2vw,1.08rem);
+  --s1:clamp(1.15rem,1.05rem + .45vw,1.35rem);
+  --s2:clamp(1.5rem,1.2rem + 1.3vw,2.2rem);
+  --s3:clamp(2rem,1.4rem + 2.8vw,3.6rem);
+  --s4:clamp(2.4rem,1.4rem + 4.6vw,5.4rem);
+  --gutter:max(16px,env(safe-area-inset-left,0px));
+  --gutter-r:max(16px,env(safe-area-inset-right,0px));
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html{background:var(--abyss);-webkit-text-size-adjust:100%}
+html.lenis,html.lenis body{height:auto}
+.lenis.lenis-smooth{scroll-behavior:auto!important}
+body{margin:0;background:var(--abyss);color:var(--ink);font-family:var(--f-body);font-size:var(--s0);line-height:1.6;overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:var(--abyss)}
+img{max-width:100%;display:block}
+main,footer{position:relative;z-index:1}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--glow);outline-offset:3px;border-radius:6px}
+h1,h2,h3{font-family:var(--f-display);font-weight:700;line-height:1.08;letter-spacing:-.02em;margin:0;text-wrap:balance}
+p{margin:0}
+
+/* ---------- океан ---------- */
+.ocean{position:fixed;inset:0;z-index:0;background:var(--shelf)}
+.rays{position:fixed;inset:-10% -20% auto;height:90vh;z-index:0;pointer-events:none;mix-blend-mode:screen;transform-origin:50% 0}
+.rays i{position:absolute;top:0;width:14vw;min-width:90px;height:100%;background:linear-gradient(180deg,rgba(170,240,255,.22),rgba(170,240,255,0) 85%);filter:blur(18px);transform-origin:50% 0;animation:sway 11s ease-in-out infinite alternate}
+.rays i:nth-child(1){left:18%;transform:rotate(14deg);animation-duration:13s}
+.rays i:nth-child(2){left:34%;width:8vw;transform:rotate(8deg);opacity:.7;animation-duration:9s}
+.rays i:nth-child(3){left:52%;transform:rotate(-4deg);animation-duration:15s}
+.rays i:nth-child(4){left:66%;width:6vw;transform:rotate(-10deg);opacity:.6;animation-duration:10s}
+.rays i:nth-child(5){left:80%;transform:rotate(-16deg);opacity:.8;animation-duration:12s}
+@keyframes sway{to{translate:3vw 0;opacity:.35}}
+.caustics{position:fixed;inset:0 0 auto;height:45vh;z-index:0;pointer-events:none;opacity:.5;
+  background:
+   radial-gradient(40% 18% at 20% 0%,rgba(190,250,255,.35),transparent 70%),
+   radial-gradient(30% 14% at 70% 0%,rgba(190,250,255,.28),transparent 70%),
+   radial-gradient(60% 30% at 50% -10%,rgba(120,220,240,.35),transparent 70%);
+  animation:shimmer 7s ease-in-out infinite alternate}
+@keyframes shimmer{to{transform:translateX(4%) scaleY(1.15);opacity:.32}}
+.abyss-glow{position:fixed;inset:auto 0 0;height:60vh;z-index:0;pointer-events:none;opacity:0;
+  background:radial-gradient(60% 70% at 50% 110%,rgba(126,246,224,.22),transparent 70%)}
+#sea{position:fixed;inset:0;z-index:0;pointer-events:none;width:100%;height:100%}
+.grain{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.06;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+
+/* ---------- шапка ---------- */
+.top{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding-block:14px;padding-left:var(--gutter);padding-right:var(--gutter-r);transition:background .4s,backdrop-filter .4s}
+.top.solid{background:rgba(2,10,18,.6);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.logo{font-family:var(--f-display);font-weight:800;letter-spacing:.14em;font-size:.92rem;text-decoration:none}
+.logo span{color:var(--glow)}
+.btn{--h:52px;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:var(--h);padding:0 26px;border-radius:999px;
+  font-family:var(--f-body);font-weight:700;font-size:1rem;text-decoration:none;cursor:pointer;border:0;transition:transform .25s,box-shadow .25s,background .25s}
+.btn-main{background:var(--glow);color:#021813;box-shadow:0 0 0 0 rgba(126,246,224,.5),0 10px 40px -10px rgba(126,246,224,.6)}
+.btn-main:hover{transform:translateY(-2px);box-shadow:0 0 0 6px rgba(126,246,224,.12),0 16px 50px -10px rgba(126,246,224,.75)}
+.btn-ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn-ghost:hover{border-color:var(--glow);color:var(--glow)}
+.top .btn{--h:42px;padding:0 18px;font-size:.92rem}
+.btn svg{width:18px;height:18px}
+
+/* ---------- глубиномер ---------- */
+.gauge{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));top:50%;transform:translateY(-50%);z-index:40;display:flex;align-items:center;gap:14px;font-family:var(--f-mono);pointer-events:none}
+.gauge-track{position:relative;width:2px;height:46vh;background:linear-gradient(var(--line),var(--line)) center/1px 100% no-repeat}
+.gauge-track b{position:absolute;left:-3px;width:8px;height:8px;border-radius:50%;background:var(--glow);box-shadow:0 0 14px var(--glow);top:0;transform:translateY(-50%)}
+.gauge-ticks{position:absolute;inset:0}
+.gauge-ticks i{position:absolute;left:-4px;width:10px;height:1px;background:var(--mist);opacity:.45}
+.gauge-read{text-align:right;min-width:92px;order:-1}
+.gauge-read strong{display:block;font-size:1.05rem;color:var(--ink);font-variant-numeric:tabular-nums;font-weight:500}
+.gauge-read span{font-size:.7rem;color:var(--mist);letter-spacing:.12em;text-transform:uppercase}
+.depth-pill{display:none}
+@media (max-width:860px){
+  .gauge{display:none}
+  .depth-pill{display:block;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(14px + env(safe-area-inset-bottom,0px));z-index:40;
+    font-family:var(--f-mono);font-size:.78rem;padding:7px 14px;border-radius:999px;background:rgba(2,12,20,.7);border:1px solid var(--line);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:var(--mist);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .depth-pill b{color:var(--glow);font-weight:500}
+}
+
+/* ---------- общая сетка ---------- */
+.wrap{width:100%;max-width:1180px;margin:0 auto;padding-left:var(--gutter);padding-right:var(--gutter-r)}
+@media (min-width:861px){.wrap{padding-right:max(150px,env(safe-area-inset-right,0px))}}
+section{position:relative;padding-block:clamp(90px,14vh,170px)}
+.mark{display:flex;align-items:center;gap:12px;font-family:var(--f-mono);font-size:var(--s-1);color:var(--glow);letter-spacing:.14em;text-transform:uppercase;margin-bottom:22px}
+.mark::before{content:"";width:28px;height:1px;background:var(--glow)}
+.lead{color:var(--mist);font-size:var(--s1);max-width:62ch;line-height:1.55}
+.h2{font-size:var(--s3);max-width:18ch}
+.h2 em{font-style:normal;color:var(--glow)}
+
+/* ---------- reveal ---------- */
+.js [data-r]{opacity:0;transform:translateY(46px) scale(.985);filter:blur(10px);transition:opacity 1.2s cubic-bezier(.2,.7,.1,1),transform 1.4s cubic-bezier(.2,.7,.1,1),filter 1.2s ease;transition-delay:calc(var(--i,0) * 110ms)}
+.js [data-r].in{opacity:1;transform:none;filter:none}
+
+/* ---------- HERO ---------- */
+.hero{min-height:min(100svh,980px);display:flex;align-items:center;padding-block:120px 110px}
+.hero-in{will-change:transform,opacity,filter}
+.hero .eyebrow{font-family:var(--f-mono);font-size:var(--s-1);color:var(--mist);letter-spacing:.16em;text-transform:uppercase;margin-bottom:28px}
+.hero .eyebrow b{color:var(--glow);font-weight:500}
+.hero h1{font-size:var(--s4);max-width:14ch;font-weight:800}
+.hero h1 .ln{display:block;overflow:hidden;padding-bottom:.06em}
+.hero h1 .ln>span{display:inline-block}
+.js .hero h1 .ln>span{transform:translateY(105%);transition:transform 1.4s cubic-bezier(.2,.8,.1,1)}
+.js.loaded .hero h1 .ln>span{transform:none}
+.hero h1 .ln:nth-child(2)>span{transition-delay:.12s}
+.hero h1 .ln:nth-child(3)>span{transition-delay:.24s}
+.hero h1 .glow{color:var(--glow);text-shadow:0 0 40px rgba(126,246,224,.35)}
+.hero .lead{margin-top:30px}
+.hero .lead strong{color:var(--ink);font-weight:700}
+.cta-row{display:flex;flex-wrap:wrap;gap:12px;margin-top:38px}
+.hero-stats{display:grid;grid-template-columns:repeat(3,minmax(0,auto));gap:clamp(18px,4vw,56px);margin-top:64px;padding-top:28px;border-top:1px solid var(--line);max-width:760px}
+.hero-stats div{min-width:0}
+.hero-stats strong{display:block;font-family:var(--f-display);font-size:var(--s2);font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.hero-stats span{font-size:var(--s-1);color:var(--mist)}
+@media (max-width:560px){.hero-stats{grid-template-columns:1fr 1fr}.hero-stats div:last-child{grid-column:1/-1}}
+.scroll-cue{position:absolute;left:50%;bottom:28px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:10px;font-family:var(--f-mono);font-size:.68rem;letter-spacing:.2em;color:var(--mist);text-transform:uppercase}
+.scroll-cue i{width:1px;height:46px;background:linear-gradient(var(--glow),transparent);animation:cue 2.2s ease-in-out infinite}
+@keyframes cue{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
+@media (max-width:860px){.scroll-cue{display:none}}
+
+/* ---------- история ---------- */
+.story{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(40px,7vw,110px);align-items:start}
+.story-head{position:sticky;top:120px}
+.story-head .lead{margin-top:24px}
+.tl{list-style:none;margin:0;padding:0;position:relative}
+.tl::before{content:"";position:absolute;left:7px;top:10px;bottom:10px;width:1px;background:linear-gradient(var(--line),var(--glow))}
+.tl li{position:relative;padding:0 0 46px 44px}
+.tl li:last-child{padding-bottom:0}
+.tl li::before{content:"";position:absolute;left:0;top:7px;width:15px;height:15px;border-radius:50%;border:1px solid var(--mist);background:var(--abyss)}
+.tl li.hot::before{border-color:var(--glow);background:var(--glow);box-shadow:0 0 18px var(--glow)}
+.tl .when{font-family:var(--f-mono);font-size:var(--s-1);color:var(--mist);letter-spacing:.08em}
+.tl h3{font-size:var(--s1);margin:6px 0 10px}
+.tl li.hot h3{font-size:var(--s2);color:var(--glow)}
+.tl p{color:var(--mist);max-width:52ch}
+.quote{margin-top:56px;padding:28px 30px;border-left:2px solid var(--glow);background:linear-gradient(90deg,var(--glow-dim),transparent);font-family:var(--f-display);font-size:var(--s1);line-height:1.4;font-weight:500}
+@media (max-width:860px){.story{grid-template-columns:1fr}.story-head{position:static}}
+
+/* ---------- ниша ---------- */
+.trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin-top:56px;background:var(--line);border:1px solid var(--line);border-radius:22px;overflow:hidden}
+.trio div{background:rgba(4,20,32,.72);padding:30px 28px;min-width:0}
+.trio .k{font-family:var(--f-mono);font-size:var(--s-1);color:var(--glow);letter-spacing:.1em;text-transform:uppercase}
+.trio h3{font-size:var(--s1);margin:14px 0 10px}
+.trio p{color:var(--mist);font-size:.96rem}
+@media (max-width:760px){.trio{grid-template-columns:1fr}}
+
+.route{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:clamp(36px,6vw,90px);margin-top:clamp(80px,12vh,140px);align-items:start}
+.route-sum{position:sticky;top:110px}
+.route-sum .lab{font-family:var(--f-mono);font-size:var(--s-1);letter-spacing:.12em;text-transform:uppercase;color:var(--mist)}
+.route-sum .total{font-family:var(--f-display);font-weight:800;font-size:clamp(2.8rem,1.6rem + 5vw,5.6rem);line-height:1;margin:14px 0 10px;font-variant-numeric:tabular-nums;color:var(--glow);text-shadow:0 0 50px rgba(126,246,224,.3);white-space:nowrap}
+.route-sum .total small{font-size:.38em;color:var(--mist);text-shadow:none;margin-right:.2em;font-weight:500}
+.route-sum p{color:var(--mist);max-width:40ch}
+.bar{height:4px;border-radius:4px;background:var(--line);margin:22px 0 18px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--glow);box-shadow:0 0 16px var(--glow);transition:width .9s cubic-bezier(.2,.7,.1,1)}
+.steps{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.step{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:16px;align-items:center;padding:20px 22px;border:1px solid var(--line);border-radius:18px;background:rgba(4,20,32,.5);transition:border-color .6s,background .6s}
+.step.on{border-color:rgba(126,246,224,.45);background:rgba(10,44,58,.6)}
+.step .n{font-family:var(--f-mono);font-size:.82rem;color:var(--mist)}
+.step h3{font-family:var(--f-body);font-size:1.05rem;font-weight:700;letter-spacing:0}
+.step p{font-size:.88rem;color:var(--mist);margin-top:2px}
+.step .v{font-family:var(--f-display);font-weight:700;font-size:1.05rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+.step.on .v{color:var(--glow)}
+.step.big{border-style:dashed}
+.note{font-size:var(--s-1);color:var(--mist);margin-top:16px;opacity:.8}
+@media (max-width:860px){
+  .route{grid-template-columns:1fr}
+  .route-sum{position:sticky;top:calc(64px + env(safe-area-inset-top,0px));z-index:5;padding:16px 18px;border-radius:18px;background:rgba(2,14,24,.86);border:1px solid var(--line);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  .route-sum .total{font-size:2.6rem;margin:6px 0 0}
+  .route-sum p,.route-sum .bar{display:none}
+  .step{grid-template-columns:32px minmax(0,1fr);padding:16px}
+  .step .v{grid-column:2}
+}
+
+.why{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:28px;margin-top:clamp(80px,12vh,130px);padding-top:40px;border-top:1px solid var(--line)}
+.why div{min-width:0}
+.why strong{display:block;font-family:var(--f-display);font-size:var(--s1);margin-bottom:10px}
+.why p{color:var(--mist);font-size:.95rem}
+@media (max-width:900px){.why{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.why{grid-template-columns:1fr}}
+
+/* ---------- ученики ---------- */
+.big-stats{display:flex;flex-wrap:wrap;gap:clamp(28px,6vw,90px);margin:48px 0 clamp(60px,9vh,100px)}
+.big-stats strong{display:block;font-family:var(--f-display);font-weight:800;font-size:var(--s3);font-variant-numeric:tabular-nums;line-height:1}
+.big-stats span{color:var(--mist);font-size:var(--s-1)}
+.feat{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(24px,4vw,60px);align-items:center;padding-block:clamp(36px,6vh,60px);border-top:1px solid var(--line)}
+.feat:nth-of-type(even) .feat-photo{order:2}
+.feat-photo{position:relative;border-radius:22px;overflow:hidden;aspect-ratio:4/5;max-width:100%}
+.feat-photo img{width:100%;height:100%;object-fit:cover;transform:scale(1.08);transition:transform 2.2s cubic-bezier(.2,.7,.1,1)}
+.in .feat-photo img,.feat-photo.in img{transform:scale(1)}
+.feat-photo::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,transparent 55%,rgba(2,7,13,.75))}
+.feat-photo figcaption{position:absolute;left:20px;bottom:18px;z-index:1;font-family:var(--f-mono);font-size:.78rem;color:var(--ink);letter-spacing:.06em}
+.feat .sum{font-family:var(--f-display);font-weight:800;font-size:var(--s3);color:var(--glow);line-height:1;font-variant-numeric:tabular-nums}
+.feat .sum-l{color:var(--mist);margin:10px 0 22px;font-size:var(--s0)}
+.feat h3{font-size:var(--s2);margin-bottom:14px}
+.feat .txt{color:var(--mist);max-width:56ch}
+.feat .txt strong{color:var(--ink)}
+.proof{display:flex;flex-direction:column;gap:10px;margin-top:24px;max-width:460px}
+.proof img{border-radius:12px;border:1px solid var(--line)}
+.proof-l{font-family:var(--f-mono);font-size:.72rem;color:var(--mist);letter-spacing:.08em;text-transform:uppercase}
+@media (max-width:760px){.feat{grid-template-columns:1fr}.feat:nth-of-type(even) .feat-photo{order:0}.feat-photo{aspect-ratio:1/1}}
+
+.cases{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-top:clamp(40px,7vh,70px)}
+.case{position:relative;border-radius:20px;overflow:hidden;aspect-ratio:3/4;background:var(--deep);max-width:100%}
+.case img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;transition:transform 1.2s cubic-bezier(.2,.7,.1,1),filter .8s}
+.case::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(2,7,13,0) 35%,rgba(2,7,13,.92))}
+.case:hover img{transform:scale(1.05)}
+.case-t{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:22px}
+.case-t .sum{font-family:var(--f-display);font-weight:800;font-size:var(--s2);color:var(--glow);line-height:1.05}
+.case-t .who{font-weight:700;margin-top:8px}
+.case-t p{color:var(--mist);font-size:.9rem;margin-top:4px;line-height:1.45}
+@media (max-width:900px){.cases{grid-template-columns:1fr 1fr}}
+@media (max-width:540px){.cases{grid-template-columns:1fr}.case{aspect-ratio:4/5}}
+
+/* ---------- обучение ---------- */
+.academy{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:clamp(36px,6vw,90px);margin-top:56px;align-items:start}
+.mods{list-style:none;margin:0;padding:0;counter-reset:m}
+.mods li{display:grid;grid-template-columns:56px minmax(0,1fr);gap:8px;padding:20px 0;border-bottom:1px solid var(--line)}
+.mods li:first-child{border-top:1px solid var(--line)}
+.mods .n{font-family:var(--f-mono);color:var(--glow);font-size:.85rem;padding-top:3px}
+.mods h3{font-family:var(--f-body);font-size:1.1rem;font-weight:700;letter-spacing:0}
+.mods p{color:var(--mist);font-size:.93rem;margin-top:3px}
+.side{display:grid;gap:22px}
+.panel{border:1px solid var(--line);border-radius:22px;padding:26px;background:rgba(4,20,32,.55)}
+.panel h3{font-size:1.05rem;margin-bottom:18px}
+.curators{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.cur{display:flex;gap:12px;align-items:center;min-width:0}
+.cur img{width:52px;height:52px;border-radius:50%;object-fit:cover;flex:none;border:1px solid var(--line)}
+.cur b{display:block;font-size:.95rem}
+.cur span{display:block;font-size:.8rem;color:var(--mist);line-height:1.35}
+.chat-shot{border-radius:16px;overflow:hidden;border:1px solid var(--line);max-height:420px}
+.chat-shot img{width:100%;object-fit:cover;object-position:top}
+.ticks{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.ticks li{position:relative;padding-left:26px;color:var(--mist);font-size:.95rem}
+.ticks li::before{content:"";position:absolute;left:0;top:.55em;width:12px;height:6px;border-left:2px solid var(--glow);border-bottom:2px solid var(--glow);transform:rotate(-45deg)}
+@media (max-width:900px){.academy{grid-template-columns:1fr}}
+@media (max-width:420px){.curators{grid-template-columns:1fr}}
+
+/* ---------- для кого ---------- */
+.fit{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:56px}
+.fit>div{border-radius:22px;padding:30px;border:1px solid var(--line);min-width:0}
+.fit .yes{background:linear-gradient(160deg,rgba(126,246,224,.1),rgba(4,20,32,.5) 60%);border-color:rgba(126,246,224,.3)}
+.fit .no{background:rgba(4,14,22,.55)}
+.fit h3{font-size:var(--s1);margin-bottom:20px}
+.fit ul{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.fit li{position:relative;padding-left:30px;line-height:1.5}
+.fit .yes li::before{content:"";position:absolute;left:2px;top:.45em;width:12px;height:6px;border-left:2px solid var(--glow);border-bottom:2px solid var(--glow);transform:rotate(-45deg)}
+.fit .no li{color:var(--mist)}
+.fit .no li::before,.fit .no li::after{content:"";position:absolute;left:2px;top:.75em;width:14px;height:2px;background:#d77a7a;transform:rotate(45deg)}
+.fit .no li::after{transform:rotate(-45deg)}
+@media (max-width:760px){.fit{grid-template-columns:1fr}}
+
+/* ---------- финал ---------- */
+.final{text-align:center;padding-block:clamp(120px,18vh,200px) clamp(90px,12vh,140px)}
+.final .mark{justify-content:center}
+.final .mark::after{content:"";width:28px;height:1px;background:var(--glow)}
+.final h2{font-size:var(--s4);max-width:16ch;margin:0 auto;font-weight:800}
+.final .lead{margin:28px auto 0;text-align:center}
+.diag{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;max-width:900px;margin:60px auto 0;text-align:left}
+.diag div{padding:24px;border-top:1px solid var(--glow);min-width:0}
+.diag .n{font-family:var(--f-mono);font-size:.8rem;color:var(--glow)}
+.diag h3{font-family:var(--f-body);font-size:1.05rem;font-weight:700;letter-spacing:0;margin:8px 0 6px}
+.diag p{color:var(--mist);font-size:.92rem}
+@media (max-width:760px){.diag{grid-template-columns:1fr;gap:0}}
+.final-cta{margin-top:56px;display:flex;flex-direction:column;align-items:center;gap:16px}
+.final-cta .btn{--h:64px;padding:0 40px;font-size:1.1rem;animation:pulse 3.2s ease-in-out infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 14px rgba(126,246,224,0),0 0 70px -6px rgba(126,246,224,.8)}}
+.final-cta small{color:var(--mist);font-size:var(--s-1)}
+
+footer{border-top:1px solid var(--line);padding-block:34px calc(80px + env(safe-area-inset-bottom,0px));color:var(--mist);font-size:var(--s-1)}
+footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:16px 30px}
+footer a{color:var(--ink);text-decoration:none;border-bottom:1px solid var(--line)}
+footer p{max-width:62ch}
+
+@media (prefers-reduced-motion:reduce){
+  .js [data-r],.js .hero h1 .ln>span{opacity:1;transform:none;filter:none;transition:none}
+  .rays i,.caustics,.final-cta .btn,.scroll-cue i{animation:none}
+}
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+
+<div class="ocean" id="ocean"></div>
+<div class="caustics" id="caustics"></div>
+<div class="rays" id="rays"><i></i><i></i><i></i><i></i><i></i></div>
+<div class="abyss-glow" id="abyssGlow"></div>
+<canvas id="sea" aria-hidden="true"></canvas>
+<div class="grain"></div>
+
+<header class="top" id="top">
+  <a class="logo" href="#surface">РЫЖИКОВ<span>.</span></a>
+  <a class="btn btn-main" data-cta href="#dive">Диагностика</a>
+</header>
+
+<aside class="gauge" aria-hidden="true">
+  <div class="gauge-read"><strong id="gDepth">0 м</strong><span id="gName">Поверхность</span></div>
+  <div class="gauge-track"><div class="gauge-ticks" id="gTicks"></div><b id="gDot"></b></div>
+</aside>
+<div class="depth-pill" aria-hidden="true"><b id="pDepth">0 м</b> · <span id="pName">Поверхность</span></div>
+
+<main>
+
+<!-- ======= ПОВЕРХНОСТЬ ======= -->
+<section class="hero" id="surface" data-depth="0" data-name="Поверхность">
+  <div class="wrap hero-in" id="heroIn">
+    <div class="eyebrow">Пётр Рыжиков · <b>Ryzhikov Academy</b></div>
+    <h1>
+      <span class="ln"><span>Банки платят</span></span>
+      <span class="ln"><span>за клиентов.</span></span>
+      <span class="ln"><span class="glow">Я покажу, сколько.</span></span>
+    </h1>
+    <p class="lead">Мне 20. Было: долг <strong>90 000 ₽</strong> и вейпшоп за&nbsp;22&nbsp;тысячи. Стало: <strong>1 000 000 ₽ за&nbsp;март</strong> на&nbsp;РКО. Ниже весь маршрут: моя история, как устроена ниша и что сделали мои ученики.</p>
+    <div class="cta-row">
+      <a class="btn btn-main" data-cta href="#dive">Записаться на диагностику</a>
+      <a class="btn btn-ghost" href="#story">Начать погружение
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7"/></svg></a>
+    </div>
+    <div class="hero-stats">
+      <div><strong data-count="150" data-suf="+">150+</strong><span>учеников прошли путь</span></div>
+      <div><strong data-count="25" data-suf=" млн ₽">25 млн ₽</strong><span>заработали ученики</span></div>
+      <div><strong data-count="13">13</strong><span>банков в связке</span></div>
+    </div>
+  </div>
+  <div class="scroll-cue"><i></i>вниз</div>
+</section>
+
+<!-- ======= ИСТОРИЯ ======= -->
+<section id="story" data-depth="120" data-name="Откуда я">
+  <div class="wrap story">
+    <div class="story-head">
+      <div class="mark" data-r>Глубина 120 м · Откуда я</div>
+      <h2 class="h2" data-r style="--i:1">Я не родился с деньгами. Я их <em>нашёл.</em></h2>
+      <p class="lead" data-r style="--i:2">Без богатой семьи, без связей и без «правильного маршрута». Я прошёл всё то, где сейчас сидит большинство парней моего возраста. Поэтому знаю, как оттуда выходить.</p>
+    </div>
+    <div>
+      <ol class="tl">
+        <li data-r><div class="when">Точка ноль</div><h3>Ставки и долг 90 000 ₽</h3><p>Искал быстрые деньги там, где их нет. Проиграл, влез в долг и понял, что иду не туда.</p></li>
+        <li data-r><div class="when">Найм</div><h3>Грузчик</h3><p>Пошёл туда, где платят за руки. Деньги на закрыть дыры, но не на жизнь.</p></li>
+        <li data-r><div class="when">22 000 ₽ в месяц</div><h3>Вейпшоп</h3><p>Стабильно. И стабильно не хватает. Тут до меня дошло: экономить не план. План — найти рынок, где за понятные действия платят нормальные деньги.</p></li>
+        <li data-r><div class="when">Поворот</div><h3>Ниша РКО</h3><p>Нашёл рынок, где банки платят за каждого клиента-предпринимателя. Разобрался в партнёрках, связках и маршрутах. Начал вести людей.</p></li>
+        <li class="hot" data-r><div class="when">Март</div><h3>1 000 000 ₽ за месяц</h3><p>50 человек в работе, и даже не все докручены до конца. Ещё около 20 из них могут пройти полный цикл. Это не удача, это система.</p></li>
+      </ol>
+      <div class="quote" data-r>Деньги дал не случай. Деньги дал маршрут, который можно повторить.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ======= НИША ======= -->
+<section id="niche" data-depth="300" data-name="Как устроена ниша">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 300 м · Как устроена ниша</div>
+    <h2 class="h2" data-r style="--i:1">РКО простыми <em>словами</em></h2>
+    <p class="lead" data-r style="--i:2;margin-top:24px">РКО — это расчётный счёт для бизнеса. Банкам нужны клиенты-предприниматели, и за каждого такого клиента они платят партнёрам. Ты приводишь человека, он открывает счёт, тебе засчитывают выплату. Всё через официальные партнёрские сети, деньги приходят на твою самозанятость или ИП.</p>
+
+    <div class="trio">
+      <div data-r><div class="k">Банк</div><h3>Платит за клиента</h3><p>Ему дешевле заплатить партнёру, чем привлекать клиентов рекламой самому.</p></div>
+      <div data-r style="--i:1"><div class="k">Партнёрская сеть</div><h3>Засчитывает и выплачивает</h3><p>RKO Group, Бизнес Система, FCN. Через них идут офферы банков и выплаты.</p></div>
+      <div data-r style="--i:2"><div class="k">Ты</div><h3>Ведёшь человека по маршруту</h3><p>Находишь людей, объясняешь, проводишь через офферы. Один человек — несколько выплат.</p></div>
+    </div>
+
+    <div class="route" id="route">
+      <div class="route-sum">
+        <div class="lab">Один человек приносит</div>
+        <div class="total"><small>до</small><span id="routeTotal">0</span> ₽</div>
+        <div class="bar"><i id="routeBar"></i></div>
+        <p>Листай маршрут: сумма растёт с каждым шагом. Вот почему ниша сама себя показывает: деньги видно сразу, на первом же человеке.</p>
+      </div>
+      <div>
+        <ol class="steps">
+          <li class="step" data-add="0" data-r><span class="n">01</span><div><h3>Самозанятость в «Мой налог»</h3><p>Стартовая точка, оформляется в приложении</p></div><span class="v">0 ₽</span></li>
+          <li class="step" data-add="15000" data-r><span class="n">02</span><div><h3>ИП на НПД через Альфу</h3><p>Первые деньги с первого человека</p></div><span class="v">+15 000 ₽</span></li>
+          <li class="step" data-add="7000" data-r><span class="n">03</span><div><h3>ВТБ</h3><p>Расчётный счёт для ИП</p></div><span class="v">+7 000 ₽</span></li>
+          <li class="step" data-add="8000" data-r><span class="n">04</span><div><h3>Ozon Банк</h3><p>Счёт для бизнеса</p></div><span class="v">+8 000 ₽</span></li>
+          <li class="step" data-add="9500" data-r><span class="n">05</span><div><h3>Локо-Банк</h3><p>Один из самых жирных офферов</p></div><span class="v">+9 500 ₽</span></li>
+          <li class="step" data-add="6000" data-r><span class="n">06</span><div><h3>Уралсиб</h3><p>Через Бизнес Систему</p></div><span class="v">+6 000 ₽</span></li>
+          <li class="step" data-add="4500" data-r><span class="n">07</span><div><h3>Левобережный</h3><p>Ещё один счёт в цепочку</p></div><span class="v">+4 500 ₽</span></li>
+          <li class="step big" data-add="80000" data-r><span class="n">08</span><div><h3>Остальные банки связки и МФО-офферы</h3><p>13 банков в маршруте, плюс связки, которые дают ×1,5–2 с лида</p></div><span class="v">до +80 000 ₽</span></li>
+        </ol>
+        <p class="note">Ставки на октябрь 2026, меняются от сети к сети. Актуальные разбираем внутри.</p>
+      </div>
+    </div>
+
+    <div class="why">
+      <div data-r><strong>Вход без вложений в товар</strong><p>Самозанятость бесплатная. Не нужно закупать, арендовать и ждать окупаемость.</p></div>
+      <div data-r style="--i:1"><strong>Деньги с первого человека</strong><p>Первая выплата приходит после первого клиента, а не через полгода.</p></div>
+      <div data-r style="--i:2"><strong>Один человек = цепочка</strong><p>Не 15 тысяч и до свидания, а маршрут через несколько банков.</p></div>
+      <div data-r style="--i:3"><strong>Есть куда расти</strong><p>Трафик, команда, личный бренд. Из исполнителя в системного игрока.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======= УЧЕНИКИ ======= -->
+<section id="students" data-depth="550" data-name="Ученики">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 550 м · Ученики</div>
+    <h2 class="h2" data-r style="--i:1">Это работает <em>не только у меня</em></h2>
+    <div class="big-stats">
+      <div data-r><strong data-count="150" data-suf="+">150+</strong><span>учеников</span></div>
+      <div data-r style="--i:1"><strong data-count="25" data-suf=" млн ₽">25 млн ₽</strong><span>заработали в сумме</span></div>
+      <div data-r style="--i:2"><strong data-count="4">4</strong><span>куратора на связи каждый день</span></div>
+    </div>
+
+    <article class="feat">
+      <figure class="feat-photo" data-r style="margin:0"><img src="assets/img/vitya.jpg" alt="Витя, ученик" loading="lazy"><figcaption>Витя · @GauzRko</figcaption></figure>
+      <div>
+        <div class="sum" data-r>140 000 ₽</div>
+        <div class="sum-l" data-r>за первый месяц</div>
+        <h3 data-r>Перестал отдавать деньги посреднику</h3>
+        <p class="txt" data-r>До меня Витя работал через партнёра, который забирал по <strong>5 000 ₽ с каждого клиента</strong>. На первом созвоне за 20 минут получил выход на прямые партнёрки. Дальше просто делал.</p>
+        <div class="proof" data-r><span class="proof-l">Выплаты от партнёрских сетей</span><img src="assets/img/vitya-pay2.jpg" alt="Поступление 90 385 ₽ от ООО «Бизнес Система»" loading="lazy"><img src="assets/img/vitya-pay1.jpg" alt="Поступление 29 000 ₽ от ООО «РКО Групп»" loading="lazy"></div>
+      </div>
+    </article>
+
+    <article class="feat">
+      <figure class="feat-photo" data-r style="margin:0"><img src="assets/img/anton.jpg" alt="Антон, ученик" loading="lazy"><figcaption>Антон · @takemmn</figcaption></figure>
+      <div>
+        <div class="sum" data-r>230 000+ ₽</div>
+        <div class="sum-l" data-r>за сентябрь с онлайна</div>
+        <h3 data-r>Первый месяц — сотка. Дальше больше</h3>
+        <p class="txt" data-r>В первый месяц вышел на <strong>100 000+ ₽</strong>. В сентябре закрыл счета на 110 900, 49 000 и 46 400 ₽, ещё 184 400 ₽ в обработке.</p>
+        <div class="proof" data-r><span class="proof-l">Закрытые счета</span><img src="assets/img/anton-pay1.jpg" alt="Оплаченные счета на 110 900, 49 000 и 46 400 ₽" loading="lazy"></div>
+      </div>
+    </article>
+
+    <div class="cases">
+      <div class="case" data-r><img src="assets/img/case-damir.jpg" alt="Дамир" loading="lazy"><div class="case-t"><div class="sum">900 000 ₽</div><div class="who">Дамир</div><p>за квартал. Сейчас старший куратор.</p></div></div>
+      <div class="case" data-r style="--i:1"><img src="assets/img/case-kirill.jpg" alt="Кирилл с машиной" loading="lazy"><div class="case-t"><div class="sum">500 000 ₽</div><div class="who">Кирилл</div><p>на второй месяц. Работал в магазине у брата, на третий месяц купил Ford Focus.</p></div></div>
+      <div class="case" data-r style="--i:2"><img src="assets/img/case-dima.jpg" alt="Дима" loading="lazy"><div class="case-t"><div class="sum">400 000 ₽</div><div class="who">Дима</div><p>в месяц. До этого был монтажником при −40.</p></div></div>
+      <div class="case" data-r><img src="assets/img/case-slava.jpg" alt="Слава" loading="lazy"><div class="case-t"><div class="sum">300 000 ₽</div><div class="who">Слава, Ишимбай</div><p>Маленький город, до этого только «темки». Стал куратором.</p></div></div>
+      <div class="case" data-r style="--i:1"><img src="assets/img/case-maxim.jpg" alt="Максим" loading="lazy"><div class="case-t"><div class="sum">200 000 ₽</div><div class="who">Максим, 26</div><p>в месяц.</p></div></div>
+      <div class="case" data-r style="--i:2"><img src="assets/img/case-timur.jpg" alt="Тимур" loading="lazy"><div class="case-t"><div class="sum">159 000 ₽</div><div class="who">Тимур, 18</div><p>в первый месяц.</p></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ======= ОБУЧЕНИЕ ======= -->
+<section id="academy" data-depth="800" data-name="Как я веду">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 800 м · Как я веду</div>
+    <h2 class="h2" data-r style="--i:1">Не курс в записи. <em>Маршрут с людьми.</em></h2>
+    <div class="academy">
+      <ol class="mods">
+        <li data-r><span class="n">00</span><div><h3>Вводный</h3><p>Словарь ниши: РКО, КЭП, 115-ФЗ, CPA, лид, оффер. Диагностика твоей точки старта.</p></div></li>
+        <li data-r><span class="n">01</span><div><h3>Мир продуктов</h3><p>Партнёрки RKO Group, FCN, Бизнес Система. ИП на НПД через Альфу.</p></div></li>
+        <li data-r><span class="n">02</span><div><h3>РКО. 13 банков</h3><p>Полный маршрут: от 30 до 130 тысяч с одного человека.</p></div></li>
+        <li data-r><span class="n">03</span><div><h3>МФО-связки</h3><p>Как поднять доход с того же лида в 1,5–2 раза.</p></div></li>
+        <li data-r><span class="n">04</span><div><h3>Трафик и 115-ФЗ</h3><p>Где брать людей и как работать без блокировок.</p></div></li>
+        <li data-r><span class="n">05</span><div><h3>Масштабирование</h3><p>Команда, партнёры, выход на 500 000+ ₽.</p></div></li>
+        <li data-r><span class="n">06</span><div><h3>Личный бренд</h3><p>Моя связка: как клиенты сами приходят через контент.</p></div></li>
+      </ol>
+      <div class="side">
+        <div class="panel" data-r>
+          <h3>Кураторы с результатом в нише</h3>
+          <div class="curators">
+            <div class="cur"><img src="assets/img/case-damir.jpg" alt="" loading="lazy"><div><b>Дамир</b><span>старший, 900к за квартал</span></div></div>
+            <div class="cur"><img src="assets/img/case-dima.jpg" alt="" loading="lazy"><div><b>Дима</b><span>400к в месяц</span></div></div>
+            <div class="cur"><img src="assets/img/cur-roma.jpg" alt="" loading="lazy"><div><b>Рома</b><span>800к за первый месяц бренда</span></div></div>
+            <div class="cur"><img src="assets/img/cur-astemir.jpg" alt="" loading="lazy"><div><b>Астемир</b><span>250к в месяц</span></div></div>
+          </div>
+        </div>
+        <div class="panel" data-r>
+          <h3>Что ещё внутри</h3>
+          <ul class="ticks">
+            <li>Закрытый чат с учениками, 24/7</li>
+            <li>Скрипты общения с лидами</li>
+            <li>Мини-обучение по продажам, 50+ возражений</li>
+            <li>Живые эфиры и разборы</li>
+          </ul>
+        </div>
+        <div class="chat-shot" data-r><img src="assets/img/chat-members.jpg" alt="Закрытый чат учеников РКО" loading="lazy"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======= ДЛЯ КОГО ======= -->
+<section id="fit" data-depth="950" data-name="Для кого">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 950 м · Для кого</div>
+    <h2 class="h2" data-r style="--i:1">Честно: зайдёт <em>не всем</em></h2>
+    <div class="fit">
+      <div class="yes" data-r>
+        <h3>Зайдёт, если</h3>
+        <ul>
+          <li>Тебе 18–25, ты в найме или без нормального дохода</li>
+          <li>Пробовал онлайн, но так и не нашёл маршрут</li>
+          <li>Готов каждый день делать понятные действия</li>
+          <li>Хочешь не «темку», а систему, которая растёт</li>
+        </ul>
+      </div>
+      <div class="no" data-r style="--i:1">
+        <h3>Не трать время, если</h3>
+        <ul>
+          <li>Ждёшь кнопку «бабло» без действий</li>
+          <li>Думаешь, как сэкономить, а не как заработать</li>
+          <li>Ждёшь идеальный момент</li>
+          <li>Хочешь «просто посмотреть» и ничего не делать</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ======= ДНО ======= -->
+<section class="final" id="dive" data-depth="1000" data-name="Дно · диагностика">
+  <div class="wrap">
+    <div class="mark" data-r>Глубина 1000 м · Диагностика</div>
+    <h2 data-r style="--i:1">Дошёл до дна страницы? Значит, тебе <span style="color:var(--glow)">не всё равно.</span></h2>
+    <p class="lead" data-r style="--i:2">Запишись на диагностику. Разберём, где ты сейчас, сколько реально можешь делать в РКО и какой маршрут нужен именно тебе. Без воды и без впаривания.</p>
+    <div class="diag">
+      <div data-r><span class="n">Шаг 1</span><h3>Пишешь в Telegram</h3><p>Жмёшь кнопку ниже и оставляешь заявку.</p></div>
+      <div data-r style="--i:1"><span class="n">Шаг 2</span><h3>Созвон</h3><p>Разбираем твою ситуацию: время, опыт, окружение, цель по деньгам.</p></div>
+      <div data-r style="--i:2"><span class="n">Шаг 3</span><h3>Уходишь с маршрутом</h3><p>Понятно, с чего начать и сколько это может дать конкретно тебе.</p></div>
+    </div>
+    <div class="final-cta" data-r>
+      <a class="btn btn-main" data-cta href="#dive">Записаться на диагностику
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M13 5l7 7-7 7"/></svg></a>
+      <small>Отвечаем в Telegram в течение дня</small>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© Ryzhikov Academy · 2026 · <a data-channel href="#surface">Telegram-канал</a></span>
+    <p>Результаты учеников — их личный опыт и не являются гарантией дохода. Итог зависит от твоих действий, времени и условий партнёрских программ.</p>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+<script>
+/* ===== ССЫЛКИ: поменять на свои ===== */
+const LINKS = {
+  diagnostic: 'https://t.me/',   // куда ведёт «Записаться на диагностику»
+  channel: 'https://t.me/'       // Telegram-канал в подвале
+};
+document.querySelectorAll('[data-cta]').forEach(a => { a.href = LINKS.diagnostic; a.target = '_blank'; a.rel = 'noopener'; });
+document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channel; a.target = '_blank'; a.rel = 'noopener'; });
+
+(() => {
+  const root = document.documentElement;
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = id => document.getElementById(id);
+  requestAnimationFrame(() => setTimeout(() => root.classList.add('loaded'), 80));
+
+  /* ---- плавный скролл ---- */
+  let lenis = null;
+  if (!reduce && window.Lenis) {
+    lenis = new Lenis({ duration: 1.35, easing: t => 1 - Math.pow(1 - t, 4), smoothWheel: true });
+    document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', e => {
+      const t = document.querySelector(a.getAttribute('href'));
+      if (t) { e.preventDefault(); lenis.scrollTo(t, { offset: -20, duration: 2.2 }); }
+    }));
+  }
+
+  /* ---- reveal ---- */
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+  }), { rootMargin: '0px 0px -8% 0px', threshold: .08 });
+  document.querySelectorAll('[data-r]').forEach(el => io.observe(el));
+
+  /* ---- счётчики ---- */
+  const fmt = n => Math.round(n).toLocaleString('ru-RU');
+  const cio = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return; cio.unobserve(e.target);
+    const el = e.target, to = +el.dataset.count, suf = el.dataset.suf || '';
+    if (reduce) return;
+    const t0 = performance.now(), d = 1600;
+    const tick = t => { const k = Math.min(1, (t - t0) / d); el.textContent = fmt(to * (1 - Math.pow(1 - k, 3))) + suf; if (k < 1) requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  }), { threshold: .6 });
+  document.querySelectorAll('[data-count]').forEach(el => cio.observe(el));
+
+  /* ---- маршрут: сумма растёт ---- */
+  const steps = [...document.querySelectorAll('.step')];
+  const MAX = steps.reduce((s, el) => s + +el.dataset.add, 0);
+  const totalEl = $('routeTotal'), barEl = $('routeBar');
+  let shown = 0, target = 0, anim = 0;
+  const animTotal = () => {
+    cancelAnimationFrame(anim);
+    const from = shown, t0 = performance.now();
+    const tick = t => { const k = Math.min(1, (t - t0) / 900); shown = from + (target - from) * (1 - Math.pow(1 - k, 3)); totalEl.textContent = fmt(shown); if (k < 1) anim = requestAnimationFrame(tick); };
+    anim = requestAnimationFrame(tick);
+    barEl.style.width = (target / MAX * 100) + '%';
+  };
+  const updateRoute = () => {
+    const line = innerHeight * .62; let sum = 0;
+    steps.forEach(s => { const on = s.getBoundingClientRect().top < line; s.classList.toggle('on', on); if (on) sum += +s.dataset.add; });
+    if (sum !== target) { target = sum; animTotal(); }
+  };
+
+  /* ---- глубина, фон, герой ---- */
+  const secs = [...document.querySelectorAll('section[data-depth]')];
+  const ocean = $('ocean'), rays = $('rays'), caus = $('caustics'), glow = $('abyssGlow'), hero = $('heroIn'), top = $('top');
+  const gD = $('gDepth'), gN = $('gName'), gDot = $('gDot'), pD = $('pDepth'), pN = $('pName'), ticks = $('gTicks');
+  [0, .25, .5, .75, 1].forEach(k => { const i = document.createElement('i'); i.style.top = k * 100 + '%'; ticks.appendChild(i); });
+  const stops = [[0, [12, 58, 87]], [.18, [8, 40, 64]], [.45, [6, 26, 43]], [.75, [3, 13, 23]], [1, [2, 7, 13]]];
+  const mix = p => { for (let i = 1; i < stops.length; i++) if (p <= stops[i][0]) { const [a, ca] = stops[i - 1], [b, cb] = stops[i], k = (p - a) / (b - a); return ca.map((c, j) => Math.round(c + (cb[j] - c) * k)); } return stops.at(-1)[1]; };
+  let depthM = 0, lastY = scrollY, vel = 0;
+
+  function onScroll() {
+    const y = scrollY, vh = innerHeight, max = Math.max(1, document.documentElement.scrollHeight - vh), p = Math.min(1, Math.max(0, y / max));
+    vel += (y - lastY); lastY = y;
+    const [r, g, b] = mix(p), [r2, g2, b2] = mix(Math.min(1, p + .12));
+    ocean.style.background = `linear-gradient(180deg, rgb(${r},${g},${b}), rgb(${r2},${g2},${b2}))`;
+    const light = Math.max(0, 1 - p * 3.2);
+    rays.style.opacity = light; caus.style.opacity = .5 * light;
+    glow.style.opacity = Math.max(0, (p - .75) * 4);
+    top.classList.toggle('solid', y > 40);
+    if (!reduce) {
+      const k = Math.min(1, y / (vh * .9));
+      hero.style.transform = `translate3d(0, ${y * .35}px, 0) scale(${1 - k * .06})`;
+      hero.style.opacity = 1 - k * 1.1;
+      hero.style.filter = k > .02 ? `blur(${k * 8}px)` : 'none';
+    }
+    // глубина: интерполяция между отметками секций
+    let cur = secs[0], d = 0;
+    for (let i = 0; i < secs.length; i++) {
+      const s = secs[i], t = Math.max(0, s.offsetTop - vh * .5);
+      if (y >= t) { cur = s; const nx = secs[i + 1]; const d0 = +s.dataset.depth; if (nx) { const t2 = Math.max(t + 1, nx.offsetTop - vh * .5); d = d0 + (+nx.dataset.depth - d0) * Math.min(1, (y - t) / (t2 - t)); } else d = d0; }
+    }
+    if (y >= max - 4) d = 1000;
+    depthM = Math.round(d);
+    gD.textContent = pD.textContent = (depthM ? '−' : '') + depthM + ' м';
+    gN.textContent = pN.textContent = cur.dataset.name;
+    gDot.style.top = (depthM / 10) + '%';
+    updateRoute();
+  }
+  if (lenis) { lenis.on('scroll', onScroll); const raf = t => { lenis.raf(t); requestAnimationFrame(raf); }; requestAnimationFrame(raf); }
+  else addEventListener('scroll', onScroll, { passive: true });
+  addEventListener('resize', onScroll); onScroll();
+
+  /* ---- морской снег и пузыри ---- */
+  const cv = $('sea'), cx = cv.getContext('2d');
+  let W, H, DPR, parts = [], bubbles = [];
+  const mobile = matchMedia('(max-width: 760px)').matches;
+  const sprite = document.createElement('canvas'); sprite.width = sprite.height = 32;
+  { const s = sprite.getContext('2d'), gr = s.createRadialGradient(16, 16, 0, 16, 16, 16); gr.addColorStop(0, 'rgba(200,255,250,1)'); gr.addColorStop(.25, 'rgba(126,246,224,.55)'); gr.addColorStop(1, 'rgba(126,246,224,0)'); s.fillStyle = gr; s.fillRect(0, 0, 32, 32); }
+  function size() {
+    DPR = Math.min(devicePixelRatio || 1, 1.5); W = innerWidth; H = innerHeight;
+    cv.width = W * DPR; cv.height = H * DPR; cx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const n = mobile ? 55 : 130;
+    parts = Array.from({ length: n }, () => ({ x: Math.random() * W, y: Math.random() * H, z: .25 + Math.random() * .75, r: .4 + Math.random() * 1.6, ph: Math.random() * 6.28, sp: .08 + Math.random() * .25 }));
+  }
+  size(); addEventListener('resize', size);
+  const spawnBubble = () => bubbles.push({ x: Math.random() * W, y: H + 10, r: 1.5 + Math.random() * 4, sp: .6 + Math.random() * 1.2, ph: Math.random() * 6.28 });
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(48, now - last) / 16.67; last = now;
+    const v = vel; vel = 0;
+    const deep = Math.min(1, depthM / 1000);
+    cx.clearRect(0, 0, W, H);
+    for (const p of parts) {
+      p.y -= (p.sp * dt + v * .55 * p.z);
+      p.x += Math.sin(now * .0004 + p.ph) * .15 * p.z;
+      if (p.y < -10) { p.y = H + 10; p.x = Math.random() * W; } else if (p.y > H + 10) { p.y = -10; p.x = Math.random() * W; }
+      const a = (.18 + .45 * p.z) * (.55 + .45 * Math.sin(now * .001 + p.ph * 3));
+      if (deep > .35 && p.z > .8) { // биолюминесценция на глубине
+        const s = p.r * 9 * (.6 + deep); cx.globalAlpha = a * (deep - .3); cx.drawImage(sprite, p.x - s / 2, p.y - s / 2, s, s);
+      }
+      cx.globalAlpha = a; cx.fillStyle = '#cdeef5';
+      cx.beginPath(); cx.arc(p.x, p.y, p.r * p.z, 0, 6.283); cx.fill();
+    }
+    if (Math.random() < (1 - deep) * .05 * dt && bubbles.length < 30) spawnBubble();
+    cx.strokeStyle = 'rgba(200,245,255,.5)'; cx.lineWidth = 1;
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const b = bubbles[i]; b.y -= b.sp * dt * 2 + v * .2; b.x += Math.sin(now * .003 + b.ph) * .4;
+      if (b.y < -20) { bubbles.splice(i, 1); continue; }
+      cx.globalAlpha = .55; cx.beginPath(); cx.arc(b.x, b.y, b.r, 0, 6.283); cx.stroke();
+      cx.globalAlpha = .35; cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(b.x - b.r * .35, b.y - b.r * .35, b.r * .25, 0, 6.283); cx.fill();
+    }
+    cx.globalAlpha = 1;
+    if (!document.hidden) requestAnimationFrame(frame);
+  }
+  if (!reduce) { requestAnimationFrame(frame); document.addEventListener('visibilitychange', () => { if (!document.hidden) { last = performance.now(); requestAnimationFrame(frame); } }); }
+})();
+</script>
+</body>
+</html>
