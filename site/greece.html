@@ -11,6 +11,9 @@
 <meta property="og:image" content="assets/img/petr.jpg">
 <meta name="theme-color" content="#f2e9d8">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23f2e9d8'/%3E%3Cpath d='M12 26 32 12 52 26Z' fill='%23b0812a'/%3E%3Cg fill='%232a2218'%3E%3Crect x='16' y='28' width='6' height='20'/%3E%3Crect x='29' y='28' width='6' height='20'/%3E%3Crect x='42' y='28' width='6' height='20'/%3E%3Crect x='10' y='50' width='44' height='4'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preload" as="image" href="assets/scene/b0.webp" media="(min-width: 900px)">
+<link rel="preload" as="image" href="assets/scene/b0-m.webp" media="(max-width: 899px)">
+<link rel="preload" as="image" href="assets/img/petr.webp">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;0,700;1,500;1,600&family=Cormorant+SC:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap">
@@ -56,13 +59,13 @@ main{overflow-x:clip}
 em,.it{font-style:italic;font-family:var(--f-display);font-weight:500}
 
 /* ---------- фон ---------- */
-.grain{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.35;mix-blend-mode:multiply;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .36 0 0 0 0 .22 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+.grain{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.22;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.75' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .36 0 0 0 0 .22 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
 .vignette{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(120% 90% at 50% 40%,transparent 55%,rgba(120,90,50,.18))}
 #dust{position:fixed;inset:0;z-index:0;pointer-events:none;width:100%;height:100%}
 
 /* ---------- шапка, рельс глав ---------- */
 .top{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:12px;padding-block:14px;padding-left:var(--gl);padding-right:var(--gr);transition:background .4s,border-color .4s;border-bottom:1px solid transparent}
-.top.solid{background:rgba(242,233,216,.82);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-color:var(--line)}
+.top.solid{background:rgba(242,233,216,.96);border-color:var(--line)}
 .logo{font-family:var(--f-sc);font-weight:700;letter-spacing:.18em;font-size:1.05rem;text-decoration:none}
 .logo b{color:var(--gold)}
 .btn{--h:52px;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:var(--h);padding:0 28px;border-radius:999px;font-family:var(--f-body);font-weight:700;font-size:1rem;text-decoration:none;cursor:pointer;border:0;transition:transform .25s,box-shadow .25s,background .25s,color .25s}
@@ -83,7 +86,7 @@ em,.it{font-style:italic;font-family:var(--f-display);font-weight:500}
 .rail a.on b{border-color:var(--gold);color:var(--gold)}
 .rail a.on span,.rail:hover a span{opacity:1;transform:none}
 .progress{position:fixed;left:0;right:0;top:calc(70px + env(safe-area-inset-top,0px));height:2px;z-index:49;background:transparent;display:none}
-.progress i{display:block;height:100%;width:0;background:var(--gold)}
+.progress i{display:block;height:100%;width:100%;transform-origin:0 0;transform:scaleX(0);background:var(--gold);will-change:transform}
 @media (max-width:1100px){.rail{display:none}.progress{display:block}}
 
 /* ---------- сетка ---------- */
@@ -107,85 +110,99 @@ section{position:relative;padding-block:clamp(80px,12vh,150px)}
 .meander path{fill:none;stroke:var(--gold);stroke-width:1.5;opacity:.75}
 
 /* ---------- появление ---------- */
-.js [data-r]{opacity:0;transform:translateY(40px);filter:blur(6px);transition:opacity 1.1s cubic-bezier(.2,.7,.1,1),transform 1.3s cubic-bezier(.2,.7,.1,1),filter 1.1s ease,clip-path 1.5s cubic-bezier(.6,0,.2,1);transition-delay:calc(var(--i,0) * 110ms)}
+.js [data-r]{opacity:0;transform:translateY(40px);filter:blur(6px);transition:opacity 1.1s cubic-bezier(.2,.7,.1,1),transform 1.3s cubic-bezier(.2,.7,.1,1),filter 1.1s ease,clip-path 1.1s cubic-bezier(.6,0,.2,1);transition-delay:calc(var(--i,0) * 110ms)}
 .js [data-r="ink"]{opacity:1;filter:none;transform:none;clip-path:inset(0 100% 0 0)}
 .js [data-r="arch"]{opacity:1;filter:none;transform:none;clip-path:inset(100% 0 0 0 round 999px 999px 0 0)}
 .js [data-r].in{opacity:1;transform:none;filter:none}
 .js [data-r="ink"].in{clip-path:inset(0 0 0 0)}
 .js [data-r="arch"].in{clip-path:inset(0 0 0 0 round 999px 999px 0 0)}
-.sepia img{filter:sepia(.85) saturate(.6) contrast(.95);transition:filter 2.4s ease .4s,transform 2.4s cubic-bezier(.2,.7,.1,1)}
+.sepia img{filter:sepia(.85) saturate(.6) contrast(.95);transition:filter 1.1s ease .15s}
 .sepia.in img{filter:none}
 
 /* ---------- СЦЕНЫ: картинки, которые двигает скролл ---------- */
+/* За кадр меняются только transform и opacity: слои уходят на видеокарту, поэтому 60–120 кадров и без дрожи */
 .scene{position:relative;padding:0;height:calc(var(--len) * 100svh)}
-.stage{position:sticky;top:0;height:100svh;overflow:hidden;background:#1a120a}
+.stage{position:sticky;top:0;height:100svh;overflow:hidden;background:#1a120a;contain:strict;isolation:isolate}
 .stage.light{background:#efe4cc}
+.layer,.obj{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform,opacity;pointer-events:none;backface-visibility:hidden;user-select:none;-webkit-user-drag:none}
+.layer{max-width:none}
+.obj{opacity:0;transform-origin:50% 50%;z-index:2}
+.obj.flat{filter:none}
 .scv{position:absolute;inset:0;width:100%;height:100%;display:block}
-.shade{position:absolute;inset:0;pointer-events:none;background:linear-gradient(0deg,rgba(18,11,4,.82) 0%,rgba(18,11,4,.42) 30%,rgba(18,11,4,0) 58%),radial-gradient(120% 90% at 50% 45%,transparent 60%,rgba(18,11,4,.4))}
-.grainy{position:absolute;inset:0;pointer-events:none;opacity:.2;mix-blend-mode:overlay;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
-.to-paper{position:absolute;inset:0;pointer-events:none;background:var(--paper);opacity:0;z-index:6}
-.glowflash{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:3;background:radial-gradient(60% 60% at 62% 48%,rgba(255,236,190,.95),rgba(255,214,140,.4) 40%,transparent 70%)}
-.obj{position:absolute;left:0;top:0;z-index:2;pointer-events:none;will-change:transform,opacity;opacity:0;filter:drop-shadow(0 16px 22px rgba(20,10,0,.45))}
-.ring{position:absolute;left:0;top:0;z-index:2;width:80px;height:80px;margin:-40px 0 0 -40px;border-radius:50%;border:3px solid var(--gold-hi);box-shadow:0 0 30px var(--gold-hi),inset 0 0 20px var(--gold-hi);opacity:0;pointer-events:none}
-.tag{position:absolute;left:0;top:0;z-index:3;transform:translate(-50%,-100%);opacity:0;pointer-events:none;display:flex;flex-direction:column;align-items:center}
-.tag b{font-family:var(--f-sc);font-weight:700;letter-spacing:.14em;font-size:.84rem;color:var(--ink);background:rgba(251,246,235,.94);border:1px solid rgba(168,119,31,.6);padding:5px 12px;border-radius:999px;white-space:nowrap;box-shadow:0 8px 20px -8px rgba(0,0,0,.5)}
+.shade{position:absolute;inset:0;pointer-events:none;z-index:3;background:linear-gradient(0deg,rgba(18,11,4,.84) 0%,rgba(18,11,4,.42) 32%,rgba(18,11,4,0) 60%),radial-gradient(120% 90% at 50% 45%,transparent 60%,rgba(18,11,4,.4))}
+.shade.left{background:linear-gradient(90deg,rgba(18,11,4,.82) 0%,rgba(18,11,4,.5) 38%,rgba(18,11,4,0) 70%),linear-gradient(0deg,rgba(18,11,4,.5),transparent 40%)}
+.to-paper{position:absolute;inset:0;pointer-events:none;background:var(--paper);opacity:0;z-index:8}
+.glowflash{position:absolute;inset:0;pointer-events:none;opacity:0;z-index:4;background:radial-gradient(60% 60% at 62% 48%,rgba(255,236,190,.95),rgba(255,214,140,.4) 40%,transparent 70%)}
+.ring{position:absolute;left:0;top:0;z-index:3;width:80px;height:80px;margin:-40px 0 0 -40px;border-radius:50%;border:3px solid var(--gold-hi);box-shadow:0 0 30px var(--gold-hi),inset 0 0 20px var(--gold-hi);opacity:0;pointer-events:none;will-change:transform,opacity}
+.tag{position:absolute;left:0;top:0;z-index:5;opacity:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;will-change:transform,opacity}
+.tag b{font-family:var(--f-sc);font-weight:700;letter-spacing:.14em;font-size:.84rem;color:var(--ink);background:rgba(251,246,235,.95);border:1px solid rgba(168,119,31,.6);padding:5px 12px;border-radius:999px;white-space:nowrap;box-shadow:0 8px 20px -8px rgba(0,0,0,.5)}
 .tag i{width:1px;height:34px;background:linear-gradient(var(--gold-hi),rgba(224,182,90,0))}
 .tag.you b{background:var(--gold-hi);border-color:var(--gold-hi)}
-.count{position:absolute;left:0;top:0;z-index:3;transform:translate(-50%,0);font-family:var(--f-display);font-weight:600;font-size:clamp(2rem,1.4rem + 2.4vw,3.6rem);color:var(--gold-hi);text-shadow:0 4px 24px rgba(0,0,0,.6);opacity:0;white-space:nowrap;pointer-events:none}
-.cap{position:absolute;left:0;right:0;bottom:0;z-index:4;padding-bottom:calc(clamp(40px,8vh,90px) + env(safe-area-inset-bottom,0px));color:#fbf3e2;pointer-events:none;visibility:hidden}
+.count{position:absolute;left:0;top:0;z-index:5;font-family:var(--f-display);font-weight:600;font-size:clamp(2rem,1.4rem + 2.4vw,3.6rem);color:var(--gold-hi);text-shadow:0 4px 24px rgba(0,0,0,.7);opacity:0;white-space:nowrap;pointer-events:none;will-change:transform,opacity;font-variant-numeric:lining-nums tabular-nums}
+/* подписи-титры */
+.cap{position:absolute;left:0;right:0;bottom:0;z-index:6;padding-bottom:calc(clamp(64px,10vh,110px) + env(safe-area-inset-bottom,0px));color:#fbf3e2;pointer-events:none;visibility:hidden}
 .cap.top{bottom:auto;top:calc(86px + env(safe-area-inset-top,0px));padding-bottom:0}
-.cap.on{visibility:visible;pointer-events:auto}
+.cap.mid{bottom:auto;top:50%;transform:translateY(-50%);padding-bottom:0}
+.cap.on{visibility:visible}
+.cap.show{pointer-events:auto}
 .cap .inner{max-width:760px}
-.cap .kicker{color:var(--gold-hi);opacity:0;transform:translateY(14px);transition:opacity .9s,transform .9s}
+.cap .kicker{color:var(--gold-hi);opacity:0;transform:translate3d(0,14px,0);transition:opacity .8s,transform .8s}
 .cap h2,.cap h1{font-size:clamp(2.3rem,1.5rem + 3.4vw,5rem);font-weight:600;line-height:1;margin-top:10px;text-shadow:0 4px 30px rgba(0,0,0,.45)}
-.cap h1{font-size:clamp(2.8rem,1.6rem + 5vw,6.6rem)}
+.cap h1{font-size:clamp(2.6rem,1.6rem + 4.4vw,6rem)}
 .cap h1 em,.cap h2 em{color:var(--gold-hi);font-style:italic}
 .cap .w{display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.08em;margin-bottom:-.08em}
-.cap .w>span{display:inline-block;transform:translateY(105%);transition:transform 1.1s cubic-bezier(.2,.8,.1,1);transition-delay:calc(var(--d) * 70ms)}
-.cap p{font-size:clamp(1.02rem,.95rem + .35vw,1.3rem);line-height:1.5;color:rgba(251,243,226,.9);max-width:58ch;margin-top:16px;opacity:0;transform:translateY(16px);filter:blur(6px);transition:opacity 1s .35s,transform 1s .35s,filter 1s .35s}
-.cap .cta-row{opacity:0;transform:translateY(16px);transition:opacity 1s .55s,transform 1s .55s}
-.cap.show .kicker,.cap.show p,.cap.show .cta-row{opacity:1;transform:none;filter:none}
+.cap .w>span{display:inline-block;transform:translate3d(0,105%,0);transition:transform 1s cubic-bezier(.2,.8,.1,1);transition-delay:calc(var(--d) * 60ms)}
+.cap p{font-size:clamp(1.02rem,.95rem + .35vw,1.28rem);line-height:1.5;color:rgba(251,243,226,.92);max-width:58ch;margin-top:16px;opacity:0;transform:translate3d(0,16px,0);transition:opacity .9s .3s,transform .9s .3s}
+.cap .cta-row{opacity:0;transform:translate3d(0,16px,0);transition:opacity .9s .5s,transform .9s .5s}
+.cap.show .kicker,.cap.show p,.cap.show .cta-row{opacity:1;transform:none}
 .cap.show .w>span{transform:none}
 .cap .btn-ghost{color:#fbf3e2;border-color:rgba(251,243,226,.5)}
-.cap.ink{color:var(--ink)}
-.cap.ink p{color:var(--ink-2)}
-.cap.ink h2{text-shadow:none}
-.cap.ink .kicker{color:var(--gold)}
-.hint{position:absolute;right:calc(24px + env(safe-area-inset-right,0px));bottom:calc(26px + env(safe-area-inset-bottom,0px));z-index:5;font-family:var(--f-sc);font-size:.8rem;letter-spacing:.2em;color:rgba(251,243,226,.75);display:flex;align-items:center;gap:10px;transition:opacity .6s}
-.hint i{width:1px;height:36px;background:linear-gradient(var(--gold-hi),transparent);animation:cue 2.2s ease-in-out infinite}
-@keyframes cue{0%{transform:scaleY(0);transform-origin:top}50%{transform:scaleY(1);transform-origin:top}51%{transform-origin:bottom}100%{transform:scaleY(0);transform-origin:bottom}}
-.sbar{position:absolute;left:0;right:0;bottom:0;height:2px;z-index:5;background:rgba(251,243,226,.15)}
-.sbar i{display:block;height:100%;width:0;background:var(--gold-hi)}
+/* приветствие */
+.cap.hello .inner{max-width:min(640px,56vw)}
+.agenda{list-style:none;margin:20px 0 0;padding:0;display:grid;gap:8px;max-width:560px}
+.agenda li{display:grid;grid-template-columns:38px minmax(0,1fr);gap:8px;align-items:baseline;color:rgba(251,243,226,.95);font-size:1.02rem;opacity:0;transform:translate3d(-16px,0,0);transition:opacity .7s,transform .7s;transition-delay:calc(.5s + var(--i) * 120ms)}
+.agenda li b{font-family:var(--f-display);font-style:italic;color:var(--gold-hi);font-size:1.25rem;font-weight:600}
+.cap.show .agenda li{opacity:1;transform:none}
+.hello-arch{position:absolute;z-index:5;right:max(6vw,40px);top:50%;width:min(330px,24vw);aspect-ratio:3/4;margin-top:calc(min(330px,24vw) * -2 / 3);border-radius:999px 999px 6px 6px;padding:10px;background:linear-gradient(180deg,#fbf7ef,#e3d4b8);box-shadow:0 40px 80px -30px rgba(0,0,0,.8),0 0 0 1px rgba(224,182,90,.6);opacity:0;will-change:transform,opacity}
+.hello-arch div{width:100%;height:100%;border-radius:999px 999px 3px 3px;overflow:hidden}
+.hello-arch img{width:100%;height:100%;object-fit:cover;object-position:52% 60%;transform:scale(1.3)}
+.hello-arch span{position:absolute;left:50%;bottom:-14px;transform:translateX(-50%);font-family:var(--f-sc);font-size:.8rem;letter-spacing:.14em;background:var(--paper);color:var(--ink);border:1px solid rgba(168,119,31,.5);padding:5px 14px;border-radius:999px;white-space:nowrap}
+/* подсказка «листай вниз» */
+.scrollhint{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:45;transform:translate3d(-50%,0,0);display:flex;align-items:center;gap:12px;padding:9px 16px 9px 12px;border-radius:999px;background:rgba(26,18,10,.82);color:#fbf3e2;border:1px solid rgba(224,182,90,.35);font-family:var(--f-sc);font-size:.82rem;letter-spacing:.16em;opacity:0;transition:opacity .5s,transform .5s;pointer-events:none}
+.scrollhint.on{opacity:1}
+.scrollhint.light{background:rgba(251,246,235,.85);color:var(--ink)}
+.mouse{position:relative;width:18px;height:28px;border:1.5px solid currentColor;border-radius:10px;flex:none}
+.mouse::after{content:"";position:absolute;left:50%;top:5px;width:3px;height:6px;margin-left:-1.5px;border-radius:2px;background:var(--gold-hi);animation:wheel 1.6s ease-in-out infinite}
+@keyframes wheel{0%{transform:translateY(0);opacity:1}70%{transform:translateY(9px);opacity:0}100%{transform:translateY(0);opacity:0}}
+.scrollhint .arr{display:inline-block;animation:arr 1.6s ease-in-out infinite}
+@keyframes arr{50%{transform:translateY(4px)}}
+.sbar{position:absolute;left:0;right:0;bottom:0;height:3px;z-index:7;background:rgba(251,243,226,.15)}
+.sbar i{display:block;height:100%;width:100%;transform-origin:0 0;transform:scaleX(0);background:var(--gold-hi);will-change:transform}
+.scene-n{position:absolute;right:calc(20px + env(safe-area-inset-right,0px));top:calc(84px + env(safe-area-inset-top,0px));z-index:7;font-family:var(--f-sc);font-size:.76rem;letter-spacing:.16em;color:rgba(251,243,226,.7)}
+.light .scene-n{color:var(--ink-2)}
 /* груша и зёрна */
-.lines{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:visible}
-.lines path,.lines line{fill:none;stroke:var(--gold-hi);stroke-width:1.5}
-.lines .slash{stroke:#fff7df;stroke-width:3;filter:drop-shadow(0 0 8px #ffd98a)}
-.core{position:absolute;left:0;top:0;z-index:1;width:240px;height:240px;margin:-120px 0 0 -120px;border-radius:50%;background:radial-gradient(circle,rgba(255,226,150,.9),rgba(255,200,100,.3) 40%,transparent 70%);opacity:0;pointer-events:none}
-.seedcard{position:absolute;z-index:4;width:min(300px,30vw);padding:16px 18px 16px 22px;border-radius:6px;background:linear-gradient(180deg,rgba(251,246,235,.95),rgba(240,229,206,.95));color:var(--ink);box-shadow:0 24px 50px -24px rgba(0,0,0,.8),0 0 0 1px rgba(168,119,31,.5);opacity:0;transform:translateY(14px) scale(.97);transition:opacity .7s,transform .7s;pointer-events:none}
+.lines{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;overflow:visible}
+.lines path{fill:none;stroke:var(--gold-hi);stroke-width:1.4;stroke-dasharray:4 6;opacity:.8}
+.lines .blade{stroke:url(#bladeG);stroke-width:4;stroke-linecap:round;stroke-dasharray:none;opacity:1}
+.core{position:absolute;left:0;top:0;z-index:1;width:260px;height:260px;margin:-130px 0 0 -130px;border-radius:50%;background:radial-gradient(circle,rgba(255,232,160,.95),rgba(255,200,100,.35) 38%,transparent 70%);opacity:0;pointer-events:none;will-change:transform,opacity}
+.pshadow{position:absolute;left:0;top:0;z-index:1;width:200px;height:30px;margin:-15px 0 0 -100px;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.55),transparent);opacity:0;will-change:transform,opacity}
+.spark{position:absolute;left:0;top:0;z-index:3;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#ffe9b0;box-shadow:0 0 8px #ffd27a;opacity:0;will-change:transform,opacity}
+.seedcard{position:absolute;z-index:5;width:min(300px,30vw);padding:16px 18px 16px 22px;border-radius:6px;background:linear-gradient(180deg,rgba(251,246,235,.96),rgba(240,229,206,.96));color:var(--ink);box-shadow:0 24px 50px -24px rgba(0,0,0,.8),0 0 0 1px rgba(168,119,31,.5);opacity:0;transform:translate3d(0,16px,0) scale(.96);transition:opacity .7s cubic-bezier(.2,.7,.1,1),transform .7s cubic-bezier(.2,.7,.1,1);pointer-events:none}
 .seedcard.show{opacity:1;transform:none}
 .seedcard .dot{position:absolute;left:-7px;top:22px;width:14px;height:14px;border-radius:50%;background:var(--gold-hi);box-shadow:0 0 12px var(--gold-hi)}
 .seedcard .n{font-family:var(--f-display);font-style:italic;color:var(--gold);font-size:1.3rem;line-height:1}
 .seedcard h3{font-size:1.45rem;margin:2px 0 6px}
 .seedcard p{font-size:.86rem;color:var(--ink-2);line-height:1.4}
-.seedcard .sum{display:flex;justify-content:space-between;align-items:baseline;margin-top:10px;padding-top:8px;border-top:1px dashed rgba(42,34,24,.2);font-size:.82rem;color:var(--ink-2)}
+.seedcard .sum{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:10px;padding-top:8px;border-top:1px dashed rgba(42,34,24,.2);font-size:.82rem;color:var(--ink-2)}
 .seedcard .sum b{font-family:var(--f-display);font-size:1.4rem;color:var(--gold);font-weight:600;white-space:nowrap}
-.sc1{left:max(130px,7vw);top:15vh}.sc2{right:max(40px,6vw);top:15vh}.sc3{left:max(130px,7vw);top:50vh}.sc4{right:max(40px,6vw);top:50vh}
+.sc1{left:max(130px,7vw);top:16vh}.sc2{right:max(40px,6vw);top:16vh}.sc3{left:max(130px,7vw);top:50vh}.sc4{right:max(40px,6vw);top:50vh}
 .sc2 .dot,.sc4 .dot{left:auto;right:-7px}
-.pear-total{position:absolute;left:0;right:0;bottom:calc(5vh + env(safe-area-inset-bottom,0px));z-index:4;text-align:center;color:#fbf3e2;opacity:0;transform:translateY(16px);transition:opacity .8s,transform .8s;pointer-events:none}
+.pear-total{position:absolute;left:0;right:0;bottom:calc(7vh + env(safe-area-inset-bottom,0px));z-index:6;text-align:center;color:#fbf3e2;opacity:0;transform:translate3d(0,16px,0);transition:opacity .8s,transform .8s;pointer-events:none}
 .pear-total.show{opacity:1;transform:none}
 .pear-total span{font-family:var(--f-sc);letter-spacing:.16em;font-size:.86rem;color:var(--gold-hi)}
-.pear-total b{display:block;font-family:var(--f-display);font-weight:600;font-size:clamp(2.4rem,1.6rem + 3vw,4.6rem);line-height:1.05;text-shadow:0 4px 30px rgba(0,0,0,.6)}
-@media (max-width:900px){
-  .seedcard{width:calc(50vw - 24px);padding:10px 10px 10px 14px}
-  .seedcard h3{font-size:1.05rem}.seedcard p{display:none}.seedcard .sum{margin-top:4px;padding-top:4px}.seedcard .sum b{font-size:1.1rem}
-  .seedcard .dot{top:14px;width:10px;height:10px;left:-5px}
-  .sc1{left:16px;top:calc(80px + env(safe-area-inset-top,0px))}.sc2{right:16px;top:calc(80px + env(safe-area-inset-top,0px))}
-  .sc3{left:16px;top:calc(176px + env(safe-area-inset-top,0px))}.sc4{right:16px;top:calc(176px + env(safe-area-inset-top,0px))}
-  .seedcard .sum span{display:none}.seedcard .sum{justify-content:flex-start}
-  .sc2 .dot,.sc4 .dot{right:-5px}
-}
+.pear-total b{display:block;font-family:var(--f-display);font-weight:600;font-size:clamp(2.4rem,1.6rem + 3vw,4.6rem);line-height:1.05;text-shadow:0 4px 30px rgba(0,0,0,.6);font-variant-numeric:lining-nums tabular-nums}
 /* храм */
-.thud{position:absolute;left:0;right:0;top:calc(80px + env(safe-area-inset-top,0px));z-index:4;color:var(--ink);pointer-events:none}
+.thud{position:absolute;left:0;right:0;top:calc(80px + env(safe-area-inset-top,0px));z-index:5;color:var(--ink);pointer-events:none}
 .thud .row{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:clamp(18px,4vw,50px);align-items:end}
 .thud .kicker{color:var(--ink-2)}
 .thud .total{font-family:var(--f-display);font-weight:600;font-size:clamp(2.4rem,1.6rem + 3.4vw,4.4rem);line-height:1;margin-top:4px;color:var(--gold);white-space:nowrap;font-variant-numeric:lining-nums tabular-nums}
@@ -195,25 +212,62 @@ section{position:relative;padding-block:clamp(80px,12vh,150px)}
 .thud .bn em{font-style:normal;font-family:var(--f-body);font-weight:700;font-size:.95rem;color:var(--gold)}
 .thud .bn em.zero{color:var(--warn)}
 .thud p{color:var(--ink-2);margin-top:4px;max-width:60ch;font-size:.95rem}
-.collbl{position:absolute;left:0;top:0;z-index:3;transform:translate(-50%,-50%) rotate(-90deg);font-family:var(--f-sc);font-weight:700;font-size:.92rem;letter-spacing:.08em;color:#3a2604;white-space:nowrap;opacity:0;transition:opacity .5s;pointer-events:none;text-shadow:0 1px 0 rgba(255,240,200,.6)}
+.collbl{position:absolute;left:0;top:0;z-index:3;font-family:var(--f-sc);font-weight:700;font-size:.92rem;letter-spacing:.08em;color:#3a2604;white-space:nowrap;opacity:0;transition:opacity .5s;pointer-events:none;text-shadow:0 1px 0 rgba(255,240,200,.6)}
 .collbl.on{opacity:1}
 .collbl small{font-family:var(--f-body);font-weight:700;letter-spacing:0;margin-left:8px;color:#5a3a06}
-.bandlbl{position:absolute;left:0;top:0;z-index:3;transform:translate(-50%,-50%);font-family:var(--f-sc);font-weight:700;font-size:.9rem;letter-spacing:.1em;color:#3a2604;white-space:nowrap;opacity:0;transition:opacity .5s;pointer-events:none;background:rgba(255,236,190,.55);padding:2px 10px;border-radius:3px}
+.bandlbl{position:absolute;left:0;top:0;z-index:3;font-family:var(--f-sc);font-weight:700;font-size:.9rem;letter-spacing:.1em;color:#3a2604;white-space:nowrap;opacity:0;transition:opacity .5s;pointer-events:none;background:rgba(255,236,190,.6);padding:2px 10px;border-radius:3px}
 .bandlbl.on{opacity:1}
-.deadcard{position:absolute;z-index:5;left:50%;top:48%;width:min(360px,80vw);margin-left:calc(min(360px,80vw) / -2);padding:16px 20px;border-radius:6px;background:#f7ebe4;border:1px solid var(--warn);color:var(--ink);box-shadow:0 30px 60px -20px rgba(80,20,10,.5);opacity:0;pointer-events:none;text-align:center}
+.deadcard{position:absolute;z-index:6;left:50%;top:50%;width:min(360px,80vw);padding:16px 20px;border-radius:6px;background:#f7ebe4;border:1px solid var(--warn);color:var(--ink);box-shadow:0 30px 60px -20px rgba(80,20,10,.5);opacity:0;pointer-events:none;text-align:center;will-change:transform,opacity}
 .deadcard b{display:block;font-family:var(--f-display);font-size:1.7rem;color:var(--warn)}
 .deadcard span{font-size:.9rem;color:var(--ink-2)}
 .deadcard .stamp{display:inline-block;margin-top:8px;font-family:var(--f-sc);font-weight:700;letter-spacing:.2em;color:var(--warn);border:2px solid var(--warn);padding:2px 10px;transform:rotate(-6deg)}
 @media (max-width:900px){
+  .seedcard{width:calc(50vw - 24px);padding:10px 10px 10px 14px}
+  .seedcard h3{font-size:1.05rem}.seedcard p{display:none}.seedcard .sum{margin-top:4px;padding-top:4px;justify-content:flex-start}.seedcard .sum span{display:none}.seedcard .sum b{font-size:1.1rem}
+  .seedcard .dot{top:14px;width:10px;height:10px;left:-5px}
+  .sc1{left:16px;top:calc(80px + env(safe-area-inset-top,0px))}.sc2{right:16px;top:calc(80px + env(safe-area-inset-top,0px))}
+  .sc3{left:16px;top:calc(176px + env(safe-area-inset-top,0px))}.sc4{right:16px;top:calc(176px + env(safe-area-inset-top,0px))}
+  .sc2 .dot,.sc4 .dot{right:-5px}
   .thud .row{grid-template-columns:1fr;gap:6px}
   .thud .capt{border-left:0;padding-left:0;min-height:110px}
   .thud .total{font-size:2.4rem}
   .collbl,.bandlbl{display:none}
-  .cap h2{font-size:2.1rem}.cap h1{font-size:2.6rem}
-  .hint{display:none}
-  .shade{background:linear-gradient(0deg,rgba(18,11,4,.9) 0%,rgba(18,11,4,.6) 40%,rgba(18,11,4,0) 72%)}
+  .cap h2{font-size:2.1rem}.cap h1{font-size:2.5rem}
+  .shade{background:linear-gradient(0deg,rgba(18,11,4,.92) 0%,rgba(18,11,4,.62) 40%,rgba(18,11,4,0) 72%)}
+  .shade.left{background:linear-gradient(0deg,rgba(18,11,4,.94) 0%,rgba(18,11,4,.7) 50%,rgba(18,11,4,.1) 80%)}
   .tag b{font-size:.7rem;padding:4px 9px}.tag i{height:22px}
+  .hello-arch{right:auto;left:16px;top:calc(82px + env(safe-area-inset-top,0px));margin-top:0;width:120px}
+  .hello-arch span{display:none}
+  .agenda li{font-size:.92rem;grid-template-columns:30px minmax(0,1fr)}
+  .cap.hello .inner{max-width:none}
+  .agenda{gap:4px;margin-top:12px}
+  .cap.hello p{font-size:.96rem;margin-top:10px}
+  .scene-n{display:none}
 }
+@media (max-height:700px) and (max-width:900px){.cap.hello p{display:none}}
+/* схема «друг приводит друга» */
+.tree{position:relative;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;margin-top:40px}
+.tree::before{content:"";position:absolute;left:12%;right:12%;top:46px;height:2px;background:linear-gradient(90deg,var(--gold),var(--gold-hi));transform:scaleX(0);transform-origin:0 0;transition:transform 1.6s cubic-bezier(.6,0,.2,1) .2s}
+.tree.in::before{transform:scaleX(1)}
+.node{position:relative;text-align:center;opacity:0;transform:translate3d(0,24px,0);transition:opacity .8s,transform .8s;transition-delay:calc(.3s + var(--i) * .35s)}
+.tree.in .node{opacity:1;transform:none}
+.node .med{position:relative;z-index:1;width:92px;height:92px;margin:0 auto 14px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,#fff8e6,#e9d7b0);border:2px solid var(--gold);box-shadow:0 0 0 6px var(--paper),0 0 0 7px rgba(168,119,31,.35);font-family:var(--f-display);font-size:1.6rem;font-weight:600}
+.node.you .med{background:radial-gradient(circle at 35% 30%,#ffe7a8,var(--gold));color:#2a1c06}
+.node h4{margin:0;font-family:var(--f-display);font-size:1.4rem}
+.node p{color:var(--ink-2);font-size:.9rem;margin-top:4px}
+.node .pay{display:inline-block;margin-top:8px;font-weight:700;font-size:.86rem;color:var(--gold);border:1px solid rgba(168,119,31,.4);border-radius:999px;padding:3px 10px}
+@media (max-width:760px){
+  .tree{grid-template-columns:1fr;gap:22px;padding-left:8px}
+  .tree::before{left:54px;right:auto;top:20px;bottom:20px;width:2px;height:auto;transform:scaleY(0);background:linear-gradient(180deg,var(--gold),var(--gold-hi))}
+  .tree.in::before{transform:scaleY(1)}
+  .node{display:grid;grid-template-columns:96px minmax(0,1fr);gap:4px 14px;text-align:left;align-items:center}
+  .node .med{grid-row:span 3;margin:0;width:76px;height:76px;font-size:1.3rem}
+}
+.sources{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:36px}
+.sources .card h3{font-size:1.45rem;margin:6px 0}
+.sources .card p{color:var(--ink-2);font-size:.95rem}
+.sources .n{font-family:var(--f-display);font-style:italic;color:var(--gold);font-size:1.4rem}
+@media (max-width:860px){.sources{grid-template-columns:1fr}}
 /* живописные перебивки */
 .plate{position:relative;height:clamp(320px,62vh,640px);overflow:hidden;background:#1a120a}
 .plate img{position:absolute;left:0;top:-15%;width:100%;height:130%;object-fit:cover;will-change:transform}
@@ -227,7 +281,7 @@ section{position:relative;padding-block:clamp(80px,12vh,150px)}
 .final-bg::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,var(--paper) 0%,rgba(242,233,216,.55) 30%,rgba(242,233,216,.55) 70%,var(--paper) 100%)}
 .final>.wrap{position:relative;z-index:1}
 
-.top.onfilm{background:transparent;border-color:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
+.top.onfilm{background:transparent;border-color:transparent}
 .top.onfilm .logo{color:#fbf3e2}
 .top.onfilm .btn-main{background:rgba(251,243,226,.92);color:var(--ink)}
 .rail.onfilm a{color:#fbf3e2}
@@ -327,8 +381,8 @@ section{position:relative;padding-block:clamp(80px,12vh,150px)}
 @media (max-width:860px){.enter{grid-template-columns:1fr}}
 .pipe{position:relative;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:36px;padding-top:34px}
 .pipe-line{position:absolute;left:10%;right:10%;top:9px;height:1px;background:rgba(42,34,24,.3)}
-.pipe-line i{display:block;height:100%;width:0;background:var(--gold)}
-.pipe-coin{position:absolute;top:0;left:10%;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe7a8,var(--gold) 60%,#7c5410);box-shadow:0 4px 10px -2px rgba(124,84,16,.7);transform:translate(-50%,0);z-index:1}
+.pipe-line i{display:block;height:100%;width:100%;transform-origin:0 0;transform:scaleX(0);background:var(--gold)}
+.pipe-coin{position:absolute;top:0;left:0;will-change:transform;width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#ffe7a8,var(--gold) 60%,#7c5410);box-shadow:0 4px 10px -2px rgba(124,84,16,.7);transform:translate(-50%,0);z-index:1}
 .pipe>.st{text-align:center;min-width:0;position:relative}
 .pipe>.st::before{content:"";display:block;width:11px;height:11px;transform:rotate(45deg);margin:-30px auto 18px;background:var(--paper);border:1px solid var(--ink-2);transition:all .4s}
 .pipe>.st.on::before{background:var(--gold);border-color:var(--gold)}
@@ -337,8 +391,8 @@ section{position:relative;padding-block:clamp(80px,12vh,150px)}
 @media (max-width:760px){
   .pipe{grid-template-columns:1fr;gap:20px;padding-top:0;padding-left:40px}
   .pipe-line{left:9px;right:auto;top:6px;bottom:6px;width:1px;height:auto}
-  .pipe-line i{width:100%;height:0}
-  .pipe-coin{left:0;top:0;transform:translate(0,-50%)}
+  .pipe-line i{width:100%;height:100%;transform:scaleY(0)}
+  .pipe-coin{left:0;top:0}
   .pipe>.st{text-align:left}
   .pipe>.st::before{position:absolute;margin:0;left:-36px;top:7px}
 }
@@ -483,6 +537,7 @@ footer p{max-width:70ch}
   <a class="btn btn-main" data-cta href="#final">Диагностика</a>
 </header>
 <div class="progress"><i id="prog"></i></div>
+<div class="scrollhint" id="scrollHint" aria-hidden="true"><span class="mouse"></span>ЛИСТАЙ ВНИЗ <span class="arr">↓</span></div>
 <nav class="rail" id="rail" aria-label="Главы">
   <a href="#story"><b>I</b><span>Откуда я</span></a>
   <a href="#pear"><b>II</b><span>За что платят</span></a>
@@ -496,11 +551,14 @@ footer p{max-width:70ch}
 
 <main>
 
-<!-- ========== ПРОЛОГ: ОТ РУКИ К РУКЕ ========== -->
-<section class="scene" id="hero" style="--len:10" data-scene="prologue" data-dark>
+<!-- ========== ПРОЛОГ: ПРИВЕТСТВИЕ → ОТ РУКИ К РУКЕ ========== -->
+<section class="scene" id="hero" style="--len:14" data-scene="prologue" data-dark>
   <div class="stage">
-    <canvas class="scv" aria-label="Храм у моря, банк, ссылка из рук в руки и золотые монеты"></canvas>
-    <img class="obj" id="olive" src="assets/scene/olive.webp" alt="">
+    <img class="layer" data-bg="b0" alt="" fetchpriority="high">
+    <img class="layer" data-bg="b1" alt="">
+    <img class="layer" data-bg="b2" alt="">
+    <img class="layer" data-bg="b3" alt="">
+    <img class="obj" id="olive" src="assets/scene/olive.webp" alt="" fetchpriority="high">
     <img class="obj" id="scrollObj" src="assets/scene/scroll.webp" alt="">
     <div class="ring" id="sealRing"></div>
     <div id="coins"></div>
@@ -510,49 +568,65 @@ footer p{max-width:70ch}
     <div class="tag" id="tBank"><b>Банк</b><i></i></div>
     <div class="count" id="coinCount">+0 ₽</div>
     <div class="glowflash" id="flashIn"></div>
-    <div class="shade"></div><div class="grainy"></div>
-    <div class="cap" data-a="0" data-b=".1">
+    <div class="shade left" id="shadeHello"></div>
+    <div class="shade" id="shadeMain" style="opacity:0"></div>
+    <figure class="hello-arch" id="helloArch" style="margin:0"><div><img src="assets/img/petr.webp" alt="Пётр Рыжиков" fetchpriority="high"></div><span>Пётр Рыжиков · 20 лет</span></figure>
+    <div class="cap hello" data-a="0" data-b=".1">
       <div class="wrap"><div class="inner">
-        <span class="kicker">Пётр Рыжиков · Ryzhikov Academy</span>
-        <h1 data-split>Банки платят <em>100 000+ ₽</em> за одного человека</h1>
-        <p>Банкам нужны новые клиенты, и за каждого они платят. Ты их приводишь: сначала себя, потом друзей. Мне 20, я начинал с долга 90 000 ₽, а сейчас делаю на этом больше миллиона в месяц.</p>
+        <span class="kicker">Привет. Это презентация на 7 минут</span>
+        <h1 data-split>Я Пётр Рыжиков. Покажу, <em>как банки платят</em> за клиентов</h1>
+        <p>Мне 20. Начинал с долга 90 000 ₽, сейчас зарабатываю на банковских партнёрках больше миллиона в месяц и обучил этому 150 ребят. Ниже по шагам:</p>
+        <ol class="agenda">
+          <li style="--i:0"><b>1</b>Откуда у банков деньги для тебя</li>
+          <li style="--i:1"><b>2</b>За что именно платят и сколько</li>
+          <li style="--i:2"><b>3</b>Как из одного человека выходит 100 000+ ₽</li>
+          <li style="--i:3"><b>4</b>Как зайти с нуля и где все ошибаются</li>
+          <li style="--i:4"><b>5</b>Результаты учеников и бесплатный разбор</li>
+        </ol>
+      </div></div>
+    </div>
+    <div class="cap" data-a=".11" data-b=".19">
+      <div class="wrap"><div class="inner">
+        <span class="kicker">Ниша РКО в одной фразе</span>
+        <h2 data-split>Банки платят <em>100 000+ ₽</em> за одного человека</h2>
+        <p>Банкам нужны новые клиенты, и за каждого они платят. Ты их приводишь: сначала себя, потом друзей. Без товара и без вложений.</p>
         <div class="cta-row">
           <a class="btn btn-gold" data-cta href="#final">Записаться на диагностику</a>
-          <a class="btn btn-ghost" href="#story">Смотреть, как это работает</a>
+          <a class="btn btn-ghost" href="#story">Кто я такой</a>
         </div>
       </div></div>
     </div>
-    <div class="cap" data-a=".2" data-b=".3"><div class="wrap"><div class="inner">
+    <div class="cap" data-a=".27" data-b=".35"><div class="wrap"><div class="inner">
       <span class="kicker">Пролог · Откуда деньги</span>
       <h2 data-split>Банки <em>воюют</em> за клиентов</h2>
       <p>Около 200 миллиардов рублей в год только на рекламу. Часть этих денег банки отдают обычным людям, которые приводят им клиентов.</p>
     </div></div></div>
-    <div class="cap" data-a=".31" data-b=".43"><div class="wrap"><div class="inner">
+    <div class="cap" data-a=".36" data-b=".47"><div class="wrap"><div class="inner">
       <span class="kicker">Шаг I</span>
       <h2 data-split>Партнёрка даёт тебе <em>ссылку</em></h2>
-      <p>Регистрируешься на официальной партнёрке банка и берёшь там ссылку на счёт, например в ВТБ.</p>
+      <p>Партнёрка — официальный посредник банка. Регистрируешься там бесплатно и берёшь ссылку на счёт, например в ВТБ.</p>
     </div></div></div>
-    <div class="cap" data-a=".47" data-b=".6"><div class="wrap"><div class="inner">
+    <div class="cap" data-a=".52" data-b=".63"><div class="wrap"><div class="inner">
       <span class="kicker">Шаг II</span>
       <h2 data-split>Отдаёшь её <em>другу</em></h2>
       <p>Или проходишь по ней сам. Так начинает каждый: первые деньги получаешь на себе.</p>
     </div></div></div>
-    <div class="cap" data-a=".61" data-b=".7"><div class="wrap"><div class="inner">
+    <div class="cap" data-a=".64" data-b=".74"><div class="wrap"><div class="inner">
       <span class="kicker">Шаг III</span>
       <h2 data-split>Банк ставит <em>печать</em></h2>
       <p>Друг открывает счёт по твоей ссылке: бесплатно, с телефона, минут 15. Банк видит, откуда пришёл клиент.</p>
     </div></div></div>
-    <div class="cap" data-a=".71" data-b=".86"><div class="wrap"><div class="inner">
+    <div class="cap" data-a=".75" data-b=".88"><div class="wrap"><div class="inner">
       <span class="kicker">Шаг IV</span>
       <h2 data-split>Банк платит. <em>7 000 ₽</em> у тебя</h2>
       <p>Банк платит партнёрке, партнёрка переводит деньги тебе. Всё, это и есть ниша.</p>
     </div></div></div>
-    <div class="cap" data-a=".87" data-b="1"><div class="wrap"><div class="inner">
+    <div class="cap" data-a=".89" data-b="1"><div class="wrap"><div class="inner">
       <span class="kicker">А теперь умножь</span>
       <h2 data-split>Один банк — <em>7 000 ₽.</em> Банков в маршруте 8–10</h2>
       <p>И это с одного человека. Не продаёшь товар, не вкладываешь свои деньги, не трогаешь чужие.</p>
     </div></div></div>
-    <div class="hint"><i></i>ЛИСТАЙ</div>
+    <div class="scene-n">ПРОЛОГ</div>
     <div class="sbar"><i></i></div>
     <div class="to-paper"></div>
   </div>
@@ -567,7 +641,7 @@ footer p{max-width:70ch}
       <div class="story-l">
         <p class="lead" data-r>Ни богатых родителей, ни связей, ни капитала. Всё, что дальше, я делал сам. Это не пересказ из интернета.</p>
         <figure class="kopilka sepia" data-r="arch">
-          <div class="frame"><img src="assets/img/kopilka.jpg" alt="Пётр показывает баланс копилки 4 476 439 ₽ в приложении банка" loading="lazy"></div>
+          <div class="frame"><img src="assets/img/kopilka.webp" decoding="async" alt="Пётр показывает баланс копилки 4 476 439 ₽ в приложении банка" loading="lazy"></div>
           <div class="plaque"><b>4 476 439 ₽</b><span>моя копилка, мой телефон</span></div>
         </figure>
       </div>
@@ -591,27 +665,33 @@ footer p{max-width:70ch}
 </section>
 
 <!-- ========== II · ГРУША ========== -->
-<section class="scene" id="pear" style="--len:7" data-scene="pear" data-dark>
+<section class="scene" id="pear" style="--len:9" data-scene="pear" data-dark>
   <div class="stage">
-    <canvas class="scv" aria-label="Груша разрезается, из неё выходят четыре золотых зерна: РКО, дебетовые карты, кредитные карты, микрозаймы"></canvas>
+    <img class="layer" data-bg="b4" alt="">
+    <div class="pshadow" id="pearShadow"></div>
     <div class="core" id="pearCore"></div>
     <img class="obj" id="pearWhole" src="assets/scene/pear.webp" alt="">
     <img class="obj" id="pearL" src="assets/scene/pear-l.webp" alt="">
     <img class="obj" id="pearR" src="assets/scene/pear-r.webp" alt="">
-    <svg class="lines" id="pearLines"><line class="slash" id="slash"/><path id="ln0"/><path id="ln1"/><path id="ln2"/><path id="ln3"/></svg>
+    <div id="sparks"></div>
+    <svg class="lines" id="pearLines" aria-hidden="true">
+      <defs><linearGradient id="bladeG" x1="0" x2="1"><stop offset="0" stop-color="#fff7df" stop-opacity="0"/><stop offset=".5" stop-color="#fff7df"/><stop offset="1" stop-color="#ffd98a" stop-opacity="0"/></linearGradient></defs>
+      <line class="blade" id="blade"/><path id="ln0"/><path id="ln1"/><path id="ln2"/><path id="ln3"/>
+    </svg>
     <img class="obj" id="seed0" src="assets/scene/seed.webp" alt=""><img class="obj" id="seed1" src="assets/scene/seed.webp" alt="">
     <img class="obj" id="seed2" src="assets/scene/seed.webp" alt=""><img class="obj" id="seed3" src="assets/scene/seed.webp" alt="">
     <div class="seedcard sc1" id="card0"><span class="dot"></span><span class="n">I</span><h3>РКО: счёт для ИП</h3><p>Та же карта, только на ИП. Платят за каждый банк отдельно.</p><div class="sum"><span>8 банков × 6–20 тыс.</span><b>79 000 ₽</b></div></div>
     <div class="seedcard sc2" id="card1"><span class="dot"></span><span class="n">II</span><h3>Дебетовые карты</h3><p>Обычная карта. Потратить ~500 ₽ на свои покупки.</p><div class="sum"><span>3 карты</span><b>6 000 ₽</b></div></div>
-    <div class="seedcard sc3" id="card2"><span class="dot"></span><span class="n">III</span><h3>Кредитные карты</h3><p>Покупка и возврат в беспроцентный период.</p><div class="sum"><span>2 карты</span><b>9 300 ₽</b></div></div>
+    <div class="seedcard sc3" id="card2"><span class="dot"></span><span class="n">III</span><h3>Кредитные карты</h3><p>Одна покупка и возврат в беспроцентный период.</p><div class="sum"><span>2 карты</span><b>9 300 ₽</b></div></div>
     <div class="seedcard sc4" id="card3"><span class="dot"></span><span class="n">IV</span><h3>Микрозаймы</h3><p>Последним шагом. Первые 7 дней часто без процентов.</p><div class="sum"><span>4 МФО</span><b>16 577 ₽</b></div></div>
-    <div class="pear-total" id="pearTotal"><span>I + II + III + IV · с одного человека</span><b>110 877 ₽</b></div>
-    <div class="shade" style="opacity:.55"></div><div class="grainy"></div>
-    <div class="cap top" data-a="0" data-b=".3"><div class="wrap"><div class="inner">
+    <div class="pear-total" id="pearTotal"><span>I + II + III + IV · с одного человека</span><b id="pearSum">110 877 ₽</b></div>
+    <div class="shade" style="opacity:.5"></div>
+    <div class="cap top" data-a="0" data-b=".27"><div class="wrap"><div class="inner">
       <span class="kicker">Глава вторая · За что платят</span>
       <h2 data-split>Одна груша. <em>Четыре зерна</em></h2>
-      <p>Один человек — это не одна выплата. Внутри него четыре продукта, за которые банки платят отдельно.</p>
+      <p>Один человек — это не одна выплата. Внутри него четыре продукта, и банки платят за каждый отдельно.</p>
     </div></div></div>
+    <div class="scene-n">II · ЗА ЧТО ПЛАТЯТ</div>
     <div class="sbar"><i></i></div>
     <div class="to-paper"></div>
   </div>
@@ -669,7 +749,7 @@ footer p{max-width:70ch}
 </section>
 
 <!-- ========== III · ХРАМ ========== -->
-<section class="scene" id="templePin" style="--len:7" data-scene="temple">
+<section class="scene" id="templePin" style="--len:8" data-scene="temple">
   <div class="stage light">
     <canvas class="scv" aria-label="Чертёж храма превращается в золотой храм: фундамент, колонны-банки и крыша из карт и займов"></canvas>
     <div id="colLabels"></div>
@@ -681,7 +761,6 @@ footer p{max-width:70ch}
     </div>
     <div class="deadcard" id="deadCard"><b id="deadName">Т-Банк</b><span>За ИП на НПД через партнёрки не платит.<br>Такая колонна храм не держит.</span><br><span class="stamp">0 ₽ · УБИРАЕМ</span></div>
     <div class="sbar" style="background:rgba(42,34,24,.12)"><i style="background:var(--gold)"></i></div>
-    <div class="to-paper"></div>
   </div>
 </section>
 
@@ -715,6 +794,22 @@ footer p{max-width:70ch}
       </div>
       <p class="lead" data-r style="margin-top:26px;font-size:1.02rem">Деньги не приходят на следующий день. Это обычная проверка, а не обман. Кто знает об этом заранее, тот не паникует и спокойно ведёт следующего человека.</p>
     </div>
+    <div class="sub">
+      <span class="kicker" data-r>Где взять людей без бюджета</span>
+      <h3 class="h3" data-r style="margin-top:10px">Друг приводит друга, <em style="color:var(--gold)">и цепочка растёт сама</em></h3>
+      <div class="tree" id="tree">
+        <div class="node you" style="--i:0"><div class="med">Ты</div><h4>Проходишь сам</h4><p>Все банки по своим ссылкам.</p><span class="pay">всё тебе</span></div>
+        <div class="node" style="--i:1"><div class="med">Д</div><h4>Дима, друг</h4><p>Проходит банки по твоим ссылкам. Ты платишь ему за вечер.</p><span class="pay">Диме 5 000 ₽</span></div>
+        <div class="node" style="--i:2"><div class="med">С</div><h4>Саша, друг Димы</h4><p>Дима привёл Сашу. Саше за вечер, Диме за то, что привёл.</p><span class="pay">5 000 + 3 000 ₽</span></div>
+        <div class="node" style="--i:3"><div class="med">∞</div><h4>И дальше</h4><p>Друзья друзей. Через месяц людей тебе приводят сами.</p><span class="pay">тебе 100 000+ с каждого</span></div>
+      </div>
+      <div class="sources">
+        <div class="card" data-r><span class="n">I</span><h3>На себе</h3><p>Первый человек в списке ты сам. Получаешь деньги целиком и понимаешь, как всё устроено.</p></div>
+        <div class="card" data-r style="--i:1"><span class="n">II</span><h3>Друзья и их друзья</h3><p>Предлагаешь пройти банки по твоим ссылкам и платишь за время и за каждого приведённого.</p></div>
+        <div class="card" data-r style="--i:2"><span class="n">III</span><h3>Чаты подработок</h3><p>Там люди, которые прямо сейчас ищут, где заработать. Я сам начинал отсюда.</p></div>
+      </div>
+      <p class="lead" data-r style="margin-top:24px;font-size:1.02rem">Когда появились первые деньги и опыт, людей ищут онлайн: вакансии, реклама в каналах, свои ролики. Здесь доход растёт до 300–500 тысяч.</p>
+    </div>
     <div class="who-gets">
       <div class="card" data-r><h3>Проходишь сам</h3><p>Все деньги твои. Так начинает каждый: первые деньги получаешь на себе.</p></div>
       <div class="card" data-r style="--i:1"><h3>Проходит друг</h3><p>Банк платит тебе, другу отдаёшь его часть, например 5 000 ₽ за вечер. С одного человека у тебя остаётся больше 100 тысяч.</p></div>
@@ -742,7 +837,7 @@ footer p{max-width:70ch}
   </div>
 </section>
 
-<div class="plate" aria-hidden="true"><img src="assets/film/k4.webp" alt="" loading="lazy"><div class="wrap"><span class="kicker">Зал славы</span><h2>Они уже держат это <em>в руках</em></h2></div></div>
+<div class="plate" aria-hidden="true"><img src="assets/film/k4.webp" alt="" loading="lazy"><div class="wrap"><span class="kicker">Хватит теории</span><h2>Посмотри, кто уже <em>держит это в руках</em></h2></div></div>
 
 <!-- ========== VII ========== -->
 <section id="students">
@@ -756,40 +851,40 @@ footer p{max-width:70ch}
     </div>
 
     <article class="feat">
-      <figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/vitya.jpg" alt="Витя, ученик" loading="lazy"></div><div class="plaque"><b>Витя</b><span>@GauzRko</span></div></figure>
+      <figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/vitya.webp" decoding="async" alt="Витя, ученик" loading="lazy"></div><div class="plaque"><b>Витя</b><span>@GauzRko</span></div></figure>
       <div>
         <div class="sum" data-r>119 385 ₽</div>
         <div class="sum-l" data-r>за месяц, напрямую от партнёрок</div>
         <h3 data-r>Перестал кормить посредника</h3>
         <p class="txt" data-r>Витя уже работал в теме, но через знакомого. Банк платил знакомому, а тот отдавал Вите <strong>по 5 000 ₽ за человека</strong>, хотя договаривались делить пополам. На первом созвоне за 20 минут Витя узнал, где регистрироваться самому, и стал получать всю выплату.</p>
-        <div class="proof" data-r><span class="proof-l">Выплаты партнёрок · скрины со счёта</span><img src="assets/img/vitya-pay2.jpg" alt="Поступление 90 385 ₽ от ООО «Бизнес Система»" loading="lazy"><img src="assets/img/vitya-pay1.jpg" alt="Поступление 29 000 ₽ от ООО «РКО Групп»" loading="lazy"></div>
+        <div class="proof" data-r><span class="proof-l">Выплаты партнёрок · скрины со счёта</span><img src="assets/img/vitya-pay2.webp" decoding="async" alt="Поступление 90 385 ₽ от ООО «Бизнес Система»" loading="lazy"><img src="assets/img/vitya-pay1.webp" decoding="async" alt="Поступление 29 000 ₽ от ООО «РКО Групп»" loading="lazy"></div>
       </div>
     </article>
 
     <article class="feat flip">
-      <figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/anton.jpg" alt="Антон, ученик" loading="lazy"></div><div class="plaque"><b>Антон</b><span>@takemmn</span></div></figure>
+      <figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/anton.webp" decoding="async" alt="Антон, ученик" loading="lazy"></div><div class="plaque"><b>Антон</b><span>@takemmn</span></div></figure>
       <div>
         <div class="sum" data-r>230 000+ ₽</div>
         <div class="sum-l" data-r>за сентябрь, люди из интернета</div>
         <h3 data-r>Студент, подрабатывал где придётся</h3>
         <p class="txt" data-r>Увидел моё видео на YouTube и написал. В первый месяц прошёл все банки сам и заработал <strong>100 000+ ₽</strong>. Потом начал искать людей через рекламу: сначала ошибался, но разобрался. На момент скрина ещё <strong>184 400 ₽</strong> в обработке.</p>
         <blockquote data-r>«Лёгких денег здесь нет. Это такая же работа, где нужно быть сфокусированным. При правильном подходе она окупается в разы».</blockquote>
-        <div class="proof" data-r><span class="proof-l">Оплаченные счета и сделки по банкам · данные закрыл сам Антон</span><img src="assets/img/anton-pay1.jpg" alt="Оплаченные счета на 110 900, 49 000 и 46 400 ₽" loading="lazy"><img src="assets/img/anton-deals.jpg" alt="Успешные сделки по банкам: ПСБ, Уралсиб, ВТБ, Альфа-Банк" loading="lazy"></div>
+        <div class="proof" data-r><span class="proof-l">Оплаченные счета и сделки по банкам · данные закрыл сам Антон</span><img src="assets/img/anton-pay1.webp" decoding="async" alt="Оплаченные счета на 110 900, 49 000 и 46 400 ₽" loading="lazy"><img src="assets/img/anton-deals.webp" decoding="async" alt="Успешные сделки по банкам: ПСБ, Уралсиб, ВТБ, Альфа-Банк" loading="lazy"></div>
       </div>
     </article>
 
     <div class="hall">
-      <div data-r><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-damir.jpg" alt="Дамир" loading="lazy"></div><div class="plaque"><b>900 000 ₽</b><span>Дамир · за 3 месяца</span></div></figure><p>Перестал прыгать по темкам. Сейчас старший куратор.</p></div>
-      <div data-r style="--i:1"><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-kirill.jpg" alt="Кирилл с машиной" loading="lazy"></div><div class="plaque"><b>500 000 ₽</b><span>Кирилл · за месяц</span></div></figure><p>Работал в магазине у брата, на третий месяц купил Ford Focus.</p></div>
-      <div data-r style="--i:2"><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-dima.jpg" alt="Дима" loading="lazy"></div><div class="plaque"><b>400 000 ₽</b><span>Дима · в месяц</span></div></figure><p>До этого был монтажником при −40.</p></div>
-      <div data-r><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-slava.jpg" alt="Слава" loading="lazy"></div><div class="plaque"><b>300 000 ₽</b><span>Слава · Ишимбай</span></div></figure><p>В месяц. Маленький город не приговор.</p></div>
-      <div data-r style="--i:1"><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-maxim.jpg" alt="Максим" loading="lazy"></div><div class="plaque"><b>200 000 ₽</b><span>Максим, 26 · в месяц</span></div></figure><p>Стабильный доход вместо найма.</p></div>
-      <div data-r style="--i:2"><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-timur.jpg" alt="Тимур" loading="lazy"></div><div class="plaque"><b>159 000 ₽</b><span>Тимур, 18 · первый месяц</span></div></figure><p>С нулевым опытом в онлайне.</p></div>
+      <div data-r><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-damir.webp" decoding="async" alt="Дамир" loading="lazy"></div><div class="plaque"><b>900 000 ₽</b><span>Дамир · за 3 месяца</span></div></figure><p>Перестал прыгать по темкам. Сейчас старший куратор.</p></div>
+      <div data-r style="--i:1"><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-kirill.webp" decoding="async" alt="Кирилл с машиной" loading="lazy"></div><div class="plaque"><b>500 000 ₽</b><span>Кирилл · за месяц</span></div></figure><p>Работал в магазине у брата, на третий месяц купил Ford Focus.</p></div>
+      <div data-r style="--i:2"><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-dima.webp" decoding="async" alt="Дима" loading="lazy"></div><div class="plaque"><b>400 000 ₽</b><span>Дима · в месяц</span></div></figure><p>До этого был монтажником при −40.</p></div>
+      <div data-r><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-slava.webp" decoding="async" alt="Слава" loading="lazy"></div><div class="plaque"><b>300 000 ₽</b><span>Слава · Ишимбай</span></div></figure><p>В месяц. Маленький город не приговор.</p></div>
+      <div data-r style="--i:1"><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-maxim.webp" decoding="async" alt="Максим" loading="lazy"></div><div class="plaque"><b>200 000 ₽</b><span>Максим, 26 · в месяц</span></div></figure><p>Стабильный доход вместо найма.</p></div>
+      <div data-r style="--i:2"><figure class="portrait sepia" data-r="arch"><div class="frame"><img src="assets/img/case-timur.webp" decoding="async" alt="Тимур" loading="lazy"></div><div class="plaque"><b>159 000 ₽</b><span>Тимур, 18 · первый месяц</span></div></figure><p>С нулевым опытом в онлайне.</p></div>
     </div>
   </div>
 </section>
 
-<div class="plate" aria-hidden="true"><img src="assets/film/k5.webp" alt="" loading="lazy"><div class="wrap"><span class="kicker">Ryzhikov Academy</span><h2>Не курс, а <em>чертёж</em> с людьми рядом</h2></div></div>
+<div class="plate" aria-hidden="true"><img src="assets/film/k5.webp" alt="" loading="lazy"><div class="wrap"><span class="kicker">Как дойти быстрее</span><h2>Можно разбираться самому. Можно <em>по чертежу</em></h2></div></div>
 
 <!-- ========== VIII ========== -->
 <section id="academy">
@@ -810,10 +905,10 @@ footer p{max-width:70ch}
       <div class="card" data-r>
         <h3>Кураторы с результатом в нише</h3>
         <div class="curators">
-          <div class="cur"><img src="assets/img/case-damir.jpg" alt="" loading="lazy"><div><b>Дамир</b><span>старший, 900к за квартал</span></div></div>
-          <div class="cur"><img src="assets/img/case-dima.jpg" alt="" loading="lazy"><div><b>Дима</b><span>400к в месяц</span></div></div>
-          <div class="cur"><img src="assets/img/cur-roma.jpg" alt="" loading="lazy"><div><b>Рома</b><span>800к за первый месяц бренда</span></div></div>
-          <div class="cur"><img src="assets/img/cur-astemir.jpg" alt="" loading="lazy"><div><b>Астемир</b><span>250к в месяц</span></div></div>
+          <div class="cur"><img src="assets/img/case-damir.webp" decoding="async" alt="" loading="lazy"><div><b>Дамир</b><span>старший, 900к за квартал</span></div></div>
+          <div class="cur"><img src="assets/img/case-dima.webp" decoding="async" alt="" loading="lazy"><div><b>Дима</b><span>400к в месяц</span></div></div>
+          <div class="cur"><img src="assets/img/cur-roma.webp" decoding="async" alt="" loading="lazy"><div><b>Рома</b><span>800к за первый месяц бренда</span></div></div>
+          <div class="cur"><img src="assets/img/cur-astemir.webp" decoding="async" alt="" loading="lazy"><div><b>Астемир</b><span>250к в месяц</span></div></div>
         </div>
       </div>
       <div class="card" data-r style="--i:1">
@@ -915,40 +1010,41 @@ document.querySelectorAll('[data-cta]').forEach(a => { a.href = LINKS.diagnostic
 document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channel; a.target = '_blank'; a.rel = 'noopener'; });
 
 (() => {
-  const root = document.documentElement;
+  'use strict';
+  const root = document.documentElement, $ = id => document.getElementById(id);
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const $ = id => document.getElementById(id);
-  const NS = 'http://www.w3.org/2000/svg';
-  const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+  const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
   const ease = t => 1 - Math.pow(1 - t, 3);
+  const io3 = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const backOut = t => { const c = 1.5; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
+  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
+  const bump = (a, m, b, x) => x < m ? smooth(a, m, x) : 1 - smooth(m, b, x);
+  const lerp = (a, b, t) => a + (b - a) * t;
   const fmt = n => Math.round(n).toLocaleString('ru-RU');
-  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent && parent.appendChild(e); return e; };
-  requestAnimationFrame(() => setTimeout(() => root.classList.add('loaded'), 80));
+  const T = (el, x, y, s = 1, r = 0) => { el.style.transform = `translate3d(${x}px,${y}px,0) rotate(${r}deg) scale(${s})`; };
+  const O = (el, o) => { el.style.opacity = o; };
+  requestAnimationFrame(() => setTimeout(() => root.classList.add('loaded'), 60));
 
-  /* меандр */
+  /* меандр под заголовками глав: рисуется при появлении */
   document.querySelectorAll('[data-meander]').forEach(svg => {
-    const w = 1200, u = 24; let d = 'M0 16';
-    for (let x = 0; x < w; x += u) d += ` h6 v-12 h12 v8 h-6 v-4 h-2 v8 h14`;
+    let d = 'M0 16'; for (let x = 0; x < 1200; x += 24) d += ' h6 v-12 h12 v8 h-6 v-4 h-2 v8 h14';
     svg.setAttribute('viewBox', '0 0 1200 18'); svg.setAttribute('preserveAspectRatio', 'xMinYMid slice');
     const p = svg.querySelector('path'); p.setAttribute('d', d);
+    const L = Math.ceil(p.getTotalLength()); p.style.strokeDasharray = L; p.style.strokeDashoffset = L; p.style.transition = 'stroke-dashoffset 2.2s cubic-bezier(.6,0,.2,1)';
+    svg.dataset.r = 'line';
   });
-  const meanders = [...document.querySelectorAll('[data-meander] path')].map(p => { const L = p.getTotalLength(); p.style.strokeDasharray = L; p.style.strokeDashoffset = L; return { p, L, svg: p.parentNode }; });
 
-  /* плавный скролл */
-  let lenis = null;
-  if (!reduce && window.Lenis) {
-    lenis = new Lenis({ duration: 1.35, easing: t => 1 - Math.pow(1 - t, 4), smoothWheel: true });
-    document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', e => {
-      const t = document.querySelector(a.getAttribute('href'));
-      if (t) { e.preventDefault(); lenis.scrollTo(t, { offset: -10, duration: 2.4 }); }
-    }));
-  }
-
-  /* появление */
-  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -8% 0px', threshold: .08 });
-  let clipEls = [];
-  document.querySelectorAll('[data-r]').forEach(n => (n.dataset.r === 'ink' || n.dataset.r === 'arch') ? clipEls.push(n) : io.observe(n));
-  const checkClips = vh => { if (!clipEls.length) return; clipEls = clipEls.filter(n => { const r = n.getBoundingClientRect(); if (r.top < vh * .9 && r.bottom > 0) { n.classList.add('in'); return false; } return true; }); };
+  /* появление при входе в экран (ничего не считается на каждом кадре) */
+  const io = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    const t = e.target.__rev || e.target; t.classList.add('in');
+    if (t.dataset.r === 'line') t.querySelector('path').style.strokeDashoffset = 0;
+    io.unobserve(e.target);
+  }), { rootMargin: '0px 0px -6% 0px', threshold: .04 });
+  document.querySelectorAll('[data-r], .tree').forEach(n => {
+    // у элементов с clip-path наблюдаем родителя: обрезанный элемент наблюдатель не видит
+    if (n.dataset.r === 'ink' || n.dataset.r === 'arch') { const p = n.parentElement; p.__rev = n; io.observe(p); } else io.observe(n);
+  });
 
   /* счётчики */
   const cio = new IntersectionObserver(es => es.forEach(e => {
@@ -956,141 +1052,170 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
     const n = e.target, to = +n.dataset.count, suf = n.dataset.suf || '';
     if (reduce) return;
     const t0 = performance.now();
-    const tick = t => { const k = Math.min(1, (t - t0) / 1600); n.textContent = fmt(to * ease(k)) + suf; if (k < 1) requestAnimationFrame(tick); };
+    const tick = t => { const k = Math.min(1, (t - t0) / 1400); n.textContent = fmt(to * ease(k)) + suf; if (k < 1) requestAnimationFrame(tick); };
     requestAnimationFrame(tick);
   }), { threshold: .6 });
   document.querySelectorAll('[data-count]').forEach(n => cio.observe(n));
 
-  /* ===== СЦЕНЫ: картинки, которые двигает скролл ===== */
-  const IM = {};
-  ['b0', 'b1', 'b2', 'b3', 'b4', 'b5', 'b5b'].forEach(n => { const im = new Image(); im.decoding = 'async'; im.onload = () => { IM[n] = im; dirtyAll(); }; im.src = `assets/scene/${n}.webp`; });
-  const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
-  const bump = (a, m, b, x) => x < m ? smooth(a, m, x) : 1 - smooth(m, b, x);
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const bounce = t => { const n = 7.5625, d = 2.75; if (t < 1 / d) return n * t * t; if (t < 2 / d) return n * (t -= 1.5 / d) * t + .75; if (t < 2.5 / d) return n * (t -= 2.25 / d) * t + .9375; return n * (t -= 2.625 / d) * t + .984375; };
-  // картинка «под обрез» с точкой фокуса и наезд камеры к точке
-  const coverRect = (W, H, iw, ih, fx, fy) => { const s = Math.max(W / iw, H / ih), dw = iw * s, dh = ih * s; return { dx: clamp(W / 2 - fx * dw, W - dw, 0), dy: clamp(H / 2 - fy * dh, H - dh, 0), dw, dh }; };
-  const zoomRect = (r, ox, oy, z) => { const px = r.dx + ox * r.dw, py = r.dy + oy * r.dh, dw = r.dw * z, dh = r.dh * z; return { dx: px - ox * dw, dy: py - oy * dh, dw, dh }; };
-  const at = (r, fx, fy) => [r.dx + fx * r.dw, r.dy + fy * r.dh];
-  const drawImg = (cx, im, r, a = 1) => { if (!im || a <= 0) return; cx.globalAlpha = a; cx.drawImage(im, r.dx, r.dy, r.dw, r.dh); cx.globalAlpha = 1; };
-  const place = (el, x, y, w, rot = 0, op = 1, sc = 1) => {
-    const h = el.naturalWidth ? w * el.naturalHeight / el.naturalWidth : w;
-    el.style.width = w + 'px'; el.style.opacity = op;
-    el.style.transform = `translate(${x - w / 2}px, ${y - h / 2}px) rotate(${rot}deg) scale(${sc})`;
-  };
-
-  const scenes = [...document.querySelectorAll('.scene')].map(sec => {
-    const cv = sec.querySelector('.scv');
-    return { sec, kind: sec.dataset.scene, dark: sec.hasAttribute('data-dark'), cv, cx: cv.getContext('2d'), p: 0, dirty: true,
-      caps: [...sec.querySelectorAll('.cap')].map(c => ({ el: c, a: +c.dataset.a, b: +c.dataset.b })),
-      paper: sec.querySelector('.to-paper'), bar: sec.querySelector('.sbar i'), hint: sec.querySelector('.hint') };
-  });
-  function dirtyAll() { scenes.forEach(s => s.dirty = true); }
-  function prepCanvas(s) {
-    const D = Math.min(devicePixelRatio || 1, 1.75), W = s.cv.clientWidth, H = s.cv.clientHeight;
-    if (s.cv.width !== Math.round(W * D) || s.cv.height !== Math.round(H * D)) { s.cv.width = Math.round(W * D); s.cv.height = Math.round(H * D); }
-    s.cx.setTransform(D, 0, 0, D, 0, 0); return [W, H];
+  /* плавный скролл */
+  let lenis = null;
+  if (!reduce && window.Lenis) {
+    lenis = new Lenis({ lerp: .1, smoothWheel: true, wheelMultiplier: .9, touchMultiplier: 1.1 });
+    document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', e => {
+      const t = document.querySelector(a.getAttribute('href'));
+      if (t) { e.preventDefault(); lenis.scrollTo(t, { offset: 0, duration: 2.2 }); }
+    }));
   }
 
-  /* — пролог: храм → зал банка → ссылка из рук в руки → печать → монеты — */
+  /* ===== геометрия: меряем только при изменении размеров ===== */
+  let W = innerWidth, H = innerHeight, mob = W < 900;
+  const absTop = el => el.getBoundingClientRect().top + scrollY;
+  const ASPECT = 2688 / 1520;
+  const coverRect = (iw, ih, fx, fy, w = W, h = H) => { const s = Math.max(w / iw, h / ih), dw = iw * s, dh = ih * s; return { dx: clamp(w / 2 - fx * dw, w - dw, 0), dy: clamp(h / 2 - fy * dh, h - dh, 0), dw, dh }; };
+  const zoomAt = (r, ox, oy, z) => { const px = r.dx + ox * r.dw, py = r.dy + oy * r.dh; return { dx: px - ox * r.dw * z, dy: py - oy * r.dh * z, dw: r.dw * z, dh: r.dh * z }; };
+  const at = (r, fx, fy) => [r.dx + fx * r.dw, r.dy + fy * r.dh];
+  // фон-слой: размер ставим один раз, на кадре меняется только transform
+  const sizeLayer = (img, r) => { img.style.width = r.dw + 'px'; img.style.height = r.dh + 'px'; };
+  // у фонов transform-origin 0 0 и scale от базового размера, поэтому сдвиг считаем от базового прямоугольника
+  const moveLayerFix = (img, base, ox, oy, z, op) => {
+    const px = base.dx + ox * base.dw, py = base.dy + oy * base.dh, dx = px - ox * base.dw * z, dy = py - oy * base.dh * z;
+    img.style.transform = `translate3d(${dx}px,${dy}px,0) scale(${z})`;
+    img.style.opacity = op; img.style.visibility = op <= 0 ? 'hidden' : 'visible';
+    return { dx, dy, dw: base.dw * z, dh: base.dh * z };
+  };
+  const sizeObj = (el, w) => { el.style.width = w + 'px'; el.__w = w; el.__h = w * (el.naturalHeight && el.naturalWidth ? el.naturalHeight / el.naturalWidth : 1); };
+  const putObj = (el, x, y, s, r, o) => { el.style.transform = `translate3d(${x - el.__w / 2}px,${y - el.__h / 2}px,0) rotate(${r}deg) scale(${s})`; el.style.opacity = o; };
+
+  /* ===== сцены ===== */
+  const scenes = [...document.querySelectorAll('.scene')].map(sec => ({
+    sec, kind: sec.dataset.scene, dark: sec.hasAttribute('data-dark'), top: 0, h: 1, p: -1,
+    caps: [...sec.querySelectorAll('.cap')].map(c => ({ el: c, a: +c.dataset.a, b: +c.dataset.b, on: false, show: false })),
+    paper: sec.querySelector('.to-paper'), bar: sec.querySelector('.sbar i'),
+    bgs: Object.fromEntries([...sec.querySelectorAll('[data-bg]')].map(i => [i.dataset.bg, i]))
+  }));
+  scenes.forEach(s => Object.values(s.bgs).forEach(img => { img.decoding = 'async'; img.src = `assets/scene/${img.dataset.bg}${mob ? '-m' : ''}.webp`; }));
+  const S = k => scenes.find(s => s.kind === k);
+
+  /* — пролог — */
+  const P = S('prologue');
   const olive = $('olive'), scrollObj = $('scrollObj'), sealRing = $('sealRing'), coinCount = $('coinCount'), flashIn = $('flashIn');
-  const tYou = $('tYou'), tPartner = $('tPartner'), tFriend = $('tFriend'), tBank = $('tBank');
-  const COINS = Array.from({ length: 14 }, (_, i) => {
-    const im = document.createElement('img'); im.className = 'obj'; im.src = 'assets/scene/coin.webp'; im.alt = ''; $('coins').appendChild(im);
-    return { im, t0: .69 + i * .011, ox: ((i * 37) % 11 - 5) * .004, oy: ((i * 53) % 7 - 3) * .003, rot: (i * 71) % 360 };
+  const helloArch = $('helloArch'), shadeHello = $('shadeHello'), shadeMain = $('shadeMain');
+  const tags = { you: $('tYou'), partner: $('tPartner'), friend: $('tFriend'), bank: $('tBank') };
+  const COINS = Array.from({ length: 16 }, (_, i) => {
+    const im = document.createElement('img'); im.className = 'obj'; im.src = 'assets/scene/coin.webp'; im.alt = ''; im.decoding = 'async'; $('coins').appendChild(im);
+    return { im, t0: .745 + i * .0085, ox: ((i * 37) % 11 - 5) * .004, oy: ((i * 53) % 7 - 3) * .003, rot: (i * 71) % 360 };
   });
   const MERCH = [.535, .615], YOU1 = [.44, .64], YOU2 = [.447, .645], FRIEND = [.552, .632], BOWL = [.52, .565], LIP = [.515, .575], HANDS = [.456, .69];
-  const arc = (A, B, t, h) => { const e = ease(clamp(t)); return [lerp(A[0], B[0], e), lerp(A[1], B[1], e) - Math.sin(Math.PI * e) * h]; };
-  function drawPrologue(s, p) {
-    const [W, H] = prepCanvas(s), cx = s.cx, mob = W < 700;
-    cx.fillStyle = '#1a120a'; cx.fillRect(0, 0, W, H);
-    const b0 = IM.b0;
-    if (b0 && p < .21) {
-      const r0 = coverRect(W, H, b0.naturalWidth, b0.naturalHeight, mob ? .62 : .5, .5);
-      const z = p < .1 ? 1 + .05 * p / .1 : 1.05 + 1.9 * Math.pow(clamp((p - .1) / .1), 2);
-      cx.filter = z > 1.3 ? `blur(${Math.min(8, (z - 1.3) * 5)}px)` : 'none';
-      drawImg(cx, b0, zoomRect(r0, .645, .5, z)); cx.filter = 'none';
-    }
-    const hz = 1.02 + .05 * clamp((p - .2) / .8);
-    // на телефоне картинка занимает верх экрана, чтобы оба героя попадали в кадр, подписи идут ниже
-    const hall = im => im ? zoomRect(coverRect(W, mob ? H * .66 : H, im.naturalWidth, im.naturalHeight, .49, .55), .48, .6, hz) : null;
-    const r1 = hall(IM.b1 || IM.b2 || IM.b3);
-    const a1 = smooth(.16, .205, p), a2 = smooth(.43, .5, p), a3 = smooth(.6, .67, p);
-    if (a1 > 0 && a2 < 1) drawImg(cx, IM.b1, hall(IM.b1), a1);
-    if (a2 > 0 && a3 < 1) drawImg(cx, IM.b2, hall(IM.b2), a2);
-    if (a3 > 0) drawImg(cx, IM.b3, hall(IM.b3), a3);
-    flashIn.style.opacity = bump(.15, .185, .23, p);
-    const ow = Math.max(W * .42, 320);
-    place(olive, ow * .4 - p * W * 1.4, ow * .25 - p * H * .9, ow, -4 + p * 30, 1 - smooth(.07, .14, p));
-    if (!r1) return;
-    // свиток-ссылка
+  const arc = (A, B, t, h) => { const e = io3(clamp(t)); return [lerp(A[0], B[0], e), lerp(A[1], B[1], e) - Math.sin(Math.PI * e) * h]; };
+  let PG = {};
+  function layoutPrologue() {
+    const iw = 1000, ih = 1000 / ASPECT;
+    PG.r0 = coverRect(iw, ih, mob ? .62 : .5, .5);
+    PG.rh = coverRect(iw, ih, .49, .55, W, mob ? H * .66 : H);
+    sizeLayer(P.bgs.b0, PG.r0); ['b1', 'b2', 'b3'].forEach(k => sizeLayer(P.bgs[k], PG.rh));
+    sizeObj(olive, Math.max(W * .42, 320)); sizeObj(scrollObj, PG.rh.dw * .11);
+    COINS.forEach(c => sizeObj(c.im, PG.rh.dw * .026));
+  }
+  function drawPrologue(p) {
+    // фон: храм с наездом камеры → вспышка → зал банка
+    const z0 = p < .18 ? 1 + .08 * (p / .18) : 1.08 + 2.2 * io3(clamp((p - .18) / .08));
+    moveLayerFix(P.bgs.b0, PG.r0, .645, .5, z0, 1 - smooth(.245, .27, p));
+    const hz = 1.03 + .05 * clamp((p - .26) / .74);
+    const a1 = smooth(.235, .27, p), a2 = smooth(.47, .53, p), a3 = smooth(.63, .69, p);
+    const r = moveLayerFix(P.bgs.b1, PG.rh, .48, .6, hz, a2 >= 1 ? 0 : a1);
+    moveLayerFix(P.bgs.b2, PG.rh, .48, .6, hz, a3 >= 1 ? 0 : a2);
+    moveLayerFix(P.bgs.b3, PG.rh, .48, .6, hz, a3);
+    O(flashIn, bump(.22, .25, .29, p));
+    // приветствие
+    const hello = 1 - smooth(.08, .12, p);
+    O(helloArch, hello * smooth(0, .002, p + .002)); helloArch.style.transform = `translate3d(0,${-p * H * 1.2}px,0)`;
+    O(shadeHello, 1 - smooth(.09, .13, p)); O(shadeMain, smooth(.09, .13, p));
+    putObj(olive, olive.__w * .4 - p * W * 1.1, olive.__w * .25 - p * H * .7, 1, -4 + p * 25, 1 - smooth(.16, .22, p));
+    // свиток-ссылка из рук в руки
     let f = null, op = 1, sc = 1, rot = -8;
-    if (p >= .29 && p < .34) { f = MERCH; op = smooth(.29, .33, p); sc = .6 + .4 * op; }
-    else if (p >= .34 && p < .42) f = arc(MERCH, YOU1, (p - .34) / .08, .05);
-    else if (p >= .42 && p < .5) f = arc(YOU1, YOU2, (p - .42) / .08, 0);
-    else if (p >= .5 && p < .6) f = arc(YOU2, FRIEND, (p - .5) / .1, .05);
-    else if (p >= .6 && p < .68) { const t = (p - .6) / .08; f = arc(FRIEND, BOWL, t, .06); op = 1 - smooth(.64, .68, p); sc = 1 - .6 * t; rot = -8 - 40 * t; }
-    if (f) { const [x, y] = at(r1, f[0], f[1]); place(scrollObj, x, y, r1.dw * .11, rot, op, sc); } else scrollObj.style.opacity = 0;
-    // печать банка
-    const rs = smooth(.655, .72, p), [bx, by] = at(r1, BOWL[0], BOWL[1]);
-    sealRing.style.opacity = rs > 0 && rs < 1 ? 1 - rs : 0;
-    sealRing.style.transform = `translate(${bx}px, ${by}px) scale(${.3 + rs * 3})`;
+    if (p >= .355 && p < .385) { f = MERCH; op = smooth(.355, .38, p); sc = .6 + .4 * op; }
+    else if (p >= .385 && p < .46) f = arc(MERCH, YOU1, (p - .385) / .075, .05);
+    else if (p >= .46 && p < .53) f = arc(YOU1, YOU2, (p - .46) / .07, 0);
+    else if (p >= .53 && p < .62) f = arc(YOU2, FRIEND, (p - .53) / .09, .05);
+    else if (p >= .62 && p < .7) { const t = io3((p - .62) / .08); f = arc(FRIEND, BOWL, t, .06); op = 1 - smooth(.67, .7, p); sc = 1 - .6 * t; rot = -8 - 40 * t; }
+    if (f) { const [x, y] = at(r, f[0], f[1]); putObj(scrollObj, x, y, sc * hz, rot, op); } else O(scrollObj, 0);
+    const rs = smooth(.69, .75, p), [bx, by] = at(r, BOWL[0], BOWL[1]);
+    O(sealRing, rs > 0 && rs < 1 ? 1 - rs : 0); T(sealRing, bx, by, .3 + rs * 3);
     // монеты из чаши в ладони
-    const cw = r1.dw * .026;
     COINS.forEach(c => {
-      if (p < c.t0) { c.im.style.opacity = 0; return; }
-      const t = clamp((p - c.t0) / .045);
-      const fx = lerp(LIP[0], HANDS[0] + c.ox, t), fy = lerp(LIP[1], HANDS[1] + c.oy, t * t) - Math.sin(Math.PI * t) * .03;
-      const [x, y] = at(r1, fx, fy); place(c.im, x, y, cw, c.rot + t * 540, 1 - smooth(.95, 1, p));
+      if (p < c.t0) { if (c.vis) { O(c.im, 0); c.vis = false; } return; }
+      c.vis = true;
+      const t = clamp((p - c.t0) / .04), fx = lerp(LIP[0], HANDS[0] + c.ox, t), fy = lerp(LIP[1], HANDS[1] + c.oy, t * t) - Math.sin(Math.PI * t) * .03;
+      const [x, y] = at(r, fx, fy); putObj(c.im, x, y, hz, c.rot + t * 540, 1 - smooth(.96, 1, p));
     });
-    const [hx, hy] = at(r1, .455, .5);
-    coinCount.style.opacity = smooth(.7, .74, p) * (1 - smooth(.92, .96, p));
-    coinCount.style.transform = `translate(${hx}px, ${hy}px) translate(-50%, -100%)`;
-    coinCount.textContent = '+' + fmt(7000 * clamp((p - .69) / .17)) + ' ₽';
+    const [hx, hy] = at(r, .455, .5);
+    O(coinCount, smooth(.75, .78, p) * (1 - smooth(.92, .96, p)));
+    coinCount.style.transform = `translate3d(${hx}px,${hy}px,0) translate(-50%,-100%)`;
+    coinCount.textContent = '+' + fmt(7000 * clamp((p - .745) / .13)) + ' ₽';
     // подписи «кто есть кто»
-    const tg = (el, fx, fy, o) => { const [x, y] = at(r1, fx, fy); el.style.opacity = o; el.style.transform = `translate(${clamp(x, 60, W - 60)}px, ${Math.max(y, 140)}px) translate(-50%, -100%)`; };
-    tg(tYou, .32, .1, smooth(.22, .26, p) * (1 - smooth(.9, .95, p)));
-    tg(tPartner, .77, .1, smooth(.23, .27, p) * (1 - smooth(.42, .46, p)));
-    tg(tFriend, .83, .11, smooth(.48, .52, p) * (1 - smooth(.6, .64, p)));
-    tg(tBank, .75, .15, smooth(.64, .68, p) * (1 - smooth(.9, .95, p)));
+    const tg = (el, fx, fy, o) => { const [x, y] = at(r, fx, fy); el.style.opacity = o; el.style.transform = `translate3d(${clamp(x, 60, W - 60)}px,${Math.max(y, mob ? 96 : 140)}px,0) translate(-50%,-100%)`; };
+    tg(tags.you, .32, .1, smooth(.28, .31, p) * (1 - smooth(.91, .95, p)));
+    tg(tags.partner, .77, .1, smooth(.29, .32, p) * (1 - smooth(.46, .5, p)));
+    tg(tags.friend, .83, .11, smooth(.52, .55, p) * (1 - smooth(.62, .65, p)));
+    tg(tags.bank, .75, .15, smooth(.66, .69, p) * (1 - smooth(.91, .95, p)));
   }
 
-  /* — груша: разрез и четыре зерна-продукта — */
-  const pearWhole = $('pearWhole'), pearL = $('pearL'), pearR = $('pearR'), pearCore = $('pearCore'), slash = $('slash'), pearTotal = $('pearTotal');
+  /* — груша — */
+  const PR = S('pear');
+  const pearWhole = $('pearWhole'), pearL = $('pearL'), pearR = $('pearR'), pearCore = $('pearCore'), pearShadow = $('pearShadow'), blade = $('blade'), pearTotal = $('pearTotal'), pearSum = $('pearSum');
   const seeds = [0, 1, 2, 3].map(i => $('seed' + i)), cards = [0, 1, 2, 3].map(i => $('card' + i)), lns = [0, 1, 2, 3].map(i => $('ln' + i));
-  const SEED = [1.3, .8, .9, 1];
-  function drawPear(s, p) {
-    const [W, H] = prepCanvas(s), cx = s.cx, mob = W < 900;
-    cx.fillStyle = '#120b05'; cx.fillRect(0, 0, W, H);
-    const b4 = IM.b4; let tableY = H * .7;
-    if (b4) { const r = zoomRect(coverRect(W, H, b4.naturalWidth, b4.naturalHeight, .55, mob ? .62 : .5), .5, .66, 1.02 + .04 * p); drawImg(cx, b4, r); tableY = r.dy + .665 * r.dh; }
-    const ph = mob ? Math.min(H * .24, W * .5) : H * .36, pw = ph * 564 / 800, px = W * .5, py = tableY - ph * .47;
-    const drop = clamp(p / .12), cut = p >= .22;
-    place(pearWhole, px, lerp(-ph, py, bounce(drop)), pw, (1 - drop) * -14, cut ? 0 : 1);
-    const sl = clamp((p - .14) / .07), x1 = px + pw * .5, y1 = py - ph * .45, x2 = px - pw * .5, y2 = py + ph * .45;
-    slash.setAttribute('x1', x1); slash.setAttribute('y1', y1); slash.setAttribute('x2', lerp(x1, x2, sl)); slash.setAttribute('y2', lerp(y1, y2, sl));
-    slash.style.opacity = sl > 0 && p < .25 ? 1 : 0;
-    const open = ease(clamp((p - .22) / .1)), spread = (mob ? W * .09 : W * .12) * open;
-    const hh = ph * .85, wL = hh * 388 / 600, wR = hh * 404 / 600, hy = py + ph * .07;
-    place(pearL, px - wL / 2 - spread, hy, wL, -8 * open, cut ? 1 : 0);
-    place(pearR, px + wR / 2 + spread, hy + hh * .033, wR, 8 * open, cut ? 1 : 0);
-    pearCore.style.opacity = open;
-    pearCore.style.transform = `translate(${px}px, ${hy}px) scale(${.4 + open * .9})`;
-    const st = s.cv.getBoundingClientRect();
+  const SEEDK = [1.3, .8, .9, 1];
+  const SPARKS = Array.from({ length: 16 }, (_, i) => { const d = document.createElement('div'); d.className = 'spark'; $('sparks').appendChild(d); return { d, a: i / 16 * Math.PI * 2 + (i % 3) * .2, r: 70 + (i * 29) % 90 }; });
+  let PRG = {};
+  function layoutPear() {
+    PRG.rb = coverRect(1000, 1000 / ASPECT, .55, mob ? .62 : .5); sizeLayer(PR.bgs.b4, PRG.rb);
+    PRG.tableY = PRG.rb.dy + .665 * PRG.rb.dh;
+    PRG.ph = mob ? Math.min(H * .24, W * .5) : H * .36; PRG.pw = PRG.ph * 564 / 800;
+    PRG.px = W * .5; PRG.py = PRG.tableY - PRG.ph * .47;
+    PRG.hh = PRG.ph * .85; sizeObj(pearWhole, PRG.pw); sizeObj(pearL, PRG.hh * 388 / 600); sizeObj(pearR, PRG.hh * 404 / 600);
+    seeds.forEach((s, i) => sizeObj(s, (mob ? 22 : 34) * SEEDK[i]));
+    // точки на карточках: offsetLeft не зависит от transform, поэтому меряем один раз
+    PRG.dots = cards.map(c => { const d = c.querySelector('.dot'); return [c.offsetLeft + d.offsetLeft + d.offsetWidth / 2, c.offsetTop + d.offsetTop + d.offsetHeight / 2]; });
+  }
+  function drawPear(p) {
+    moveLayerFix(PR.bgs.b4, PRG.rb, .5, .66, 1.02 + .05 * p, 1);
+    const { ph, pw, px, py, hh } = PRG;
+    // груша опускается на стол
+    const td = clamp((p - .02) / .1), yd = lerp(-ph * 1.3, py, backOut(td));
+    const cut = p >= .17;
+    putObj(pearWhole, px, yd, 1, (1 - ease(td)) * -18, cut ? 0 : 1);
+    pearShadow.style.transform = `translate3d(${px}px,${PRG.tableY - 4}px,0) scale(${(.3 + .7 * td) * pw / 200},1)`; O(pearShadow, td * .8);
+    // лезвие света
+    const tb = io3(clamp((p - .12) / .05)), x1 = px + pw * .55, y1 = py - ph * .55, x2 = px - pw * .55, y2 = py + ph * .5;
+    blade.setAttribute('x1', x1); blade.setAttribute('y1', y1); blade.setAttribute('x2', lerp(x1, x2, tb)); blade.setAttribute('y2', lerp(y1, y2, tb));
+    blade.style.opacity = bump(.12, .135, .2, p);
+    // половинки расходятся
+    const to = io3(clamp((p - .17) / .1)), spread = (mob ? W * .09 : W * .12) * to, lift = -Math.sin(to * Math.PI) * ph * .06, hy = py + ph * .07;
+    putObj(pearL, px - pearL.__w / 2 - spread, hy + lift, 1, -10 * to, cut ? 1 : 0);
+    putObj(pearR, px + pearR.__w / 2 + spread, hy + lift + hh * .033, 1, 10 * to, cut ? 1 : 0);
+    O(pearCore, Math.max(to, bump(.15, .17, .2, p) * .8)); T(pearCore, px, hy, .4 + to * 1.0);
+    const ts = clamp((p - .17) / .1);
+    SPARKS.forEach(s => { const d = ease(ts) * s.r; T(s.d, px + Math.cos(s.a) * d, hy + Math.sin(s.a) * d * .7); O(s.d, ts > 0 && ts < 1 ? 1 - ts : 0); });
+    // зёрна летят к карточкам, за ними тянется золотая линия
     seeds.forEach((sd, i) => {
-      const t0 = .33 + i * .11, t = clamp((p - t0) / .08), e = ease(t);
-      const d = cards[i].querySelector('.dot').getBoundingClientRect();
-      const tx = d.left + d.width / 2 - st.left, ty = d.top + d.height / 2 - st.top;
-      const mx = (px + tx) / 2, my = Math.min(hy, ty) - H * .12;
-      const qx = (1 - e) * (1 - e) * px + 2 * (1 - e) * e * mx + e * e * tx, qy = (1 - e) * (1 - e) * hy + 2 * (1 - e) * e * my + e * e * ty;
-      place(sd, qx, qy, (mob ? 22 : 34) * SEED[i], e * 360, p >= t0 ? 1 : 0, .4 + .6 * Math.min(1, t * 3));
-      cards[i].classList.toggle('show', t >= .85);
-      lns[i].setAttribute('d', p >= t0 ? `M${px} ${hy} Q${mx} ${my} ${qx} ${qy}` : '');
+      const t0 = .29 + i * .12, te = clamp((p - t0) / .03), tf = io3(clamp((p - t0 - .035) / .065));
+      const [tx, ty] = PRG.dots[i], mx = (px + tx) / 2, my = Math.min(hy, ty) - H * .14;
+      const e = tf, qx = (1 - e) * (1 - e) * px + 2 * (1 - e) * e * mx + e * e * tx, qy = (1 - e) * (1 - e) * (hy - 10) + 2 * (1 - e) * e * my + e * e * ty;
+      const hover = tf === 0 ? -Math.sin(te * Math.PI / 2) * 30 : 0;
+      putObj(sd, qx, qy + hover, p >= t0 ? .2 + .8 * backOut(te) : 0, tf * 300, p >= t0 ? 1 : 0);
+      cards[i].classList.toggle('show', tf > .9);
+      if (p >= t0 + .035 && tf > 0) { const c1x = lerp(px, mx, e), c1y = lerp(hy - 10, my, e); lns[i].setAttribute('d', `M${px} ${hy - 10} Q${c1x} ${c1y} ${qx} ${qy}`); }
+      else lns[i].setAttribute('d', '');
     });
-    pearTotal.classList.toggle('show', p > .8);
+    const tt = clamp((p - .8) / .1);
+    pearTotal.classList.toggle('show', p > .8); pearSum.textContent = fmt(110877 * ease(tt)) + ' ₽';
   }
 
-  /* — храм: чертёж превращается в золото по колоннам — */
+  /* — храм — */
+  const TM = S('temple');
+  const tcv = TM.sec.querySelector('.scv'), tcx = tcv.getContext('2d');
+  const tImg = {};
+  ['b5', 'b5b'].forEach(n => { const im = new Image(); im.decoding = 'async'; im.onload = () => { tImg[n] = im; TM.p = -1; lastY = -1; }; im.src = `assets/scene/${n}${mob ? '-m' : ''}.webp`; });
   const COLX = [[.175, .241], [.266, .33], [.358, .415], [.44, .4975], [.51, .565], [.5875, .645], [.671, .729], [.759, .8225]], COLY = [.383, .848];
   const BANKS = [
     ['Альфа-Банк', 16000, 'Регистрация ИП через Альфу по ссылке с партнёрки. Банк платит за саму регистрацию.'],
@@ -1111,18 +1236,24 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
   ];
   const TTOTAL = BANKS.reduce((a, b) => a + b[1], 0) + ROOF.reduce((a, r) => a + r[1], 0);
   const colLbls = [], bandLbls = [];
-  { const box = $('colLabels'); let ci = 0;
-    BANKS.forEach(b => { if (!b[1]) return; const l = document.createElement('div'); l.className = 'collbl'; l.innerHTML = `${b[0]}<small>+${fmt(b[1])}</small>`; box.appendChild(l); colLbls[ci++] = l; });
-    ROOF.forEach((r, i) => { const l = document.createElement('div'); l.className = 'bandlbl'; l.textContent = `${r[0]} · +${fmt(r[1])} ₽`; box.appendChild(l); bandLbls[i] = l; }); }
+  { const box = $('colLabels'), mk = (cls, html) => { const l = document.createElement('div'); l.className = cls; l.innerHTML = html; box.appendChild(l); return l; };
+    BANKS.filter(b => b[1]).forEach(b => colLbls.push(mk('collbl', `${b[0]}<small>+${fmt(b[1])}</small>`)));
+    ROOF.forEach(r => bandLbls.push(mk('bandlbl', `${r[0]} · +${fmt(r[1])} ₽`))); }
   const tTotal = $('tTotal'), tStep = $('tStep'), tName = $('tName'), tDesc = $('tDesc'), deadCard = $('deadCard'), deadName = $('deadName');
-  let tKey = '';
-  function drawTemple(s, p) {
-    const [W, H] = prepCanvas(s), cx = s.cx, mob = W < 900;
+  let TG = {}, tKey = '';
+  function layoutTemple() {
+    const D = Math.min(devicePixelRatio || 1, 1.5);
+    tcv.width = Math.round(W * D); tcv.height = Math.round(H * D); tcx.setTransform(D, 0, 0, D, 0, 0);
+    const top = mob ? 260 : 220, bot = 16, ih = 1 / ASPECT, sc = Math.min(W, (H - top - bot) / ih) * (mob ? 1.45 : 1);
+    TG = { dw: sc, dh: sc * ih }; TG.dx = (W - TG.dw) / 2; TG.dy = top + (H - top - bot - TG.dh) / 2;
+    COLX.forEach(([x0, x1], i) => { colLbls[i].style.transform = `translate3d(${TG.dx + (x0 + x1) / 2 * TG.dw}px,${TG.dy + (COLY[0] + COLY[1]) / 2 * TG.dh}px,0) translate(-50%,-50%) rotate(-90deg)`; });
+    ROOF.forEach((r, i) => { bandLbls[i].style.transform = `translate3d(${TG.dx + .5 * TG.dw}px,${TG.dy + (i === 2 ? .17 : (r[4][2] + r[4][3]) / 2) * TG.dh}px,0) translate(-50%,-50%)`; });
+    tKey = '';
+  }
+  function drawTemple(p) {
+    const cx = tcx, { dx, dy, dw, dh } = TG;
     cx.fillStyle = '#efe4cc'; cx.fillRect(0, 0, W, H);
-    const bp = IM.b5b, gd = IM.b5; if (!bp) return;
-    const iw = bp.naturalWidth, ih = bp.naturalHeight, top = mob ? 260 : 220, bot = 16;
-    const sc = Math.min(W / iw, (H - top - bot) / ih) * (mob ? 1.45 : 1);
-    const dw = iw * sc, dh = ih * sc, dx = (W - dw) / 2, dy = top + (H - top - bot - dh) / 2;
+    const bp = tImg.b5b, gd = tImg.b5; if (!bp) return;
     cx.drawImage(bp, dx, dy, dw, dh);
     const gold = (x0, x1, y0, y1, k, dir) => {
       if (!gd || k <= 0) return;
@@ -1132,72 +1263,44 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
       if (k < 1) { cx.fillStyle = 'rgba(255,232,170,.95)'; if (dir === 'up') cx.fillRect(dx + x0 * dw, dy + y0 * dh - 1.5, (x1 - x0) * dw, 3); else cx.fillRect(dx + x1 * dw - 1.5, dy + y0 * dh, 3, (y1 - y0) * dh); }
     };
     let sum = 0, key = 'bp';
-    // фундамент
-    const ks = ease(clamp((p - .05) / .07)); gold(.12, .88, .845, .965, ks, 'right'); if (p >= .05 && p < .13) key = 'base';
-    // колонны-банки
-    const T0 = .14, SEG = .055; let ci = 0;
-    deadCard.style.opacity = 0;
+    gold(.12, .88, .845, .965, io3(clamp((p - .05) / .07)), 'right'); if (p >= .05 && p < .13) key = 'base';
+    const T0 = .14, SEG = .055; let ci = 0, dead = 0;
     BANKS.forEach((b, i) => {
-      const t0 = T0 + i * SEG, k = ease(clamp((p - t0) / (SEG * .85)));
+      const t0 = T0 + i * SEG, k = io3(clamp((p - t0) / (SEG * .85)));
       if (p >= t0 && p < t0 + SEG) key = 'b' + i;
       if (!b[1]) {
         const o = bump(t0, t0 + SEG * .25, t0 + SEG, p), fall = smooth(t0 + SEG * .55, t0 + SEG, p);
-        if (o > 0) { deadName.textContent = b[0]; deadCard.style.opacity = o; deadCard.style.transform = `translateY(${fall * 120}px) rotate(${fall * 9}deg)`; }
+        if (o > 0) { dead = o; deadName.textContent = b[0]; deadCard.style.transform = `translate3d(-50%,calc(-50% + ${fall * 140}px),0) rotate(${fall * 9}deg)`; }
         return;
       }
       const [x0, x1] = COLX[ci]; gold(x0 - .004, x1 + .004, COLY[0], COLY[1], k, 'up');
-      sum += b[1] * k;
-      const l = colLbls[ci]; l.classList.toggle('on', k > .97);
-      l.style.left = (dx + (x0 + x1) / 2 * dw) + 'px'; l.style.top = (dy + (COLY[0] + COLY[1]) / 2 * dh) + 'px';
-      ci++;
+      sum += b[1] * k; colLbls[ci].classList.toggle('on', k > .97 && p < .9); ci++;
     });
-    // крыша: карты и займы
+    O(deadCard, dead);
     const R0 = .7, RS = .06;
     ROOF.forEach((r, i) => {
-      const t0 = R0 + i * RS, k = ease(clamp((p - t0) / (RS * .85))), [x0, x1, y0, y1] = r[4];
+      const t0 = R0 + i * RS, k = io3(clamp((p - t0) / (RS * .85))), [x0, x1, y0, y1] = r[4];
       if (p >= t0 && p < t0 + RS) key = 'r' + i;
       if (i === 2) { cx.save(); cx.beginPath(); cx.moveTo(dx + .15 * dw, dy + .258 * dh); cx.lineTo(dx + .5 * dw, dy + .02 * dh); cx.lineTo(dx + .85 * dw, dy + .258 * dh); cx.closePath(); cx.clip(); gold(x0, x1, y0, y1, k, 'up'); cx.restore(); }
       else gold(x0, x1, y0, y1, k, 'up');
-      sum += r[1] * k;
-      const l = bandLbls[i]; l.classList.toggle('on', k > .97 && p < .9);
-      l.style.left = (dx + .5 * dw) + 'px'; l.style.top = (dy + (i === 2 ? .17 : (y0 + y1) / 2) * dh) + 'px';
+      sum += r[1] * k; bandLbls[i].classList.toggle('on', k > .97 && p < .9);
     });
-    // финал: весь храм в золоте и закате
     const fin = smooth(.9, .97, p);
     if (gd && fin > 0) { cx.globalAlpha = fin; cx.drawImage(gd, dx, dy, dw, dh); cx.globalAlpha = 1; }
     if (p >= .9) key = 'end';
-    colLbls.forEach(l => { if (p >= .9) l.classList.remove('on'); });
     tTotal.textContent = fmt(sum) + ' ₽';
     if (key === tKey) return; tKey = key;
     const cap = (st, nm, ds) => { tStep.textContent = st; tName.innerHTML = nm; tDesc.textContent = ds; };
     if (key === 'bp') cap('ЧЕРТЁЖ', 'Построим храм дохода', 'Фундамент, колонны из банков и крыша из карт и займов. Листай: чертёж будет превращаться в золото.');
     else if (key === 'base') cap('ФУНДАМЕНТ', 'Самозанятость и ИП на НПД', 'Бесплатно, с телефона, за пару дней. Без фундамента банк не откроет счёт для бизнеса.');
-    else if (key[0] === 'b') { const b = BANKS[+key.slice(1)], n = BANKS.slice(0, +key.slice(1) + 1).filter(x => x[1]).length;
+    else if (key[0] === 'b') { const idx = +key.slice(1), b = BANKS[idx], n = BANKS.slice(0, idx + 1).filter(x => x[1]).length;
       if (b[1]) cap(`КОЛОННА ${n} ИЗ 8`, `${b[0]} <em>+${fmt(b[1])} ₽</em>`, b[2]);
       else cap('НЕ КОЛОННА', `${b[0]} <em class="zero">0 ₽</em>`, 'За ИП на НПД через партнёрки не платит. Вести туда людей нет смысла.'); }
     else if (key[0] === 'r') { const r = ROOF[+key.slice(1)]; cap(r[2], `${r[0]} <em>+${fmt(r[1])} ₽</em>`, r[3]); }
     else cap('ХРАМ ПОСТРОЕН', `С одного человека <em>${fmt(TTOTAL)} ₽</em>`, 'Восемь колонн-банков, плюс карты и займы того же человека. Это один храм. А людей вокруг тебя сотни.');
   }
 
-  const DRAW = { prologue: drawPrologue, pear: drawPear, temple: drawTemple };
-  function updateScenes(vh) {
-    scenes.forEach(s => {
-      const r = s.sec.getBoundingClientRect();
-      s.vis = r.bottom > -50 && r.top < vh + 50;
-      if (!s.vis) return;
-      const p = clamp(-r.top / (r.height - vh));
-      if (p !== s.p) { s.p = p; s.dirty = true; }
-      s.caps.forEach(c => { c.el.classList.toggle('on', p > c.a - .03 && p < c.b + .04); c.el.classList.toggle('show', p >= c.a && p < c.b - .008); });
-      s.paper.style.opacity = s.kind === 'temple' ? 0 : clamp((p - .95) / .05);
-      s.bar.style.width = p * 100 + '%';
-      if (s.hint) s.hint.style.opacity = p < .04 ? 1 : 0;
-    });
-  }
-  (function loop() { scenes.forEach(s => { if (s.vis !== false && s.dirty) { s.dirty = false; DRAW[s.kind](s, s.p); } }); requestAnimationFrame(loop); })();
-  addEventListener('resize', dirtyAll);
-  document.querySelectorAll('.obj').forEach(o => o.addEventListener('load', dirtyAll));
-
-  // разбить заголовки на слова для киношного появления
+  /* разбить заголовки сцен на слова для появления-титров */
   document.querySelectorAll('[data-split]').forEach(h => {
     let d = 0;
     const walk = node => [...node.childNodes].forEach(n => {
@@ -1216,54 +1319,91 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
     walk(h);
   });
 
-  /* живописные перебивки: параллакс */
-  const plates = [...document.querySelectorAll('.plate img, .final-bg img')];
-  function updatePlates(vh) { plates.forEach(im => { const r = im.parentNode.getBoundingClientRect(); if (r.bottom < 0 || r.top > vh) return; im.style.transform = `translate3d(0, ${(r.top + r.height / 2 - vh / 2) * -.12}px, 0) scale(1.04)`; }); }
-
-  /* путь выплаты */
+  /* остальные движущиеся части страницы */
+  const plates = [...document.querySelectorAll('.plate img, .final-bg img')].map(im => ({ im, top: 0, h: 0 }));
   const pipe = $('pipe'), pipeFill = $('pipeFill'), pipeCoin = $('pipeCoin'), pipeSteps = [...pipe.querySelectorAll('.st')];
-  function updatePipe(vh) {
-    const r = pipe.getBoundingClientRect(); if (r.bottom < -50 || r.top > vh + 50) return;
-    const p = clamp((vh * .85 - r.top) / (vh * .55));
+  const scrollEl = $('scroll'), paper = $('paper'), rollT = $('rollT'), rollB = $('rollB');
+  const chapters = [...document.querySelectorAll('#rail a')].map(a => ({ a, s: document.querySelector(a.getAttribute('href')), top: 0 }));
+  const top = $('top'), prog = $('prog'), rail = $('rail'), hint = $('scrollHint');
+  let PIPE = {}, SCR = {}, maxY = 1;
+  function layout() {
+    W = innerWidth; H = innerHeight; mob = W < 900;
+    scenes.forEach(s => { s.top = absTop(s.sec); s.h = s.sec.offsetHeight; s.p = -1; });
+    layoutPrologue(); layoutPear(); layoutTemple();
+    plates.forEach(o => { const b = o.im.parentElement; o.top = absTop(b); o.h = b.offsetHeight; });
     const vertical = getComputedStyle(pipe).gridTemplateColumns.split(' ').length === 1;
-    const pts = pipeSteps.map(s => { const q = s.getBoundingClientRect(); return vertical ? q.top - r.top + 10 : q.left - r.left + q.width / 2; });
-    const f = p * (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(f)), pos = pts[i] + (pts[i + 1] - pts[i]) * (f - i);
-    pipeSteps.forEach((s, j) => s.classList.toggle('on', j <= f + .05));
-    const share = ((pos - pts[0]) / (pts.at(-1) - pts[0]) * 100) + '%';
-    if (vertical) { pipeCoin.style.left = '0'; pipeCoin.style.top = pos + 'px'; pipeFill.style.height = share; pipeFill.style.width = ''; }
-    else { pipeCoin.style.top = '0'; pipeCoin.style.left = pos + 'px'; pipeFill.style.width = share; pipeFill.style.height = ''; }
+    PIPE = { top: absTop(pipe), vertical, pts: pipeSteps.map(s => vertical ? s.offsetTop + 10 : s.offsetLeft + s.offsetWidth / 2) };
+    SCR = { top: absTop(scrollEl), h: paper.offsetHeight };
+    chapters.forEach(c => c.top = absTop(c.s));
+    maxY = Math.max(1, root.scrollHeight - H);
+    lastY = -1;
   }
 
-  /* свиток */
-  const scroll = $('scroll'), paper = $('paper'), rollT = $('rollT'), rollB = $('rollB');
-  function updateScroll(vh) {
-    const r = scroll.getBoundingClientRect(); if (r.top > vh + 100 || r.bottom < -100) return;
-    const p = reduce ? 1 : ease(clamp((vh * .92 - r.top) / (vh * .65)));
-    const cut = (1 - p) * 50, H = paper.offsetHeight;
-    paper.style.clipPath = `inset(${cut}% 0 ${cut}% 0)`;
-    rollT.style.transform = `translateY(${H * cut / 100}px)`; rollB.style.transform = `translateY(${-H * cut / 100}px)`;
-  }
-
-  /* главы, меандры, герой */
-  const chapters = [...document.querySelectorAll('#rail a')].map(a => ({ a, s: document.querySelector(a.getAttribute('href')) }));
-  const top = $('top'), prog = $('prog'), rail = $('rail');
-  let lastY = scrollY, vel = 0;
-  function onScroll() {
-    const y = scrollY, vh = innerHeight, max = Math.max(1, root.scrollHeight - vh);
-    vel += y - lastY; lastY = y;
+  /* ===== один кадр на всё: скролл и отрисовка в одном requestAnimationFrame, поэтому ничего не отстаёт и не дрожит ===== */
+  let lastY = -1, lastMove = performance.now(), chapIdx = -2, onFilm = null;
+  function frame(y) {
+    const moved = y !== lastY; if (moved) lastMove = performance.now();
+    const idle = performance.now() - lastMove;
+    // подсказка «листай вниз»
+    let inScene = null; scenes.forEach(s => { if (y >= s.top - 2 && y < s.top + s.h - H) inScene = s; });
+    const showHint = y < 40 || (inScene && idle > 1600) || (!inScene && idle > 4000 && y < maxY - H * 1.5);
+    hint.classList.toggle('on', !!showHint);
+    hint.classList.toggle('light', !inScene || !inScene.dark);
+    if (!moved) return;
+    lastY = y;
+    prog.style.transform = `scaleX(${y / maxY})`;
     top.classList.toggle('solid', y > 40);
-    prog.style.width = (y / max * 100) + '%';
-    let cur = null; chapters.forEach(c => { if (c.s.getBoundingClientRect().top < vh * .5) cur = c; });
-    chapters.forEach(c => c.a.classList.toggle('on', c === cur));
-    meanders.forEach(m => { const r = m.svg.getBoundingClientRect(); const k = clamp((vh * .95 - r.top) / (vh * .5)); m.p.style.strokeDashoffset = m.L * (1 - k); });
-    updateScenes(vh); updatePlates(vh);
-    const onFilm = scenes.some(f => { if (!f.dark) return false; const r = f.sec.getBoundingClientRect(); return r.top <= 0 && r.bottom > vh * .35; });
-    top.classList.toggle('onfilm', onFilm); rail.classList.toggle('onfilm', onFilm);
-    updatePipe(vh); updateScroll(vh); checkClips(vh);
+    const nf = scenes.some(s => s.dark && y >= s.top - 1 && y < s.top + s.h - H * .35);
+    if (nf !== onFilm) { onFilm = nf; top.classList.toggle('onfilm', nf); rail.classList.toggle('onfilm', nf); }
+    let ci = -1; chapters.forEach((c, i) => { if (c.top < y + H * .5) ci = i; });
+    if (ci !== chapIdx) { chapIdx = ci; chapters.forEach((c, i) => c.a.classList.toggle('on', i === ci)); }
+    // сцены
+    scenes.forEach(s => {
+      if (y < s.top - H || y > s.top + s.h) return;
+      const p = clamp((y - s.top) / (s.h - H));
+      if (p === s.p) return; s.p = p;
+      s.caps.forEach(c => {
+        const on = p > c.a - .03 && p < c.b + .04, sh = p >= c.a && p < c.b - .008;
+        if (on !== c.on) { c.on = on; c.el.classList.toggle('on', on); }
+        if (sh !== c.show) { c.show = sh; c.el.classList.toggle('show', sh); }
+      });
+      if (s.paper) O(s.paper, clamp((p - .95) / .05));
+      s.bar.style.transform = `scaleX(${p})`;
+      if (s.kind === 'prologue') drawPrologue(p); else if (s.kind === 'pear') drawPear(p); else drawTemple(p);
+    });
+    // живописные вставки
+    plates.forEach(o => { const rt = o.top - y; if (rt > H || rt + o.h < 0) return; o.im.style.transform = `translate3d(0,${(rt + o.h / 2 - H / 2) * -.12}px,0) scale(1.04)`; });
+    // путь выплаты
+    const pr = PIPE.top - y;
+    if (pr < H + 50 && pr > -600) {
+      const pp = clamp((H * .85 - pr) / (H * .55)), pts = PIPE.pts, f = pp * (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(f)), pos = pts[i] + (pts[i + 1] - pts[i]) * (f - i);
+      pipeSteps.forEach((st, j) => st.classList.toggle('on', j <= f + .05));
+      const share = (pos - pts[0]) / (pts.at(-1) - pts[0]);
+      if (PIPE.vertical) { pipeCoin.style.transform = `translate3d(0,${pos}px,0) translateY(-50%)`; pipeFill.style.transform = `scaleY(${share})`; }
+      else { pipeCoin.style.transform = `translate3d(${pos}px,0,0) translateX(-50%)`; pipeFill.style.transform = `scaleX(${share})`; }
+    }
+    // свиток-приглашение
+    const sr = SCR.top - y;
+    if (sr < H + 100 && sr > -SCR.h - 100) {
+      const sp = reduce ? 1 : ease(clamp((H * .92 - sr) / (H * .65))), cut = (1 - sp) * 50;
+      paper.style.clipPath = `inset(${cut}% 0 ${cut}% 0)`;
+      rollT.style.transform = `translate3d(0,${SCR.h * cut / 100}px,0)`; rollB.style.transform = `translate3d(0,${-SCR.h * cut / 100}px,0)`;
+    }
   }
-  if (lenis) { lenis.on('scroll', onScroll); const raf = t => { lenis.raf(t); requestAnimationFrame(raf); }; requestAnimationFrame(raf); }
-  else addEventListener('scroll', onScroll, { passive: true });
-  addEventListener('resize', onScroll); onScroll();
+  function raf(t) {
+    if (lenis) lenis.raf(t);
+    frame(lenis ? (lenis.animatedScroll ?? scrollY) : scrollY);
+    requestAnimationFrame(raf);
+  }
+  layout();
+  let rz = 0;
+  const relayout = () => { cancelAnimationFrame(rz); rz = requestAnimationFrame(layout); };
+  addEventListener('resize', relayout);
+  new ResizeObserver(relayout).observe(document.body);
+  document.fonts && document.fonts.ready.then(relayout);
+  addEventListener('load', relayout);
+  document.querySelectorAll('.obj').forEach(o => { if (!o.complete) o.addEventListener('load', relayout, { once: true }); });
+  requestAnimationFrame(raf);
 
   /* тест */
   const answers = {}, verdict = $('verdict');
@@ -1281,33 +1421,30 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
     verdict.className = cls; verdict.innerHTML = html;
   });
 
-  /* золотая пыль в лучах */
-  const cv = $('dust'), cx = cv.getContext('2d');
-  let W, H, parts = [];
-  const mobile = matchMedia('(max-width: 760px)').matches;
-  function size() {
-    const D = Math.min(devicePixelRatio || 1, 1.5); W = innerWidth; H = innerHeight;
-    cv.width = W * D; cv.height = H * D; cx.setTransform(D, 0, 0, D, 0, 0);
-    parts = Array.from({ length: mobile ? 35 : 80 }, () => ({ x: Math.random() * W, y: Math.random() * H, z: .3 + Math.random() * .7, r: .5 + Math.random() * 1.6, ph: Math.random() * 6.28, sp: .05 + Math.random() * .18 }));
-  }
-  size(); addEventListener('resize', size);
-  let last = performance.now();
-  function frame(now) {
-    const dt = Math.min(48, now - last) / 16.67; last = now;
-    const v = vel; vel = 0;
-    cx.clearRect(0, 0, W, H);
-    for (const p of parts) {
-      p.y -= p.sp * dt + v * .35 * p.z; p.x += Math.sin(now * .0003 + p.ph) * .2 * p.z;
-      if (p.y < -10) { p.y = H + 10; p.x = Math.random() * W; } else if (p.y > H + 10) { p.y = -10; p.x = Math.random() * W; }
-      const a = (.25 + .5 * p.z) * (.5 + .5 * Math.sin(now * .0012 + p.ph * 3));
-      cx.globalAlpha = a; cx.fillStyle = p.z > .7 ? '#d9a944' : '#b08a4e';
-      cx.beginPath(); cx.arc(p.x, p.y, p.r * p.z, 0, 6.283); cx.fill();
+  /* золотая пыль на пергаменте (лёгкая: без ретины, мало частиц) */
+  const cv = $('dust'), dx = cv.getContext('2d');
+  let parts = [];
+  const sizeDust = () => { cv.width = innerWidth; cv.height = innerHeight; parts = Array.from({ length: innerWidth < 760 ? 22 : 40 }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, z: .3 + Math.random() * .7, r: .6 + Math.random() * 1.4, ph: Math.random() * 6.28, sp: .05 + Math.random() * .16 })); };
+  sizeDust(); addEventListener('resize', sizeDust);
+  let lastT = performance.now(), lastDY = scrollY;
+  function dust(now) {
+    const dt = Math.min(48, now - lastT) / 16.67; lastT = now;
+    const y = scrollY, v = y - lastDY; lastDY = y;
+    if (!onFilm) {
+      dx.clearRect(0, 0, cv.width, cv.height);
+      for (const p of parts) {
+        p.y -= p.sp * dt + v * .3 * p.z; p.x += Math.sin(now * .0003 + p.ph) * .2 * p.z;
+        if (p.y < -10) { p.y = cv.height + 10; p.x = Math.random() * cv.width; } else if (p.y > cv.height + 10) { p.y = -10; p.x = Math.random() * cv.width; }
+        dx.globalAlpha = (.25 + .5 * p.z) * (.5 + .5 * Math.sin(now * .0012 + p.ph * 3)); dx.fillStyle = p.z > .7 ? '#d9a944' : '#b08a4e';
+        dx.beginPath(); dx.arc(p.x, p.y, p.r * p.z, 0, 6.283); dx.fill();
+      }
+      dx.globalAlpha = 1;
     }
-    cx.globalAlpha = 1;
-    if (!document.hidden) requestAnimationFrame(frame);
+    if (!document.hidden) requestAnimationFrame(dust);
   }
-  if (!reduce) { requestAnimationFrame(frame); document.addEventListener('visibilitychange', () => { if (!document.hidden) { last = performance.now(); requestAnimationFrame(frame); } }); }
+  if (!reduce) { requestAnimationFrame(dust); document.addEventListener('visibilitychange', () => { if (!document.hidden) { lastT = performance.now(); requestAnimationFrame(dust); } }); }
 })();
 </script>
+
 </body>
 </html>
