@@ -190,6 +190,27 @@ section.blk{padding-block:clamp(90px,13vh,150px)}
   .tag b{font-size:11px;padding:4px 9px}.tag i{height:20px}
 }
 
+/* ---------- сцены-карты ---------- */
+.mapv{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;max-width:none;pointer-events:none;user-select:none}
+.svgl{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;overflow:visible}
+.svgl .trail{fill:none;stroke:rgba(90,60,20,.45);stroke-width:2.5;stroke-dasharray:2 9;stroke-linecap:round}
+.svgl .done{fill:none;stroke:#b8862f;stroke-width:3.5;stroke-linecap:round}
+.svgl .arcl{fill:none;stroke:var(--gold2);stroke-width:2.5;stroke-linecap:round}
+.pin{position:absolute;left:0;top:0;z-index:3;width:0;height:0;opacity:0;will-change:transform,opacity;pointer-events:none}
+.pin i{position:absolute;left:-6px;top:-6px;width:12px;height:12px;border-radius:50%;background:var(--gold2);box-shadow:0 0 14px var(--gold2)}
+.pin i::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:1.5px solid var(--gold2);animation:ping 2.4s ease-out infinite}
+@keyframes ping{0%{transform:scale(.4);opacity:1}100%{transform:scale(2.6);opacity:0}}
+.pin b{position:absolute;left:12px;top:-12px;font-size:13px;font-weight:600;color:#fff;background:rgba(0,0,0,.72);padding:4px 10px;border-radius:980px;white-space:nowrap}
+.pin.big i{left:-9px;top:-9px;width:18px;height:18px}
+.pin.av{z-index:4}
+.pin.av img{position:absolute;left:-28px;top:-72px;width:56px;height:56px;border-radius:16px;object-fit:cover;border:2px solid var(--gold2);box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.dotc{position:absolute;left:0;top:0;z-index:2;width:8px;height:8px;margin:-4px 0 0 -4px;border-radius:50%;background:#ffd98a;box-shadow:0 0 10px #ffc95a,0 0 22px rgba(255,201,90,.6);opacity:0;will-change:transform,opacity}
+.stop{position:absolute;left:0;top:0;z-index:3;width:0;height:0;opacity:0;will-change:transform,opacity;pointer-events:none}
+.stop span{position:absolute;left:-18px;top:-18px;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:#1d1d1f;color:var(--gold2);font-weight:700;font-size:16px;box-shadow:0 0 0 4px rgba(255,255,255,.85),0 8px 20px rgba(0,0,0,.35)}
+.stop.on span{background:var(--gold2);color:#1d1d1f}
+.cap .av{width:64px;height:64px;border-radius:18px;object-fit:cover;margin:0 auto 14px;border:2px solid var(--gold2)}
+.stage.parch .shade{background:linear-gradient(0deg,rgba(20,12,4,.88) 0%,rgba(20,12,4,.45) 30%,rgba(20,12,4,0) 56%)}
+
 /* ---------- кто я ---------- */
 .me{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(32px,6vw,80px);align-items:center}
 .photo{margin:0;border-radius:28px;overflow:hidden;background:var(--bg2);aspect-ratio:1;max-width:100%}
@@ -604,6 +625,23 @@ footer a{color:var(--ink)}
   </div>
 </section>
 
+<!-- ========== МАРШРУТ (сцена-карта) ========== -->
+<section class="scene" id="route" style="--len:5" data-scene="route" data-dark>
+  <div class="stage parch" style="background:#e9dcbf">
+    <img class="mapv" id="routeMap" data-src="route" alt="">
+    <svg class="svgl" aria-hidden="true"><path class="trail" id="routeTrail"/><path class="done" id="routeDone"/></svg>
+    <div class="stop" id="st0"><span>1</span></div><div class="stop" id="st1"><span>2</span></div><div class="stop" id="st2"><span>3</span></div><div class="stop" id="st3"><span>4</span></div><div class="stop" id="st4"><span>5</span></div>
+    <img class="obj" id="ship" src="assets/scene/ship.webp" alt="">
+    <div class="shade"></div>
+    <div class="cap" data-a="0" data-b=".1"><span class="eyebrow">Твой маршрут</span><h2>От нуля до 300–500 тысяч в месяц.</h2><p>Пять остановок. Листай — поплывём.</p></div>
+    <div class="cap" data-a=".11" data-b=".27"><span class="eyebrow">Остановка 1 · сегодня</span><h2>Ты понял нишу.</h2><p>Откуда деньги, за что платят и где ошибаются. Первый шаг уже сделан.</p></div>
+    <div class="cap" data-a=".29" data-b=".45"><span class="eyebrow">Остановка 2 · около недели</span><h2>Прошёл всё на себе.</h2><p>Самозанятость, ИП, банки по своим ссылкам. Первые деньги — твои.</p></div>
+    <div class="cap" data-a=".47" data-b=".63"><span class="eyebrow">Остановка 3</span><h2>Научился говорить с людьми.</h2><p>Что написать другу и как ответить на вопросы. Спокойно, без навязывания.</p></div>
+    <div class="cap" data-a=".65" data-b=".8"><span class="eyebrow">Остановка 4</span><h2>Нашёл первых людей.</h2><p>Друзья, их друзья, чаты подработок. Ни рубля на рекламу.</p></div>
+    <div class="cap" data-a=".82" data-b="1.1"><span class="eyebrow">Остановка 5</span><h2>Ищешь людей в интернете.</h2><p>Объявления, реклама, свои ролики. Здесь доход растёт до 300–500 тысяч. Миллион за три месяца не обещаю — это было бы враньё.</p></div>
+  </div>
+</section>
+
 <!-- ========== 9. ОШИБКИ ========== -->
 <section class="blk bg2" id="traps">
   <div class="wrap">
@@ -621,6 +659,21 @@ footer a{color:var(--ink)}
       <li><div><h4>Ведут туда, где человек уже был клиентом</h4><p><b>Как надо:</b> спросить заранее, был ли он в этом банке.</p></div><span class="loss">−2 300 ₽</span></li>
       <li><div><h4>Сидят на старых ставках</h4><p><b>Как надо:</b> сверять ставки каждую неделю.</p></div><span class="loss">каждый месяц</span></li>
     </ol>
+  </div>
+</section>
+
+<!-- ========== ИЗ ЛЮБОГО ГОРОДА (сцена-карта) ========== -->
+<section class="scene" id="geo" style="--len:4.4" data-scene="geo" data-dark>
+  <div class="stage">
+    <img class="mapv" id="geoMap" data-src="map" alt="">
+    <div id="cityDots"></div>
+    <svg class="svgl" aria-hidden="true"><path class="arcl" id="geoArc"/></svg>
+    <div class="pin big" id="pinIsh"><i></i><b>Ишимбай</b></div>
+    <div class="pin av" id="pinPhu"><img src="assets/img/sq/petr.webp" alt="Пётр"><i></i><b>Пхукет</b></div>
+    <div class="shade"></div>
+    <div class="cap" data-a="0" data-b=".33"><span class="eyebrow">География</span><h2>Работает из любого города.</h2><p>Счёт открывают онлайн, курьер приезжает сам. Москва или посёлок — банку не важно.</p></div>
+    <div class="cap" data-a=".45" data-b=".64"><img class="av" src="assets/img/sq/case-slava.webp" alt="Слава"><span class="eyebrow">Ишимбай, Башкирия</span><h2>Маленький город. 300 000 ₽ в месяц.</h2><p>Слава до этого знал только «темки». Маленький город не приговор.</p></div>
+    <div class="cap" data-a=".8" data-b="1.1"><span class="eyebrow">А это я</span><h2>Веду дела с Пхукета.</h2><p>Нужны только телефон и интернет. Город и даже страна не важны.</p></div>
   </div>
 </section>
 
@@ -1005,6 +1058,77 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
     else cap(`С одного человека <em>${fmt(TTOTAL)} ₽</em>`, 'Восемь банков, плюс карты и займы. А людей вокруг тебя сотни.');
   }
 
+  /* ===== сцены-карты: камера плавно едет и приближается по картинке ===== */
+  // масштаб меняем по экспоненте: наезд воспринимается ровным, как в кино
+  const camAt = (img, IW, IH, cx, cy, s, Hc, clampIt) => {
+    let tx = W / 2 - cx * IW * s, ty = Hc - cy * IH * s;
+    if (clampIt) { tx = clamp(tx, W - IW * s, 0); ty = clamp(ty, H - IH * s, 0); }
+    img.style.transform = `translate3d(${tx}px,${ty}px,0) scale(${s})`;
+    return { tx, ty, s, x: fx => tx + fx * IW * s, y: fy => ty + fy * IH * s };
+  };
+  const geoLerp = (a, b, t) => a * Math.pow(b / a, t);
+  const qPart = (x0, y0, cx, cy, x1, y1, t) => { // часть квадратичной кривой от 0 до t
+    const ax = lerp(x0, cx, t), ay = lerp(y0, cy, t), bx = lerp(cx, x1, t), by = lerp(cy, y1, t);
+    return `M${x0} ${y0} Q${ax} ${ay} ${lerp(ax, bx, t)} ${lerp(ay, by, t)}`;
+  };
+
+  document.querySelectorAll('.mapv').forEach(img => { img.decoding = 'async'; img.src = `assets/scene/${img.dataset.src}${mob ? '-m' : ''}.webp`; });
+
+  /* — маршрут ученика по карте островов — */
+  const RT = S('route'), routeMap = $('routeMap'), ship = $('ship'), routeTrail = $('routeTrail'), routeDone = $('routeDone');
+  const stops = [0, 1, 2, 3, 4].map(i => $('st' + i));
+  const RIW = 1920, RIH = 1920 / ASPECT;
+  const Q = [[.22, .88], [.33, .71], [.5, .56], [.66, .42], [.78, .25]];          // точки пути по морю
+  const ISL = [[.09, .82], [.25, .64], [.42, .5], [.61, .35], [.85, .12]];        // острова-остановки
+  const ARR = [.12, .3, .48, .66, .84];                                             // когда корабль у остановки
+  const cr = (p0, p1, p2, p3, t) => { const t2 = t * t, t3 = t2 * t; return .5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3); };
+  const routeAt = u => { const k = Math.min(3, Math.floor(u)), t = u - k, P = i => Q[clamp(i, 0, 4)]; return [0, 1].map(d => cr(P(k - 1)[d], P(k)[d], P(k + 1)[d], P(k + 2)[d], t)); };
+  const ROUTE = Array.from({ length: 121 }, (_, i) => routeAt(i / 30));
+  routeMap.style.width = RIW + 'px'; routeMap.style.height = RIH + 'px';
+  function layoutRoute() { sizeObj(ship, 1); }
+  function drawRoute(p) {
+    let u = 0;
+    for (let k = 0; k < 4; k++) if (p > ARR[k] + .02) u = k + io3(clamp((p - ARR[k] - .02) / (ARR[k + 1] - ARR[k] - .05)));
+    const cover = Math.max(W / RIW, H / RIH), zin = mob ? 1.12 : 1.65;
+    const s = cover * (1 + (zin - 1) * smooth(.03, .11, p) * (1 - smooth(.86, .97, p)));
+    const [sx, sy] = routeAt(u);
+    const c = camAt(routeMap, RIW, RIH, lerp(.5, sx, smooth(.03, .11, p) * (1 - smooth(.86, .97, p))), lerp(.5, sy, smooth(.03, .11, p) * (1 - smooth(.86, .97, p))), s, H * .42, true);
+    const pts = ROUTE.map(([fx, fy]) => `${c.x(fx).toFixed(1)} ${c.y(fy).toFixed(1)}`);
+    routeTrail.setAttribute('d', 'M' + pts.join('L'));
+    const n = Math.max(1, Math.round(u * 30)); routeDone.setAttribute('d', 'M' + pts.slice(0, n + 1).join('L') + `L${c.x(sx)} ${c.y(sy)}`);
+    const sw = RIW * s * .055; if (ship.__w !== sw) sizeObj(ship, sw);
+    putObj(ship, c.x(sx), c.y(sy), 1, Math.sin(p * 60) * 3, smooth(.0, .03, p));
+    stops.forEach((st, i) => {
+      st.style.transform = `translate3d(${c.x(ISL[i][0])}px,${c.y(ISL[i][1])}px,0) scale(${.6 + .4 * smooth(ARR[i] - .03, ARR[i], p)})`;
+      st.style.opacity = smooth(ARR[i] - .04, ARR[i] - .01, p); st.classList.toggle('on', p >= ARR[i]);
+    });
+  }
+
+  /* — география: огни городов, Ишимбай, перелёт на Пхукет — */
+  const GE = S('geo'), geoMap = $('geoMap'), geoArc = $('geoArc'), pinIsh = $('pinIsh'), pinPhu = $('pinPhu');
+  const GIW = 3200, GIH = 3501;
+  const PTS = {"Москва": [0.1257, 0.5165], "Санкт-Петербург": [0.0851, 0.4686], "Казань": [0.1896, 0.5161], "Екатеринбург": [0.2533, 0.5046], "Новосибирск": [0.3773, 0.5242], "Краснодар": [0.1332, 0.6192], "Ростов-на-Дону": [0.1373, 0.5999], "Самара": [0.1953, 0.5432], "Уфа": [0.2276, 0.5273], "Пермь": [0.2292, 0.4914], "Омск": [0.3243, 0.5246], "Красноярск": [0.4327, 0.5137], "Иркутск": [0.4961, 0.5523], "Хабаровск": [0.6671, 0.5887], "Владивосток": [0.6494, 0.6355], "Воронеж": [0.1344, 0.5585], "Челябинск": [0.2578, 0.5228], "Тюмень": [0.2807, 0.5011], "Мурманск": [0.1004, 0.34], "Якутск": [0.6374, 0.4424], "Калининград": [0.0306, 0.5276], "Сочи": [0.1374, 0.6314], "Нижний Новгород": [0.1611, 0.5102], "Волгоград": [0.1639, 0.5866], "Барнаул": [0.3821, 0.5417], "Томск": [0.3886, 0.5085], "Архангельск": [0.1418, 0.4084], "Махачкала": [0.1806, 0.6366], "Оренбург": [0.2228, 0.5575], "Чита": [0.5472, 0.5549], "Ишимбай": [0.228, 0.5406], "Пхукет": [0.4633, 0.8785]};
+  const ISH = PTS['Ишимбай'], PHU = PTS['Пхукет'];
+  const CITY = Object.entries(PTS).filter(([n]) => n !== 'Ишимбай' && n !== 'Пхукет').map(([n, xy], i) => { const d = document.createElement('div'); d.className = 'dotc'; d.title = n; $('cityDots').appendChild(d); return { d, xy, t0: .04 + i * .0095 }; });
+  geoMap.style.width = GIW + 'px'; geoMap.style.height = GIH + 'px';
+  function drawGeo(p) {
+    const sRU = W / (GIW * (mob ? 1.04 : .98)), sISH = W / (GIW * (mob ? .2 : .13)), sW = Math.min(W / (GIW * .85), (H - 220) / (GIH * .72));
+    const ru = { cx: .5, cy: .4, s: sRU * (1 + .05 * smooth(0, .35, p)) }, ish = { cx: ISH[0], cy: ISH[1], s: sISH }, wo = { cx: .44, cy: .6, s: sW };
+    const t1 = io3(clamp((p - .35) / .12)), t2 = io3(clamp((p - .63) / .14));
+    let st = { cx: lerp(ru.cx, ish.cx, t1), cy: lerp(ru.cy, ish.cy, t1), s: geoLerp(ru.s, ish.s, t1) };
+    if (t2 > 0) st = { cx: lerp(ish.cx, wo.cx, t2), cy: lerp(ish.cy, wo.cy, t2), s: geoLerp(ish.s, wo.s, t2) };
+    const c = camAt(geoMap, GIW, GIH, st.cx, st.cy, st.s, H * (mob ? .4 : .45), false);
+    geoMap.style.opacity = smooth(0, .04, p);
+    CITY.forEach(k => { const t = clamp((p - k.t0) / .02); k.d.style.transform = `translate3d(${c.x(k.xy[0])}px,${c.y(k.xy[1])}px,0) scale(${t ? .4 + .6 * backOut(t) : 0})`; k.d.style.opacity = t * (1 - .55 * smooth(.36, .45, p)); });
+    pinIsh.style.transform = `translate3d(${c.x(ISH[0])}px,${c.y(ISH[1])}px,0)`; pinIsh.style.opacity = smooth(.4, .44, p);
+    pinPhu.style.transform = `translate3d(${c.x(PHU[0])}px,${c.y(PHU[1])}px,0) scale(${.6 + .4 * backOut(clamp((p - .84) / .04))})`; pinPhu.style.opacity = smooth(.84, .87, p);
+    const ta = smooth(.74, .86, p);
+    if (ta > 0) { const x0 = c.x(ISH[0]), y0 = c.y(ISH[1]), x1 = c.x(PHU[0]), y1 = c.y(PHU[1]); geoArc.setAttribute('d', qPart(x0, y0, (x0 + x1) / 2 - (y1 - y0) * .25, Math.min(y0, y1) - Math.abs(y1 - y0) * .15, x1, y1, ta)); }
+    else geoArc.setAttribute('d', '');
+  }
+
+  const DRAW = { hero: drawHero, how: drawHow, pear: drawPear, temple: drawTemple, route: drawRoute, geo: drawGeo };
+
   /* остальное, что движется */
   const pipe = $('pipe'), pipeFill = $('pipeFill'), pipeCoin = $('pipeCoin'), pipeSteps = [...pipe.querySelectorAll('.st')];
   const nav = $('nav'), prog = $('prog'), hint = $('hint'), finalBg = document.querySelector('.final-bg img'), finalSec = $('final');
@@ -1012,7 +1136,7 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
   function layout() {
     W = innerWidth; H = innerHeight; mob = W < 900;
     scenes.forEach(s => { s.top = absTop(s.sec); s.h = s.sec.offsetHeight; s.p = -1; });
-    layoutHero(); layoutHow(); layoutPear(); layoutTemple();
+    layoutHero(); layoutHow(); layoutPear(); layoutTemple(); layoutRoute();
     const vertical = getComputedStyle(pipe).gridTemplateColumns.split(' ').length === 1;
     PIPE = { top: absTop(pipe), vertical, pts: pipeSteps.map(s => vertical ? s.offsetTop + 10 : s.offsetLeft + s.offsetWidth / 2) };
     FIN = { top: absTop(finalSec), h: finalSec.offsetHeight };
@@ -1037,7 +1161,7 @@ document.querySelectorAll('[data-channel]').forEach(a => { a.href = LINKS.channe
       if (y < s.top - H || y > s.top + s.h) return;
       const p = clamp((y - s.top) / (s.h - H)); if (p === s.p) return; s.p = p;
       drawCaps(s, p);
-      if (s.kind === 'hero') drawHero(p); else if (s.kind === 'how') drawHow(p); else if (s.kind === 'pear') drawPear(p); else drawTemple(p);
+      DRAW[s.kind](p);
     });
     const pr = PIPE.top - y;
     if (pr < H + 50 && pr > -600) {
