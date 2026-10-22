@@ -985,9 +985,10 @@ section.blk>.wrap{position:relative;z-index:1}
 #route .cap p b{color:var(--ink)}
 #route .eyebrow{color:var(--kob)}
 /* география: кобальтовая карта, белые огни */
-.dotc{background:#fff;box-shadow:0 0 10px #fff,0 0 22px rgba(255,255,255,.6)}
+.dotc{background:#fff;box-shadow:0 0 8px 2px rgba(255,255,255,.7);will-change:auto}
 .pin i{background:#fff;box-shadow:0 0 14px #fff}
-.pin i::after{border-color:#fff}
+.pin i::after{border-color:#fff;animation-play-state:paused}
+.pin.on i::after{animation-play-state:running}
 .svgl .arcl{stroke:#fff}
 .gcard{background:var(--paper);color:var(--ink);border:0}
 .gcard .gl{color:var(--kob)}
@@ -1166,7 +1167,7 @@ section.blk>.wrap{position:relative;z-index:1}
 @media (max-width:560px){.big3 b{font-size:clamp(30px,9vw,40px)}}
 .torn[data-chap]::before{top:calc(clamp(28px,4.5vh,48px) + 18px)}
 /* большой номер главы за текстом: плывёт медленнее страницы */
-.chn{position:absolute;z-index:0;right:max(var(--gl),3vw);top:clamp(40px,8vh,90px);font-family:var(--fd);font-weight:600;font-size:min(36vw,52vh);line-height:.8;color:transparent;-webkit-text-stroke:1.5px rgba(20,20,20,.09);pointer-events:none;user-select:none;will-change:transform}
+.chn{position:absolute;z-index:0;right:max(var(--gl),3vw);top:clamp(40px,8vh,90px);font-family:var(--fd);font-weight:600;font-size:min(36vw,52vh);line-height:.8;color:transparent;-webkit-text-stroke:1.5px rgba(20,20,20,.09);pointer-events:none;user-select:none;will-change:auto}
 .kob .chn,.dark .chn{-webkit-text-stroke-color:rgba(255,255,255,.16)}
 section.blk>.wrap{position:relative;z-index:1}
 @media (max-width:900px){.chn{font-size:46vw;top:56px;-webkit-text-stroke-width:1px}}
@@ -1174,7 +1175,9 @@ section.blk>.wrap{position:relative;z-index:1}
 .js img.rv{clip-path:inset(0 0 100% 0);scale:1.06;transition:clip-path 1.1s var(--ease-io),scale 1.4s var(--ease-out)}
 .js img.rv.in{clip-path:inset(0 0 0 0);scale:1}
 /* рваный край страниц журнала */
-.torn{position:relative;z-index:2;margin-top:-18px;padding-top:calc(clamp(96px,14vh,160px) + 18px)!important;-webkit-mask:var(--tear) top left/600px 20px repeat-x,linear-gradient(#000,#000) 0 18px/100% calc(100% - 18px) no-repeat;mask:var(--tear) top left/600px 20px repeat-x,linear-gradient(#000,#000) 0 18px/100% calc(100% - 18px) no-repeat}
+.torn{position:relative;z-index:2;margin-top:-18px;padding-top:calc(clamp(96px,14vh,160px) + 18px)!important;--tc:var(--bg2);background:linear-gradient(var(--tc),var(--tc)) 0 18px/100% calc(100% - 18px) no-repeat!important}
+.torn.kob{--tc:var(--kob)}
+.torn::after{content:"";position:absolute;left:0;right:0;top:0;height:20px;background:var(--tc);-webkit-mask:var(--tear) top left/600px 20px repeat-x;mask:var(--tear) top left/600px 20px repeat-x;pointer-events:none}
 :root{--tear:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 20' preserveAspectRatio='none'%3E%3Cpath d='M0 9L14 6L27 11L41 5L55 10L68 4L83 9L97 7L110 12L126 6L139 9L153 3L168 10L181 7L196 11L209 5L224 9L238 6L251 12L266 5L280 8L293 4L308 10L322 7L336 12L350 5L363 9L378 6L392 11L405 4L420 9L433 6L448 12L462 5L476 9L489 7L504 11L517 4L532 9L546 6L559 11L574 5L588 9L600 9V20H0Z'/%3E%3C/svg%3E")}
 @media (prefers-reduced-motion:reduce){
   .rl .w>span,.fz-scr span,.fz-txt .eyebrow,.fz-txt p,.rt-st p,.rt-when{transition:none!important;transform:none!important;opacity:1!important}
@@ -1252,6 +1255,7 @@ section[data-chap]::before{font-size:17px}
 .godhand{position:absolute;right:calc(50% + 196px);top:-92px;width:clamp(240px,28vw,440px);max-width:none;pointer-events:none;rotate:-2deg;translate:-40px 0;opacity:0;transition:translate 1.2s var(--ease-out) .3s,opacity .8s ease .3s}
 .ctas.in .godhand{translate:0 0;opacity:1}
 @media (max-width:900px){.godhand{display:none}}
+.hpause .cl{animation-play-state:paused}
 </style>
 </head>
 <body>
@@ -1760,7 +1764,7 @@ section[data-chap]::before{font-size:17px}
 <!-- ========== ИЗ ЛЮБОГО ГОРОДА (сцена-карта) ========== -->
 <section class="scene" id="geo" style="--len:4;--from:#e9e2d4;--to:#f2ede3" data-scene="geo" data-dark>
   <div class="stage">
-    <img class="mapv" id="geoMap" data-src="map" alt="">
+    <img class="mapv" id="geoMapLo" alt="" decoding="async" style="visibility:hidden"><img class="mapv" id="geoMap" data-src="map" alt="">
     <div id="cityDots"></div>
     <svg class="svgl" aria-hidden="true"><path class="arcl" id="geoArc"/></svg>
     <div class="pin big" id="pinIsh"><i></i></div>
@@ -2131,9 +2135,10 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     return `M${x0} ${y0} Q${ax} ${ay} ${lerp(ax, bx, t)} ${lerp(ay, by, t)}`;
   };
 
-  document.querySelectorAll('.mapv').forEach(img => { img.decoding = 'async'; img.src = `assets/scene/${img.dataset.src}${mob ? '-m' : ''}.webp`; });
+  document.querySelectorAll('.mapv[data-src]').forEach(img => { img.decoding = 'async'; img.src = `assets/scene/${img.dataset.src}${mob ? '-m' : ''}.webp`; });
 
   /* — география: огни городов, Ишимбай, перелёт на Пхукет — */
+  const geoMapLo = $('geoMapLo'); geoMapLo.style.width = '1600px'; geoMapLo.style.height = '1750.5px'; geoMapLo.src = 'assets/scene/map-m.webp';
   const GE = S('geo'), geoMap = $('geoMap'), geoArc = $('geoArc'), pinIsh = $('pinIsh'), pinPhu = $('pinPhu'), gSlava = $('gSlava'), gPetr = $('gPetr');
   const GIW = 3200, GIH = 3501;
   const PTS = {"Москва": [0.1257, 0.5165], "Санкт-Петербург": [0.0851, 0.4686], "Казань": [0.1896, 0.5161], "Екатеринбург": [0.2533, 0.5046], "Новосибирск": [0.3773, 0.5242], "Краснодар": [0.1332, 0.6192], "Ростов-на-Дону": [0.1373, 0.5999], "Самара": [0.1953, 0.5432], "Уфа": [0.2276, 0.5273], "Пермь": [0.2292, 0.4914], "Омск": [0.3243, 0.5246], "Красноярск": [0.4327, 0.5137], "Иркутск": [0.4961, 0.5523], "Хабаровск": [0.6671, 0.5887], "Владивосток": [0.6494, 0.6355], "Воронеж": [0.1344, 0.5585], "Челябинск": [0.2578, 0.5228], "Тюмень": [0.2807, 0.5011], "Мурманск": [0.1004, 0.34], "Якутск": [0.6374, 0.4424], "Калининград": [0.0306, 0.5276], "Сочи": [0.1374, 0.6314], "Нижний Новгород": [0.1611, 0.5102], "Волгоград": [0.1639, 0.5866], "Барнаул": [0.3821, 0.5417], "Томск": [0.3886, 0.5085], "Архангельск": [0.1418, 0.4084], "Махачкала": [0.1806, 0.6366], "Оренбург": [0.2228, 0.5575], "Чита": [0.5472, 0.5549], "Ишимбай": [0.228, 0.5406], "Пхукет": [0.4633, 0.8785]};
@@ -2147,15 +2152,19 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     let st = { cx: lerp(ru.cx, ish.cx, t1), cy: lerp(ru.cy, ish.cy, t1), s: geoLerp(ru.s, ish.s, t1) };
     if (t2 > 0) st = { cx: lerp(ish.cx, wo.cx, t2), cy: lerp(ish.cy, wo.cy, t2), s: geoLerp(ish.s, wo.s, t2) };
     const c = camAt(geoMap, GIW, GIH, st.cx, st.cy, st.s, H * (mob ? .52 : .54), false);
+    // общий план — лёгкая карта вдвое меньше, приближение — полная
+    const lo = st.s <= .5;
+    if (lo) geoMapLo.style.transform = `translate3d(${c.tx}px,${c.ty}px,0) scale(${c.s * 2})`;
+    if (geoMapLo.__lo !== lo) { geoMapLo.__lo = lo; geoMapLo.style.visibility = lo ? 'visible' : 'hidden'; geoMap.style.visibility = lo ? 'hidden' : 'visible'; }
     geoMap.style.opacity = 1;
-    CITY.forEach(k => { const t = clamp((p - k.t0) / .02); k.d.style.transform = `translate3d(${c.x(k.xy[0])}px,${c.y(k.xy[1])}px,0) scale(${t ? .4 + .6 * backOut(t) : 0})`; k.d.style.opacity = t * (1 - .55 * smooth(.32, .4, p)); });
-    pinIsh.style.transform = `translate3d(${c.x(ISH[0])}px,${c.y(ISH[1])}px,0)`; pinIsh.style.opacity = smooth(.33, .37, p);
-    pinPhu.style.transform = `translate3d(${c.x(PHU[0])}px,${c.y(PHU[1])}px,0)`; pinPhu.style.opacity = smooth(.72, .75, p);
+    CITY.forEach(k => { const t = clamp((p - k.t0) / .02); if (!t) { if (!k.z) { k.z = 1; k.d.style.opacity = 0; } return; } k.z = 0; k.d.style.transform = `translate3d(${c.x(k.xy[0])}px,${c.y(k.xy[1])}px,0) scale(${t ? .4 + .6 * backOut(t) : 0})`; k.d.style.opacity = t * (1 - .55 * smooth(.32, .4, p)); });
+    pinIsh.style.transform = `translate3d(${c.x(ISH[0])}px,${c.y(ISH[1])}px,0)`; pinIsh.style.opacity = smooth(.33, .37, p); pinIsh.classList.toggle('on', p > .33);
+    pinPhu.style.transform = `translate3d(${c.x(PHU[0])}px,${c.y(PHU[1])}px,0)`; pinPhu.style.opacity = smooth(.72, .75, p); pinPhu.classList.toggle('on', p > .72);
     gSlava.classList.toggle('show', p > .38 && p < .6);
     gPetr.classList.toggle('show', p > .74);
     const ta = smooth(.62, .74, p);
-    if (ta > 0) { const x0 = c.x(ISH[0]), y0 = c.y(ISH[1]), x1 = c.x(PHU[0]), y1 = c.y(PHU[1]); geoArc.setAttribute('d', qPart(x0, y0, (x0 + x1) / 2 - (y1 - y0) * .25, Math.min(y0, y1) - Math.abs(y1 - y0) * .15, x1, y1, ta)); }
-    else geoArc.setAttribute('d', '');
+    if (ta > 0) { const x0 = c.x(ISH[0]), y0 = c.y(ISH[1]), x1 = c.x(PHU[0]), y1 = c.y(PHU[1]); const d = qPart(x0, y0, (x0 + x1) / 2 - (y1 - y0) * .25, Math.min(y0, y1) - Math.abs(y1 - y0) * .15, x1, y1, ta).replace(/\d+\.\d+/g, v => (Math.round(v * 2) / 2).toString()); if (d !== geoArc.__d) { geoArc.__d = d; geoArc.setAttribute('d', d); } }
+    else if (geoArc.__d) { geoArc.__d = ''; geoArc.setAttribute('d', ''); }
   }
 
 
@@ -2263,7 +2272,7 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     });
     labels.forEach((l, i) => { l.style.opacity = smooth(STONES[i + 1].s + .05, STONES[i + 1].s + .07, p).toFixed(2); });
     tpShadow.style.opacity = smooth(.05, .12, p).toFixed(2);
-    tTotal.textContent = fmt(total) + ' ₽';
+    const tt = fmt(total) + ' ₽'; if (tt !== tTotal.__s) { tTotal.__s = tt; tTotal.textContent = tt; }
     if (!mob) tTotal.style.transform = `translate3d(0,${(-p * H * .04).toFixed(1)}px,0)`;
     const key = p >= .84 ? 'end' : String(cur);
     if (key !== tKey) {
@@ -2433,6 +2442,8 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     drops.forEach(d => drawDrop(d, y)); drawStory(y); drawCuts(y);
     // подвал выезжает из-под финала: лёгкий подъём и проявление, колонки раскрываются по очереди
     const fr0 = y + H - FOOT.top;
+    foot.style.visibility = fr0 > -H ? '' : 'hidden';
+    root.classList.toggle('hpause', y > H * 2.2);
     if (fr0 > -50) { const r = clamp(fr0 / Math.min(FOOT.h, H)); if (!reduce) { footIn.style.transform = `translate3d(0,${(1 - ease(r)) * 70}px,0)`; footIn.style.opacity = .25 + .75 * r; } if (r > .3) foot.classList.add('in'); }
     const pr = PIPE.top - y;
     if (pr < H + 50 && pr > -600) {
