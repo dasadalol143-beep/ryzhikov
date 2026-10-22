@@ -499,7 +499,7 @@ function renderLeads() {
     ${selectedFilters().length > 1 ? `<div class="sub" style="margin:0 4px 6px">Показаны сразу: ${selectedFilters().map((f) => FILTERS.find((x) => x[0] === f)?.[1] || STAGE_LABELS[f] || f).join(" + ")} · «Все» — сбросить</div>` : ""}
     ${state.offerFilter ? `<div class="chips tight" style="margin:0 0 8px"><button class="chip active" id="offerFilterClear">${esc(offerById(state.offerFilter.id)?.name.replace(/ — РКО$/, "") || "")}: ${OFFER_CONDS[state.offerFilter.cond]} ✕</button></div>` : ""}
     <div class="list-head">
-      <span>${splitLost(list).main.length} ${plural(splitLost(list).main.length, "лид", "лида", "лидов")} · <button class="link" id="offerFilter">🏦 Фильтр по офферу</button></span>
+      <span>${splitSide(list).main.length} ${plural(splitSide(list).main.length, "лид", "лида", "лидов")} · <button class="link" id="offerFilter">🏦 Фильтр по офферу</button></span>
       <select id="sort">${SORTS.map(([s, label]) => `<option value="${s}" ${state.sort === s ? "selected" : ""}>${label}</option>`).join("")}</select>
     </div>
     <div id="leadList">${leadsBlock(list)}</div>`;
@@ -548,18 +548,24 @@ function offerFilterSheet() {
   );
 }
 
-// Слившиеся не мешают в основном списке — уходят в свёрнутый блок внизу.
-// Если явно выбран фильтр «Слились» — показываем их как обычно.
-const splitLost = (list) =>
-  selectedFilters().includes("lost") ? { main: list, lost: [] } : { main: list.filter(({ l }) => l.stage !== "lost"), lost: list.filter(({ l }) => l.stage === "lost") };
+// «Цикл закрыт» и «Слились» не мешают в основном списке — уходят в свёрнутые блоки внизу.
+// Если явно выбран фильтр этого этапа — показываем их как обычно.
+const SIDE_STAGES = [["closed", "✅ Цикл закрыт"], ["lost", "😶 Слились"]];
+const splitSide = (list) => {
+  const sel = selectedFilters();
+  const side = SIDE_STAGES.filter(([st]) => !sel.includes(st)).map(([st, title]) => ({ st, title, items: list.filter(({ l }) => l.stage === st) }));
+  const hidden = new Set(side.map((x) => x.st));
+  return { main: list.filter(({ l }) => !hidden.has(l.stage)), side: side.filter((x) => x.items.length) };
+};
 
+state.sideOpen = {};
 function leadsBlock(list) {
-  const { main, lost } = splitLost(list);
-  return `${main.length || !lost.length ? leadListHtml(main) : ""}
-    ${lost.length ? `<details class="cat lost-block" ${state.lostOpen ? "open" : ""}><summary><span>😶 Слились</span><span class="sub">${lost.length}</span></summary>${leadListHtml(lost)}</details>` : ""}`;
+  const { main, side } = splitSide(list);
+  return `${main.length || !side.length ? leadListHtml(main) : ""}
+    ${side.map((x) => `<details class="cat side-block" data-side="${x.st}" ${state.sideOpen[x.st] ? "open" : ""}><summary><span>${x.title}</span><span class="sub">${x.items.length}</span></summary>${leadListHtml(x.items)}</details>`).join("")}`;
 }
 // toggle не всплывает — ловим на захвате, чтобы блок не схлопывался при перерисовке
-document.addEventListener("toggle", (e) => e.target.classList?.contains("lost-block") && (state.lostOpen = e.target.open), true);
+document.addEventListener("toggle", (e) => e.target.dataset?.side && (state.sideOpen[e.target.dataset.side] = e.target.open), true);
 
 function leadListHtml(list) {
   if (!list.length) return `<div class="card empty">Никого не нашёл</div>`;
