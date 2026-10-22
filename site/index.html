@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Храм дохода · Рыжиков</title>
+<title>Пётр Рыжиков · 14 000 ₽ в день на партнёрках банков</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Не увольняйся: научись делать 14 000 ₽ в день на партнёрках банков параллельно с работой. История Петра Рыжикова, калькулятор дохода и бесплатный разбор.">
+<meta name="description" content="Научись делать 14 000 ₽ в день на партнёрках банков — хоть параллельно с работой. История Петра Рыжикова, как устроена ниша, калькулятор дохода и бесплатный разбор.">
 <meta property="og:title" content="Пётр Рыжиков · 14 000 ₽ в день на партнёрках банков">
-<meta property="og:description" content="Не увольняйся. Научись делать 14 000 ₽ в день вместе со мной. Без вложений, параллельно с работой.">
+<meta property="og:description" content="Научись делать 14 000 ₽ в день вместе со мной. Хоть параллельно с работой: 14 000 ₽ — это всего один оффер.">
 <meta property="og:image" content="https://ryzhikovacademy.ru/assets/img/petr.jpg">
 <meta property="og:url" content="https://ryzhikovacademy.ru/">
 <meta property="og:type" content="website">
@@ -214,6 +214,152 @@ section.blk{padding-block:clamp(90px,13vh,150px)}
 .stage.parch .shade{background:linear-gradient(0deg,rgba(20,12,4,.88) 0%,rgba(20,12,4,.45) 30%,rgba(20,12,4,0) 56%)}
 
 [hidden]{display:none!important}
+/* ---------- сцены, нарисованные кодом ---------- */
+.wsvg{position:absolute;inset:0;width:100%;height:100%;display:block;font-family:var(--f)}
+/* мягкий вход и выход: края сцены растворяются в соседние блоки */
+.fx-in,.fx-out{position:absolute;inset:0;z-index:9;pointer-events:none;opacity:0;will-change:opacity}
+.fx-in{background:linear-gradient(var(--from) 0%,var(--from) 6%,transparent 42%)}
+.fx-out{background:linear-gradient(transparent 52%,var(--to) 94%,var(--to) 100%)}
+/* как это работает */
+.bg-how{background:radial-gradient(ellipse at 50% 45%,#1c1912 0%,#0b0b0d 55%,#050506 100%)}
+.bg-how::before{content:"";position:absolute;inset:0;background:radial-gradient(rgba(255,255,255,.07) 1.4px,transparent 1.6px) 0 0/28px 28px}
+.bg-temple{background:radial-gradient(ellipse at 50% 40%,#14161c 0%,#060708 100%)}
+.bg-temple::before{content:"";position:absolute;inset:0;background:linear-gradient(rgba(227,181,91,.06) 1px,transparent 1px) 0 0/32px 32px,linear-gradient(90deg,rgba(227,181,91,.06) 1px,transparent 1px) 0 0/32px 32px,linear-gradient(rgba(227,181,91,.1) 1px,transparent 1px) 0 0/160px 160px,linear-gradient(90deg,rgba(227,181,91,.1) 1px,transparent 1px) 0 0/160px 160px}
+.bg-sea{background:linear-gradient(#0d5868,#083846)}
+.bg-sea::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 75% 15%,rgba(255,236,190,.2),transparent 60%)}
+.waves{position:absolute;left:-200px;top:-200px;right:-200px;bottom:-200px;will-change:transform;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='70'%3E%3Cpath d='M10 30q15 -10 30 0t30 0' fill='none' stroke='rgba(255,255,255,.09)' stroke-width='3' stroke-linecap='round'/%3E%3Cpath d='M70 62q12 -8 24 0' fill='none' stroke='rgba(255,255,255,.06)' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") 0 0/120px 70px}
+#howSvg .eb{fill:none;stroke:rgba(255,255,255,.14);stroke-width:3;stroke-dasharray:2 14;stroke-linecap:round}
+#howSvg .eg{fill:none;stroke:#e3b55b;stroke-width:5;stroke-linecap:round}
+#howSvg .disc{fill:#16171b;stroke:rgba(255,255,255,.18);stroke-width:2;transition:fill .4s}
+#howSvg .halo{fill:none;stroke:#e3b55b;stroke-width:4;opacity:0;transition:opacity .4s}
+#howSvg .nd.on .halo{opacity:1}
+#howSvg .nd.on .disc{fill:#2a2213}
+#howSvg .ic{fill:none;stroke:#f5f5f7;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
+#howSvg .yt{fill:#e3b55b;font-size:46px;font-weight:800;text-anchor:middle;letter-spacing:-1px}
+#howSvg .nl{fill:#f5f5f7;font-size:38px;font-weight:700;text-anchor:middle;letter-spacing:-1px}
+#howSvg .ns{fill:#a1a1a6;font-size:25px;font-weight:500;text-anchor:middle}
+#howSvg .mid .big{fill:#e3b55b;font-size:118px;font-weight:800;text-anchor:middle;letter-spacing:-5px}
+#howSvg .mid .sub{fill:#d2d2d7;font-size:30px;font-weight:600;text-anchor:middle}
+#howSvg .ring2{fill:none;stroke:#e3b55b;stroke-width:5}
+#howSvg .badge{fill:#e3b55b}
+#howSvg .bt{fill:#1d1d1f;font-size:28px;font-weight:700;text-anchor:middle}
+#howSvg .tok{fill:#e3b55b}
+#howSvg .tki{fill:none;stroke:#1d1d1f;stroke-width:4;stroke-linecap:round}
+#howSvg .tt{fill:#1d1d1f;font-size:26px;font-weight:700;text-anchor:middle}
+#howSvg .cn circle{fill:#f0c66a;stroke:#9c6f1e;stroke-width:3}
+#howSvg .cn text{fill:#5a3d08;font-size:22px;font-weight:800;text-anchor:middle}
+/* храм */
+#tSvg .ln{fill:none;stroke:#e3b55b;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+#tSvg .ln.thin{stroke-width:1.6;stroke:rgba(227,181,91,.6)}
+#tSvg .gf{fill:url(#tGoldV)}
+#tSvg .lb{fill:#3a2604;font-size:24px;font-weight:800;text-anchor:middle;letter-spacing:.5px}
+#tSvg .lb.w{fill:#f5f5f7}
+#tSvg .dim{fill:rgba(227,181,91,.55);font-size:18px;font-weight:600;text-anchor:middle;letter-spacing:2px}
+.thud.tdk .total{color:var(--gold2)}
+.thud.tdk .bn{color:#f5f5f7}
+.thud.tdk .bn em{color:var(--gold2)}
+.thud.tdk p{color:#a1a1a6}
+/* маршрут */
+#rSvg .shal{fill:rgba(120,220,215,.22)}
+#rSvg .sand{fill:#ead7a6;stroke:#c9ad70;stroke-width:3}
+#rSvg .grass{fill:#5c9a52}
+#rSvg .trunk{fill:none;stroke:#7a5530;stroke-width:7;stroke-linecap:round}
+#rSvg .leaf{fill:#3f7d3c}
+#rSvg .num circle{fill:#1d1d1f;stroke:#fff;stroke-width:4;transition:fill .3s}
+#rSvg .num text{fill:#e3b55b;font-size:30px;font-weight:800;text-anchor:middle}
+#rSvg .num.on circle{fill:#e3b55b}
+#rSvg .num.on text{fill:#1d1d1f}
+#rSvg .il{fill:#fff;font-size:30px;font-weight:700;text-anchor:middle;paint-order:stroke;stroke:rgba(4,30,38,.85);stroke-width:8px;stroke-linejoin:round}
+#rSvg .tr0{fill:none;stroke:rgba(255,255,255,.35);stroke-width:4;stroke-dasharray:3 14;stroke-linecap:round}
+#rSvg .tr1{fill:none;stroke:#f3d38a;stroke-width:6;stroke-linecap:round}
+#rSvg .hull{fill:#3b2414;stroke:#24150b;stroke-width:3;stroke-linejoin:round}
+#rSvg .mast{stroke:#3b2414;stroke-width:5}
+#rSvg .sail{fill:#f6e7c4;stroke:#c9ad70;stroke-width:2}
+#rSvg .sail2{fill:#efd9a6;stroke:#c9ad70;stroke-width:2}
+#rSvg .flag{fill:#e3b55b}
+#rSvg .wake{fill:none;stroke:rgba(255,255,255,.55);stroke-width:4;stroke-linecap:round}
+.shade.sea{background:linear-gradient(0deg,rgba(3,26,33,.92) 0%,rgba(3,26,33,.55) 30%,rgba(3,26,33,0) 56%)}
+/* география: крупные карточки */
+.gcard{position:absolute;left:50%;top:calc(76px + env(safe-area-inset-top,0px));z-index:7;display:flex;gap:16px;align-items:center;width:min(520px,calc(100vw - 32px));padding:14px;border-radius:24px;background:rgba(20,20,22,.88);border:1px solid rgba(227,181,91,.35);color:#f5f5f7;opacity:0;transform:translate3d(-50%,16px,0);transition:opacity .45s,transform .45s;pointer-events:none;box-shadow:0 30px 60px -20px rgba(0,0,0,.6)}
+.gcard.show{opacity:1;transform:translate3d(-50%,0,0)}
+.gcard img{width:120px;height:120px;flex:none;border-radius:18px;object-fit:cover}
+.gcard.gme img{width:150px;height:150px}
+.gcard .gl{display:block;font-size:13px;font-weight:700;color:var(--gold2);letter-spacing:.02em;text-transform:uppercase}
+.gcard b{display:block;font-size:20px;letter-spacing:-.02em;margin:4px 0}
+.gcard p{margin:0;font-size:15px;color:#c7c7cc;line-height:1.4}
+@media (max-width:900px){.gcard{gap:12px;padding:12px;border-radius:20px}.gcard img,.gcard.gme img{width:92px;height:92px}.gcard b{font-size:17px}.gcard p{font-size:13.5px}}
+
+/* ---------- история: картинки этапов ---------- */
+.ch{display:grid;grid-template-columns:minmax(0,1fr) clamp(96px,12vw,150px);gap:clamp(16px,3vw,32px);align-items:start}
+.sv{grid-column:2;grid-row:1/span 4;aspect-ratio:1;border-radius:22px;overflow:hidden;background:#1d1d1f;display:grid;place-items:center;opacity:.35;transform:scale(.94);transition:opacity .5s,transform .5s}
+.ch.on .sv{opacity:1;transform:none}
+.sv svg{width:52%;height:52%;fill:none;stroke:var(--gold2);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.sv img{width:100%;height:100%;object-fit:cover}
+.ch>:not(.sv){grid-column:1}
+@media (max-width:700px){.ch{grid-template-columns:minmax(0,1fr);gap:0}.sv,.ch>:not(.sv){grid-column:1}.sv{grid-row:auto;width:76px;border-radius:18px;margin-bottom:12px}}
+/* ---------- вывод «партнёрки — это то, что получится» ---------- */
+.tried-end{margin:clamp(40px,6vh,64px) auto 0;max-width:920px;padding:clamp(28px,4vw,52px);border-radius:28px;background:linear-gradient(135deg,#f6dc9a,#e3b55b 50%,#c8932f);color:#1d1d1f;text-align:center;box-shadow:0 30px 60px -30px rgba(168,119,31,.6)}
+.tried-end span{font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.tried-end p{margin:10px 0 0;font-size:clamp(24px,3.2vw,42px);font-weight:700;letter-spacing:-.03em;line-height:1.18}
+.tried-end b{background:#1d1d1f;color:#f6dc9a;padding:0 .22em;border-radius:.2em;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+/* ---------- калькулятор: формула и пояснение ---------- */
+.cres .formula{margin:16px 0 0;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.07);font-size:15px;color:#d2d2d7;font-variant-numeric:tabular-nums}
+.cres .formula b{color:var(--gold2)}
+.cres .net{margin:10px 0 0;font-size:14px;color:#a1a1a6}
+.how-calc{max-width:1060px;margin:20px auto 0;padding:clamp(24px,3vw,36px);border-radius:24px;background:var(--bg2)}
+.how-calc h3{font-size:clamp(20px,2vw,24px);margin:0 0 14px}
+.how-calc ol{margin:0;padding-left:22px;display:grid;gap:10px}
+.how-calc li{color:var(--ink2);font-size:16px}
+.how-calc li b{color:var(--ink)}
+.how-calc .small{margin-top:14px}
+/* ---------- старт: подробные блоки ---------- */
+.sub-head{margin-top:clamp(90px,12vh,130px)}
+.ways{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.way{padding:clamp(22px,2.6vw,30px);border-radius:24px;background:var(--bg2)}
+.way .tg{display:inline-block;font-size:13px;font-weight:700;color:var(--gold);letter-spacing:.02em;margin-bottom:8px}
+.way h4{font-size:21px;letter-spacing:-.02em;margin:0}
+.way b{display:block;font-size:clamp(26px,2.6vw,34px);letter-spacing:-.03em;margin:6px 0 2px}
+.way p{margin:8px 0 0;color:var(--ink2);font-size:16px}
+.way.best{background:var(--ink);color:#f5f5f7}
+.way.best .tg,.way.best b{color:var(--gold2)}
+.way.best p{color:#c7c7cc}
+.partners{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.partners div{padding:18px;border-radius:20px;background:var(--bg2)}
+.partners b{display:block;font-size:18px;letter-spacing:-.02em}
+.partners span{display:block;margin-top:6px;font-size:14px;color:var(--ink2);line-height:1.4}
+.chat{max-width:640px;margin:0 auto;padding:clamp(18px,3vw,28px);border-radius:28px;background:var(--bg2);display:flex;flex-direction:column;gap:8px}
+.msg{max-width:84%;padding:12px 16px;border-radius:20px 20px 20px 6px;background:#fff;font-size:16px;line-height:1.4;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.msg.me{align-self:flex-end;border-radius:20px 20px 6px 20px;background:#2b2b2e;color:#f5f5f7}
+.why-m{align-self:flex-end;max-width:84%;margin:0 0 10px;padding-left:12px;border-left:3px solid var(--gold2);font-size:14px;color:var(--ink2)}
+@media (max-width:900px){.ways{grid-template-columns:1fr}.partners{grid-template-columns:1fr 1fr}.partners div:last-child{grid-column:1/-1}}
+/* ---------- правила вместо ошибок ---------- */
+.rules{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.rules li{display:flex;gap:16px;padding:clamp(20px,2.4vw,28px);border-radius:24px;background:#fff}
+.rules .rn{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:800;background:var(--bg2);color:var(--gold)}
+.rules h4{font-size:19px;letter-spacing:-.02em;margin:6px 0 6px}
+.rules p{margin:0;color:var(--ink2);font-size:16px}
+.rules li.hl{background:linear-gradient(135deg,#fbf0d4,#f3dca2);box-shadow:inset 0 0 0 2px #e3b55b}
+.rules li.hl .rn{background:#e3b55b;color:#1d1d1f}
+.rules li.hl p{color:#5c4614}
+.rules li.no{background:#fdeeea;box-shadow:inset 0 0 0 2px #e8a493}
+.rules li.no .rn{background:var(--red);color:#fff}
+.rules li.no p{color:#7a3426}
+@media (max-width:760px){.rules{grid-template-columns:1fr}}
+/* ---------- обучение: актуальность ---------- */
+.fresh{display:flex;gap:20px;align-items:flex-start;margin-top:20px;padding:clamp(22px,3vw,34px);border-radius:24px;background:var(--ink);color:#f5f5f7}
+.fresh .fi{flex:none;width:56px;height:56px;border-radius:16px;display:grid;place-items:center;background:var(--gold2);color:#1d1d1f;font-size:28px;font-weight:800}
+.fresh h3{font-size:clamp(20px,2vw,26px);margin:4px 0 8px;letter-spacing:-.02em}
+.fresh p{margin:0;color:#c7c7cc;font-size:16px;max-width:52em}
+.fresh b{color:var(--gold2)}
+/* ---------- финал: как записаться ---------- */
+.bsteps{list-style:none;margin:8px auto 0;padding:0;max-width:900px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.bsteps li{padding:22px;border-radius:22px;background:rgba(255,255,255,.08);text-align:left}
+.bsteps span{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--gold2);color:#1d1d1f;font-weight:800;margin-bottom:12px}
+.bsteps b{display:block;font-size:18px;color:#f5f5f7}
+.bsteps p{margin:4px 0 0;color:#a1a1a6;font-size:15px}
+.btn-xl{min-height:58px;padding:0 34px;font-size:19px}
+@media (max-width:760px){.bsteps{grid-template-columns:1fr}}
+
 /* ---------- меню на телефоне ---------- */
 .burger{display:none;position:relative;flex:none;width:40px;height:40px;margin-right:-8px;padding:0;border:0;background:none;color:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .burger i{position:absolute;left:9px;right:9px;height:2px;border-radius:2px;background:currentColor;transition:transform .4s cubic-bezier(.2,.7,.2,1),left .4s cubic-bezier(.2,.7,.2,1)}
@@ -285,7 +431,6 @@ main{position:relative;z-index:1;background:var(--bg)}
 .vs4 .tile.win{background:var(--ink);color:#f5f5f7;box-shadow:0 30px 60px -30px rgba(0,0,0,.45)}
 .vs4 .tile.win dt{color:#a1a1a6}.vs4 .tile.win dd{color:#f5f5f7}.vs4 .tile.win dd.g{color:var(--gold2)}
 .vs4 .tile.win h3{color:var(--gold2)}
-.tried-end{margin:clamp(36px,5vh,56px) auto 0;max-width:30em;text-align:center;font-size:clamp(22px,2.4vw,32px);font-weight:700;letter-spacing:-.03em;line-height:1.2}
 @media (max-width:1000px){.vs4{grid-template-columns:1fr 1fr}}
 @media (max-width:560px){.vs4{grid-template-columns:1fr}.vs4 .tile.win{order:-1}}
 
@@ -310,19 +455,19 @@ input[type=range]:focus-visible{outline:2px solid var(--gold);outline-offset:4px
 .tgl input:checked+i{background:var(--gold2)}.tgl input:checked+i::after{transform:translateX(20px)}
 .tgl input:focus-visible+i{outline:2px solid var(--gold);outline-offset:3px}
 .tgl span small{display:block;font-weight:400;font-size:14px;color:var(--ink2)}
-.res{display:flex;flex-direction:column;background:var(--ink);color:#f5f5f7}
-.res .k{font-size:15px;color:#a1a1a6}
-.res .day{display:block;margin:6px 0 2px;font-size:clamp(48px,6vw,80px);font-weight:700;letter-spacing:-.045em;line-height:1;color:var(--gold2);font-variant-numeric:tabular-nums}
-.res .mon{font-size:22px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.res .cmp{margin:22px 0 0;padding-top:18px;border-top:1px solid rgba(255,255,255,.14);font-size:16px;color:#d2d2d7}
-.res .cmp b{color:#f5f5f7}
-.res .goal{margin-top:14px;font-size:15px;color:#a1a1a6;min-height:2.8em}
-.res .goal b{color:var(--gold2)}
-.res .btn{margin-top:auto;align-self:flex-start}
+.cres{display:flex;flex-direction:column;background:var(--ink);color:#f5f5f7}
+.cres .k{font-size:15px;color:#a1a1a6}
+.cres .day{display:block;margin:6px 0 2px;font-size:clamp(48px,6vw,80px);font-weight:700;letter-spacing:-.045em;line-height:1;color:var(--gold2);font-variant-numeric:tabular-nums}
+.cres .mon{font-size:22px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.cres .cmp{margin:22px 0 0;padding-top:18px;border-top:1px solid rgba(255,255,255,.14);font-size:16px;color:#d2d2d7}
+.cres .cmp b{color:#f5f5f7}
+.cres .goal{margin-top:14px;font-size:15px;color:#a1a1a6;min-height:2.8em}
+.cres .goal b{color:var(--gold2)}
+.cres .btn{margin-top:auto;align-self:flex-start}
 .mini{display:none;margin-top:22px;padding-top:16px;border-top:1px solid var(--line);font-size:16px;color:var(--ink2)}
 .mini b{color:var(--gold);font-size:22px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
-.res .note{margin-top:14px;font-size:12.5px;color:#86868b;line-height:1.5}
-@media (max-width:900px){.calc{grid-template-columns:1fr}.res .btn{margin-top:22px}.mini{display:block}}
+.cres .note{margin-top:14px;font-size:12.5px;color:#86868b;line-height:1.5}
+@media (max-width:900px){.calc{grid-template-columns:1fr}.cres .btn{margin-top:22px}.mini{display:block}}
 .hero-cap h1,.hero-cap .lead,.hero-cap .eyebrow{text-shadow:0 2px 24px rgba(0,0,0,.55),0 1px 3px rgba(0,0,0,.35)}
 
 /* ---------- переходы между блоками: что-то падает из сцены выше ---------- */
@@ -570,16 +715,17 @@ footer a{color:var(--ink)}
 <main>
 
 <!-- ========== 1. ОБЕЩАНИЕ ========== -->
-<section class="scene" id="hero" style="--len:1.7" data-scene="hero" data-dark>
+<section class="scene" id="hero" style="--len:1.4;--to:#fff" data-scene="hero" data-dark>
   <div class="stage">
     <img class="layer" data-bg="b0" alt="" fetchpriority="high">
     <img class="obj" id="olive" src="assets/scene/olive.webp" alt="" fetchpriority="high">
     <div class="veil" id="heroVeil" style="opacity:.35"></div>
+    <div class="fx-out"></div>
     <div class="hero-cap" id="heroCap">
       <span class="eyebrow">Пётр Рыжиков · партнёрки банков</span>
-      <h1 class="h1">Не увольняйся.<br><span class="gold">Научись делать 14&nbsp;000&nbsp;₽ в&nbsp;день</span> вместе со&nbsp;мной.</h1>
-      <p class="lead">Параллельно с работой. Банки платят за новых клиентов, и 14 000 ₽ в день — это около трёх человек в неделю. Без вложений и без товара.</p>
-      <div class="ctas center"><a class="btn btn-gold" data-cta href="#final">Записаться на разбор</a><a class="link" href="#calc">Посчитать свой доход ›</a></div>
+      <h1 class="h1">Научись делать <span class="gold">14&nbsp;000&nbsp;₽ в&nbsp;день</span> вместе со&nbsp;мной.</h1>
+      <p class="lead">Хоть параллельно с работой. Партнёрки платят за новых клиентов, и 14 000 ₽ — это всего один оффер.</p>
+      <div class="ctas center"><a class="link" href="#calc">Посчитать свой доход ›</a></div>
     </div>
   </div>
 </section>
@@ -625,13 +771,13 @@ footer a{color:var(--ink)}
     <div class="story" id="storyList">
       <i class="sfill" id="storyFill" aria-hidden="true"></i>
       <ol class="chs">
-      <li class="ch"><span class="sn neg">−90 000 ₽</span><h3>Ставки и «темки»</h3><p>Искал кнопку «бабло». Нашёл долг, который надо отдавать.</p></li>
-      <li class="ch"><span class="sn">Грузчик</span><h3>Первая работа</h3><p>Оранжевая жилетка, бетонный пол, копейки в конце смены.</p></li>
-      <li class="ch"><span class="sn">1 год</span><h3>Армия</h3><p>Год, чтобы подумать, куда я иду.</p></li>
-      <li class="ch"><span class="sn">22 000 ₽</span><h3>Вейпшоп</h3><p>Стоял за прилавком 24/7 за 22 тысячи в месяц и всё вкладывал в своё дело.<span class="q">На 22 тысячи из долгов не вылезешь, как ни экономь. Надо не урезать расходы, а найти, где платят в разы больше.</span></p></li>
-      <li class="ch"><span class="sn">500–600 тыс. ₽</span><h3>Нашёл партнёрки</h3><p>Банки платят за новых клиентов. Прошёл всё на себе, потом начал искать людей в чатах подработок. Только на них сделал <b>500–600 тысяч</b>.</p></li>
-      <li class="ch"><span class="sn top">1 000 000 ₽</span><h3>Миллион за март</h3><p>50 человек в работе, и даже не все дошли до конца цепочки. Это не удача, а система.</p></li>
-      <li class="ch"><span class="sn top">150+</span><h3>Сейчас</h3><p>Учеников, которые прошли этот путь со мной. Свои кураторы. Веду дела с Пхукета, с одного телефона. <b>Эту систему я и передаю.</b></p></li>
+      <li class="ch"><div class="sv" aria-hidden="true"><svg viewBox="0 0 64 64"><rect x="10" y="10" width="44" height="44" rx="10"/><circle cx="22" cy="22" r="3.5"/><circle cx="32" cy="32" r="3.5"/><circle cx="42" cy="42" r="3.5"/></svg></div><span class="sn neg">−90 000 ₽</span><h3>Ставки и «темки»</h3><p>Искал кнопку «бабло». Нашёл долг, который надо отдавать.</p></li>
+      <li class="ch"><div class="sv" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M8 20L32 8L56 20V44L32 56L8 44Z"/><path d="M8 20L32 32L56 20M32 32V56"/></svg></div><span class="sn">Грузчик</span><h3>Первая работа</h3><p>Оранжевая жилетка, бетонный пол, копейки в конце смены.</p></li>
+      <li class="ch"><div class="sv" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M32 8L38.5 24.5L56 25.5L42.5 36.5L47 54L32 44.5L17 54L21.5 36.5L8 25.5L25.5 24.5Z"/></svg></div><span class="sn">1 год</span><h3>Армия</h3><p>Год, чтобы подумать, куда я иду.</p></li>
+      <li class="ch"><div class="sv" aria-hidden="true"><svg viewBox="0 0 64 64"><path d="M10 26V54H54V26"/><path d="M6 26L12 10H52L58 26Z"/><path d="M26 54V38H38V54"/></svg></div><span class="sn">50 000 ₽</span><h3>Вейпшоп</h3><p>Стоял за прилавком 24/7 за 50 тысяч в месяц и всё вкладывал в своё дело.<span class="q">На зарплату из долгов не вылезешь, как ни экономь. Надо не урезать расходы, а найти, где платят в разы больше.</span></p></li>
+      <li class="ch"><div class="sv" aria-hidden="true"><svg viewBox="0 0 64 64"><rect x="18" y="6" width="28" height="52" rx="6"/><path d="M28 20h6a5 5 0 0 1 0 10h-6zM25 35h11M28 20v22"/></svg></div><span class="sn">500–600 тыс. ₽</span><h3>Нашёл партнёрки</h3><p>Банки платят за новых клиентов. Прошёл всё на себе, потом начал искать людей в чатах подработок. Только на них сделал <b>500–600 тысяч</b>.</p></li>
+      <li class="ch"><div class="sv"><img src="assets/img/sq/kopilka.webp" alt="Баланс копилки 4 476 439 ₽ в приложении банка" loading="lazy" decoding="async"></div><span class="sn top">1 000 000 ₽</span><h3>Миллион за март</h3><p>50 человек в работе, и даже не все дошли до конца цепочки. Это не удача, а система.</p></li>
+      <li class="ch"><div class="sv"><img src="assets/img/petr.webp" alt="Пётр на Пхукете" loading="lazy" decoding="async"></div><span class="sn top">150+</span><h3>Сейчас</h3><p>Учеников, которые прошли этот путь со мной. Свои кураторы. Веду дела с Пхукета, с одного телефона. <b>Эту систему я и передаю.</b></p></li>
       </ol>
     </div>
   </div>
@@ -667,32 +813,56 @@ footer a{color:var(--ink)}
         <div><dt>Первые деньги</dt><dd class="g">В этом месяце, на себе</dd></div>
         <div><dt>Зависишь от</dt><dd>Своих действий</dd></div></dl></article>
     </div>
-    <p class="tried-end" data-r>Партнёрки — это то, что у тебя получится. И то, на что реально стоит потратить время.</p>
+    <div class="tried-end" data-r><span>Вывод</span><p>Партнёрки — это то, что <b>у тебя получится</b>. И то, на что <b>реально стоит потратить время</b>.</p></div>
   </div>
 </section>
 
 <!-- ========== 3. КАК ЭТО РАБОТАЕТ (сцена) ========== -->
-<section class="scene" id="how" style="--len:5.2" data-scene="how" data-dark>
-  <div class="stage">
-    <img class="layer" data-bg="b1" alt="">
-    <img class="layer" data-bg="b2" alt="">
-    <img class="layer" data-bg="b3" alt="">
-    <img class="obj" id="scrollObj" src="assets/scene/scroll.webp" alt="">
-    <div class="ring" id="sealRing"></div>
-    <div id="coins"></div>
-    <div class="tag you" id="tYou"><b>Ты</b><i></i></div>
-    <div class="tag" id="tPartner"><b>Партнёрка</b><i></i></div>
-    <div class="tag" id="tFriend"><b>Друг</b><i></i></div>
-    <div class="tag" id="tBank"><b>Банк</b><i></i></div>
-    <div class="count" id="coinCount">+0 ₽</div>
+<section class="scene" id="how" style="--len:4.6;--from:#fff;--to:#fff" data-scene="how" data-dark>
+  <div class="stage bg-how">
+    <svg class="wsvg" id="howSvg" viewBox="0 0 1600 1000" aria-hidden="true">
+      <defs>
+        <radialGradient id="hBg" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#1c1912"/><stop offset=".55" stop-color="#0b0b0d"/><stop offset="1" stop-color="#050506"/></radialGradient>
+        <pattern id="hDots" width="40" height="40" patternUnits="userSpaceOnUse"><circle cx="20" cy="20" r="1.6" fill="rgba(255,255,255,.07)"/></pattern>
+        <marker id="hArr" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#e3b55b"/></marker>
+      </defs>
+      <!-- пунктир всех связей -->
+      <path class="eb" d="M385 565Q440 760 705 790"/><path class="eb" d="M895 790Q1160 760 1215 565"/>
+      <path class="eb" d="M1225 435Q1170 250 890 228"/><path class="eb" d="M710 228Q430 250 375 435"/>
+      <!-- связи, которые прорисовываются -->
+      <path class="eg" id="hE1" d="M385 565Q440 760 705 790"/><path class="eg" id="hE2" d="M895 790Q1160 760 1215 565"/>
+      <path class="eg" id="hE3" d="M1225 435Q1170 250 890 228"/><path class="eg" id="hE4" d="M710 228Q430 250 375 435"/>
+      <!-- центр: сначала 200 млрд, в конце выплата -->
+      <g id="hMid" class="mid"><text class="big" x="800" y="530">200 млрд ₽</text><text class="sub" x="800" y="580">в год банки тратят на поиск клиентов</text></g>
+      <g id="hSum" class="mid" opacity="0"><text class="big" id="hSumT" x="800" y="530">+14 000 ₽</text><text class="sub" x="800" y="580">тебе за один оффер</text></g>
+      <!-- участники -->
+      <g class="nd" id="nBank" transform="translate(800 230)"><circle class="halo" r="94"/><circle class="disc" r="78"/>
+        <path class="ic" d="M-38 -8L0 -34L38 -8ZM-30 -2H30M-22 2V26M-7 2V26M8 2V26M23 2V26M-36 32H36"/>
+        <text class="nl" y="-112">Банк</text><text class="ns" y="-150">платит за нового клиента</text></g>
+      <g class="nd" id="nPart" transform="translate(330 500)"><circle class="halo" r="94"/><circle class="disc" r="78"/>
+        <path class="ic" d="M-30 -12H26M14 -24L26 -12L14 0M30 14H-26M-14 2L-26 14L-14 26"/>
+        <text class="nl" y="126">Партнёрка</text><text class="ns" y="160">официальный посредник</text></g>
+      <g class="nd" id="nFriend" transform="translate(1270 500)"><circle class="halo" r="94"/><circle class="disc" r="78"/>
+        <circle class="ic" cy="-14" r="14"/><path class="ic" d="M-28 30Q0 -8 28 30"/>
+        <text class="nl" y="126">Друг</text><text class="ns" y="160">или ты сам</text></g>
+      <g class="nd you" id="nYou" transform="translate(800 770)"><circle class="halo" r="94"/><circle class="disc" r="78"/>
+        <text class="yt" y="14">Ты</text>
+        <text class="nl" y="126">Это ты</text><text class="ns" y="160">вебмастер партнёрки</text></g>
+      <!-- печать банка -->
+      <circle id="hRing" class="ring2" cx="800" cy="230" r="90" opacity="0"/>
+      <g id="hBadge" opacity="0" transform="translate(800 368)"><rect x="-120" y="-26" width="240" height="52" rx="26" class="badge"/><text class="bt" y="9">✓ ИП открыт</text></g>
+      <!-- ссылка -->
+      <g id="hTok" opacity="0"><rect x="-74" y="-26" width="148" height="52" rx="26" class="tok"/><path class="tki" d="M-46 0h10M-52 -6a7 7 0 0 1 0 12M-30 -6a7 7 0 0 0 0 12"/><text class="tt" x="12" y="9">ссылка</text></g>
+      <g id="hCoins"></g>
+    </svg>
     <div class="shade"></div>
-    <div class="veil" id="howVeil" style="opacity:1"></div>
-    <div class="cap" data-a=".02" data-b=".17"><span class="eyebrow">Как это работает</span><h2>Банки тратят 200 млрд ₽ в год, чтобы найти клиентов.</h2><p>Часть этих денег они отдают тем, кто приводит клиентов. То есть тебе.</p></div>
-    <div class="cap" data-a=".18" data-b=".34"><span class="eyebrow">Шаг 1</span><h2>Партнёрка даёт тебе ссылку.</h2><p>Партнёрка — официальный посредник банка. Регистрация бесплатная.</p></div>
-    <div class="cap" data-a=".38" data-b=".54"><span class="eyebrow">Шаг 2</span><h2>Ты отдаёшь её другу.</h2><p>Или проходишь по ней сам. Так начинает каждый.</p></div>
-    <div class="cap" data-a=".57" data-b=".71"><span class="eyebrow">Шаг 3</span><h2>Друг открывает счёт. Банк ставит печать.</h2><p>Бесплатно, с телефона, за 15 минут. Банк видит, что клиент пришёл от тебя.</p></div>
-    <div class="cap" data-a=".73" data-b="1.1"><span class="eyebrow">Шаг 4</span><h2>Банк платит. <span class="gold">7 000 ₽ — тебе.</span></h2><p>Деньги приходят через партнёрку на твою самозанятость.</p></div>
-    <div class="chips" id="howChips"><span>Ссылка</span><span>Друг</span><span>Печать</span><span>Выплата</span></div>
+    <div class="cap" data-a="0" data-b=".17"><span class="eyebrow">Как это работает</span><h2>Банки платят за новых клиентов.</h2><p>Около 200 млрд ₽ в год они тратят на рекламу. Часть этих денег получают те, кто приводит клиентов, — через официальные партнёрские программы.</p></div>
+    <div class="cap" data-a=".19" data-b=".36"><span class="eyebrow">Шаг 1 · Партнёрка</span><h2>Регистрируешься и берёшь ссылку.</h2><p>Партнёрка — официальный посредник банка: РКО Групп, Бизнес Система, ФЦН. Регистрация бесплатная, 5 минут. Ты в ней — вебмастер.</p></div>
+    <div class="cap" data-a=".38" data-b=".53"><span class="eyebrow">Шаг 2 · Человек</span><h2>Отдаёшь ссылку другу. Или идёшь сам.</h2><p>Каждый начинает с себя: первые деньги ты получаешь на своих же оформлениях. Потом подключаешь друзей.</p></div>
+    <div class="cap" data-a=".55" data-b=".71"><span class="eyebrow">Шаг 3 · Банк</span><h2>Друг бесплатно открывает ИП через Альфу.</h2><p>С телефона, без вложений. Банк видит, что клиент пришёл по твоей ссылке, и засчитывает его тебе.</p></div>
+    <div class="cap" data-a=".73" data-b="1.1"><span class="eyebrow">Шаг 4 · Выплата</span><h2>Банк платит. <span class="gold">14&nbsp;000&nbsp;₽ — тебе.</span></h2><p>Деньги идут через партнёрку на твою самозанятость. Другу — его часть, например 5 000 ₽ за вечер. И это только один оффер.</p></div>
+    <div class="chips" id="howChips"><span>Ссылка</span><span>Человек</span><span>Банк</span><span>Выплата</span></div>
+    <div class="fx-in"></div><div class="fx-out"></div>
   </div>
 </section>
 
@@ -706,18 +876,18 @@ footer a{color:var(--ink)}
       <p class="lead" data-r>Это обычная программа «Пригласи друга», только официальная и в десятки раз крупнее.</p>
     </div>
     <div class="flow" data-r>
-      <div class="st"><div class="ic">₽</div><h4>Банк</h4><p>Платит за нового клиента</p><span class="money">7 000 ₽</span></div>
+      <div class="st"><div class="ic">₽</div><h4>Банк</h4><p>Платит за нового клиента</p><span class="money">до 20 000 ₽</span></div>
       <div class="st"><div class="ic">⇄</div><h4>Партнёрка</h4><p>Даёт ссылку и переводит деньги</p><span class="money">РКО Групп, FinCPA…</span></div>
       <div class="st you"><div class="ic">Ты</div><h4>Ты</h4><p>Отдаёшь ссылку и помогаешь оформить</p><span class="money">получаешь выплату</span></div>
       <div class="st"><div class="ic">☺</div><h4>Человек</h4><p>Открывает бесплатный счёт</p><span class="money">ты сам или друг</span></div>
     </div>
     <div class="nos" data-r><span>Не продаёшь товар</span><span>Не вкладываешь свои деньги</span><span>Не трогаешь чужие деньги</span></div>
-    <p class="lead center" data-r style="margin-top:48px;text-align:center">Один банк — 7 000 ₽. Но один человек может открыть счёт <b>в 8–10 банках</b>. Сейчас покажу, во что это складывается.</p>
+    <p class="lead center" data-r style="margin-top:48px;text-align:center">Один оффер — 14 000 ₽. Но один человек может открыть счета <b>в 8 банках</b> и оформить карты. Сейчас покажу, во что это складывается.</p>
   </div>
 </section>
 
 <!-- ========== 5. ДОХОД: ГРУША (сцена) ========== -->
-<section class="scene" id="income" style="--len:4.4" data-scene="pear" data-dark>
+<section class="scene" id="income" style="--len:4.4;--from:#fff;--to:#f5f5f7" data-scene="pear" data-dark>
   <div class="stage">
     <img class="layer" data-bg="b4" alt="">
     <div class="pshadow" id="pearShadow"></div>
@@ -734,13 +904,14 @@ footer a{color:var(--ink)}
     </svg>
     <img class="obj" id="seed0" src="assets/scene/seed.webp" alt=""><img class="obj" id="seed1" src="assets/scene/seed.webp" alt="">
     <img class="obj" id="seed2" src="assets/scene/seed.webp" alt=""><img class="obj" id="seed3" src="assets/scene/seed.webp" alt="">
-    <div class="seedcard sc1" id="card0"><span class="dot"></span><span class="n">1 · ГЛАВНОЕ</span><h3>Счета для ИП</h3><b>79 000 ₽</b><span class="s">8 банков × 6–20 тыс.</span></div>
+    <div class="seedcard sc1" id="card0"><span class="dot"></span><span class="n">1 · ГЛАВНОЕ</span><h3>Счета для ИП</h3><b>77 000 ₽</b><span class="s">8 банков × 6–20 тыс.</span></div>
     <div class="seedcard sc2" id="card1"><span class="dot"></span><span class="n">2</span><h3>Дебетовые карты</h3><b>6 000 ₽</b><span class="s">3 карты</span></div>
     <div class="seedcard sc3" id="card2"><span class="dot"></span><span class="n">3</span><h3>Кредитные карты</h3><b>9 300 ₽</b><span class="s">2 карты</span></div>
     <div class="seedcard sc4" id="card3"><span class="dot"></span><span class="n">4</span><h3>Микрозаймы</h3><b>16 577 ₽</b><span class="s">4 займа</span></div>
     <div class="shade" style="opacity:.6"></div>
     <div class="cap top" data-a=".09" data-b=".25"><span class="eyebrow">Доход</span><h2>Один человек — это четыре выплаты.</h2><p>Как зёрна в груше. Смотри, что внутри.</p></div>
-    <div class="pear-total" id="pearTotal"><span>Итого с одного человека</span><b id="pearSum">110 877 ₽</b></div>
+    <div class="fx-in"></div><div class="fx-out"></div>
+    <div class="pear-total" id="pearTotal"><span>Итого с одного человека</span><b id="pearSum">108 877 ₽</b></div>
   </div>
 </section>
 
@@ -768,17 +939,27 @@ footer a{color:var(--ink)}
   </div>
 </section>
 
-<!-- ========== 7. ХРАМ (сцена) ========== -->
-<section class="scene" id="temple" style="--len:4.6" data-scene="temple">
-  <div class="stage light">
-    <canvas class="scv" aria-label="Чертёж храма превращается в золото: фундамент — ИП, колонны — банки, крыша — карты и займы"></canvas>
-    <div id="colLabels"></div>
-    <div class="thud" aria-live="polite">
+<!-- ========== 7. ХРАМ: строится при прокрутке ========== -->
+<section class="scene" id="temple" style="--len:4.8;--from:#f5f5f7;--to:#fff" data-scene="temple" data-dark>
+  <div class="stage bg-temple">
+    <svg class="wsvg" id="tSvg" viewBox="0 0 1600 1000" aria-label="Храм одного человека: фундамент — ИП, колонны — банки, крыша — карты и займы">
+      <defs>
+        <radialGradient id="tBg" cx="50%" cy="40%" r="75%"><stop offset="0" stop-color="#14161c"/><stop offset="1" stop-color="#060708"/></radialGradient>
+        <pattern id="tGrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(227,181,91,.07)" stroke-width="1"/></pattern>
+        <pattern id="tGrid2" width="200" height="200" patternUnits="userSpaceOnUse"><path d="M200 0H0V200" fill="none" stroke="rgba(227,181,91,.12)" stroke-width="1.2"/></pattern>
+        <linearGradient id="tGold" x1="0" x2="1"><stop offset="0" stop-color="#b8862f"/><stop offset=".45" stop-color="#f3d38a"/><stop offset="1" stop-color="#a87422"/></linearGradient>
+        <linearGradient id="tGoldV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6dc9a"/><stop offset="1" stop-color="#c08f37"/></linearGradient>
+        <radialGradient id="tGlow"><stop offset="0" stop-color="rgba(255,214,130,.55)"/><stop offset="1" stop-color="rgba(255,214,130,0)"/></radialGradient>
+      </defs>
+      <circle id="tGlowC" cx="800" cy="420" r="760" fill="url(#tGlow)" opacity="0"/>
+      <g id="tTemple"></g>
+    </svg>
+    <div class="thud tdk" aria-live="polite">
       <div class="total" id="tTotal">0 ₽</div>
       <div class="bn" id="tName">Построим храм одного человека</div>
       <p id="tDesc">Фундамент — ИП. Колонны — банки. Крыша — карты и займы.</p>
     </div>
-    <div class="deadcard" id="deadCard"><b id="deadName">Т-Банк</b><span>За ИП на НПД через партнёрки не платит. Эту колонну не ставим.</span></div>
+    <div class="fx-in"></div><div class="fx-out"></div>
   </div>
 </section>
 
@@ -788,28 +969,38 @@ footer a{color:var(--ink)}
     <div class="head center">
       <span class="eyebrow" data-r>Калькулятор</span>
       <h2 class="h2" data-r>Сколько это будет у тебя.</h2>
-      <p class="lead" data-r>Двигай ползунки. Считаем по ставкам партнёрок на октябрь 2026, после налога 6%.</p>
+      <p class="lead" data-r>14 000 ₽ — это один оффер: твой человек бесплатно открывает ИП на НПД через Альфа-Банк. Один такой человек в день — и есть 14 000 ₽ в день.</p>
     </div>
     <div class="calc">
       <div class="tile" data-r style="background:var(--bg2)">
-        <div class="rng"><label for="cPeople">Людей в неделю <output id="oPeople">3</output></label>
-          <input type="range" id="cPeople" min="1" max="10" step="1" value="3">
-          <small id="hPeople">Друзья, знакомые, люди из чатов подработок.</small></div>
-        <div class="rng"><label for="cBanks">Банков на каждого <output id="oBanks">2</output></label>
-          <input type="range" id="cBanks" min="1" max="8" step="1" value="2">
-          <small id="hBanks">Альфа + Инго · 36 000 ₽ с человека</small></div>
+        <div class="rng"><label for="cPeople">Людей в неделю <output id="oPeople">7</output></label>
+          <input type="range" id="cPeople" min="1" max="14" step="1" value="7">
+          <small id="hPeople"></small></div>
+        <div class="rng"><label for="cBanks">Офферов на человека <output id="oBanks">1</output></label>
+          <input type="range" id="cBanks" min="1" max="8" step="1" value="1">
+          <small id="hBanks"></small></div>
         <label class="tgl"><input type="checkbox" id="cExtra"><i></i><span>Плюс карты и займы<small>3 дебетовые, 2 кредитные, 4 займа · +31 877 ₽ с человека</small></span></label>
-        <p class="mini">В день: <b id="rMini">14 500 ₽</b></p>
+        <p class="mini">В день: <b id="rMini">14 000 ₽</b></p>
       </div>
-      <div class="tile res" data-r style="--i:1" aria-live="polite">
+      <div class="tile cres" data-r style="--i:1" aria-live="polite">
         <span class="k">Твой доход в день</span>
-        <b class="day" id="rDay">14 540 ₽</b>
-        <span class="mon"><span id="rMon">436 000 ₽</span> в месяц</span>
-        <p class="cmp" id="rCmp">Это <b>20 зарплат</b> в вейпшопе, где я стоял за 22 000 ₽.</p>
-        <p class="goal" id="rGoal"></p>
+        <b class="day" id="rDay">14 000 ₽</b>
+        <span class="mon"><span id="rMon">420 000 ₽</span> в месяц</span>
+        <p class="formula" id="rFormula"></p>
+        <p class="cmp" id="rCmp"></p>
+        <p class="net" id="rNet"></p>
         <a class="btn btn-gold" data-cta href="#final">Хочу так же — на разбор</a>
-        <p class="note">Это расчёт, а не обещание. Ставки банков меняются каждый месяц, а сколько людей ты проведёшь, зависит только от тебя.</p>
       </div>
+    </div>
+    <div class="how-calc" data-r>
+      <h3>Как считаем</h3>
+      <ol>
+        <li><b>Оффер</b> — выплата банка за одно действие человека. Открыл ИП на НПД через Альфа-Банк — тебе 14 000 ₽. Для человека это бесплатно.</li>
+        <li><b>Один человек — несколько офферов.</b> После Альфы он может открыть счета ещё в 7 банках: Инго, ВТБ, ПСБ, Озон и других. Каждый — отдельная выплата.</li>
+        <li><b>Ставки</b> — по партнёркам на октябрь 2026. Они меняются, у каждого банка свои условия.</li>
+        <li><b>Если человека привёл друг</b> — ты отдаёшь ему часть, обычно 3–5 тысяч. Калькулятор этого не вычитает.</li>
+      </ol>
+      <p class="small">Это расчёт, а не обещание: сколько людей ты проведёшь, зависит только от тебя.</p>
     </div>
   </div>
 </section>
@@ -819,15 +1010,41 @@ footer a{color:var(--ink)}
   <div class="wrap">
     <div class="head center">
       <span class="eyebrow" data-r>Как зайти с нуля</span>
-      <h2 class="h2" data-r>Три шага. С телефона. Бесплатно.</h2>
+      <h2 class="h2" data-r>Три шага. С&nbsp;телефона. Бесплатно.</h2>
+      <p class="lead" data-r>Ничего покупать не нужно. Сначала всё проходишь на себе — это и есть твои первые деньги.</p>
     </div>
     <div class="grid3">
-      <div class="tile step" data-r style="background:var(--bg2)"><div class="n">1</div><h3>Самозанятость</h3><p>Приложение «Мой налог» → «Стать самозанятым». 10 минут.</p><p class="why">Чтобы партнёрки официально платили тебе.</p></div>
-      <div class="tile step" data-r style="--i:1;background:var(--bg2)"><div class="n">2</div><h3>ИП на НПД</h3><p>Без отчётов и взносов, налог 4–6%. Через Альфа-Банк ещё и ~16 000 ₽ за регистрацию.</p><p class="why">Без ИП банк не откроет счёт для бизнеса.</p></div>
-      <div class="tile step" data-r style="--i:2;background:var(--bg2)"><div class="n">3</div><h3>Счета в банках</h3><p>Ссылка → счёт → одно действие. Потом следующий банк.</p><p class="why">Сначала всё на себе, потом друзья.</p></div>
+      <div class="tile step" data-r style="background:var(--bg2)"><div class="n">1</div><h3>Самозанятость</h3><p>Качаешь «Мой налог» → «Стать самозанятым». 10 минут, бесплатно, без взносов.</p><p class="why">Чтобы партнёрки официально переводили тебе деньги.</p></div>
+      <div class="tile step" data-r style="--i:1;background:var(--bg2)"><div class="n">2</div><h3>ИП на НПД</h3><p>Расширенная самозанятость: налог 4–6% только с заработанного, никаких отчётов. Через Альфа-Банк банк ещё и <b>платит 14 000 ₽</b> за регистрацию.</p><p class="why">Без ИП банк не откроет счёт для бизнеса — а за него платят больше всего.</p></div>
+      <div class="tile step" data-r style="--i:2;background:var(--bg2)"><div class="n">3</div><h3>Счета в банках</h3><p>Берёшь ссылку на партнёрке, открываешь счёт и делаешь одно действие: пополнение или пару платежей. Банк платит — идёшь в следующий.</p><p class="why">Сначала всё на себе, потом друзья.</p></div>
     </div>
 
-    <div class="head center" style="margin-top:clamp(90px,12vh,130px)">
+    <div class="head center sub-head">
+      <span class="eyebrow" data-r>Шаг 2 подробно</span>
+      <h2 class="h3" data-r>ИП на НПД: три способа открыть.</h2>
+    </div>
+    <div class="ways">
+      <article class="way best" data-r><span class="tg">Выгодно</span><h4>Альфа-Банк</h4><b>14 000 ₽</b><p>Заявка по ссылке с партнёрки. Звонит менеджер Альфы, один раз сходить в офис или МФЦ, налоговая проверяет около 3 дней. Банк платит тебе за саму регистрацию.</p></article>
+      <article class="way" data-r style="--i:1"><span class="tg">Быстро</span><h4>Т-Банк</h4><b>0 ₽</b><p>Заявка в приложении, курьер в тот же или на следующий день, ИП готов через 1–2 дня. Но денег за регистрацию не будет.</p></article>
+      <article class="way" data-r style="--i:2"><span class="tg">Запасной</span><h4>Озон Банк</h4><b>8–11 тыс. ₽</b><p>Регистрация бизнеса сразу со счётом. Выручает, когда Альфа временно не платит.</p></article>
+    </div>
+    <p class="small center" data-r style="text-align:center;margin-top:16px">ИП открывают с 18 лет. Нельзя госслужащим, силовикам и работникам оборонных предприятий.</p>
+
+    <div class="head center sub-head">
+      <span class="eyebrow" data-r>Где регистрироваться</span>
+      <h2 class="h3" data-r>Партнёрки, с которыми работаю я.</h2>
+      <p class="lead" data-r>Регистрация бесплатная, 5 минут. Ты в ней — <b>вебмастер</b>: партнёрка платит тебе напрямую, без посредников.</p>
+    </div>
+    <div class="partners" data-r>
+      <div><b>ФЦН</b><span>С неё начинают почти все: ИП через Альфу, счета, займы.</span></div>
+      <div><b>РКО Групп</b><span>Самая универсальная: почти всё в одном месте.</span></div>
+      <div><b>Бизнес Система</b><span>Счета в банках. Менеджеры всегда на связи.</span></div>
+      <div><b>РКО Партнёр</b><span>Счета и регистрация ИП. Сейчас здесь Инго до 20 000 ₽.</span></div>
+      <div><b>LeadGid</b><span>Дебетовые и кредитные карты, займы.</span></div>
+    </div>
+    <p class="small center" data-r style="text-align:center;margin-top:16px">Один и тот же банк на разных партнёрках оплачивают по-разному. Перед ссылкой сравни ставки.</p>
+
+    <div class="head center sub-head">
       <span class="eyebrow" data-r>Когда приходят деньги</span>
       <h2 class="h3" data-r>Не на следующий день. И это нормально.</h2>
     </div>
@@ -841,34 +1058,80 @@ footer a{color:var(--ink)}
       <div class="st"><b>Выплата</b><span>выводишь себе</span></div>
     </div>
 
-    <div class="head center" style="margin-top:clamp(90px,12vh,130px)">
+    <div class="head center sub-head">
       <span class="eyebrow" data-r>Где взять людей без бюджета</span>
+      <h2 class="h3" data-r>Три способа. Ни один не требует денег.</h2>
+    </div>
+    <div class="ways">
+      <article class="way" data-r><span class="tg">01</span><h4>На себе</h4><p>Первый человек в списке — ты. Проходишь все банки сам, и деньги целиком твои. Потом объясняешь другим на своём опыте.</p></article>
+      <article class="way" data-r style="--i:1"><span class="tg">02</span><h4>Друзья и их друзья</h4><p>Банк платит тебе, другу ты отдаёшь его часть: 5 000 ₽ за пару вечеров. Потом друг приводит своих знакомых.</p></article>
+      <article class="way" data-r style="--i:2"><span class="tg">03</span><h4>Чаты подработок</h4><p>Там люди, которые прямо сейчас ищут, где заработать. Я сам начинал отсюда и сделал 500–600 тысяч. Главное — помогать, а не спамить.</p></article>
+    </div>
+
+    <div class="head center sub-head">
+      <span class="eyebrow" data-r>Как это растёт</span>
       <h2 class="h3" data-r>Друг приводит друга.</h2>
     </div>
     <div class="tree" id="tree" style="background:var(--bg2);border-radius:28px;padding:32px 20px">
-      <div class="node you" style="--i:0"><div class="med">Ты</div><h4>Сам</h4><p>Проходишь все банки по своим ссылкам</p><span class="pay">все деньги твои</span></div>
+      <div class="node you" style="--i:0"><div class="med">Ты</div><h4>Сам</h4><p>Проходишь все банки по своим ссылкам</p><span class="pay">до 108 877 ₽ — всё твоё</span></div>
       <div class="node" style="--i:1"><div class="med">Д</div><h4>Дима, друг</h4><p>Проходит банки по твоим ссылкам</p><span class="pay">ему 5 000 ₽ за вечер</span></div>
-      <div class="node" style="--i:2"><div class="med">С</div><h4>Саша, друг Димы</h4><p>Его привёл Дима</p><span class="pay">5 000 ₽ + Диме 3 000 ₽</span></div>
-      <div class="node" style="--i:3"><div class="med">∞</div><h4>И дальше</h4><p>Через месяц людей приводят сами</p><span class="pay">тебе 100 000+ с каждого</span></div>
+      <div class="node" style="--i:2"><div class="med">С</div><h4>Саша, друг Димы</h4><p>Его привёл Дима</p><span class="pay">Саше 5 000 ₽, Диме 3 000 ₽</span></div>
+      <div class="node" style="--i:3"><div class="med">∞</div><h4>И дальше</h4><p>Через месяц людей приводят сами</p><span class="pay">тебе ~100 000 ₽ с каждого</span></div>
     </div>
-    <p class="lead center" data-r style="text-align:center;margin-top:36px">Потом, с опытом, людей ищут онлайн: вакансии, реклама в каналах, свои ролики. <b>Здесь доход растёт до 300–500 тысяч.</b></p>
+
+    <div class="head center sub-head">
+      <span class="eyebrow" data-r>Самый страшный шаг</span>
+      <h2 class="h3" data-r>Первое сообщение другу.</h2>
+      <p class="lead" data-r>Пример переписки. Под каждым сообщением — зачем оно.</p>
+    </div>
+    <div class="chat" data-r>
+      <div class="msg me">Привет, брат! Сто лет не общались. Как ты вообще, чем сейчас занимаешься?</div>
+      <p class="why-m">Сначала про него, о деле ни слова. Люди охотно отвечают тем, кто интересуется ими.</p>
+      <div class="msg">Да так, на складе пока. А что?</div>
+      <div class="msg me">О, понял. А по деньгам там как, устраивает? Или так, на пока?</div>
+      <p class="why-m">Он сам говорит, что денег не хватает. Ты не уговариваешь, а отвечаешь на его слова.</p>
+      <div class="msg">Ну такое. На жизнь хватает, не больше.</div>
+      <div class="msg me">Скажу честно, зачем пишу: ничего не продаю и денег не прошу. Я работаю с банками через официальные партнёрки — банки платят за новых клиентов. Ты оформляешь на себя бесплатные бизнес-карты в нескольких банках, а я плачу тебе 5 000 ₽. Карты остаются у тебя, вкладывать ничего не нужно.</div>
+      <p class="why-m">Снимаешь страхи раньше, чем он их озвучит, и называешь конкретную сумму, а не «заработаешь много».</p>
+      <div class="msg me">Давай созвонимся минут на 10 — покажу на своём примере. Не зайдёт — без обид. Тебе удобнее сегодня вечером или завтра днём?</div>
+      <p class="why-m">Просишь не «давай начнём», а 10 минут, и даёшь выбрать время, а не «звонить ли вообще».</p>
+    </div>
+
+    <div class="head center sub-head">
+      <span class="eyebrow" data-r>Когда друзья кончатся</span>
+      <h2 class="h3" data-r>Людей ищут в интернете. Там их тысячи.</h2>
+    </div>
+    <div class="ways">
+      <article class="way" data-r><h4>Вакансии</h4><p>Публикуешь вакансию подработки — люди откликаются и пишут тебе сами.</p></article>
+      <article class="way" data-r style="--i:1"><h4>Реклама в каналах</h4><p>Небольшие каналы Telegram и VK за 5–10 тысяч. Один человек по всем банкам окупает рекламу в разы.</p></article>
+      <article class="way" data-r style="--i:2"><h4>Свои ролики</h4><p>Reels, Shorts, Telegram — моя личная связка. Бесплатно приводит людей, которые пишут сами.</p></article>
+    </div>
+    <p class="lead center" data-r style="text-align:center;margin-top:36px">Здесь доход растёт до <b>300–500 тысяч в месяц</b>. Как именно — разбираем в обучении и на разборе.</p>
   </div>
 </section>
 
-<!-- ========== МАРШРУТ (сцена-карта) ========== -->
-<section class="scene" id="route" style="--len:5" data-scene="route" data-dark>
-  <div class="stage parch" style="background:#e9dcbf">
-    <img class="mapv" id="routeMap" data-src="route" alt="">
-    <svg class="svgl" aria-hidden="true"><path class="trail" id="routeTrail"/><path class="done" id="routeDone"/></svg>
-    <div class="stop" id="st0"><span>1</span></div><div class="stop" id="st1"><span>2</span></div><div class="stop" id="st2"><span>3</span></div><div class="stop" id="st3"><span>4</span></div><div class="stop" id="st4"><span>5</span></div>
-    <img class="obj" id="ship" src="assets/scene/ship.webp" alt="">
-    <div class="shade"></div>
-    <div class="cap" data-a="0" data-b=".1"><span class="eyebrow">Твой маршрут</span><h2>От нуля до 300–500 тысяч в месяц.</h2><p>Пять остановок. Листай — поплывём.</p></div>
-    <div class="cap" data-a=".11" data-b=".27"><span class="eyebrow">Остановка 1 · сегодня</span><h2>Ты понял нишу.</h2><p>Откуда деньги, за что платят и где ошибаются. Первый шаг уже сделан.</p></div>
-    <div class="cap" data-a=".29" data-b=".45"><span class="eyebrow">Остановка 2 · около недели</span><h2>Прошёл всё на себе.</h2><p>Самозанятость, ИП, банки по своим ссылкам. Первые деньги — твои.</p></div>
-    <div class="cap" data-a=".47" data-b=".63"><span class="eyebrow">Остановка 3</span><h2>Научился говорить с людьми.</h2><p>Что написать другу и как ответить на вопросы. Спокойно, без навязывания.</p></div>
-    <div class="cap" data-a=".65" data-b=".8"><span class="eyebrow">Остановка 4</span><h2>Нашёл первых людей.</h2><p>Друзья, их друзья, чаты подработок. Ни рубля на рекламу.</p></div>
-    <div class="cap" data-a=".82" data-b="1.1"><span class="eyebrow">Остановка 5</span><h2>Ищешь людей в интернете.</h2><p>Объявления, реклама, свои ролики. Здесь доход растёт до 300–500 тысяч. Миллион за три месяца не обещаю — это было бы враньё.</p></div>
+<!-- ========== МАРШРУТ: корабль плывёт по островам ========== -->
+<section class="scene" id="route" style="--len:4.6;--from:#fff;--to:#f5f5f7" data-scene="route" data-dark>
+  <div class="stage bg-sea">
+    <div class="waves" id="rWaves"></div>
+    <svg class="wsvg" id="rSvg" viewBox="0 0 1600 1000" aria-hidden="true">
+      <defs>
+        <linearGradient id="rSea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d5868"/><stop offset="1" stop-color="#083846"/></linearGradient>
+        <radialGradient id="rLight" cx="70%" cy="20%" r="80%"><stop offset="0" stop-color="rgba(255,236,190,.22)"/><stop offset="1" stop-color="rgba(255,236,190,0)"/></radialGradient>
+        <pattern id="rWave" width="120" height="70" patternUnits="userSpaceOnUse"><path d="M10 30q15 -10 30 0t30 0" fill="none" stroke="rgba(255,255,255,.09)" stroke-width="3" stroke-linecap="round"/><path d="M70 62q12 -8 24 0" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="3" stroke-linecap="round"/></pattern>
+      </defs>
+      <g id="rIslands"></g>
+      <g id="rTrail"></g>
+      <g id="rShip"><path class="wake" d="M-70 18Q-40 30 -10 22"/><path class="hull" d="M-46 6H46L32 30H-34Z"/><path class="mast" d="M0 6V-64"/><path class="sail" d="M4 -60Q40 -30 6 0Z"/><path class="sail2" d="M-4 -52Q-34 -26 -4 -2Z"/><path class="flag" d="M0 -64L22 -58L0 -52Z"/></g>
+    </svg>
+    <div class="shade sea"></div>
+    <div class="cap" data-a="0" data-b=".1"><span class="eyebrow">Твой маршрут</span><h2>От нуля до 300–500 тысяч в месяц.</h2><p>Пять островов. Листай — поплывём.</p></div>
+    <div class="cap" data-a=".12" data-b=".27"><span class="eyebrow">Остров 1 · сегодня</span><h2>Понял нишу.</h2><p>Откуда деньги, за что платят банки и где новички теряют выплаты. Ты уже здесь.</p></div>
+    <div class="cap" data-a=".29" data-b=".44"><span class="eyebrow">Остров 2 · первая неделя</span><h2>Прошёл всё на себе.</h2><p>Самозанятость, партнёрки, ИП через Альфу и банки по своим ссылкам. <b>Первые 14 000 ₽ — за первый оффер</b>, до ~77 000 ₽ за все счета.</p></div>
+    <div class="cap" data-a=".46" data-b=".61"><span class="eyebrow">Остров 3 · вторая неделя</span><h2>Научился говорить с людьми.</h2><p>Что написать другу, как ответить на «где подвох?» и как созвониться. Без навязывания.</p></div>
+    <div class="cap" data-a=".63" data-b=".78"><span class="eyebrow">Остров 4 · первый месяц</span><h2>Первые люди.</h2><p>Друзья, их друзья, чаты подработок. Ни рубля на рекламу. Один человек по всем банкам — <b>до 100 000 ₽</b>.</p></div>
+    <div class="cap" data-a=".8" data-b="1.1"><span class="eyebrow">Остров 5 · второй–третий месяц</span><h2>Люди из интернета.</h2><p>Вакансии, реклама в каналах, свои ролики. Здесь доход растёт до 300–500 тысяч. Миллион за три месяца не обещаю — это было бы враньё.</p></div>
+    <div class="fx-in"></div><div class="fx-out"></div>
   </div>
 </section>
 
@@ -876,34 +1139,38 @@ footer a{color:var(--ink)}
 <section class="blk bg2" id="traps">
   <div class="wrap">
     <div class="head">
-      <span class="eyebrow" data-r>Где теряют деньги</span>
+      <span class="eyebrow" data-r>Честно</span>
       <h2 class="h2" data-r>Ниша простая. Но не лёгкая.</h2>
-      <p class="lead" data-r>Семь ошибок новичков. Каждая стоит дороже, чем полчаса разговора.</p>
+      <p class="lead" data-r>Простая — значит каждый шаг понятен и повторим. Это получится у любого, кто делает. Не лёгкая — значит нужны системность и время: миллионером завтра не станешь. Но почти всех потерь можно избежать. Вот правила.</p>
     </div>
-    <ol class="traps" data-r>
-      <li><div><h4>Бросают человека после одного банка</h4><p><b>Как надо:</b> вести каждого по всем банкам до конца.</p></div><span class="loss">−85 000 ₽</span></li>
-      <li><div><h4>Работают через посредника</h4><p><b>Как надо:</b> регистрироваться на партнёрках самому.</p></div><span class="loss">−50%</span></li>
-      <li><div><h4>Открывают ПСБ первым</h4><p><b>Как надо:</b> ПСБ через месяц после регистрации ИП.</p></div><span class="loss">−10 000 ₽</span></li>
-      <li><div><h4>Ошибаются в действии по счёту</h4><p><b>Как надо:</b> знать условия банка заранее.</p></div><span class="loss">−8 000 ₽</span></li>
-      <li><div><h4>Закрывают счёт сразу после выплаты</h4><p><b>Как надо:</b> не закрывать, иначе выплату отменят.</p></div><span class="loss">−7 000 ₽</span></li>
-      <li><div><h4>Ведут туда, где человек уже был клиентом</h4><p><b>Как надо:</b> спросить заранее, был ли он в этом банке.</p></div><span class="loss">−2 300 ₽</span></li>
-      <li><div><h4>Сидят на старых ставках</h4><p><b>Как надо:</b> сверять ставки каждую неделю.</p></div><span class="loss">каждый месяц</span></li>
+    <ol class="rules">
+      <li class="hl" data-r><span class="rn">1</span><div><h4>Веди человека по всем банкам</h4><p>Один банк — 7–20 тысяч. Все счета, карты и займы — <b>до 108 877 ₽</b> с того же человека. Бросить после первого банка — главная потеря новичков.</p></div></li>
+      <li class="hl" data-r style="--i:1"><span class="rn">2</span><div><h4>Регистрируйся в партнёрках сам</h4><p>Это официально: ты вебмастер, партнёрка платит тебе напрямую. Через «знакомого в теме» отдаёшь половину — так было у Вити, пока он не пришёл ко мне.</p></div></li>
+      <li data-r><span class="rn">3</span><div><h4>Спроси, был ли человек клиентом банка</h4><p>Банк платит только за новых. Была карта три года назад — выплаты не будет. Один вопрос до ссылки экономит вечер.</p></div></li>
+      <li data-r style="--i:1"><span class="rn">4</span><div><h4>Узнай условие банка до открытия</h4><p>Каждый банк просит одно действие: пополнить счёт или сделать пару платежей. Не сделал по условиям — выплаты нет.</p></div></li>
+      <li data-r><span class="rn">5</span><div><h4>Не закрывай счёт сразу после выплаты</h4><p>Иначе партнёрка может отменить уже засчитанные деньги. Это называется срез.</p></div></li>
+      <li data-r style="--i:1"><span class="rn">6</span><div><h4>Соблюдай порядок</h4><p>Сначала счета для ИП, потом дебетовые и кредитные карты, займы — последним. Человек видит первые деньги и доверяет дальше.</p></div></li>
+      <li data-r><span class="rn">7</span><div><h4>Сверяй ставки каждую неделю</h4><p>Они меняются каждый месяц, и один банк на разных партнёрках стоит по-разному.</p></div></li>
+      <li class="no" data-r style="--i:1"><span class="rn">!</span><div><h4>Никогда не передавай карты и доступы</h4><p>Карта, пароли и коды — только у владельца. Если просят передать — это не РКО, а дропперство. Отказывайся сразу.</p></div></li>
     </ol>
   </div>
 </section>
 
 <!-- ========== ИЗ ЛЮБОГО ГОРОДА (сцена-карта) ========== -->
-<section class="scene" id="geo" style="--len:4.4" data-scene="geo" data-dark>
+<section class="scene" id="geo" style="--len:4;--from:#f5f5f7;--to:#fff" data-scene="geo" data-dark>
   <div class="stage">
     <img class="mapv" id="geoMap" data-src="map" alt="">
     <div id="cityDots"></div>
     <svg class="svgl" aria-hidden="true"><path class="arcl" id="geoArc"/></svg>
-    <div class="pin big" id="pinIsh"><i></i><b>Ишимбай</b></div>
-    <div class="pin av" id="pinPhu"><img src="assets/img/sq/petr.webp" alt="Пётр"><i></i><b>Пхукет</b></div>
+    <div class="pin big" id="pinIsh"><i></i></div>
+    <div class="pin big" id="pinPhu"><i></i></div>
+    <div class="gcard" id="gSlava"><img src="assets/img/sq/case-slava.webp" alt="Слава"><div><span class="gl">Ишимбай, Башкирия</span><b>Слава · 300 000 ₽ в месяц</b><p>Маленький город, до этого знал только «темки». Сейчас куратор в академии.</p></div></div>
+    <div class="gcard gme" id="gPetr"><img src="assets/img/petr.webp" alt="Пётр на Пхукете"><div><span class="gl">Пхукет, Таиланд</span><b>Пётр · веду дела отсюда</b><p>Весь бизнес — в телефоне. Ученики — по всей России.</p></div></div>
     <div class="shade"></div>
-    <div class="cap" data-a="0" data-b=".33"><span class="eyebrow">География</span><h2>Работает из любого города.</h2><p>Счёт открывают онлайн, курьер приезжает сам. Москва или посёлок — банку не важно.</p></div>
-    <div class="cap" data-a=".45" data-b=".64"><img class="av" src="assets/img/sq/case-slava.webp" alt="Слава"><span class="eyebrow">Ишимбай, Башкирия</span><h2>Маленький город. 300 000 ₽ в месяц.</h2><p>Слава до этого знал только «темки». Маленький город не приговор.</p></div>
-    <div class="cap" data-a=".8" data-b="1.1"><span class="eyebrow">А это я</span><h2>Веду дела с Пхукета.</h2><p>Нужны только телефон и интернет. Город и даже страна не важны.</p></div>
+    <div class="cap" data-a="0" data-b=".3"><span class="eyebrow">География</span><h2>Работает из любого города.</h2><p>Счёт открывают онлайн, курьер приезжает сам. Москва или посёлок — банку не важно.</p></div>
+    <div class="cap" data-a=".36" data-b=".6"><span class="eyebrow">Пример ученика</span><h2>Маленький город — не приговор.</h2><p>Слава из Ишимбая вышел на 300 000 ₽ в месяц, не переезжая.</p></div>
+    <div class="cap" data-a=".72" data-b="1.1"><span class="eyebrow">А это я</span><h2>Веду дела с Пхукета.</h2><p>Нужны только телефон и интернет. Где ты живёшь — не важно.</p></div>
+    <div class="fx-in"></div><div class="fx-out"></div>
   </div>
 </section>
 
@@ -956,7 +1223,6 @@ footer a{color:var(--ink)}
       <div class="case" data-r style="--i:1"><figure class="photo" style="margin:0"><img src="assets/img/sq/case-maxim.webp" alt="Максим" loading="lazy" decoding="async"></figure><div class="t"><div class="sum">200 000 ₽</div><div class="who">Максим, 26 · в месяц</div><p>Стабильный доход вместо найма.</p></div></div>
       <div class="case" data-r style="--i:2"><figure class="photo" style="margin:0"><img src="assets/img/sq/case-timur.webp" alt="Тимур" loading="lazy" decoding="async"></figure><div class="t"><div class="sum">159 000 ₽</div><div class="who">Тимур, 18 · первый месяц</div><p>С нулевым опытом в онлайне.</p></div></div>
     </div>
-    <div class="ctas center" data-r style="margin-top:44px"><a class="btn btn-dark" data-cta href="#final">Хочу так же — на разбор</a></div>
   </div>
 </section>
 
@@ -985,6 +1251,7 @@ footer a{color:var(--ink)}
       <div class="mate"><img src="assets/img/sq/cur-astemir.webp" alt="Астемир" loading="lazy" decoding="async"><b>Астемир</b><span>250к в месяц</span></div>
     </div>
     <div class="inside" data-r><span>Закрытый чат 24/7</span><span>Скрипты общения с людьми</span><span>50+ ответов на возражения</span><span>Живые эфиры</span><span>Свежие ставки банков</span></div>
+    <div class="fresh" data-r><div class="fi">↻</div><div><h3>Обучение обновляется каждую неделю</h3><p>Ставки, новые банки, рабочие связки и способы искать людей — всё, что меняется в нише, сразу попадает в программу. Ты учишься на том, что <b>работает в этом месяце</b>, а не год назад.</p></div></div>
     <p class="honest" data-r>Честно: из нуля в стабильный миллион за три месяца не выйдешь. Кто обещает — врёт. А первые деньги на себе реально получить уже в этом месяце.</p>
   </div>
 </section>
@@ -992,16 +1259,20 @@ footer a{color:var(--ink)}
 <!-- ========== 12. ВОПРОСЫ И ТЕСТ ========== -->
 <section class="blk" id="faq">
   <div class="wrap">
-    <div class="head center"><span class="eyebrow" data-r>Вопросы</span><h2 class="h2" data-r>То, что ты сейчас думаешь.</h2></div>
+    <div class="head center"><span class="eyebrow" data-r>Вопросы</span><h2 class="h2" data-r>То, что ты сейчас думаешь.</h2><p class="lead" data-r>Это реальные вопросы людей, которые приходили ко мне на разбор.</p></div>
     <div class="faq" data-r style="max-width:820px;margin-inline:auto">
+      <details><summary>«Мне надо подумать»</summary><div class="a"><p>Подумать — нормально. Только посмотри, о чём думать: вложений нет, первые деньги ты делаешь на себе, разбор бесплатный. Самое дорогое здесь — ещё полгода на той же работе с теми же деньгами.</p></div></details>
+      <details><summary>«Страшно прыгать в неизвестность»</summary><div class="a"><p>Прыгать и не надо: работу не бросаешь, начинаешь параллельно. Сначала проходишь банки сам — и через пару недель видишь деньги на своём счёте. Это уже не неизвестность, а факт.</p></div></details>
+      <details><summary>«А если у меня не получится?»</summary><div class="a"><p>Этого боятся почти все на старте. Помогают три вещи: пошаговый маршрут, кураторы, которые сами зарабатывают в нише, и чат, где отвечают каждый день. Доход я не гарантирую — гарантирую, что ты будешь знать, что делать на каждом шаге.</p></div></details>
+      <details><summary>«Обучение — это дорого»</summary><div class="a"><p>Считай не цену, а окупаемость. Один человек по всем банкам — до 108 877 ₽. На разборе посчитаем, через сколько людей обучение окупится именно у тебя.</p></div></details>
+      <details><summary>«Где брать людей, если нет знакомых?»</summary><div class="a"><p>Знакомые нужны только на старте. Дальше — чаты подработок, вакансии, реклама в небольших каналах и свои ролики. В обучении этому отдельный модуль.</p></div></details>
+      <details><summary>«Я студент, денег нет»</summary><div class="a"><p>Деньги и не нужны: самозанятость и ИП бесплатные, нужен только телефон. Антон начинал студентом между подработками — в сентябре сделал 230 000+ ₽.</p></div></details>
+      <details><summary>«Родители не верят, что так можно заработать»</summary><div class="a"><p>Лучший аргумент — не спор, а первая выплата на твоём счёте. Покажи её.</p></div></details>
+      <details><summary>«У меня нет времени, я работаю»</summary><div class="a"><p>Почти все начинают параллельно с работой или учёбой. Нужно 2–3 часа в день. Оформить всё на себя можно за пару вечеров.</p></div></details>
       <details><summary>Это вообще легально?</summary><div class="a"><p>Да. ИП на НПД оформляется в налоговой официально. Партнёрские программы у банков открытые. Я плачу налоги с каждой выплаты.</p></div></details>
       <details><summary>Это не дроповодство?</summary><div class="a"><p>Нет. Карта всегда у тебя, деньги на ней твои, доступ никому не даёшь. <b>Если просят передать карту, пароль или код из СМС — это не РКО. Сразу отказывайся.</b></p></div></details>
       <details><summary>Испорчу кредитную историю?</summary><div class="a"><p>Счёт и обычная карта в кредитную историю не попадают. Кредитки и займы — только по желанию и с возвратом вовремя. Тогда история становится даже лучше.</p></div></details>
-      <details><summary>Нужны вложения?</summary><div class="a"><p>Нет. Самозанятость и ИП бесплатные. Иногда банк просит положить несколько тысяч на счёт — это твои же деньги, через пару дней их можно снять.</p></div></details>
-      <details><summary>Ниша уже занята?</summary><div class="a"><p>Нет. Каждый месяц появляются новые банки. Только в сентябре добавился банк, который платит 20 000 ₽. Да и сколько твоих знакомых вообще слышали слово «РКО»?</p></div></details>
-      <details><summary>Я не умею продавать</summary><div class="a"><p>И не надо. Ты не просишь денег, а предлагаешь другу 5 000 ₽ за вечер. А начинаешь вообще с себя.</p></div></details>
-      <details><summary>А налоги?</summary><div class="a"><p>6% с выплат от партнёрок. С зарплаты снимают 13%. Всё считает приложение «Мой налог», отчётов нет.</p></div></details>
-      <details><summary>У меня нет времени, я работаю</summary><div class="a"><p>Почти все начинают параллельно с работой или учёбой. Оформить всё на себя можно за пару вечеров.</p></div></details>
+      <details><summary>А налоги?</summary><div class="a"><p>6% с выплат от партнёрок — против 13% с зарплаты. Всё считает приложение «Мой налог», отчётов нет.</p></div></details>
     </div>
 
     <div class="head center" style="margin-top:clamp(90px,12vh,130px)"><span class="eyebrow" data-r>30 секунд</span><h2 class="h3" data-r>Тебе подходит ниша?</h2></div>
@@ -1020,16 +1291,21 @@ footer a{color:var(--ink)}
   <div class="final-bg" aria-hidden="true"><img src="assets/film/k6.webp" alt="" loading="lazy" decoding="async"></div>
   <div class="wrap">
     <div class="head center">
-      <span class="eyebrow" data-r>Бесплатный разбор · 30 минут</span>
-      <h2 class="h1" data-r>Осталось начать.</h2>
-      <p class="lead" data-r>Большинство, кто начинает в одиночку, пробуют всё сразу и ничего не доводят до денег. На разборе соберём маршрут под тебя.</p>
-      <div class="ctas center" data-r><a class="btn btn-gold" data-cta href="#final">Записаться на разбор</a></div>
+      <span class="eyebrow" data-r>Следующий шаг</span>
+      <h2 class="h1" data-r>Бесплатный разбор. 30&nbsp;минут.</h2>
+      <p class="lead" data-r>Разберём твою ситуацию и соберём маршрут: с чего начать, где брать людей и как выйти на первые 14 000 ₽.</p>
     </div>
+    <ol class="bsteps" data-r>
+      <li><span>1</span><b>Нажимаешь кнопку</b><p>Откроется чат с моим менеджером в Telegram.</p></li>
+      <li><span>2</span><b>Пишешь «Разбор»</b><p>Менеджер подберёт удобное время.</p></li>
+      <li><span>3</span><b>Созвон 30 минут</b><p>Получаешь план под себя. Решение — только твоё.</p></li>
+    </ol>
+    <div class="ctas center" data-r style="margin:36px 0 56px"><a class="btn btn-gold btn-xl" data-cta href="#final">Записаться на разбор</a></div>
     <div class="final-grid">
       <div class="tile" data-r><div class="vid"><video controls preload="none" playsinline poster="assets/video/petr-40s.jpg"><source src="assets/video/petr-40s.mp4" type="video/mp4"></video></div><p class="small" style="margin-top:10px;color:#a1a1a6">40 секунд от меня. Со звуком.</p></div>
       <div class="tile plan" data-r style="--i:1"><h3>Что ты получишь за 30 минут</h3><ol>
         <li>Связку под тебя: где брать людей и какие банки сейчас платят больше.</li>
-        <li>Тонкости по банкам, чтобы выплаты не резали.</li>
+        <li>Тонкости по банкам, чтобы выплаты не срезали.</li>
         <li>1–2 способа искать людей под твой город и время.</li>
         <li>План на месяц: где пойдут первые деньги.</li>
         <li>Первый шаг на завтра.</li>
@@ -1037,9 +1313,8 @@ footer a{color:var(--ink)}
     </div>
     <div class="terms">
       <div class="tile" data-r><h4>Почему бесплатно</h4><p>Мне нужны люди с результатом. Каждый, кто через меня заработал, рассказывает другим.</p></div>
-      <div class="tile" data-r style="--i:1"><h4>Гарантия</h4><p>Если за 30 минут не дадим минимум 3 конкретных шага на завтра — считай, зря потратил полчаса. Такого ещё не было.</p></div>
+      <div class="tile" data-r style="--i:1"><h4>Без давления</h4><p>Не подойдёт — скажу честно. Если за 30 минут не дадим минимум 3 конкретных шага на завтра — считай, зря потратил полчаса.</p></div>
     </div>
-    <div class="ctas center" data-r style="margin-top:44px"><a class="btn btn-gold" data-cta href="#final">Записаться на разбор</a><span class="small" style="color:#a1a1a6">Отвечает мой менеджер в Telegram</span></div>
   </div>
 </section>
 
@@ -1098,7 +1373,7 @@ document.querySelectorAll('[data-channel]').forEach(a => { if (LINKS.channel.len
 
   /* плавный, но отзывчивый скролл */
   let lenis = null;
-  if (!reduce && window.Lenis) {
+  if (!reduce && window.Lenis && matchMedia('(pointer: fine)').matches) {
     lenis = new Lenis({ lerp: .14, smoothWheel: true, wheelMultiplier: 1, touchMultiplier: 1.1 });
     document.querySelectorAll('a[href^="#"]').forEach(a => a.addEventListener('click', e => {
       const t = document.querySelector(a.getAttribute('href')); if (t) { e.preventDefault(); lenis.scrollTo(t, { duration: 1.6 }); }
@@ -1132,7 +1407,7 @@ document.querySelectorAll('[data-channel]').forEach(a => { if (LINKS.channel.len
 
   /* ===== сцены ===== */
   const scenes = [...document.querySelectorAll('.scene')].map(sec => ({
-    sec, kind: sec.dataset.scene, dark: sec.hasAttribute('data-dark'), top: 0, h: 1, p: -1,
+    sec, kind: sec.dataset.scene, dark: sec.hasAttribute('data-dark'), top: 0, h: 1, p: -1, fxi: sec.querySelector('.fx-in'), fxo: sec.querySelector('.fx-out'),
     caps: [...sec.querySelectorAll('.cap')].map(c => ({ el: c, a: +c.dataset.a, b: +c.dataset.b })),
     bgs: Object.fromEntries([...sec.querySelectorAll('[data-bg]')].map(i => [i.dataset.bg, i]))
   }));
@@ -1151,60 +1426,9 @@ document.querySelectorAll('[data-channel]').forEach(a => { if (LINKS.channel.len
   function layoutHero() { HG.r = coverRect(mob ? .62 : .5, .5); sizeLayer(HE.bgs.b0, HG.r); sizeObj(olive, Math.max(W * .4, 300)); }
   function drawHero(p) {
     moveLayer(HE.bgs.b0, HG.r, .645, .5, 1.04 + .3 * io3(p), 1);
-    O(heroVeil, .35 + .65 * smooth(.55, 1, p));
     heroCap.style.opacity = 1 - smooth(.15, .6, p);
     heroCap.style.transform = `translate3d(0,${-p * H * .25}px,0) scale(${1 - .05 * p})`;
     putObj(olive, olive.__w * .38 - p * W * .5, olive.__w * .22 - p * H * .5, 1, -4 + p * 12, 1 - smooth(.3, .7, p));
-  }
-
-  /* — 3. как это работает: ссылка из рук в руки — */
-  const HW = S('how');
-  const scrollObj = $('scrollObj'), sealRing = $('sealRing'), coinCount = $('coinCount'), howVeil = $('howVeil');
-  const tags = { you: $('tYou'), partner: $('tPartner'), friend: $('tFriend'), bank: $('tBank') }, chips = [...$('howChips').children];
-  const COINS = Array.from({ length: 16 }, (_, i) => { const im = document.createElement('img'); im.className = 'obj'; im.src = 'assets/scene/coin.webp'; im.alt = ''; im.decoding = 'async'; $('coins').appendChild(im); return { im, t0: .735 + i * .007, ox: ((i * 37) % 11 - 5) * .004, oy: ((i * 53) % 7 - 3) * .003, rot: (i * 71) % 360 }; });
-  const MERCH = [.535, .615], YOU1 = [.44, .64], YOU2 = [.447, .645], FRIEND = [.552, .632], BOWL = [.52, .565], LIP = [.515, .575], HANDS = [.456, .69];
-  const arc = (A, B, t, h) => { const e = io3(clamp(t)); return [lerp(A[0], B[0], e), lerp(A[1], B[1], e) - Math.sin(Math.PI * e) * h]; };
-  let HWG = {};
-  function layoutHow() {
-    HWG.r = coverRect(.49, .55, W, mob ? H * .64 : H);
-    ['b1', 'b2', 'b3'].forEach(k => sizeLayer(HW.bgs[k], HWG.r));
-    sizeObj(scrollObj, HWG.r.dw * .11); COINS.forEach(c => sizeObj(c.im, HWG.r.dw * .026));
-  }
-  let chipIdx = -2;
-  function drawHow(p) {
-    const z = 1.03 + .06 * p;
-    O(howVeil, 1 - smooth(0, .04, p));
-    // мягкие наплывы между кадрами
-    const a2 = smooth(.33, .4, p), a3 = smooth(.53, .6, p);
-    const r = moveLayer(HW.bgs.b1, HWG.r, .48, .6, z, a2 >= 1 ? 0 : 1);
-    moveLayer(HW.bgs.b2, HWG.r, .48, .6, z, a3 >= 1 ? 0 : a2);
-    moveLayer(HW.bgs.b3, HWG.r, .48, .6, z, a3);
-    // свиток
-    let f = null, op = 1, sc = 1, rot = -8;
-    if (p >= .16 && p < .19) { f = MERCH; op = smooth(.16, .185, p); sc = .7 + .3 * op; }
-    else if (p >= .19 && p < .29) f = arc(MERCH, YOU1, (p - .19) / .1, .05);
-    else if (p >= .29 && p < .4) f = arc(YOU1, YOU2, (p - .29) / .11, 0);
-    else if (p >= .4 && p < .5) f = arc(YOU2, FRIEND, (p - .4) / .1, .05);
-    else if (p >= .5 && p < .53) f = FRIEND;
-    else if (p >= .53 && p < .63) { const t = io3((p - .53) / .1); f = arc(FRIEND, BOWL, t, .06); op = 1 - smooth(.6, .63, p); sc = 1 - .6 * t; rot = -8 - 40 * t; }
-    if (f) { const [x, y] = at(r, f[0], f[1]); putObj(scrollObj, x, y, sc * z, rot, op); } else O(scrollObj, 0);
-    const rs = smooth(.62, .68, p), [bx, by] = at(r, BOWL[0], BOWL[1]);
-    O(sealRing, rs > 0 && rs < 1 ? 1 - rs : 0); T(sealRing, bx, by, .3 + rs * 3);
-    COINS.forEach(c => {
-      if (p < c.t0) { if (c.v) { O(c.im, 0); c.v = false; } return; }
-      c.v = true; const t = clamp((p - c.t0) / .035), fx = lerp(LIP[0], HANDS[0] + c.ox, t), fy = lerp(LIP[1], HANDS[1] + c.oy, t * t) - Math.sin(Math.PI * t) * .03;
-      const [x, y] = at(r, fx, fy); putObj(c.im, x, y, z, c.rot + t * 540, 1);
-    });
-    const [hx, hy] = at(r, .455, .5);
-    O(coinCount, smooth(.74, .77, p)); coinCount.style.transform = `translate3d(${hx}px,${hy}px,0) translate(-50%,-100%)`;
-    coinCount.textContent = '+' + fmt(7000 * clamp((p - .735) / .12)) + ' ₽';
-    const tg = (el, fx, fy, o) => { const [x, y] = at(r, fx, fy); el.style.opacity = o; el.style.transform = `translate3d(${clamp(x, 56, W - 56)}px,${Math.max(y, mob ? 90 : 120)}px,0) translate(-50%,-100%)`; };
-    tg(tags.you, .32, .1, smooth(.04, .07, p));
-    tg(tags.partner, .77, .1, smooth(.05, .08, p) * (1 - smooth(.34, .38, p)));
-    tg(tags.friend, .83, .11, smooth(.38, .41, p) * (1 - smooth(.54, .57, p)));
-    tg(tags.bank, .75, .15, smooth(.57, .6, p));
-    const ci = p < .17 ? -1 : p < .37 ? 0 : p < .56 ? 1 : p < .72 ? 2 : 3;
-    if (ci !== chipIdx) { chipIdx = ci; chips.forEach((c, i) => { c.classList.toggle('on', i === ci); c.classList.toggle('done', i < ci); }); }
   }
 
   /* — 5. груша — */
@@ -1263,67 +1487,7 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
       cards[i].classList.toggle('show', tf > .9);
       if (tf > 0) lns[i].setAttribute('d', `M${px} ${hy - 10} Q${lerp(px, mx, e)} ${lerp(hy - 10, my, e)} ${qx} ${qy}`); else lns[i].setAttribute('d', '');
     });
-    pearTotal.classList.toggle('show', p > .76); pearSum.textContent = fmt(110877 * ease(clamp((p - .76) / .1))) + ' ₽';
-  }
-
-  /* — 7. храм: чертёж превращается в золото — */
-  const TM = S('temple'), tcv = TM.sec.querySelector('.scv'), tcx = tcv.getContext('2d'), tImg = {};
-  ['b5', 'b5b'].forEach(n => { const im = new Image(); im.decoding = 'async'; im.onload = () => { tImg[n] = im; TM.p = -1; lastY = -1; }; im.src = `assets/scene/${n}${mob ? '-m' : ''}.webp`; });
-  const COLX = [[.175, .241], [.266, .33], [.358, .415], [.44, .4975], [.51, .565], [.5875, .645], [.671, .729], [.759, .8225]], COLY = [.383, .848];
-  const BANKS = [['Альфа-Банк', 16000, 'Регистрация ИП через Альфу. Банк платит за саму регистрацию.'], ['Инго Банк', 20000, 'Новый банк, платит больше всех.'], ['ВТБ', 7000, 'Открыть счёт и пополнить.'], ['Т-Банк', 0, ''], ['ПСБ', 10000, 'Без пополнения, но лучше через месяц после регистрации ИП.'], ['Озон Банк', 8000, 'Положить чуть больше 3 000 ₽ на 4–9 дней.'], ['Уралсиб', 6000, 'Переводы со счёта на 15 000 ₽.'], ['Точка', 0, ''], ['Контур', 6000, 'Три платежа со счёта.'], ['Свой Банк', 6000, 'Три платежа на 20 000 ₽.']];
-  const ROOF = [['Дебетовые карты', 6000, 'Три карты, ~500 ₽ своих покупок.', [.165, .835, .318, .386]], ['Кредитные карты', 9300, 'Две карты, покупка и возврат вовремя.', [.16, .84, .252, .32]], ['Микрозаймы', 16577, 'Четыре займа последним шагом.', [.15, .85, .02, .258]]];
-  const TTOTAL = BANKS.reduce((a, b) => a + b[1], 0) + ROOF.reduce((a, r) => a + r[1], 0);
-  const colLbls = [], bandLbls = [];
-  { const box = $('colLabels'), mk = (cls, t) => { const l = document.createElement('div'); l.className = cls; l.textContent = t; box.appendChild(l); return l; };
-    BANKS.filter(b => b[1]).forEach(b => colLbls.push(mk('collbl', `${b[0]} · +${fmt(b[1])}`))); ROOF.forEach(r => bandLbls.push(mk('bandlbl', `${r[0]} · +${fmt(r[1])} ₽`))); }
-  const tTotal = $('tTotal'), tName = $('tName'), tDesc = $('tDesc'), deadCard = $('deadCard'), deadName = $('deadName');
-  let TG = {}, tKey = '';
-  function layoutTemple() {
-    const D = Math.min(devicePixelRatio || 1, 1.5); tcv.width = Math.round(W * D); tcv.height = Math.round(H * D); tcx.setTransform(D, 0, 0, D, 0, 0);
-    const top = mob ? 250 : 230, bot = 20, ih = 1 / ASPECT, sc = Math.min(W * (mob ? 1 : .92), (H - top - bot) / ih) * (mob ? 1.45 : 1);
-    TG = { dw: sc, dh: sc * ih }; TG.dx = (W - TG.dw) / 2; TG.dy = top + (H - top - bot - TG.dh) / 2;
-    COLX.forEach(([x0, x1], i) => { colLbls[i].style.transform = `translate3d(${TG.dx + (x0 + x1) / 2 * TG.dw}px,${TG.dy + (COLY[0] + COLY[1]) / 2 * TG.dh}px,0) translate(-50%,-50%) rotate(-90deg)`; });
-    ROOF.forEach((r, i) => { bandLbls[i].style.transform = `translate3d(${TG.dx + .5 * TG.dw}px,${TG.dy + (i === 2 ? .17 : (r[3][2] + r[3][3]) / 2) * TG.dh}px,0) translate(-50%,-50%)`; });
-    tKey = '';
-  }
-  function drawTemple(p) {
-    const cx = tcx, { dx, dy, dw, dh } = TG;
-    cx.fillStyle = '#f5f5f7'; cx.fillRect(0, 0, W, H);
-    const bp = tImg.b5b, gd = tImg.b5; if (!bp) return;
-    cx.drawImage(bp, dx, dy, dw, dh);
-    const gold = (x0, x1, y0, y1, k, dir) => {
-      if (!gd || k <= 0) return; if (dir === 'up') y0 = y1 - (y1 - y0) * k; else x1 = x0 + (x1 - x0) * k;
-      const gw = gd.naturalWidth, gh = gd.naturalHeight;
-      cx.drawImage(gd, x0 * gw, y0 * gh, (x1 - x0) * gw, (y1 - y0) * gh, dx + x0 * dw, dy + y0 * dh, (x1 - x0) * dw, (y1 - y0) * dh);
-      if (k < 1) { cx.fillStyle = 'rgba(255,232,170,.95)'; if (dir === 'up') cx.fillRect(dx + x0 * dw, dy + y0 * dh - 1.5, (x1 - x0) * dw, 3); else cx.fillRect(dx + x1 * dw - 1.5, dy + y0 * dh, 3, (y1 - y0) * dh); }
-    };
-    let sum = 0, key = 'bp';
-    gold(.12, .88, .845, .965, io3(clamp((p - .04) / .07)), 'right'); if (p >= .04 && p < .12) key = 'base';
-    const T0 = .12, SEG = .058; let ci = 0, dead = 0;
-    BANKS.forEach((b, i) => {
-      const t0 = T0 + i * SEG, k = io3(clamp((p - t0) / (SEG * .8)));
-      if (p >= t0 && p < t0 + SEG) key = 'b' + i;
-      if (!b[1]) { const o = smooth(t0, t0 + SEG * .2, p) * (1 - smooth(t0 + SEG * .7, t0 + SEG, p)), fall = smooth(t0 + SEG * .55, t0 + SEG, p); if (o > 0) { dead = o; deadName.textContent = b[0]; deadCard.style.transform = `translate3d(-50%,calc(-50% + ${fall * 120}px),0)`; } return; }
-      const [x0, x1] = COLX[ci]; gold(x0 - .004, x1 + .004, COLY[0], COLY[1], k, 'up'); sum += b[1] * k; colLbls[ci].classList.toggle('on', k > .97 && p < .9); ci++;
-    });
-    O(deadCard, dead);
-    const R0 = .71, RS = .06;
-    ROOF.forEach((r, i) => {
-      const t0 = R0 + i * RS, k = io3(clamp((p - t0) / (RS * .8))), [x0, x1, y0, y1] = r[3];
-      if (p >= t0 && p < t0 + RS) key = 'r' + i;
-      if (i === 2) { cx.save(); cx.beginPath(); cx.moveTo(dx + .15 * dw, dy + .258 * dh); cx.lineTo(dx + .5 * dw, dy + .02 * dh); cx.lineTo(dx + .85 * dw, dy + .258 * dh); cx.closePath(); cx.clip(); gold(x0, x1, y0, y1, k, 'up'); cx.restore(); } else gold(x0, x1, y0, y1, k, 'up');
-      sum += r[1] * k; bandLbls[i].classList.toggle('on', k > .97 && p < .9);
-    });
-    const fin = smooth(.89, .95, p); if (gd && fin > 0) { cx.globalAlpha = fin; cx.drawImage(gd, dx, dy, dw, dh); cx.globalAlpha = 1; }
-    if (p >= .89) key = 'end';
-    tTotal.textContent = fmt(sum) + ' ₽';
-    if (key === tKey) return; tKey = key;
-    const cap = (nm, ds) => { tName.innerHTML = nm; tDesc.textContent = ds; };
-    if (key === 'bp') cap('Построим храм одного человека', 'Фундамент — ИП. Колонны — банки. Крыша — карты и займы.');
-    else if (key === 'base') cap('Фундамент: самозанятость и ИП', 'Бесплатно, с телефона. Без этого банк не откроет счёт для бизнеса.');
-    else if (key[0] === 'b') { const idx = +key.slice(1), b = BANKS[idx]; if (b[1]) cap(`${b[0]} <em>+${fmt(b[1])} ₽</em>`, b[2]); else cap(`${b[0]} <em class="zero">0 ₽</em>`, 'За ИП на НПД не платит. Туда людей не ведём.'); }
-    else if (key[0] === 'r') { const r = ROOF[+key.slice(1)]; cap(`${r[0]} <em>+${fmt(r[1])} ₽</em>`, r[2]); }
-    else cap(`С одного человека <em>${fmt(TTOTAL)} ₽</em>`, 'Восемь банков, плюс карты и займы. А людей вокруг тебя сотни.');
+    pearTotal.classList.toggle('show', p > .76); pearSum.textContent = fmt(108877 * ease(clamp((p - .76) / .1))) + ' ₽';
   }
 
   /* ===== сцены-карты: камера плавно едет и приближается по картинке ===== */
@@ -1342,38 +1506,8 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
 
   document.querySelectorAll('.mapv').forEach(img => { img.decoding = 'async'; img.src = `assets/scene/${img.dataset.src}${mob ? '-m' : ''}.webp`; });
 
-  /* — маршрут ученика по карте островов — */
-  const RT = S('route'), routeMap = $('routeMap'), ship = $('ship'), routeTrail = $('routeTrail'), routeDone = $('routeDone');
-  const stops = [0, 1, 2, 3, 4].map(i => $('st' + i));
-  const RIW = 1920, RIH = 1920 / ASPECT;
-  const Q = [[.22, .88], [.33, .71], [.5, .56], [.66, .42], [.78, .25]];          // точки пути по морю
-  const ISL = [[.09, .82], [.25, .64], [.42, .5], [.61, .35], [.85, .12]];        // острова-остановки
-  const ARR = [.12, .3, .48, .66, .84];                                             // когда корабль у остановки
-  const cr = (p0, p1, p2, p3, t) => { const t2 = t * t, t3 = t2 * t; return .5 * ((2 * p1) + (-p0 + p2) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 + (-p0 + 3 * p1 - 3 * p2 + p3) * t3); };
-  const routeAt = u => { const k = Math.min(3, Math.floor(u)), t = u - k, P = i => Q[clamp(i, 0, 4)]; return [0, 1].map(d => cr(P(k - 1)[d], P(k)[d], P(k + 1)[d], P(k + 2)[d], t)); };
-  const ROUTE = Array.from({ length: 121 }, (_, i) => routeAt(i / 30));
-  routeMap.style.width = RIW + 'px'; routeMap.style.height = RIH + 'px';
-  function layoutRoute() { sizeObj(ship, 1); }
-  function drawRoute(p) {
-    let u = 0;
-    for (let k = 0; k < 4; k++) if (p > ARR[k] + .02) u = k + io3(clamp((p - ARR[k] - .02) / (ARR[k + 1] - ARR[k] - .05)));
-    const cover = Math.max(W / RIW, H / RIH), zin = mob ? 1.12 : 1.65;
-    const s = cover * (1 + (zin - 1) * smooth(.03, .11, p) * (1 - smooth(.86, .97, p)));
-    const [sx, sy] = routeAt(u);
-    const c = camAt(routeMap, RIW, RIH, lerp(.5, sx, smooth(.03, .11, p) * (1 - smooth(.86, .97, p))), lerp(.5, sy, smooth(.03, .11, p) * (1 - smooth(.86, .97, p))), s, H * .42, true);
-    const pts = ROUTE.map(([fx, fy]) => `${c.x(fx).toFixed(1)} ${c.y(fy).toFixed(1)}`);
-    routeTrail.setAttribute('d', 'M' + pts.join('L'));
-    const n = Math.max(1, Math.round(u * 30)); routeDone.setAttribute('d', 'M' + pts.slice(0, n + 1).join('L') + `L${c.x(sx)} ${c.y(sy)}`);
-    const sw = RIW * s * .055; if (ship.__w !== sw) sizeObj(ship, sw);
-    putObj(ship, c.x(sx), c.y(sy), 1, Math.sin(p * 60) * 3, smooth(.0, .03, p));
-    stops.forEach((st, i) => {
-      st.style.transform = `translate3d(${c.x(ISL[i][0])}px,${c.y(ISL[i][1])}px,0) scale(${.6 + .4 * smooth(ARR[i] - .03, ARR[i], p)})`;
-      st.style.opacity = smooth(ARR[i] - .04, ARR[i] - .01, p); st.classList.toggle('on', p >= ARR[i]);
-    });
-  }
-
   /* — география: огни городов, Ишимбай, перелёт на Пхукет — */
-  const GE = S('geo'), geoMap = $('geoMap'), geoArc = $('geoArc'), pinIsh = $('pinIsh'), pinPhu = $('pinPhu');
+  const GE = S('geo'), geoMap = $('geoMap'), geoArc = $('geoArc'), pinIsh = $('pinIsh'), pinPhu = $('pinPhu'), gSlava = $('gSlava'), gPetr = $('gPetr');
   const GIW = 3200, GIH = 3501;
   const PTS = {"Москва": [0.1257, 0.5165], "Санкт-Петербург": [0.0851, 0.4686], "Казань": [0.1896, 0.5161], "Екатеринбург": [0.2533, 0.5046], "Новосибирск": [0.3773, 0.5242], "Краснодар": [0.1332, 0.6192], "Ростов-на-Дону": [0.1373, 0.5999], "Самара": [0.1953, 0.5432], "Уфа": [0.2276, 0.5273], "Пермь": [0.2292, 0.4914], "Омск": [0.3243, 0.5246], "Красноярск": [0.4327, 0.5137], "Иркутск": [0.4961, 0.5523], "Хабаровск": [0.6671, 0.5887], "Владивосток": [0.6494, 0.6355], "Воронеж": [0.1344, 0.5585], "Челябинск": [0.2578, 0.5228], "Тюмень": [0.2807, 0.5011], "Мурманск": [0.1004, 0.34], "Якутск": [0.6374, 0.4424], "Калининград": [0.0306, 0.5276], "Сочи": [0.1374, 0.6314], "Нижний Новгород": [0.1611, 0.5102], "Волгоград": [0.1639, 0.5866], "Барнаул": [0.3821, 0.5417], "Томск": [0.3886, 0.5085], "Архангельск": [0.1418, 0.4084], "Махачкала": [0.1806, 0.6366], "Оренбург": [0.2228, 0.5575], "Чита": [0.5472, 0.5549], "Ишимбай": [0.228, 0.5406], "Пхукет": [0.4633, 0.8785]};
   const ISH = PTS['Ишимбай'], PHU = PTS['Пхукет'];
@@ -1381,18 +1515,206 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
   geoMap.style.width = GIW + 'px'; geoMap.style.height = GIH + 'px';
   function drawGeo(p) {
     const sRU = W / (GIW * (mob ? 1.04 : .98)), sISH = W / (GIW * (mob ? .2 : .13)), sW = Math.min(W / (GIW * .85), (H - 220) / (GIH * .72));
-    const ru = { cx: .5, cy: .4, s: sRU * (1 + .05 * smooth(0, .35, p)) }, ish = { cx: ISH[0], cy: ISH[1], s: sISH }, wo = { cx: .44, cy: .6, s: sW };
-    const t1 = io3(clamp((p - .35) / .12)), t2 = io3(clamp((p - .63) / .14));
+    const ru = { cx: .5, cy: .4, s: sRU * (1 + .05 * smooth(0, .3, p)) }, ish = { cx: ISH[0], cy: ISH[1], s: sISH }, wo = { cx: .44, cy: .62, s: sW };
+    const t1 = io3(clamp((p - .3) / .1)), t2 = io3(clamp((p - .6) / .12));
     let st = { cx: lerp(ru.cx, ish.cx, t1), cy: lerp(ru.cy, ish.cy, t1), s: geoLerp(ru.s, ish.s, t1) };
     if (t2 > 0) st = { cx: lerp(ish.cx, wo.cx, t2), cy: lerp(ish.cy, wo.cy, t2), s: geoLerp(ish.s, wo.s, t2) };
-    const c = camAt(geoMap, GIW, GIH, st.cx, st.cy, st.s, H * (mob ? .4 : .45), false);
-    geoMap.style.opacity = smooth(0, .04, p);
-    CITY.forEach(k => { const t = clamp((p - k.t0) / .02); k.d.style.transform = `translate3d(${c.x(k.xy[0])}px,${c.y(k.xy[1])}px,0) scale(${t ? .4 + .6 * backOut(t) : 0})`; k.d.style.opacity = t * (1 - .55 * smooth(.36, .45, p)); });
-    pinIsh.style.transform = `translate3d(${c.x(ISH[0])}px,${c.y(ISH[1])}px,0)`; pinIsh.style.opacity = smooth(.4, .44, p);
-    pinPhu.style.transform = `translate3d(${c.x(PHU[0])}px,${c.y(PHU[1])}px,0) scale(${.6 + .4 * backOut(clamp((p - .84) / .04))})`; pinPhu.style.opacity = smooth(.84, .87, p);
-    const ta = smooth(.74, .86, p);
+    const c = camAt(geoMap, GIW, GIH, st.cx, st.cy, st.s, H * (mob ? .52 : .54), false);
+    geoMap.style.opacity = 1;
+    CITY.forEach(k => { const t = clamp((p - k.t0) / .02); k.d.style.transform = `translate3d(${c.x(k.xy[0])}px,${c.y(k.xy[1])}px,0) scale(${t ? .4 + .6 * backOut(t) : 0})`; k.d.style.opacity = t * (1 - .55 * smooth(.32, .4, p)); });
+    pinIsh.style.transform = `translate3d(${c.x(ISH[0])}px,${c.y(ISH[1])}px,0)`; pinIsh.style.opacity = smooth(.33, .37, p);
+    pinPhu.style.transform = `translate3d(${c.x(PHU[0])}px,${c.y(PHU[1])}px,0)`; pinPhu.style.opacity = smooth(.72, .75, p);
+    gSlava.classList.toggle('show', p > .38 && p < .6);
+    gPetr.classList.toggle('show', p > .74);
+    const ta = smooth(.62, .74, p);
     if (ta > 0) { const x0 = c.x(ISH[0]), y0 = c.y(ISH[1]), x1 = c.x(PHU[0]), y1 = c.y(PHU[1]); geoArc.setAttribute('d', qPart(x0, y0, (x0 + x1) / 2 - (y1 - y0) * .25, Math.min(y0, y1) - Math.abs(y1 - y0) * .15, x1, y1, ta)); }
     else geoArc.setAttribute('d', '');
+  }
+
+
+  /* ===== сцены, нарисованные кодом: камера вписывает нужную область в свободную часть экрана ===== */
+  const NS = 'http://www.w3.org/2000/svg';
+  const mk = (parent, tag, attrs) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); parent.appendChild(e); return e; };
+  const prep = el => { const L = el.getTotalLength(); el.style.strokeDasharray = L; el.style.strokeDashoffset = L; el.__L = L; return el; };
+  const drawLn = (el, t) => { const v = el.__L * (1 - clamp(t)); if (el.__v !== v) { el.__v = v; el.style.strokeDashoffset = v; } };
+  const setOp = (el, o) => { o = Math.round(o * 100) / 100; if (el.__o !== o) { el.__o = o; el.setAttribute('opacity', o); } };
+  // область мира [x0,y0,x1,y1] вписываем между шапкой (top) и титрами (bot)
+  function fitBox(svg, b, top, bot) {
+    const side = 16, sw = W - side * 2, sh = Math.max(120, H - top - bot), bw = b[2] - b[0], bh = b[3] - b[1];
+    const s = Math.min(sw / bw, sh / bh), cx = (b[0] + b[2]) / 2, cy = (b[1] + b[3]) / 2;
+    const vx = cx - (side + sw / 2) / s, vy = cy - (top + sh / 2) / s;
+    svg.setAttribute('viewBox', `${vx.toFixed(2)} ${vy.toFixed(2)} ${(W / s).toFixed(2)} ${(H / s).toFixed(2)}`);
+    return { s, vx, vy };
+  }
+  // плавный переход между ключевыми кадрами камеры
+  function boxAt(K, p) {
+    let i = 0; while (i < K.length - 2 && p >= K[i + 1][0]) i++;
+    const [p0, b0] = K[i], [p1, b1] = K[i + 1], t = io3(clamp((p - p0) / (p1 - p0 || 1)));
+    return b0.map((v, j) => lerp(v, b1[j], t));
+  }
+
+  /* — 3. как это работает: ссылка идёт от участника к участнику — */
+  const HW = S('how'), howSvg = $('howSvg');
+  const hE = [1, 2, 3, 4].map(i => prep($('hE' + i)));
+  const hN = { bank: $('nBank'), part: $('nPart'), friend: $('nFriend'), you: $('nYou') };
+  const hTok = $('hTok'), hRing = $('hRing'), hBadge = $('hBadge'), hMid = $('hMid'), hSum = $('hSum'), hSumT = $('hSumT');
+  const hCoins = Array.from({ length: 6 }, () => { const g = mk($('hCoins'), 'g', { class: 'cn', opacity: 0 }); mk(g, 'circle', { r: 22 }); const t = mk(g, 'text', { y: 8 }); t.textContent = '₽'; return g; });
+  const chips = [...$('howChips').children];
+  const ptOn = (i, t) => { const q = hE[i].getPointAtLength(hE[i].__L * clamp(t)); return [q.x, q.y]; };
+  const NODE = { part: [330, 500], you: [800, 770], friend: [1270, 500], bank: [800, 230] };
+  const BOX = { all: [150, 60, 1450, 950], py: [160, 400, 960, 950], yf: [640, 400, 1440, 950], fb: [640, 60, 1440, 700] };
+  const KH = [[0, BOX.all], [.17, BOX.all], [.21, BOX.py], [.36, BOX.py], [.40, BOX.yf], [.53, BOX.yf], [.57, BOX.fb], [.70, BOX.fb], [.75, BOX.all], [1, BOX.all]];
+  const STEPACT = [['bank'], ['part', 'you'], ['you', 'friend'], ['friend', 'bank'], ['bank', 'part', 'you']];
+  let howStep = -2;
+  const camTop = () => (mob ? 64 : 70), capBot = () => (mob ? Math.min(H * .46, 380) : Math.min(H * .4, 360));
+  function layoutHow() { howStep = -2; }
+  function drawHow(p) {
+    fitBox(howSvg, boxAt(KH, p), camTop(), capBot());
+    const st = p < .19 ? 0 : p < .38 ? 1 : p < .55 ? 2 : p < .73 ? 3 : 4;
+    if (st !== howStep) {
+      howStep = st;
+      Object.entries(hN).forEach(([k, g]) => g.classList.toggle('on', STEPACT[st].includes(k)));
+      chips.forEach((c, i) => { c.classList.toggle('on', i === st - 1); c.classList.toggle('done', i < st - 1); });
+    }
+    // связи прорисовываются вместе с движением ссылки
+    drawLn(hE[0], (p - .23) / .1); drawLn(hE[1], (p - .41) / .1); drawLn(hE[2], (p - .58) / .08); drawLn(hE[3], (p - .75) / .06);
+    // ссылка: из партнёрки к тебе, от тебя к другу, от друга в банк
+    let tp = null;
+    if (p >= .21 && p < .23) tp = [lerp(NODE.part[0], 385, (p - .21) / .02), lerp(NODE.part[1], 565, (p - .21) / .02)];
+    else if (p >= .23 && p < .33) tp = ptOn(0, (p - .23) / .1);
+    else if (p >= .33 && p < .41) { const a = ptOn(0, 1), b = ptOn(1, 0), t = io3((p - .33) / .08); tp = [lerp(a[0], b[0], t), lerp(a[1], b[1], t) - Math.sin(Math.PI * t) * 40]; }
+    else if (p >= .41 && p < .51) tp = ptOn(1, (p - .41) / .1);
+    else if (p >= .51 && p < .58) { const a = ptOn(1, 1), b = ptOn(2, 0), t = io3((p - .51) / .07); tp = [lerp(a[0], b[0], t), lerp(a[1], b[1], t)]; }
+    else if (p >= .58 && p < .68) tp = ptOn(2, (p - .58) / .08);
+    if (tp) { hTok.setAttribute('transform', `translate(${tp[0].toFixed(1)} ${tp[1].toFixed(1)}) scale(${(1 - smooth(.66, .68, p) * .6).toFixed(3)})`); setOp(hTok, smooth(.21, .225, p) * (1 - smooth(.665, .68, p))); }
+    else setOp(hTok, 0);
+    // печать банка
+    const rs = smooth(.66, .71, p);
+    setOp(hRing, rs > 0 && rs < 1 ? 1 - rs : 0); hRing.setAttribute('r', (80 + rs * 120).toFixed(1));
+    setOp(hBadge, smooth(.67, .69, p));
+    // выплата: монеты из банка в партнёрку, из партнёрки к тебе
+    hCoins.forEach((g, i) => {
+      const u = (p - .75 - i * .012) / .13;
+      if (u <= 0 || u >= 1) { setOp(g, 0); return; }
+      let x, y;
+      if (u < .45) [x, y] = ptOn(3, u / .45);
+      else if (u < .55) { const a = ptOn(3, 1), b = ptOn(0, 0), t = (u - .45) / .1; x = lerp(a[0], b[0], t); y = lerp(a[1], b[1], t); }
+      else [x, y] = ptOn(0, (u - .55) / .45);
+      g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`); setOp(g, 1);
+    });
+    setOp(hMid, 1 - smooth(.15, .19, p));
+    setOp(hSum, smooth(.84, .87, p));
+    hSumT.textContent = '+' + fmt(14000 * ease(clamp((p - .85) / .07))) + ' ₽';
+  }
+
+  /* — 7. храм: чертёж строится при прокрутке — */
+  const TM = S('temple'), tSvg = $('tSvg'), tG = $('tTemple'), tGlowC = $('tGlowC');
+  const tTotal = $('tTotal'), tName = $('tName'), tDesc = $('tDesc');
+  const rectD = (x, y, w, h) => `M${x} ${y}h${w}v${h}h${-w}Z`;
+  const BANKS = [['Инго Банк', 20000, 'Новый банк, платит больше всех. За 30 дней — три оплаты со счёта на 50 000 ₽.'], ['ВТБ', 7000, 'Открыть счёт и пополнить. Заявку можно завести ещё до регистрации ИП.'], ['ПСБ', 10000, 'Ничего пополнять не нужно, но банк проверяет, что бизнес живой.'], ['Озон Банк', 8000, 'Положить на счёт чуть больше 3 000 ₽ на 4–9 дней.'], ['Уралсиб', 6000, 'Переводы со счёта на 15 000 ₽ в сумме.'], ['Контур', 6000, 'Три платежа со счёта.'], ['Свой Банк', 6000, 'Три платежа на 20 000 ₽ в сумме.']];
+  const BANDS = [['Дебетовые карты', 6000, 'Три карты. Потратить около 500 ₽ на свои покупки.', '310,360 1290,360 1143,300 457,300', 'ДЕБЕТОВЫЕ · 6 000', 341], ['Кредитные карты', 9300, 'Две карты. Покупка и возврат в беспроцентный период — переплата 0.', '457,300 1143,300 996,240 604,240', 'КРЕДИТНЫЕ · 9 300', 281], ['Микрозаймы', 16577, 'Четыре займа последним шагом. Первые 7 дней часто без процентов.', '604,240 996,240 800,160', 'ЗАЙМЫ · 16 577', 226]];
+  const T0 = .10, TS = .08;
+  const tEl = { ground: prep(mk(tG, 'path', { class: 'ln thin', d: 'M60 882H1540' })) };
+  tEl.dimT = mk(tG, 'text', { class: 'dim', x: 800, y: 935 }); tEl.dimT.textContent = 'ФАСАД · ОДИН ЧЕЛОВЕК · ОКТЯБРЬ 2026';
+  tEl.steps = [[330, 850, 940, 32], [350, 820, 900, 30], [370, 794, 860, 26]].map(r => ({ f: mk(tG, 'rect', { class: 'gf', x: r[0], y: r[1], width: r[2], height: r[3], opacity: 0 }), l: prep(mk(tG, 'path', { class: 'ln', d: rectD(...r) })) }));
+  tEl.baseT = mk(tG, 'text', { class: 'lb', x: 800, y: 873, opacity: 0, 'font-size': 20 }); tEl.baseT.textContent = 'ФУНДАМЕНТ · ИП НА НПД ЧЕРЕЗ АЛЬФУ · 14 000 ₽';
+  tEl.cols = BANKS.map((b, i) => {
+    const c = 440 + i * 120, g = mk(tG, 'g', {});
+    const fill = mk(g, 'rect', { class: 'gf', x: c - 35, y: 430, width: 70, height: 350, transform: `matrix(1 0 0 0 0 780)` });
+    const cap = mk(g, 'rect', { class: 'gf', x: c - 46, y: 410, width: 92, height: 20, opacity: 0 }), base = mk(g, 'rect', { class: 'gf', x: c - 44, y: 780, width: 88, height: 14, opacity: 0 });
+    const ln = prep(mk(g, 'path', { class: 'ln', d: `${rectD(c - 46, 410, 92, 20)}${rectD(c - 35, 430, 70, 350)}${rectD(c - 44, 780, 88, 14)}` }));
+    const fl = prep(mk(g, 'path', { class: 'ln thin', d: `M${c - 13} 442V768M${c + 13} 442V768` }));
+    const t = mk(g, 'text', { class: 'lb', x: 0, y: 0, transform: `translate(${c + 8} 605) rotate(-90)`, opacity: 0, 'font-size': 22 }); t.textContent = `${b[0]} · ${fmt(b[1])}`;
+    return { c, fill, cap, base, ln, fl, t };
+  });
+  tEl.arch = { f: mk(tG, 'rect', { class: 'gf', x: 330, y: 360, width: 940, height: 50, opacity: 0 }), l: prep(mk(tG, 'path', { class: 'ln', d: rectD(330, 360, 940, 50) })) };
+  tEl.archT = mk(tG, 'text', { class: 'lb', x: 800, y: 393, opacity: 0 }); tEl.archT.textContent = 'СЧЕТА ДЛЯ ИП · 77 000 ₽';
+  tEl.bands = BANDS.map(b => { const f = mk(tG, 'polygon', { class: 'gf', points: b[3], opacity: 0 }); const t = mk(tG, 'text', { class: 'lb', x: 800, y: b[5], opacity: 0, 'font-size': 19 }); t.textContent = b[4]; return { f, t }; });
+  tEl.ped = prep(mk(tG, 'path', { class: 'ln', d: 'M310 360L800 160L1290 360ZM457 300H1143M604 240H996' }));
+  const KT = [[0, [280, 740, 1320, 905]], [T0, [300, 390, 1300, 905]], [.66, [300, 330, 1300, 905]], [.74, [280, 140, 1320, 905]], [1, [200, 120, 1400, 950]]];
+  const KTm = [[0, [300, 760, 1300, 905]], [T0 - .02, [300, 380, 640, 905]]];
+  BANKS.forEach((b, i) => KTm.push([T0 + i * TS + .045, [440 + i * 120 - 170, 380, 440 + i * 120 + 170, 905]]));
+  KTm.push([.69, [300, 330, 1300, 820]], [.80, [300, 140, 1300, 430]], [.9, [200, 120, 1400, 950]], [1, [200, 120, 1400, 950]]);
+  let tKey = '';
+  function layoutTemple() { tKey = ''; }
+  function drawTemple(p) {
+    fitBox(tSvg, boxAt(mob ? KTm : KT, p), mob ? 200 : 236, mob ? 40 : 56);
+    drawLn(tEl.ground, p / .04);
+    tEl.steps.forEach((s, i) => { drawLn(s.l, (p - .01 - i * .015) / .03); setOp(s.f, smooth(.05 + i * .01, .085 + i * .01, p) * .95); });
+    setOp(tEl.baseT, smooth(.08, .1, p));
+    let total = 14000 * smooth(.05, .1, p), key = 'base', idx = -1;
+    tEl.cols.forEach((c, i) => {
+      const s = T0 + i * TS;
+      drawLn(c.ln, (p - s) / .03); drawLn(c.fl, (p - s - .01) / .03);
+      const k = io3(clamp((p - s - .025) / .045));
+      c.fill.setAttribute('transform', `matrix(1 0 0 ${k.toFixed(4)} 0 ${(780 * (1 - k)).toFixed(2)})`);
+      setOp(c.cap, smooth(s + .06, s + .07, p)); setOp(c.base, smooth(s + .02, s + .03, p)); setOp(c.t, smooth(s + .055, s + .07, p));
+      total += BANKS[i][1] * k; if (p >= s) { key = 'c' + i; idx = i; }
+    });
+    drawLn(tEl.arch.l, (p - .66) / .03); setOp(tEl.arch.f, smooth(.685, .715, p)); setOp(tEl.archT, smooth(.7, .72, p));
+    if (p >= .66) key = 'arch';
+    drawLn(tEl.ped, (p - .72) / .04);
+    tEl.bands.forEach((b, i) => { const s = .76 + i * .04, k = smooth(s, s + .03, p); setOp(b.f, k); setOp(b.t, smooth(s + .02, s + .035, p)); total += BANDS[i][1] * k; if (p >= s) key = 'b' + i; });
+    if (p >= .9) key = 'end';
+    setOp(tGlowC, smooth(.88, .96, p) * .9);
+    tTotal.textContent = fmt(total) + ' ₽';
+    if (key !== tKey) {
+      tKey = key;
+      if (key === 'base') { tName.innerHTML = 'Фундамент · <em>ИП на НПД</em>'; tDesc.textContent = 'Человек бесплатно открывает ИП через Альфа-Банк, а банк платит тебе 14 000 ₽ за регистрацию.'; }
+      else if (key[0] === 'c') { const b = BANKS[+key.slice(1)]; tName.innerHTML = `Колонна · ${b[0]} <em>+${fmt(b[1])} ₽</em>`; tDesc.textContent = b[2]; }
+      else if (key === 'arch') { tName.innerHTML = 'Счета для ИП · <em>77 000 ₽</em>'; tDesc.textContent = 'Восемь банков с одного человека. Это основа дохода — больше 70%.'; }
+      else if (key[0] === 'b') { const b = BANDS[+key.slice(1)]; tName.innerHTML = `Крыша · ${b[0]} <em>+${fmt(b[1])} ₽</em>`; tDesc.textContent = b[2]; }
+      else { tName.innerHTML = 'Храм одного человека <em>готов</em>'; tDesc.textContent = 'Столько платят банки за одного человека, если провести его по всему маршруту.'; }
+    }
+  }
+
+  /* — маршрут: корабль плывёт от острова к острову — */
+  const RT = S('route'), rSvg = $('rSvg'), rShip = $('rShip'), rWaves = $('rWaves');
+  const ISL = [[260, 790, 92], [600, 560, 104], [980, 700, 98], [1230, 420, 108], [1450, 190, 118]];
+  const RPT = [[70, 975], [385, 875], [725, 650], [1105, 805], [1355, 515], [1500, 315]];
+  const INAME = ['Понял нишу', 'Всё на себе', 'Говоришь с людьми', 'Первые люди', 'Люди из интернета'];
+  const ARR = [.12, .29, .46, .63, .8];
+  const blob = (cx, cy, r, seed, k) => { // гладкий замкнутый контур острова
+    const n = 14, P = Array.from({ length: n }, (_, i) => { const a = i / n * Math.PI * 2, rr = r * k * (1 + .13 * Math.sin(3 * a + seed) + .07 * Math.sin(5 * a + seed * 2)); return [cx + Math.cos(a) * rr * 1.15, cy + Math.sin(a) * rr * .82]; });
+    let d = `M${P[0][0].toFixed(1)} ${P[0][1].toFixed(1)}`;
+    for (let i = 0; i < n; i++) { const p0 = P[(i - 1 + n) % n], p1 = P[i], p2 = P[(i + 1) % n], p3 = P[(i + 2) % n]; d += `C${(p1[0] + (p2[0] - p0[0]) / 6).toFixed(1)} ${(p1[1] + (p2[1] - p0[1]) / 6).toFixed(1)} ${(p2[0] - (p3[0] - p1[0]) / 6).toFixed(1)} ${(p2[1] - (p3[1] - p1[1]) / 6).toFixed(1)} ${p2[0].toFixed(1)} ${p2[1].toFixed(1)}`; }
+    return d + 'Z';
+  };
+  const rNums = ISL.map(([cx, cy, r], i) => {
+    const g = mk($('rIslands'), 'g', {});
+    mk(g, 'path', { class: 'shal', d: blob(cx, cy, r, i * 1.7, 1.38) });
+    mk(g, 'path', { class: 'sand', d: blob(cx, cy, r, i * 1.7, 1) });
+    mk(g, 'path', { class: 'grass', d: blob(cx - r * .1, cy - r * .08, r, i * 1.7 + 1, .6) });
+    mk(g, 'path', { class: 'trunk', d: `M${cx + 8} ${cy + 10}Q${cx + 2} ${cy - 30} ${cx + 22} ${cy - 62}` });
+    [-150, -95, -40, 20].forEach(a => mk(g, 'ellipse', { class: 'leaf', cx: cx + 22, cy: cy - 62, rx: 38, ry: 11, transform: `rotate(${a} ${cx + 22} ${cy - 62}) translate(30 0)` }));
+    const t = mk(g, 'text', { class: 'il', x: cx, y: cy + r * .82 + 60 }); t.textContent = INAME[i];
+    const n = mk(g, 'g', { class: 'num', transform: `translate(${cx - r * .75} ${cy - r * .7})` }); mk(n, 'circle', { r: 30 }); const nt = mk(n, 'text', { y: 11 }); nt.textContent = i + 1;
+    return n;
+  });
+  const rSeg = RPT.slice(0, -1).map((a, k) => {
+    const P = i => RPT[clamp(i, 0, RPT.length - 1)], p0 = P(k - 1), p1 = P(k), p2 = P(k + 1), p3 = P(k + 2);
+    const d = `M${p1[0]} ${p1[1]}C${p1[0] + (p2[0] - p0[0]) / 6} ${p1[1] + (p2[1] - p0[1]) / 6} ${p2[0] - (p3[0] - p1[0]) / 6} ${p2[1] - (p3[1] - p1[1]) / 6} ${p2[0]} ${p2[1]}`;
+    mk($('rTrail'), 'path', { class: 'tr0', d });
+    return prep(mk($('rTrail'), 'path', { class: 'tr1', d }));
+  });
+  const segWin = k => [k === 0 ? .02 : ARR[k - 1] + .05, ARR[k]];
+  function layoutRoute() {}
+  function drawRoute(p) {
+    let sx = RPT[0][0], sy = RPT[0][1], dir = 1;
+    rSeg.forEach((seg, k) => {
+      const [a, b] = segWin(k), u = io3(clamp((p - a) / (b - a)));
+      drawLn(seg, u);
+      if (p >= a) { const q = seg.getPointAtLength(seg.__L * u), q2 = seg.getPointAtLength(Math.min(seg.__L, seg.__L * u + 2)); sx = q.x; sy = q.y; if (u < 1) dir = q2.x >= q.x ? 1 : -1; }
+    });
+    rNums.forEach((n, i) => n.classList.toggle('on', p >= ARR[i]));
+    const bob = Math.sin(p * 90) * 4, tilt = Math.sin(p * 70) * 3;
+    rShip.setAttribute('transform', `translate(${sx.toFixed(1)} ${(sy - 18 + bob).toFixed(1)}) rotate(${tilt.toFixed(2)}) scale(${dir} 1)`);
+    const fw = mob ? 620 : 980, fh = mob ? 720 : 620, f = [sx - fw / 2, sy - fh * .55, sx + fw / 2, sy + fh * .45], all = [0, 60, 1600, 1000];
+    const k = smooth(.02, .1, p) * (1 - smooth(.84, .95, p));
+    const cam = fitBox(rSvg, all.map((v, j) => lerp(v, f[j], k)), camTop(), capBot() * .9);
+    // волны едут вместе с камерой: отдельный слой, двигается только transform
+    const ox = -((cam.vx * cam.s) % 120 + 120) % 120, oy = -((cam.vy * cam.s) % 70 + 70) % 70;
+    rWaves.style.transform = `translate3d(${ox.toFixed(1)}px,${oy.toFixed(1)}px,0)`;
   }
 
   const DRAW = { hero: drawHero, how: drawHow, pear: drawPear, temple: drawTemple, route: drawRoute, geo: drawGeo };
@@ -1426,10 +1748,10 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
   }
   if (reduce) chs.forEach(c => c.classList.add('on'));
 
-  /* калькулятор дохода */
+  /* калькулятор дохода: всё в открытую, с формулой */
   {
-    const BK = [['Альфа', 16000], ['Инго', 20000], ['ВТБ', 7000], ['ПСБ', 10000], ['Озон', 8000], ['Уралсиб', 6000], ['Контур', 6000], ['Свой Банк', 6000]];
-    const EXTRA = 31877, TAX = .94, VAPE = 22000;
+    const BK = [['Альфа', 14000], ['Инго', 20000], ['ВТБ', 7000], ['ПСБ', 10000], ['Озон', 8000], ['Уралсиб', 6000], ['Контур', 6000], ['Свой Банк', 6000]];
+    const EXTRA = 31877, TAX = .94, VAPE = 50000;
     const cP = $('cPeople'), cB = $('cBanks'), cX = $('cExtra');
     const plural = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; };
     let shown = 0, raf2 = 0;
@@ -1438,17 +1760,16 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
       raf2 = requestAnimationFrame(step); };
     const paint = r => r.style.setProperty('--v', ((r.value - r.min) / (r.max - r.min) * 100) + '%');
     function calc() {
-      const p = +cP.value, b = +cB.value, per = BK.slice(0, b).reduce((a, x) => a + x[1], 0) + (cX.checked ? EXTRA : 0);
-      const mon = p * per * 30 / 7 * TAX, day = mon / 30;
-      $('oPeople').textContent = p; $('oBanks').textContent = b; paint(cP); paint(cB);
-      $('hPeople').textContent = p <= 2 ? 'Начни с себя и пары друзей.' : p <= 5 ? 'Друзья, знакомые, люди из чатов подработок.' : 'Это уже уровень, когда люди приходят из контента и рекламы.';
-      const names = BK.slice(0, b).map(x => x[0]);
-      $('hBanks').textContent = (b <= 3 ? names.join(' + ') : `${names.slice(0, 2).join(' + ')} и ещё ${b - 2}`) + ' · ' + fmt(BK.slice(0, b).reduce((a, x) => a + x[1], 0)) + ' ₽ с человека';
+      const n = +cP.value, b = +cB.value, banks = BK.slice(0, b), bsum = banks.reduce((a, x) => a + x[1], 0), per = bsum + (cX.checked ? EXTRA : 0);
+      const week = n * per, day = week / 7, mon = day * 30;
+      $('oPeople').textContent = n; $('oBanks').textContent = b; paint(cP); paint(cB);
+      $('hPeople').textContent = n <= 3 ? 'Ты сам и пара друзей.' : n <= 7 ? 'Около одного человека в день: друзья, знакомые, чаты подработок.' : 'Уже нужны люди из интернета: вакансии, реклама, ролики.';
+      $('hBanks').textContent = b === 1 ? 'Только Альфа: регистрация ИП · 14 000 ₽' : `${banks.slice(0, 3).map(x => x[0]).join(' + ')}${b > 3 ? ` и ещё ${b - 3}` : ''} · ${fmt(bsum)} ₽ с человека`;
       $('rMon').textContent = fmt(Math.round(mon / 1000) * 1000) + ' ₽';
+      $('rFormula').innerHTML = `${n} ${plural(n, 'человек', 'человека', 'человек')} × ${fmt(per)} ₽ = <b>${fmt(week)} ₽</b> в неделю. Делим на 7 дней — <b>${fmt(day)} ₽</b> в день.`;
       const v = Math.max(1, Math.round(mon / VAPE));
-      $('rCmp').innerHTML = `Это <b>${v} ${plural(v, 'зарплата', 'зарплаты', 'зарплат')}</b> в вейпшопе, где я стоял за 22 000 ₽.`;
-      const need = Math.ceil(14000 * 30 / (per * 30 / 7 * TAX) * 10) / 10;
-      $('rGoal').innerHTML = day >= 14000 ? '<b>Ты на цели: 14 000 ₽ в день и больше.</b>' : `До 14 000 ₽ в день: <b>${String(need).replace('.', ',')} ${need % 1 ? 'человека' : plural(need, 'человек', 'человека', 'человек')} в неделю</b> при тех же банках.`;
+      $('rCmp').innerHTML = `Это <b>${v} ${plural(v, 'зарплата', 'зарплаты', 'зарплат')}</b> в вейпшопе, где я получал 50 000 ₽.`;
+      $('rNet').textContent = `На руки после налога 6%: ${fmt(Math.round(mon * TAX / 1000) * 1000)} ₽ в месяц.`;
       roll(day);
     }
     [cP, cB, cX].forEach(i => i.addEventListener('input', calc)); calc();
@@ -1486,6 +1807,8 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     if (mode !== navMode) { navMode = mode; nav.className = 'nav ' + mode; }
     scenes.forEach(s => {
       if (y < s.top - H || y > s.top + s.h) return;
+      if (s.fxi) s.fxi.style.opacity = clamp((s.top - y) / (H * .75)).toFixed(3);
+      if (s.fxo) s.fxo.style.opacity = clamp((y - (s.top + s.h - H)) / (H * .75)).toFixed(3);
       const p = clamp((y - s.top) / (s.h - H)); if (p === s.p) return; s.p = p;
       drawCaps(s, p);
       DRAW[s.kind](p);
