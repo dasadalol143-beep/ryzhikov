@@ -14,100 +14,141 @@
 <meta property="og:locale" content="ru_RU">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="https://ryzhikovacademy.ru/">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#1d3df2">
+<link rel="preload" href="assets/fonts/oswald-normal-cyrillic.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="assets/fonts/oswald-normal-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23000'/%3E%3Cpath d='M12 26 32 12 52 26Z' fill='%23e3b55b'/%3E%3Cg fill='%23fff'%3E%3Crect x='16' y='28' width='6' height='20'/%3E%3Crect x='29' y='28' width='6' height='20'/%3E%3Crect x='42' y='28' width='6' height='20'/%3E%3Crect x='10' y='50' width='44' height='4'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preload" as="image" href="assets/scene/b0.webp" media="(min-width: 900px)">
 <link rel="preload" as="image" href="assets/scene/b0-m.webp" media="(max-width: 899px)">
 <style>
-/* Layout: как у Apple — одна мысль на экран. Тёмные киносцены (картины двигает скролл) чередуются со светлыми объясняющими блоками. */
+@font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:500 600;font-display:swap;src:url(assets/fonts/cormorant-italic-cyrillic.woff2) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116}
+@font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:500 600;font-display:swap;src:url(assets/fonts/cormorant-italic-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:500 600;font-display:swap;src:url(assets/fonts/cormorant-normal-cyrillic.woff2) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116}
+@font-face{font-family:'Cormorant Garamond';font-style:normal;font-weight:500 600;font-display:swap;src:url(assets/fonts/cormorant-normal-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Oswald';font-style:normal;font-weight:500 700;font-display:swap;src:url(assets/fonts/oswald-normal-cyrillic.woff2) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116}
+@font-face{font-family:'Oswald';font-style:normal;font-weight:500 700;font-display:swap;src:url(assets/fonts/oswald-normal-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+@font-face{font-family:'Oswald';font-style:normal;font-weight:500 700;font-display:swap;src:url(assets/fonts/oswald-normal-latinext.woff2) format('woff2');unicode-range:U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF}
+@font-face{font-family:'Caveat';font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/caveat-cyrillic.woff2) format('woff2');unicode-range:U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116}
+@font-face{font-family:'Caveat';font-style:normal;font-weight:600;font-display:swap;src:url(assets/fonts/caveat-latin.woff2) format('woff2');unicode-range:U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD}
+/* Мраморный журнал: античный мрамор, вырезанный из журнала, на кобальтовом небе и тёплой бумаге.
+   Сцены двигает прокрутка, объясняющие блоки — страницы журнала. */
 :root{
-  --bg:#ffffff;      /* светлые блоки */
-  --bg2:#f5f5f7;     /* серые блоки */
-  --ink:#1d1d1f;     /* текст */
-  --ink2:#6e6e73;    /* второстепенный */
-  --line:#d2d2d7;
-  --gold:#a8771f;    /* акцент на светлом */
-  --gold2:#e3b55b;   /* акцент на тёмном */
-  --red:#c4442f;     /* потери */
-  --dark:#000000;
-  --f:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Inter","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --kob:#1d3df2;       /* эгейский кобальт: небо, акценты */
+  --kob2:#1530c9;      /* тень кобальта */
+  --paper:#f2ede3;     /* тёплая журнальная бумага */
+  --paper2:#e9e2d4;    /* бумага темнее */
+  --marble:#fbf9f4;    /* мрамор, карточки */
+  --bg:var(--paper);
+  --bg2:var(--paper2);
+  --ink:#141414;       /* чернила */
+  --ink2:#5d574d;      /* второстепенный текст */
+  --line:rgba(20,20,20,.16);
+  --gold:var(--kob);   /* акцент на светлом (имя осталось от прошлой версии) */
+  --gold2:#ffffff;     /* акцент на кобальте и тёмном */
+  --money:#1d3df2;
+  --red:#c4442f;
+  --f:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --fd:"Oswald","Arial Narrow",Impact,sans-serif;               /* огромные сжатые цифры и слова */
+  --fs:"Cormorant Garamond",Georgia,"Times New Roman",serif;    /* журнальные подписи */
+  --fh:"Caveat","Comic Sans MS",cursive;                         /* маркерные пометки */
+  --ease-out:cubic-bezier(.23,1,.32,1);
+  --ease-io:cubic-bezier(.77,0,.175,1);
   --gl:max(20px,env(safe-area-inset-left,0px));
   --gr:max(20px,env(safe-area-inset-right,0px));
   color-scheme:light;
 }
 *{box-sizing:border-box}
-html{background:var(--bg);-webkit-text-size-adjust:100%}
+html{background:var(--bg);-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
 html.lenis,html.lenis body{height:auto}
 .lenis.lenis-smooth{scroll-behavior:auto!important}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:17px;line-height:1.47;letter-spacing:-.01em;-webkit-font-smoothing:antialiased;overflow-x:hidden}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:#000}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f);font-size:17px;line-height:1.5;letter-spacing:-.01em;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:60;background:var(--kob)}
 img,video{max-width:100%;display:block}
 a{color:inherit}
-:focus-visible{outline:2px solid #0071e3;outline-offset:3px;border-radius:6px}
-h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.025em;line-height:1.07;text-wrap:balance}
+:focus-visible{outline:2px solid var(--kob);outline-offset:3px}
+h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.02em;line-height:1.05;text-wrap:balance}
 p{margin:0}
 main{overflow-x:clip}
+button,a,[role="button"],summary,label.tgl{touch-action:manipulation}
+button,.btn,summary,.tgl,.chips span{-webkit-user-select:none;user-select:none}
 
 /* ---------- шрифтовая шкала ---------- */
-.eyebrow{display:block;font-size:clamp(17px,1.4vw,21px);font-weight:600;color:var(--gold);letter-spacing:-.01em;margin-bottom:10px}
-.dark .eyebrow,.scene .eyebrow{color:var(--gold2)}
-.h1{font-size:clamp(44px,7.2vw,96px);letter-spacing:-.035em;line-height:1.02}
-.h2{font-size:clamp(36px,5.2vw,64px);letter-spacing:-.03em}
-.h3{font-size:clamp(26px,3vw,40px)}
-.lead{font-size:clamp(19px,1.7vw,24px);line-height:1.38;color:var(--ink2);font-weight:500;max-width:34em;letter-spacing:-.015em}
-.lead b{color:var(--ink);font-weight:600}
-.dark .lead{color:#a1a1a6}.dark .lead b{color:#f5f5f7}
-.gold{color:var(--gold)}.dark .gold,.scene .gold{color:var(--gold2)}
+.eyebrow{display:block;font-family:var(--fs);font-style:italic;font-size:clamp(20px,1.7vw,24px);font-weight:600;color:var(--kob);letter-spacing:0;margin-bottom:10px}
+.dark .eyebrow,.scene .eyebrow,.kob .eyebrow{color:#fff}
+.h1,.h2{font-family:var(--fd);font-weight:600;text-transform:uppercase;letter-spacing:-.01em;line-height:.98}
+.h1{font-size:clamp(46px,7.6vw,112px)}
+.h2{font-size:clamp(38px,5.6vw,80px)}
+.h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(28px,3.2vw,44px);letter-spacing:0;line-height:1.02}
+.lead{font-size:clamp(18px,1.6vw,22px);line-height:1.42;color:var(--ink2);font-weight:500;max-width:34em;letter-spacing:-.012em}
+.lead b{color:var(--ink);font-weight:650}
+.dark .lead,.kob .lead{color:rgba(255,255,255,.82)}.dark .lead b,.kob .lead b{color:#fff}
+.gold{color:var(--kob)}.dark .gold,.scene .gold,.kob .gold{color:#fff}
 .center{text-align:center;margin-inline:auto}
 .small{font-size:14px;color:var(--ink2)}
+.hand{font-family:var(--fh);font-weight:600;color:var(--kob);font-size:clamp(24px,2.4vw,32px);line-height:1}
 
 /* ---------- каркас ---------- */
-.wrap{width:100%;max-width:1080px;margin:0 auto;padding-left:var(--gl);padding-right:var(--gr)}
-section.blk{padding-block:clamp(90px,13vh,150px)}
+.wrap{width:100%;max-width:1160px;margin:0 auto;padding-left:var(--gl);padding-right:var(--gr)}
+section.blk{position:relative;padding-block:clamp(96px,14vh,160px)}
 .bg2{background:var(--bg2)}
-.dark{background:#000;color:#f5f5f7}
-.head{max-width:820px;margin-bottom:clamp(40px,6vh,64px)}
+.dark{background:#0f0f10;color:#f5f5f7}
+.kob{background:var(--kob);color:#fff}
+.head{max-width:860px;margin-bottom:clamp(40px,6vh,64px)}
 .head.center{text-align:center}
 .head.center .lead{margin-inline:auto}
-.head .lead{margin-top:16px}
-.tile{background:var(--bg);border-radius:24px;padding:clamp(24px,3vw,36px);min-width:0}
-.bg2 .tile{background:#fff}
-.dark .tile{background:#1d1d1f}
-.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px}
-.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
-.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:20px}
+.head .lead{margin-top:18px}
+.tile{background:var(--marble);border:1px solid var(--line);border-radius:4px;padding:clamp(24px,3vw,36px);min-width:0}
+.bg2 .tile{background:var(--marble)}
+.dark .tile{background:#1c1c1e;border-color:rgba(255,255,255,.1)}
+.kob .tile{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.22);color:#fff}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
 @media (max-width:900px){.grid3,.grid4{grid-template-columns:1fr 1fr}}
 @media (max-width:640px){.grid2,.grid3,.grid4{grid-template-columns:1fr}}
+/* глава журнала: подпись слева, тонкая линейка, номер справа */
+section[data-chap]::before{content:attr(data-chap);position:absolute;left:0;right:0;top:clamp(28px,4.5vh,48px);max-width:1160px;margin:0 auto;padding:0 var(--gr) 10px var(--gl);font-family:var(--fs);font-style:italic;font-size:17px;font-weight:600;color:var(--ink2);border-bottom:1px solid var(--line);background-clip:content-box;pointer-events:none}
+.kob[data-chap]::before,.dark[data-chap]::before{color:rgba(255,255,255,.75);border-color:rgba(255,255,255,.25)}
 
-/* ---------- кнопки ---------- */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 24px;border-radius:980px;font:600 17px/1 var(--f);letter-spacing:-.01em;text-decoration:none;border:0;cursor:pointer;transition:background .2s,transform .2s}
-.btn-gold{background:var(--gold2);color:#1d1d1f}
-.btn-gold:hover{background:#efc46f}
-.btn-dark{background:#1d1d1f;color:#fff}
-.btn-dark:hover{background:#333}
-.link{font-size:17px;font-weight:500;color:#2997ff;text-decoration:none}
-.link:hover{text-decoration:underline}
-.scene .link{color:#fff}
-.ctas{display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center;margin-top:28px}
+/* ---------- кнопки: отклик на нажатие, наведение только для мыши ---------- */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:0 28px;border-radius:2px;font:600 17px/1 var(--fd);text-transform:uppercase;letter-spacing:.04em;text-decoration:none;border:0;cursor:pointer;transition:transform 160ms var(--ease-out),background-color 200ms ease,color 200ms ease}
+.btn:active{transform:scale(.97)}
+.btn-gold{background:var(--kob);color:#fff}
+.kob .btn-gold,.dark .btn-gold,.scene .btn-gold{background:#fff;color:var(--kob)}
+.btn-dark{background:var(--ink);color:#fff}
+.link{font-family:var(--fd);font-size:17px;font-weight:500;text-transform:uppercase;letter-spacing:.06em;color:var(--kob);text-decoration:none;border-bottom:1.5px solid currentColor;padding-bottom:2px}
+.scene .link,.kob .link{color:#fff}
+@media (hover:hover) and (pointer:fine){
+  .btn-gold:hover{background:var(--kob2)}
+  .kob .btn-gold:hover,.dark .btn-gold:hover,.scene .btn-gold:hover{background:var(--paper)}
+  .btn-dark:hover{background:#2c2c2e}
+  .link:hover{opacity:.75}
+}
+.ctas{display:flex;flex-wrap:wrap;gap:14px 24px;align-items:center;margin-top:30px}
 .center .ctas,.ctas.center{justify-content:center}
 
-/* ---------- навигация ---------- */
-.nav{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:50;height:52px;display:flex;align-items:center;transition:background .3s,color .3s}
-.nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:20px}
-.nav.light{background:rgba(255,255,255,.94);color:var(--ink);box-shadow:0 1px 0 rgba(0,0,0,.08)}
-.nav.dim{background:rgba(0,0,0,.72);color:#f5f5f7}
-.nav.clear{background:transparent;color:#f5f5f7}
-.logo{font-weight:600;font-size:19px;letter-spacing:-.02em;text-decoration:none}
-.nav ul{display:flex;gap:28px;list-style:none;margin:0;padding:0;font-size:14px}
+/* ---------- навигация: журнальная шапка с двойной линейкой ---------- */
+.nav{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;z-index:50;height:56px;display:flex;align-items:center;transition:background-color .3s ease,color .3s ease}
+.nav::after{content:"";position:absolute;left:var(--gl);right:var(--gr);bottom:0;height:4px;border-top:1px solid currentColor;border-bottom:1px solid currentColor;opacity:.35;pointer-events:none}
+.nav .wrap{display:flex;align-items:center;justify-content:space-between;gap:20px;max-width:none}
+.nav.light{background:rgba(242,237,227,.94);color:var(--ink)}
+.nav.dim{background:rgba(21,48,201,.92);color:#fff}
+.nav.clear{background:transparent;color:#fff}
+.logo{font-family:var(--fd);font-weight:700;font-size:22px;letter-spacing:.06em;text-transform:uppercase;text-decoration:none}
+.nav .vol{font-family:var(--fs);font-style:italic;font-size:15px;line-height:1.1;font-weight:600;opacity:.85}
+.nav ul{display:flex;gap:26px;list-style:none;margin:0;padding:0;font-family:var(--fd);font-size:14px;letter-spacing:.06em;text-transform:uppercase}
 .nav ul a{text-decoration:none;opacity:.85}
-.nav ul a:hover{opacity:1}
-.nav .btn{min-height:34px;padding:0 16px;font-size:14px}
+@media (hover:hover) and (pointer:fine){.nav ul a:hover{opacity:1}}
+.nav .btn{min-height:36px;padding:0 16px;font-size:14px}
+.nav.clear .btn-gold,.nav.dim .btn-gold{background:#fff;color:var(--kob)}
+@media (max-width:1100px){.nav .vol{display:none}}
 @media (max-width:820px){.nav ul{display:none}}
-.progress{position:fixed;top:calc(52px + env(safe-area-inset-top,0px));left:0;right:0;height:2px;z-index:49;pointer-events:none}
-.progress i{display:block;height:100%;width:100%;transform-origin:0 0;transform:scaleX(0);background:var(--gold2);will-change:transform}
+.progress{position:fixed;top:calc(56px + env(safe-area-inset-top,0px));left:0;right:0;height:2px;z-index:49;pointer-events:none}
+.progress i{display:block;height:100%;width:100%;transform-origin:0 0;transform:scaleX(0);background:var(--kob);will-change:transform}
+.nav.clear~.progress i,.nav.dim~.progress i{background:#fff}
 
-/* ---------- появление: быстро и просто ---------- */
-.js [data-r]{opacity:0;transform:translate3d(0,28px,0);transition:opacity .6s cubic-bezier(.25,.1,.25,1),transform .7s cubic-bezier(.25,.1,.25,1);transition-delay:calc(var(--i,0) * 70ms)}
+/* ---------- появление: быстро, снизу, с лёгким поворотом как наклеенная вырезка ---------- */
+.js [data-r]{opacity:0;transform:translate3d(0,26px,0);transition:opacity .6s var(--ease-out),transform .8s var(--ease-out);transition-delay:calc(var(--i,0) * 60ms)}
 .js [data-r].in{opacity:1;transform:none}
 
 /* ---------- сцены: картины двигает скролл ---------- */
@@ -125,7 +166,7 @@ section.blk{padding-block:clamp(90px,13vh,150px)}
 .cap p{font-size:clamp(17px,1.5vw,21px);line-height:1.4;color:#d2d2d7;max-width:30em;margin:12px auto 0;font-weight:500}
 .cap.top{bottom:auto;top:calc(96px + env(safe-area-inset-top,0px))}
 .chips{position:absolute;left:0;right:0;bottom:calc(32px + env(safe-area-inset-bottom,0px));z-index:6;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;padding-inline:var(--gl);pointer-events:none}
-.chips span{font-size:13px;font-weight:600;color:rgba(245,245,247,.55);padding:6px 12px;border-radius:980px;border:1px solid rgba(245,245,247,.2);transition:all .3s}
+.chips span{font-size:13px;font-weight:600;color:rgba(245,245,247,.55);padding:6px 12px;border-radius:980px;border:1px solid rgba(245,245,247,.2);transition:background-color .3s ease,color .3s ease,border-color .3s ease}
 .chips span.on{color:#000;background:var(--gold2);border-color:var(--gold2)}
 .chips span.done{color:#f5f5f7;border-color:rgba(227,181,91,.6)}
 .tag{position:absolute;left:0;top:0;z-index:5;opacity:0;pointer-events:none;display:flex;flex-direction:column;align-items:center;will-change:transform,opacity}
@@ -193,6 +234,7 @@ section.blk{padding-block:clamp(90px,13vh,150px)}
 }
 
 /* ---------- сцены-карты ---------- */
+#geo .stage{background:radial-gradient(ellipse 90% 80% at 50% 45%,#1d3df2,#1530c9)}
 .mapv{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform;max-width:none;pointer-events:none;user-select:none}
 .svgl{position:absolute;inset:0;width:100%;height:100%;z-index:2;pointer-events:none;overflow:visible}
 .svgl .trail{fill:none;stroke:rgba(90,60,20,.45);stroke-width:2.5;stroke-dasharray:2 9;stroke-linecap:round}
@@ -391,7 +433,7 @@ main{position:relative;z-index:1;background:var(--bg)}
 .fbrand p{margin:14px 0 22px;max-width:30ch}
 .fcol h4{margin:0 0 12px;font-size:15px;font-weight:600;color:#f5f5f7}
 .fcol a{display:block;padding:5px 0;color:#a1a1a6;text-decoration:none;transition:color .2s}
-.fcol a:hover,.fbot a:hover{color:#f5f5f7}
+@media (hover:hover) and (pointer:fine){.fcol a:hover,.fbot a:hover{color:#f5f5f7}}
 .freq{display:flex;flex-wrap:wrap;gap:6px 26px;margin-top:56px;padding-top:24px;border-top:1px solid rgba(255,255,255,.12);font-size:14px;color:#d2d2d7}
 .fdisc{margin:16px 0 0;max-width:1000px;font-size:12.5px;line-height:1.6;color:#86868b}
 .fbot{display:flex;justify-content:space-between;gap:16px;margin-top:30px;font-size:13px;color:#86868b}
@@ -543,7 +585,7 @@ img.drop.dseed{width:24px;height:auto}
 .pipe-line i{display:block;height:100%;width:100%;transform-origin:0 0;transform:scaleX(0);background:var(--gold2)}
 .pipe-coin{position:absolute;top:0;left:0;width:18px;height:18px;border-radius:50%;background:var(--gold2);box-shadow:0 0 0 4px #fff,0 2px 8px rgba(0,0,0,.2);z-index:1;will-change:transform}
 .pipe>.st{text-align:center;min-width:0;position:relative}
-.pipe>.st::before{content:"";display:block;width:10px;height:10px;border-radius:50%;margin:-27px auto 18px;background:#fff;border:2px solid var(--line);transition:all .3s}
+.pipe>.st::before{content:"";display:block;width:10px;height:10px;border-radius:50%;margin:-27px auto 18px;background:#fff;border:2px solid var(--line);transition:background-color .3s ease,color .3s ease,border-color .3s ease}
 .pipe>.st.on::before{background:var(--gold2);border-color:var(--gold2)}
 .pipe b{display:block;font-size:17px;font-weight:600}
 .pipe span{display:block;font-size:14px;color:var(--ink2);margin-top:2px;line-height:1.35}
@@ -646,8 +688,7 @@ img.drop.dseed{width:24px;height:auto}
 .q{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;padding:18px 20px;border-radius:18px;background:#fff}
 .q p{font-weight:600;min-width:0;flex:1 1 260px}
 .q .opts{display:flex;gap:8px}
-.q button{font:600 15px/1 var(--f);padding:11px 18px;border-radius:980px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;transition:all .2s}
-.q button:hover{border-color:var(--ink)}
+.q button{font:600 15px/1 var(--f);padding:11px 18px;border-radius:980px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;transition:background-color .2s ease,color .2s ease,border-color .2s ease}
 .q button[aria-pressed="true"]{background:var(--ink);color:#fff;border-color:var(--ink)}
 .verdict{padding:22px 24px;border-radius:18px;border:1px dashed var(--line);color:var(--ink2);text-align:center}
 .verdict.ok{border:0;background:var(--ink);color:#f5f5f7}
@@ -677,6 +718,292 @@ footer .wrap{display:grid;gap:8px}
 footer a{color:var(--ink)}
 
 @media (prefers-reduced-motion:reduce){.js [data-r]{opacity:1;transform:none;transition:none}.mouse::after{animation:none}}
+/* ---------- первый экран: кобальтовое небо, облака, Аполлон между цифрами ---------- */
+.hero-stage{background:radial-gradient(ellipse 80% 70% at 50% 38%,#3157ff 0%,#1d3df2 55%,#1530c9 100%)}
+.hgrid{position:absolute;inset:0;pointer-events:none;background:linear-gradient(90deg,rgba(255,255,255,.12) 1px,transparent 1px) 0 0/calc(100% / 6) 100%,radial-gradient(circle at 50% 120%,transparent 54%,rgba(255,255,255,.14) 54.1%,transparent 54.3%,transparent 68%,rgba(255,255,255,.1) 68.1%,transparent 68.3%)}
+.cloudbox{position:absolute;inset:0;pointer-events:none;will-change:transform}
+.cl{position:absolute;max-width:none;opacity:0;transition:opacity 1.2s var(--ease-out)}
+.ready .cl{opacity:1}
+.cl.c1{width:38vw;left:-7vw;top:9vh;animation:drift 46s linear infinite alternate}
+.cl.c2{width:30vw;right:-6vw;top:26vh;transform:scaleX(-1);animation:drift2 52s linear infinite alternate}
+.cl.c3{width:24vw;left:34vw;bottom:-4vh;opacity:0;animation:drift 60s linear infinite alternate-reverse}
+.ready .cl.c3{opacity:.9}
+@keyframes drift{from{translate:0 0}to{translate:6vw 0}}
+@keyframes drift2{from{translate:0 0}to{translate:-5vw 0}}
+.hbig{position:absolute;left:0;right:0;top:calc(76px + 9vh);display:flex;justify-content:center;pointer-events:none;z-index:2}
+.hbig.front{z-index:4}
+.hbw{display:flex;gap:.06em;font-family:var(--fd);font-weight:600;font-size:min(23vw,44vh);line-height:.78;color:#fff;letter-spacing:-.015em;white-space:nowrap;will-change:transform}
+.hbw span{display:block;will-change:transform;opacity:0;transform:translate3d(0,24%,0);transition:opacity .9s var(--ease-out),transform 1.1s var(--ease-out)}
+.hbw .hb-b{transition-delay:.08s}.hbw .hb-c{transition-delay:.16s}
+.ready .hbw span{opacity:1;transform:none}
+.hbig.front .hb-a,.hbig.front .hb-b{visibility:hidden}
+.apbox{position:absolute;left:0;bottom:0;height:min(92vh,960px);z-index:3;transform-origin:50% 100%;will-change:transform}
+.apollo{height:100%;width:auto;max-width:none;opacity:0;transform:translate3d(0,6%,0);transition:opacity 1s var(--ease-out) .15s,transform 1.4s var(--ease-out) .15s}
+.ready .apollo{opacity:1;transform:none}
+.notif{position:absolute;left:0;top:0;z-index:5;width:300px;pointer-events:none;will-change:transform}
+.notif .nf{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.97);color:var(--ink);box-shadow:0 24px 40px -18px rgba(0,0,0,.5);opacity:0;transform:translate3d(0,10px,0) scale(.94);transform-origin:20% 100%;transition:opacity .5s var(--ease-out) 1.05s,transform .7s var(--ease-out) 1.05s}
+.ready .notif .nf{opacity:1;transform:none}
+.nf i{flex:none;width:36px;height:36px;border-radius:10px;display:grid;place-items:center;background:var(--kob);color:#fff;font-style:normal;font-weight:700;font-size:18px}
+.nf div{min-width:0;flex:1}
+.nf b{display:block;font-size:13px;line-height:1.2}
+.nf span{display:block;font-size:12px;color:var(--ink2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.nf strong{font-family:var(--fd);font-weight:600;font-size:22px;color:var(--kob);white-space:nowrap}
+.notif .mk{position:absolute;left:-26px;top:-24px;width:calc(100% + 52px);height:calc(100% + 48px);overflow:visible;pointer-events:none}
+.mk path{fill:none;stroke:#fff;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;vector-effect:non-scaling-stroke}
+.ready .notif .mk path{stroke-dashoffset:0;transition:stroke-dashoffset 1s var(--ease-io) 1.6s}
+.notif .note{position:absolute;left:8px;top:calc(100% + 22px);color:#fff;transform:rotate(-5deg);white-space:nowrap;opacity:0;transition:opacity .6s ease 2.3s}
+.ready .notif .note{opacity:1}
+.hcap{position:absolute;left:var(--gl);bottom:clamp(20px,6vh,64px);z-index:6;max-width:470px;padding:22px 24px 24px;background:var(--paper);color:var(--ink);transform:rotate(-1.2deg);box-shadow:0 26px 50px -24px rgba(0,0,0,.55);opacity:0;translate:0 18px;transition:opacity .8s var(--ease-out) .45s,translate 1s var(--ease-out) .45s;will-change:transform,opacity}
+.ready .hcap{opacity:1;translate:0 0}
+.hcap::before{content:"";position:absolute;left:50%;top:-12px;width:110px;height:24px;margin-left:-55px;background:rgba(242,237,227,.72);transform:rotate(2.5deg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.hcap .eyebrow{color:var(--kob);font-size:19px;margin-bottom:6px}
+.hh{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(30px,3.1vw,44px);line-height:1;letter-spacing:0}
+.hh em{font-style:normal;color:var(--kob)}
+.hl{margin-top:12px;font-size:16px;line-height:1.45;color:var(--ink2)}
+.hcap .link{display:inline-block;margin-top:16px;color:var(--kob)}
+@media (max-width:900px){
+  .hbig{top:calc(70px + 4vh)}
+  .hbw{font-size:30vw}
+  .apbox{height:min(56svh,470px);bottom:calc(16px + 190px)}
+  .notif .note{top:auto;bottom:calc(100% + 16px)}
+  .cl.c1{width:62vw;top:12vh}.cl.c2{width:52vw;top:30vh}.cl.c3{width:60vw;left:20vw}
+  .notif{width:250px}
+  .nf strong{font-size:19px}
+  .hcap{left:16px;right:16px;bottom:16px;max-width:none;padding:18px 18px 20px;transform:rotate(-.8deg)}
+  .hcap .eyebrow{font-size:17px}
+  .hh{font-size:29px}
+  .hl{font-size:15px}
+}
+@media (prefers-reduced-motion:reduce){.cl{animation:none}}
+/* ================= Мраморный журнал: блоки и сцены ================= */
+/* цифры — сжатый Oswald, как заголовки журнала */
+.stats b,.big3 b,.feat .sum,.case .sum,.prod .big,.vs .tile .big,.step .n,.way b,.pear-total b,.cres .day,.ch .sn,.thud .total,.seedcard b,.res .day{font-family:var(--fd);font-weight:600;letter-spacing:0}
+.cap h2{font-family:var(--fd);font-weight:600;text-transform:uppercase;letter-spacing:0;line-height:1}
+.cap .eyebrow{font-size:clamp(19px,1.6vw,23px)}
+/* углы: журнальная печать — прямые, без «таблеток» */
+.tile,.agenda,.feat,.case,.mods,.traps,.q,.verdict,.shot,.shot .im,.vid,.way,.partners div,.chat,.rules li,.fresh,.how-calc,.bsteps li,.tried-end,.flow .money,.node .pay,.inside span,.order span,.prod .meta span,.vs .tile,.gcard{border-radius:3px}
+.q button,.chips span,.path span{border-radius:2px}
+/* фото: белая рамка, лёгкий наклон и полоска скотча — как вклеено в журнал */
+.photo{border-radius:0;border:10px solid #fff;box-shadow:0 22px 44px -24px rgba(0,0,0,.45);background:#fff}
+.me .photo{rotate:-1.6deg}
+.feat .photo{rotate:1.2deg}
+.me .photo,.feat .photo{position:relative;overflow:visible}
+.me .photo::after,.feat .photo::after{content:"";position:absolute;left:50%;top:-16px;width:120px;height:28px;margin-left:-60px;background:rgba(242,237,227,.78);transform:rotate(-3deg);box-shadow:0 1px 2px rgba(0,0,0,.1)}
+.case{background:var(--marble);border:1px solid var(--line)}
+.case .photo{border:0;box-shadow:none}
+.mate img{border-radius:0;border:6px solid #fff;box-shadow:0 14px 30px -18px rgba(0,0,0,.4)}
+.team .mate:nth-child(odd) img{rotate:-1.2deg}.team .mate:nth-child(even) img{rotate:1.2deg}
+/* кто я */
+.stats b{font-size:clamp(30px,3.2vw,46px)}
+.agenda{background:var(--marble);border:1px solid var(--line)}
+.agenda h3{font-family:var(--fd);text-transform:uppercase;font-weight:600;letter-spacing:0}
+.agenda li::before{border-radius:0;background:var(--kob);color:#fff;font-family:var(--fd);font-weight:600}
+/* история */
+.story::before{background:var(--line)}
+.story .sfill{background:linear-gradient(var(--red),var(--kob) 55%)}
+.ch.on::before{border-color:var(--kob);background:var(--kob)}
+.ch::before{background:var(--paper)}
+.ch .sn{font-size:clamp(34px,4.4vw,60px)}
+.ch .sn.top{color:var(--kob)}
+.ch h3{font-family:var(--fs);font-style:italic;font-size:clamp(23px,2.2vw,28px);font-weight:600;letter-spacing:0}
+.ch .q{border-color:var(--kob);font-family:var(--fs);font-style:italic;font-size:21px;font-weight:600;line-height:1.3}
+.sv{background:var(--marble);border:1px solid var(--line);border-radius:3px}
+.sv svg{stroke:var(--kob)}
+/* что ты пробовал: кобальтовая страница */
+#tried .vs4 .tile.bad{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.22)}
+#tried .vs4 .tile.bad h3{color:#fff;text-decoration:none;position:relative;display:inline-block}
+#tried .vs4 .tile.bad h3::after{content:"";position:absolute;left:-4px;right:-4px;top:52%;height:3px;background:#fff;transform:scaleX(0) rotate(-3deg);transform-origin:0 50%;transition:transform .6s var(--ease-io) .35s}
+#tried .vs4 .tile.bad.in h3::after{transform:scaleX(1) rotate(-3deg)}
+#tried .vs4 .tile.bad dt{color:rgba(255,255,255,.6)}
+#tried .vs4 .tile.bad dd{color:#fff}
+#tried .vs4 .tile.win{background:var(--paper);color:var(--ink);border:0;box-shadow:0 30px 60px -30px rgba(0,0,0,.55);rotate:-1deg}
+#tried .vs4 .tile.win h3{color:var(--kob);font-family:var(--fd);text-transform:uppercase;font-weight:600;letter-spacing:0;font-size:24px}
+#tried .vs4 .tile.win dt{color:var(--ink2)}#tried .vs4 .tile.win dd{color:var(--ink)}#tried .vs4 .tile.win dd.g{color:var(--kob)}
+.vs4 h3{font-family:var(--fd);text-transform:uppercase;font-weight:600;letter-spacing:0}
+.tried-end{background:var(--paper);color:var(--ink);box-shadow:0 30px 60px -30px rgba(0,0,0,.55);rotate:.6deg}
+.tried-end span{font-family:var(--fs);font-style:italic;text-transform:none;letter-spacing:0;font-size:20px;opacity:1;color:var(--kob)}
+.tried-end p{font-family:var(--fd);text-transform:uppercase;font-weight:600;letter-spacing:0;line-height:1.08}
+.tried-end b{color:var(--ink);padding:0 .18em;border-radius:0;background:linear-gradient(var(--kob),var(--kob)) no-repeat 0 0/0% 100%;transition:background-size .9s var(--ease-io) .35s,color .35s ease .7s}
+.tried-end.in b{background-size:100% 100%;color:#fff}
+/* схема ниши */
+.flow .st .ic{border-radius:3px;background:var(--marble);border:1px solid var(--line);font-family:var(--fd);color:var(--kob)}
+.flow .st.you .ic{background:var(--kob);color:#fff;border-color:var(--kob)}
+.flow h4,.node h4,.way h4,.rules h4,.mods h4,.terms h4,.vs .tile h4,.prod h3,.step h3,.feat h3,.plan h3,.partners b{font-family:var(--fd);text-transform:uppercase;font-weight:600;letter-spacing:.01em}
+.flow .money{background:rgba(29,61,242,.1);color:var(--kob)}
+.nos span::before{color:var(--kob)}
+/* продукты */
+.prod.main{background:var(--kob);border-color:var(--kob)}
+.prod.main .k{color:#fff}.prod.main p,.prod.main .big small{color:rgba(255,255,255,.8)}
+.prod.main .meta span{background:rgba(255,255,255,.14)}
+.prod .meta span,.order span{background:var(--paper)}
+.vs .tile.win{background:var(--kob);color:#fff;border-color:var(--kob)}.vs .tile.win .big{color:#fff}.vs .tile.win p{color:rgba(255,255,255,.8)}
+/* старт */
+.step .n{font-size:64px}
+.step{background:var(--marble)!important}
+.way{background:var(--marble);border:1px solid var(--line)}
+.way.best{background:var(--kob);border-color:var(--kob)}
+.way.best .tg,.way.best b{color:#fff}.way.best p{color:rgba(255,255,255,.85)}
+.partners div{background:var(--marble);border:1px solid var(--line)}
+.chat{background:var(--paper2)}
+.msg{border-radius:18px 18px 18px 4px;background:var(--marble)}
+.msg.me{border-radius:18px 18px 4px 18px;background:var(--kob)}
+.why-m{border-color:var(--kob)}
+.pipe-line i,.pipe-coin{background:var(--kob)}
+.pipe>.st::before{transition:background-color .3s ease,border-color .3s ease}
+.pipe>.st.on::before{background:var(--kob);border-color:var(--kob)}
+.tree{background:var(--paper2)!important}
+.tree::before{background:var(--kob)}
+.node .med{border-color:var(--kob);box-shadow:0 0 0 6px var(--paper2);font-family:var(--fd);color:var(--kob)}
+.node.you .med{background:var(--kob);color:#fff;border-color:var(--kob)}
+.node .pay{background:var(--marble);color:var(--kob)}
+/* правила: римские номера, как высечено в камне */
+.rules li{background:var(--marble);border:1px solid var(--line)}
+.rules .rn{border-radius:0;background:transparent;color:var(--kob);font-family:var(--fs);font-size:30px;font-weight:600;width:auto;min-width:40px;height:auto}
+.rules li.hl{background:var(--kob);box-shadow:none;border-color:var(--kob)}
+.rules li.hl .rn{background:transparent}.rules li.hl .rn,.rules li.hl h4{color:#fff}.rules li.hl p{color:rgba(255,255,255,.85)}
+.rules li.no{background:#fbeee9;box-shadow:none;border-color:#e8a493}
+.rules li.no .rn{background:transparent;color:var(--red)}
+/* калькулятор */
+.cres{background:var(--kob)!important;border-color:var(--kob)!important}
+.cres .day{color:#fff;font-size:clamp(56px,7vw,96px)}
+.cres .k,.cres .net{color:rgba(255,255,255,.75)}
+.cres .cmp,.cres .formula{color:rgba(255,255,255,.9)}
+.cres .cmp b,.cres .formula b{color:#fff}
+.cres .formula{background:rgba(255,255,255,.1);border-radius:2px}
+.rng label output{font-family:var(--fd);color:var(--kob)}
+input[type=range]::-webkit-slider-runnable-track{background:linear-gradient(90deg,var(--kob) var(--v),var(--line) var(--v))}
+input[type=range]::-moz-range-progress{background:var(--kob)}
+.tgl input:checked+i{background:var(--kob)}
+.mini b{color:var(--kob)}
+.how-calc{background:var(--marble);border:1px solid var(--line)}
+/* ученики */
+.big3 b{font-size:clamp(52px,6.4vw,92px)}
+.feat{background:var(--marble);border:1px solid var(--line)}
+.feat .sum{color:var(--kob)}
+.feat blockquote{font-family:var(--fs);font-style:italic;font-size:22px;line-height:1.35}
+.shot{background:var(--paper)}
+/* академия: кобальтовая страница */
+#academy .mods{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.2)}
+#academy .mods li{border-color:rgba(255,255,255,.14)}
+#academy .mods .n,#academy .mods .res::before{color:#fff}
+#academy .mods h4{color:#fff}#academy .mods p{color:rgba(255,255,255,.7)}#academy .mods .res{color:#fff}
+#academy .h3{color:#fff}
+#academy .mate b{color:#fff}#academy .mate span{color:rgba(255,255,255,.75)}
+#academy .inside span{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.2)}
+#academy .fresh{background:var(--paper);color:var(--ink)}
+#academy .fresh p{color:var(--ink2)}#academy .fresh b{color:var(--kob)}
+#academy .fresh .fi{background:var(--kob);color:#fff;border-radius:0}
+#academy .honest{color:#fff;font-family:var(--fs);font-style:italic;font-weight:600}
+/* вопросы и тест */
+.faq summary{font-family:var(--fs);font-weight:600;font-size:clamp(22px,2vw,27px);letter-spacing:0}
+.faq summary::after{color:var(--kob)}
+.q{background:var(--marble);border:1px solid var(--line)}
+.q button{border-radius:2px;background:var(--marble);transition:background-color .2s ease,border-color .2s ease,color .2s ease,transform 160ms var(--ease-out)}
+.q button:active{transform:scale(.97)}
+.q button[aria-pressed="true"]{background:var(--kob);border-color:var(--kob)}
+.verdict.ok{background:var(--kob)}
+@media (hover:hover) and (pointer:fine){.q button:hover{border-color:var(--ink)}}
+/* финал */
+.final-bg img{opacity:.5}
+.final-bg::after{background:linear-gradient(180deg,#0f0f10 0%,rgba(21,48,201,.55) 35%,rgba(15,15,16,.75) 75%,#0f0f10 100%)}
+.bsteps span{border-radius:0;background:#fff;color:var(--kob);font-family:var(--fd)}
+.plan li::before{color:#fff;font-family:var(--fd)}
+/* коллаж: вырезки, которые медленно плывут при прокрутке */
+.cut{position:absolute;max-width:none;pointer-events:none;user-select:none;z-index:0;will-change:transform}
+section.blk>.wrap{position:relative;z-index:1}
+.note-h{position:absolute;font-family:var(--fh);font-weight:600;font-size:clamp(24px,2.3vw,32px);line-height:1;color:var(--kob);white-space:nowrap;pointer-events:none;opacity:0;transform:rotate(-6deg) translate3d(0,8px,0);transition:opacity .6s ease .5s,transform .8s var(--ease-out) .5s}
+.note-h.in{opacity:1;transform:rotate(-6deg)}
+.kob .note-h{color:#fff}
+.note-h svg{display:block;width:70px;height:46px;margin-top:4px;overflow:visible}
+.note-h svg path{fill:none;stroke:currentColor;stroke-width:2.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset .8s var(--ease-io) .9s}
+.note-h.in svg path{stroke-dashoffset:0}
+@media (max-width:900px){.note-h{display:none}.cut.dm{display:none}}
+
+/* ---------- сцены в новой гамме ---------- */
+.scene .shade{background:linear-gradient(0deg,rgba(12,26,128,.94) 0%,rgba(12,26,128,.55) 30%,rgba(12,26,128,0) 56%)}
+#income .shade{background:linear-gradient(0deg,rgba(0,0,0,.85) 0%,rgba(0,0,0,.45) 28%,rgba(0,0,0,0) 55%)}
+.chips span{color:rgba(255,255,255,.7);border-color:rgba(255,255,255,.35);transition:background-color .3s ease,color .3s ease,border-color .3s ease;font-family:var(--fd);text-transform:uppercase;letter-spacing:.05em}
+.chips span.on{color:var(--kob);background:#fff;border-color:#fff}
+.chips span.done{color:#fff;border-color:#fff}
+/* как это работает */
+.bg-how{background:radial-gradient(ellipse 80% 70% at 50% 40%,#3157ff 0%,#1d3df2 55%,#1530c9 100%)}
+.bg-how::before{background:radial-gradient(rgba(255,255,255,.12) 1.4px,transparent 1.6px) 0 0/28px 28px}
+#howSvg .eb{stroke:rgba(255,255,255,.4)}
+#howSvg .eg{stroke:#fff}
+#howSvg .disc{fill:var(--marble);stroke:rgba(255,255,255,.4)}
+#howSvg .nd.on .disc{fill:#fff}
+#howSvg .halo{stroke:#fff}
+#howSvg .ic{stroke:var(--ink)}
+#howSvg .yt{fill:var(--kob);font-family:var(--fd);font-weight:600}
+#howSvg .nl{fill:#fff;font-family:var(--fd);font-weight:600;text-transform:uppercase;letter-spacing:1px}
+#howSvg .ns{fill:rgba(255,255,255,.82)}
+#howSvg .mid .big{fill:#fff;font-family:var(--fd);font-weight:600;letter-spacing:0}
+#howSvg .mid .sub{fill:rgba(255,255,255,.88);font-family:var(--fs);font-style:italic;font-size:34px}
+#howSvg .ring2{stroke:#fff}
+#howSvg .badge{fill:#fff}
+#howSvg .bt{fill:var(--kob);font-family:var(--fd);text-transform:uppercase}
+#howSvg .tok{fill:var(--paper)}
+#howSvg .tt{font-family:var(--fd);text-transform:uppercase}
+#howSvg .cn circle{fill:#fff;stroke:var(--kob2)}
+#howSvg .cn text{fill:var(--kob)}
+/* храм: кобальтовый чертёж, колонны заливаются мрамором */
+.bg-temple{background:radial-gradient(ellipse 80% 70% at 50% 40%,#2c50ff 0%,#1d3df2 50%,#1530c9 100%)}
+.bg-temple::before{background:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px) 0 0/32px 32px,linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px) 0 0/32px 32px,linear-gradient(rgba(255,255,255,.14) 1px,transparent 1px) 0 0/160px 160px,linear-gradient(90deg,rgba(255,255,255,.14) 1px,transparent 1px) 0 0/160px 160px}
+#tSvg .ln{stroke:#fff}
+#tSvg .ln.thin{stroke:rgba(255,255,255,.55)}
+#tSvg .lb{fill:var(--ink);font-family:var(--fd);font-weight:600;letter-spacing:1px}
+#tSvg .dim{fill:rgba(255,255,255,.7);font-family:var(--fs);font-style:italic;font-size:24px;letter-spacing:1px}
+.thud.tdk .total{color:#fff}
+.thud.tdk .bn{color:#fff;font-family:var(--fd);text-transform:uppercase;font-weight:600;letter-spacing:.02em}
+.thud.tdk .bn em{color:#fff;font-style:normal;border-bottom:2px solid #fff}
+.thud.tdk p{color:rgba(255,255,255,.8)}
+/* маршрут: старинная карта чернилами на бумаге */
+.bg-sea{background:#efe6d1}
+.bg-sea::after{background:radial-gradient(ellipse at 50% 40%,rgba(255,255,255,.35),transparent 70%)}
+.waves{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='70'%3E%3Cpath d='M10 30q15 -10 30 0t30 0' fill='none' stroke='rgba(20,20,20,.16)' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M70 62q12 -8 24 0' fill='none' stroke='rgba(20,20,20,.1)' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E")}
+#rSvg .shal{fill:rgba(29,61,242,.1)}
+#rSvg .sand{fill:#f8f2e4;stroke:#141414;stroke-width:3}
+#rSvg .grass{fill:rgba(29,61,242,.22)}
+#rSvg .trunk{stroke:#141414;stroke-width:6}
+#rSvg .leaf{fill:#1d3df2}
+#rSvg .num circle{fill:var(--paper);stroke:#141414;stroke-width:3}
+#rSvg .num text{fill:#141414;font-family:var(--fs)}
+#rSvg .num.on circle{fill:var(--kob);stroke:var(--kob)}
+#rSvg .num.on text{fill:#fff}
+#rSvg .il{fill:#141414;font-family:var(--fs);font-style:italic;font-size:34px;stroke:#efe6d1}
+#rSvg .tr0{stroke:rgba(20,20,20,.45)}
+#rSvg .tr1{stroke:var(--kob)}
+#rSvg .hull{fill:#141414;stroke:#141414}
+#rSvg .mast{stroke:#141414}
+#rSvg .sail{fill:#fbf9f4;stroke:#141414}
+#rSvg .sail2{fill:#efe6d1;stroke:#141414}
+#rSvg .flag{fill:var(--kob)}
+#rSvg .wake{stroke:rgba(20,20,20,.45)}
+.shade.sea{background:linear-gradient(0deg,rgba(239,230,209,.98) 0%,rgba(239,230,209,.75) 30%,rgba(239,230,209,0) 58%)}
+#route .cap{color:var(--ink)}
+#route .cap p{color:var(--ink2)}
+#route .cap p b{color:var(--ink)}
+#route .eyebrow{color:var(--kob)}
+/* география: кобальтовая карта, белые огни */
+.dotc{background:#fff;box-shadow:0 0 10px #fff,0 0 22px rgba(255,255,255,.6)}
+.pin i{background:#fff;box-shadow:0 0 14px #fff}
+.pin i::after{border-color:#fff}
+.svgl .arcl{stroke:#fff}
+.gcard{background:var(--paper);color:var(--ink);border:0}
+.gcard .gl{color:var(--kob)}
+.gcard b{font-family:var(--fd);text-transform:uppercase;font-weight:600;letter-spacing:0}
+.gcard p{color:var(--ink2)}
+.gcard img{border-radius:0;border:5px solid #fff;box-shadow:0 8px 20px -10px rgba(0,0,0,.4)}
+/* груша: подписи в журнальном стиле */
+.seedcard{border-radius:3px}
+.seedcard .n{color:var(--kob)}
+.seedcard .dot{background:#fff;box-shadow:0 0 12px #fff}
+.pear-total span{font-family:var(--fs);font-style:italic;font-size:21px;color:#e5e5ea}
+@media (max-width:900px){#tried>.cut{width:96px!important;right:-14px!important;top:14px!important}}
+/* подсказка «листай» */
+.hint{border-radius:2px;font-family:var(--fd);text-transform:uppercase;letter-spacing:.06em;background:rgba(20,20,20,.78)}
+.mouse::after{background:#fff}
+@media (prefers-reduced-motion:reduce){.hero-stage *,.note-h,.note-h svg path,.tried-end b,#tried .tile.bad h3::after{transition:none!important}}
 </style>
 </head>
 <body>
@@ -685,6 +1012,7 @@ footer a{color:var(--ink)}
 <nav class="nav clear" id="nav" aria-label="Разделы">
   <div class="wrap">
     <a class="logo" href="#hero">Рыжиков</a>
+    <span class="vol">Партнёрки банков<br>Vol. 01 · 2026</span>
     <ul>
       <li><a href="#how">Как это работает</a></li>
       <li><a href="#income">Доход</a></li>
@@ -715,23 +1043,34 @@ footer a{color:var(--ink)}
 <main>
 
 <!-- ========== 1. ОБЕЩАНИЕ ========== -->
-<section class="scene" id="hero" style="--len:1.4;--to:#fff" data-scene="hero" data-dark>
-  <div class="stage">
-    <img class="layer" data-bg="b0" alt="" fetchpriority="high">
-    <img class="obj" id="olive" src="assets/scene/olive.webp" alt="" fetchpriority="high">
-    <div class="veil" id="heroVeil" style="opacity:.35"></div>
-    <div class="fx-out"></div>
-    <div class="hero-cap" id="heroCap">
-      <span class="eyebrow">Пётр Рыжиков · партнёрки банков</span>
-      <h1 class="h1">Научись делать <span class="gold">14&nbsp;000&nbsp;₽ в&nbsp;день</span> вместе со&nbsp;мной.</h1>
-      <p class="lead">Хоть параллельно с работой. Партнёрки платят за новых клиентов, и 14 000 ₽ — это всего один оффер.</p>
-      <div class="ctas center"><a class="link" href="#calc">Посчитать свой доход ›</a></div>
+<section class="scene" id="hero" style="--len:1.6;--to:#f2ede3" data-scene="hero" data-dark>
+  <div class="stage hero-stage">
+    <div class="hgrid" aria-hidden="true"></div>
+    <div class="cloudbox" id="cloudBox" aria-hidden="true">
+      <img class="cl c1" src="assets/v3/cloud.webp" alt="" fetchpriority="high">
+      <img class="cl c2" src="assets/v3/cloud.webp" alt="">
+      <img class="cl c3" src="assets/v3/cloud.webp" alt="">
     </div>
+    <div class="hbig" aria-hidden="true"><div class="hbw" id="hbBack"><span class="hb-a">14</span><span class="hb-b">000</span><span class="hb-c">₽</span></div></div>
+    <div class="apbox" id="apBox"><img class="apollo" src="assets/v3/apollo.webp" alt="Мраморная статуя Аполлона с протянутой ладонью" fetchpriority="high"></div>
+    <div class="hbig front" aria-hidden="true"><div class="hbw" id="hbFront"><span class="hb-a">14</span><span class="hb-b">000</span><span class="hb-c">₽</span></div></div>
+    <div class="notif" id="notif" aria-hidden="true">
+      <div class="nf"><i>₽</i><div><b>Партнёрка · выплата</b><span>Альфа-Банк · регистрация ИП</span></div><strong>+14 000 ₽</strong></div>
+      <svg class="mk" viewBox="0 0 300 120" preserveAspectRatio="none"><path pathLength="1" d="M210 14C150 2 52 6 22 34C-4 58 22 100 108 110C190 118 282 102 290 64C296 30 236 10 160 12"/></svg>
+      <span class="hand note">твой первый оффер</span>
+    </div>
+    <div class="hcap" id="heroCap">
+      <span class="eyebrow">Пётр Рыжиков · партнёрки банков</span>
+      <h1 class="hh">Научись делать <em>14&nbsp;000&nbsp;₽ в&nbsp;день</em> вместе со&nbsp;мной.</h1>
+      <p class="hl">Хоть параллельно с работой. Партнёрки платят за новых клиентов, и 14 000 ₽ — это всего один оффер.</p>
+      <a class="link" href="#calc">Посчитать свой доход ›</a>
+    </div>
+    <div class="fx-out"></div>
   </div>
 </section>
 
 <!-- ========== 2. КТО Я ========== -->
-<section class="blk" id="me">
+<section class="blk" id="me" data-chap="Глава I · Кто я">
   <div class="wrap">
     <div class="me">
       <figure class="photo" data-r style="margin:0"><img src="assets/img/sq/kopilka.webp" alt="Пётр показывает баланс копилки 4 476 439 ₽ в приложении банка" decoding="async"></figure>
@@ -761,11 +1100,12 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== ИСТОРИЯ ========== -->
-<section class="blk bg2" id="story">
+<section class="blk bg2" id="story" data-chap="Глава II · Кем был и кем стал">
   <div class="wrap">
-    <div class="head center">
+    <div class="head center" style="position:relative">
       <span class="eyebrow" data-r>Моя история</span>
       <h2 class="h2" data-r>Кем я был. Кем я стал.</h2>
+      <div class="note-h" style="right:6%;top:-10px">без прикрас<svg viewBox="0 0 70 46"><path pathLength="1" d="M60 4C44 12 30 24 22 42M22 42L18 30M22 42L33 38"/></svg></div>
       <p class="lead" data-r>Без богатых родителей, связей и капитала. Как было на самом деле.</p>
     </div>
     <div class="story" id="storyList">
@@ -784,7 +1124,8 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== ЧТО ТЫ УЖЕ ПРОБОВАЛ ========== -->
-<section class="blk" id="tried">
+<section class="blk kob" id="tried" data-chap="Глава III · Что ты уже пробовал">
+  <img class="cut" data-par=".1" data-rot="8" src="assets/v3/column.webp" alt="" loading="lazy" style="width:clamp(150px,22vw,300px);right:clamp(-40px,-2vw,0px);top:64px">
   <div class="wrap">
     <div class="head center">
       <span class="eyebrow" data-r>Знакомо?</span>
@@ -818,7 +1159,7 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== 3. КАК ЭТО РАБОТАЕТ (сцена) ========== -->
-<section class="scene" id="how" style="--len:4.6;--from:#fff;--to:#fff" data-scene="how" data-dark>
+<section class="scene" id="how" style="--len:4.6;--from:#1d3df2;--to:#f2ede3" data-scene="how" data-dark>
   <div class="stage bg-how">
     <svg class="wsvg" id="howSvg" viewBox="0 0 1600 1000" aria-hidden="true">
       <defs>
@@ -867,7 +1208,7 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== 4. ВЫВОД: СХЕМА ========== -->
-<section class="blk" id="scheme">
+<section class="blk" id="scheme" data-chap="Глава IV · Вся ниша">
   <div class="wrap">
     <div class="head center">
       <img class="drop dcoin" data-drop="coin" src="assets/scene/coin.webp" alt="">
@@ -887,7 +1228,7 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== 5. ДОХОД: ГРУША (сцена) ========== -->
-<section class="scene" id="income" style="--len:4.4;--from:#fff;--to:#f5f5f7" data-scene="pear" data-dark>
+<section class="scene" id="income" style="--len:4.4;--from:#f2ede3;--to:#e9e2d4" data-scene="pear" data-dark>
   <div class="stage">
     <img class="layer" data-bg="b4" alt="">
     <div class="pshadow" id="pearShadow"></div>
@@ -916,7 +1257,7 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== 6. ЧЕТЫРЕ ПРОДУКТА ========== -->
-<section class="blk bg2" id="products">
+<section class="blk bg2" id="products" data-chap="Глава V · Из чего доход">
   <div class="wrap">
     <div class="head">
       <img class="drop dseed" data-drop="seed" src="assets/scene/seed.webp" alt="">
@@ -940,7 +1281,7 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== 7. ХРАМ: строится при прокрутке ========== -->
-<section class="scene" id="temple" style="--len:4.8;--from:#f5f5f7;--to:#fff" data-scene="temple" data-dark>
+<section class="scene" id="temple" style="--len:4.8;--from:#e9e2d4;--to:#f2ede3" data-scene="temple" data-dark>
   <div class="stage bg-temple">
     <svg class="wsvg" id="tSvg" viewBox="0 0 1600 1000" aria-label="Храм одного человека: фундамент — ИП, колонны — банки, крыша — карты и займы">
       <defs>
@@ -948,8 +1289,8 @@ footer a{color:var(--ink)}
         <pattern id="tGrid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" fill="none" stroke="rgba(227,181,91,.07)" stroke-width="1"/></pattern>
         <pattern id="tGrid2" width="200" height="200" patternUnits="userSpaceOnUse"><path d="M200 0H0V200" fill="none" stroke="rgba(227,181,91,.12)" stroke-width="1.2"/></pattern>
         <linearGradient id="tGold" x1="0" x2="1"><stop offset="0" stop-color="#b8862f"/><stop offset=".45" stop-color="#f3d38a"/><stop offset="1" stop-color="#a87422"/></linearGradient>
-        <linearGradient id="tGoldV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6dc9a"/><stop offset="1" stop-color="#c08f37"/></linearGradient>
-        <radialGradient id="tGlow"><stop offset="0" stop-color="rgba(255,214,130,.55)"/><stop offset="1" stop-color="rgba(255,214,130,0)"/></radialGradient>
+        <linearGradient id="tGoldV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9d4ca"/></linearGradient>
+        <radialGradient id="tGlow"><stop offset="0" stop-color="rgba(255,255,255,.4)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></radialGradient>
       </defs>
       <circle id="tGlowC" cx="800" cy="420" r="760" fill="url(#tGlow)" opacity="0"/>
       <g id="tTemple"></g>
@@ -964,14 +1305,15 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== КАЛЬКУЛЯТОР ========== -->
-<section class="blk" id="calc">
+<section class="blk" id="calc" data-chap="Глава VI · Калькулятор">
   <div class="wrap">
     <div class="head center">
       <span class="eyebrow" data-r>Калькулятор</span>
       <h2 class="h2" data-r>Сколько это будет у тебя.</h2>
       <p class="lead" data-r>14 000 ₽ — это один оффер: твой человек бесплатно открывает ИП на НПД через Альфа-Банк. Один такой человек в день — и есть 14 000 ₽ в день.</p>
     </div>
-    <div class="calc">
+    <div class="calc" style="position:relative">
+      <div class="note-h" style="right:4%;top:-58px">вот столько — каждый день<svg viewBox="0 0 70 46"><path pathLength="1" d="M8 4C26 10 40 22 46 40M46 40L35 35M46 40L53 29"/></svg></div>
       <div class="tile" data-r style="background:var(--bg2)">
         <div class="rng"><label for="cPeople">Людей в неделю <output id="oPeople">7</output></label>
           <input type="range" id="cPeople" min="1" max="14" step="1" value="7">
@@ -1006,7 +1348,8 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== 8. КАК ЗАЙТИ ========== -->
-<section class="blk" id="start">
+<section class="blk" id="start" data-chap="Глава VII · Как зайти с нуля">
+  <img class="cut dm" data-par=".12" data-rot="-4" src="assets/v3/runner.webp" alt="" loading="lazy" style="width:clamp(160px,17vw,250px);right:2vw;top:40px">
   <div class="wrap">
     <div class="head center">
       <span class="eyebrow" data-r>Как зайти с нуля</span>
@@ -1111,7 +1454,7 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== МАРШРУТ: корабль плывёт по островам ========== -->
-<section class="scene" id="route" style="--len:4.6;--from:#fff;--to:#f5f5f7" data-scene="route" data-dark>
+<section class="scene" id="route" style="--len:4.6;--from:#f2ede3;--to:#e9e2d4" data-scene="route" data-dark>
   <div class="stage bg-sea">
     <div class="waves" id="rWaves"></div>
     <svg class="wsvg" id="rSvg" viewBox="0 0 1600 1000" aria-hidden="true">
@@ -1136,7 +1479,7 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== 9. ОШИБКИ ========== -->
-<section class="blk bg2" id="traps">
+<section class="blk bg2" id="traps" data-chap="Глава VIII · Правила">
   <div class="wrap">
     <div class="head">
       <span class="eyebrow" data-r>Честно</span>
@@ -1144,20 +1487,20 @@ footer a{color:var(--ink)}
       <p class="lead" data-r>Простая — значит каждый шаг понятен и повторим. Это получится у любого, кто делает. Не лёгкая — значит нужны системность и время: миллионером завтра не станешь. Но почти всех потерь можно избежать. Вот правила.</p>
     </div>
     <ol class="rules">
-      <li class="hl" data-r><span class="rn">1</span><div><h4>Веди человека по всем банкам</h4><p>Один банк — 7–20 тысяч. Все счета, карты и займы — <b>до 108 877 ₽</b> с того же человека. Бросить после первого банка — главная потеря новичков.</p></div></li>
-      <li class="hl" data-r style="--i:1"><span class="rn">2</span><div><h4>Регистрируйся в партнёрках сам</h4><p>Это официально: ты вебмастер, партнёрка платит тебе напрямую. Через «знакомого в теме» отдаёшь половину — так было у Вити, пока он не пришёл ко мне.</p></div></li>
-      <li data-r><span class="rn">3</span><div><h4>Спроси, был ли человек клиентом банка</h4><p>Банк платит только за новых. Была карта три года назад — выплаты не будет. Один вопрос до ссылки экономит вечер.</p></div></li>
-      <li data-r style="--i:1"><span class="rn">4</span><div><h4>Узнай условие банка до открытия</h4><p>Каждый банк просит одно действие: пополнить счёт или сделать пару платежей. Не сделал по условиям — выплаты нет.</p></div></li>
-      <li data-r><span class="rn">5</span><div><h4>Не закрывай счёт сразу после выплаты</h4><p>Иначе партнёрка может отменить уже засчитанные деньги. Это называется срез.</p></div></li>
-      <li data-r style="--i:1"><span class="rn">6</span><div><h4>Соблюдай порядок</h4><p>Сначала счета для ИП, потом дебетовые и кредитные карты, займы — последним. Человек видит первые деньги и доверяет дальше.</p></div></li>
-      <li data-r><span class="rn">7</span><div><h4>Сверяй ставки каждую неделю</h4><p>Они меняются каждый месяц, и один банк на разных партнёрках стоит по-разному.</p></div></li>
+      <li class="hl" data-r><span class="rn">I</span><div><h4>Веди человека по всем банкам</h4><p>Один банк — 7–20 тысяч. Все счета, карты и займы — <b>до 108 877 ₽</b> с того же человека. Бросить после первого банка — главная потеря новичков.</p></div></li>
+      <li class="hl" data-r style="--i:1"><span class="rn">II</span><div><h4>Регистрируйся в партнёрках сам</h4><p>Это официально: ты вебмастер, партнёрка платит тебе напрямую. Через «знакомого в теме» отдаёшь половину — так было у Вити, пока он не пришёл ко мне.</p></div></li>
+      <li data-r><span class="rn">III</span><div><h4>Спроси, был ли человек клиентом банка</h4><p>Банк платит только за новых. Была карта три года назад — выплаты не будет. Один вопрос до ссылки экономит вечер.</p></div></li>
+      <li data-r style="--i:1"><span class="rn">IV</span><div><h4>Узнай условие банка до открытия</h4><p>Каждый банк просит одно действие: пополнить счёт или сделать пару платежей. Не сделал по условиям — выплаты нет.</p></div></li>
+      <li data-r><span class="rn">V</span><div><h4>Не закрывай счёт сразу после выплаты</h4><p>Иначе партнёрка может отменить уже засчитанные деньги. Это называется срез.</p></div></li>
+      <li data-r style="--i:1"><span class="rn">VI</span><div><h4>Соблюдай порядок</h4><p>Сначала счета для ИП, потом дебетовые и кредитные карты, займы — последним. Человек видит первые деньги и доверяет дальше.</p></div></li>
+      <li data-r><span class="rn">VII</span><div><h4>Сверяй ставки каждую неделю</h4><p>Они меняются каждый месяц, и один банк на разных партнёрках стоит по-разному.</p></div></li>
       <li class="no" data-r style="--i:1"><span class="rn">!</span><div><h4>Никогда не передавай карты и доступы</h4><p>Карта, пароли и коды — только у владельца. Если просят передать — это не РКО, а дропперство. Отказывайся сразу.</p></div></li>
     </ol>
   </div>
 </section>
 
 <!-- ========== ИЗ ЛЮБОГО ГОРОДА (сцена-карта) ========== -->
-<section class="scene" id="geo" style="--len:4;--from:#f5f5f7;--to:#fff" data-scene="geo" data-dark>
+<section class="scene" id="geo" style="--len:4;--from:#e9e2d4;--to:#f2ede3" data-scene="geo" data-dark>
   <div class="stage">
     <img class="mapv" id="geoMap" data-src="map" alt="">
     <div id="cityDots"></div>
@@ -1175,7 +1518,8 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== 10. УЧЕНИКИ ========== -->
-<section class="blk" id="students">
+<section class="blk" id="students" data-chap="Глава IX · Ученики">
+  <img class="cut" data-par=".16" data-rot="0" src="assets/v3/cloud.webp" alt="" loading="lazy" style="width:clamp(220px,30vw,420px);left:-4vw;top:120px;opacity:.95">
   <div class="wrap">
     <div class="head center">
       <span class="drop dpin" data-drop="pin" aria-hidden="true"><i></i><b></b></span>
@@ -1227,7 +1571,7 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== 11. ОБУЧЕНИЕ ========== -->
-<section class="blk bg2" id="academy">
+<section class="blk kob" id="academy" data-chap="Глава X · Академия">
   <div class="wrap">
     <div class="head">
       <span class="eyebrow" data-r>Ryzhikov Academy</span>
@@ -1257,7 +1601,8 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== 12. ВОПРОСЫ И ТЕСТ ========== -->
-<section class="blk" id="faq">
+<section class="blk" id="faq" data-chap="Глава XI · Вопросы">
+  <img class="cut dm" data-par=".08" data-rot="-3" src="assets/v3/bust.webp" alt="" loading="lazy" style="width:clamp(200px,22vw,330px);right:1vw;top:80px">
   <div class="wrap">
     <div class="head center"><span class="eyebrow" data-r>Вопросы</span><h2 class="h2" data-r>То, что ты сейчас думаешь.</h2><p class="lead" data-r>Это реальные вопросы людей, которые приходили ко мне на разбор.</p></div>
     <div class="faq" data-r style="max-width:820px;margin-inline:auto">
@@ -1287,7 +1632,8 @@ footer a{color:var(--ink)}
 </section>
 
 <!-- ========== 13. ПРИГЛАШЕНИЕ ========== -->
-<section class="blk dark final" id="final">
+<section class="blk dark final" id="final" data-chap="Глава XII · Твой ход">
+  <img class="cut dm" data-par=".06" data-rot="-2" src="assets/v3/hand.webp" alt="" loading="lazy" style="width:clamp(260px,34vw,520px);left:-3vw;top:clamp(380px,46vh,480px);z-index:2">
   <div class="final-bg" aria-hidden="true"><img src="assets/film/k6.webp" alt="" loading="lazy" decoding="async"></div>
   <div class="wrap">
     <div class="head center">
@@ -1420,15 +1766,34 @@ document.querySelectorAll('[data-channel]').forEach(a => { if (LINKS.channel.len
     c.el.style.transform = `translate3d(0,${(1 - smooth(c.a, c.a + fi * 1.4, p)) * 18 - smooth(c.b - fi, c.b, p) * 12}px,0)`;
   });
 
-  /* — 1. обещание: картина храма, текст уходит вверх, камера наезжает — */
-  const HE = S('hero'), heroCap = $('heroCap'), heroVeil = $('heroVeil'), olive = $('olive');
+  /* — 1. первый экран: Аполлон между цифрами, уведомление лежит на ладони — */
+  const HE = S('hero'), heroCap = $('heroCap'), apBox = $('apBox'), notif = $('notif'), cloudBox = $('cloudBox');
+  const hbRows = ['hbBack', 'hbFront'].map(id => [...$(id).children]);
+  const PALM = [.165, .545];                        // точка ладони на картинке статуи (доли ширины и высоты)
   let HG = {};
-  function layoutHero() { HG.r = coverRect(mob ? .62 : .5, .5); sizeLayer(HE.bgs.b0, HG.r); sizeObj(olive, Math.max(W * .4, 300)); }
+  function layoutHero() {
+    const bh = apBox.offsetHeight, bw = bh * 687 / 1024;
+    const x0 = mob ? W * .5 - bw * .52 : Math.min(W * .58, W - bw * .62) - bw * .5;
+    HG = { bh, bw, x0, bot: H - parseFloat(getComputedStyle(apBox).bottom || 0), nw: notif.offsetWidth, nh: notif.firstElementChild.offsetHeight };
+  }
   function drawHero(p) {
-    moveLayer(HE.bgs.b0, HG.r, .645, .5, 1.04 + .3 * io3(p), 1);
-    heroCap.style.opacity = 1 - smooth(.15, .6, p);
-    heroCap.style.transform = `translate3d(0,${-p * H * .25}px,0) scale(${1 - .05 * p})`;
-    putObj(olive, olive.__w * .38 - p * W * .5, olive.__w * .22 - p * H * .5, 1, -4 + p * 12, 1 - smooth(.3, .7, p));
+    const { bh, bw, x0, bot, nw, nh } = HG, s = 1 + .07 * ease(p), ty = -p * H * .05;
+    apBox.style.transform = `translate3d(${x0.toFixed(1)}px,${ty.toFixed(1)}px,0) scale(${s.toFixed(4)})`;
+    // цифры расходятся в стороны, ₽ уезжает вправо
+    const spread = ease(p) * W * (mob ? .12 : .16);
+    hbRows.forEach(r => { r[0].style.translate = `${(-spread).toFixed(1)}px 0`; r[2].style.translate = `${spread.toFixed(1)}px 0`; r[1].style.translate = `0 ${(-p * 20).toFixed(1)}px`; });
+    cloudBox.style.transform = `translate3d(0,${(-p * H * .22).toFixed(1)}px,0)`;
+    // ладонь после масштаба вокруг низа статуи
+    const ox = x0 + bw / 2, oy = bot, px = ox + (x0 + PALM[0] * bw - ox) * s, py = oy + (bot - bh + PALM[1] * bh - oy) * s + ty;
+    const nx = clamp(px - nw * .28, 12, W - nw - 12), nyTop = py - nh - 4;
+    notif.style.transform = `translate3d(${nx.toFixed(1)}px,${nyTop.toFixed(1)}px,0)`;
+    heroCap.style.transform = `translate3d(0,${(-p * H * .12).toFixed(1)}px,0)`;
+  }
+  // вход: статуя поднимается, цифры собираются, уведомление ложится на ладонь, маркер обводит его
+  {
+    const go = () => requestAnimationFrame(() => HE.sec.querySelector('.stage').classList.add('ready'));
+    const img = apBox.firstElementChild;
+    if (reduce) go(); else Promise.race([img.decode ? img.decode().catch(() => {}) : Promise.resolve(), new Promise(r => setTimeout(r, 1200))]).then(go);
   }
 
   /* — 5. груша — */
@@ -1603,6 +1968,8 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
       g.setAttribute('transform', `translate(${x.toFixed(1)} ${y.toFixed(1)})`); setOp(g, 1);
     });
     setOp(hMid, 1 - smooth(.15, .19, p));
+    // на шаге «друг → банк» «Ты» уходит под титры, поэтому гасим его
+    setOp(hN.you, 1 - smooth(.54, .58, p) * (1 - smooth(.70, .74, p)));
     setOp(hSum, smooth(.84, .87, p));
     hSumT.textContent = '+' + fmt(14000 * ease(clamp((p - .85) / .07))) + ' ₽';
   }
@@ -1775,6 +2142,19 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     [cP, cB, cX].forEach(i => i.addEventListener('input', calc)); calc();
   }
 
+  /* коллаж: вырезки плывут медленнее страницы, пометки маркером появляются при входе в экран */
+  const cuts = [...document.querySelectorAll('.cut[data-par]')].map(el => ({ el, k: +el.dataset.par, rot: +(el.dataset.rot || 0), top: 0, h: 0 }));
+  const layoutCuts = () => cuts.forEach(c => { c.el.style.transform = 'none'; c.top = absTop(c.el); c.h = c.el.offsetHeight; });
+  function drawCuts(y) {
+    if (reduce) return;
+    cuts.forEach(c => {
+      const d = c.top + c.h / 2 - (y + H / 2); if (Math.abs(d) > H * 1.4) return;
+      c.el.style.transform = `translate3d(0,${(d * c.k).toFixed(1)}px,0) rotate(${(c.rot + d * c.k * .012).toFixed(2)}deg)`;
+    });
+  }
+  { const nio = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); nio.unobserve(e.target); } }), { rootMargin: '0px 0px -15% 0px' });
+    document.querySelectorAll('.note-h,.tried-end').forEach(n => nio.observe(n)); }
+
   /* остальное, что движется */
   const pipe = $('pipe'), pipeFill = $('pipeFill'), pipeCoin = $('pipeCoin'), pipeSteps = [...pipe.querySelectorAll('.st')];
   const nav = $('nav'), prog = $('prog'), hint = $('hint'), finalBg = document.querySelector('.final-bg img'), finalSec = $('final');
@@ -1783,7 +2163,7 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
   function layout() {
     W = innerWidth; H = innerHeight; mob = W < 900;
     scenes.forEach(s => { s.top = absTop(s.sec); s.h = s.sec.offsetHeight; s.p = -1; });
-    layoutHero(); layoutHow(); layoutPear(); layoutTemple(); layoutRoute(); layoutDrops(); layoutStory();
+    layoutHero(); layoutHow(); layoutPear(); layoutTemple(); layoutRoute(); layoutDrops(); layoutStory(); layoutCuts();
     const vertical = getComputedStyle(pipe).gridTemplateColumns.split(' ').length === 1;
     PIPE = { top: absTop(pipe), vertical, pts: pipeSteps.map(s => vertical ? s.offsetTop + 10 : s.offsetLeft + s.offsetWidth / 2) };
     FIN = { top: absTop(finalSec), h: finalSec.offsetHeight };
@@ -1797,7 +2177,7 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     const moved = y !== lastY; if (moved) lastMove = performance.now();
     const idle = performance.now() - lastMove;
     let inScene = null; scenes.forEach(s => { if (y >= s.top - 2 && y < s.top + s.h - H) inScene = s; });
-    hint.classList.toggle('on', y < 30 || (!!inScene && idle > 1400));
+    hint.classList.toggle('on', !(mob && y < H) && (y < 30 || (!!inScene && idle > 1400)));
     hint.classList.toggle('light', !!inScene && !inScene.dark);
     if (!moved) return;
     lastY = y;
@@ -1813,7 +2193,7 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
       drawCaps(s, p);
       DRAW[s.kind](p);
     });
-    drops.forEach(d => drawDrop(d, y)); drawStory(y);
+    drops.forEach(d => drawDrop(d, y)); drawStory(y); drawCuts(y);
     // подвал выезжает из-под финала: лёгкий подъём и проявление, колонки раскрываются по очереди
     const fr0 = y + H - FOOT.top;
     if (fr0 > -50) { const r = clamp(fr0 / Math.min(FOOT.h, H)); if (!reduce) { footIn.style.transform = `translate3d(0,${(1 - ease(r)) * 70}px,0)`; footIn.style.opacity = .25 + .75 * r; } if (r > .3) foot.classList.add('in'); }
