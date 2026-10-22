@@ -499,15 +499,15 @@ function renderLeads() {
     ${selectedFilters().length > 1 ? `<div class="sub" style="margin:0 4px 6px">Показаны сразу: ${selectedFilters().map((f) => FILTERS.find((x) => x[0] === f)?.[1] || STAGE_LABELS[f] || f).join(" + ")} · «Все» — сбросить</div>` : ""}
     ${state.offerFilter ? `<div class="chips tight" style="margin:0 0 8px"><button class="chip active" id="offerFilterClear">${esc(offerById(state.offerFilter.id)?.name.replace(/ — РКО$/, "") || "")}: ${OFFER_CONDS[state.offerFilter.cond]} ✕</button></div>` : ""}
     <div class="list-head">
-      <span>${list.length} ${plural(list.length, "лид", "лида", "лидов")} · <button class="link" id="offerFilter">🏦 Фильтр по офферу</button></span>
+      <span>${splitLost(list).main.length} ${plural(splitLost(list).main.length, "лид", "лида", "лидов")} · <button class="link" id="offerFilter">🏦 Фильтр по офферу</button></span>
       <select id="sort">${SORTS.map(([s, label]) => `<option value="${s}" ${state.sort === s ? "selected" : ""}>${label}</option>`).join("")}</select>
     </div>
-    <div id="leadList">${leadListHtml(list)}</div>`;
+    <div id="leadList">${leadsBlock(list)}</div>`;
 
   const $q = document.getElementById("q");
   $q.addEventListener("input", () => {
     state.query = $q.value;
-    document.getElementById("leadList").innerHTML = leadListHtml(filterLeads());
+    document.getElementById("leadList").innerHTML = leadsBlock(filterLeads());
   });
   document.getElementById("mergeDups")?.addEventListener("click", (e) => mergeDuplicates(e.target));
   document.getElementById("offerFilter").onclick = offerFilterSheet;
@@ -547,6 +547,19 @@ function offerFilterSheet() {
     },
   );
 }
+
+// Слившиеся не мешают в основном списке — уходят в свёрнутый блок внизу.
+// Если явно выбран фильтр «Слились» — показываем их как обычно.
+const splitLost = (list) =>
+  selectedFilters().includes("lost") ? { main: list, lost: [] } : { main: list.filter(({ l }) => l.stage !== "lost"), lost: list.filter(({ l }) => l.stage === "lost") };
+
+function leadsBlock(list) {
+  const { main, lost } = splitLost(list);
+  return `${main.length || !lost.length ? leadListHtml(main) : ""}
+    ${lost.length ? `<details class="cat lost-block" ${state.lostOpen ? "open" : ""}><summary><span>😶 Слились</span><span class="sub">${lost.length}</span></summary>${leadListHtml(lost)}</details>` : ""}`;
+}
+// toggle не всплывает — ловим на захвате, чтобы блок не схлопывался при перерисовке
+document.addEventListener("toggle", (e) => e.target.classList?.contains("lost-block") && (state.lostOpen = e.target.open), true);
 
 function leadListHtml(list) {
   if (!list.length) return `<div class="card empty">Никого не нашёл</div>`;
