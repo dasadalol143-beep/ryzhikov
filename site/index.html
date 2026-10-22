@@ -1206,6 +1206,41 @@ section.blk>.wrap{position:relative;z-index:1}
   .hm-cap p{font-size:13.5px}
   .hm-cl{width:80vw;top:30svh;left:-30vw}
 }
+
+/* ================= v5: цвет и читаемость по аудиту ================= */
+:root{--red:#b23a26}
+.tp-led li{color:rgba(20,20,20,.62)}
+.rt-stops b{color:rgba(20,20,20,.7)}
+.tp-lb{color:rgba(40,36,30,.8)}
+@media (max-width:900px){.rt-stops b{font-size:11px}.tp-lb{font-size:9px}}
+#tried .vs4 .tile.bad dt,.chips span,.mods li p,.cres .k,.cres .net{color:rgba(255,255,255,.85)}
+.chips span{font-size:13px}
+.chips{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+@media (max-width:900px){.chips{bottom:calc(64px + env(safe-area-inset-bottom,0px))}}
+.seedcard .n{font-size:13px}
+.pear-total span{color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.7)}
+.pear-total b{color:#fff}
+.bsteps p{color:rgba(255,255,255,.8)}
+.notif .note{text-shadow:0 2px 10px rgba(21,48,201,.9)}
+.tried-end p{line-height:1.3}
+section[data-chap]::before{font-size:17px}
+/* груша на кобальте: свет и линии белые */
+#income .stage{background:#0b1a6b}
+#income .shade{background:linear-gradient(0deg,rgba(11,26,107,.9) 0%,rgba(11,26,107,.45) 28%,rgba(11,26,107,0) 55%)}
+.core{background:radial-gradient(circle,rgba(255,255,255,.9),rgba(180,200,255,.35) 38%,rgba(29,61,242,0) 70%)}
+.spark{background:#fff}
+/* финал и подвал: глубокий кобальт вместо чёрного */
+#final{background:#0b1a6b}
+.final-bg img{opacity:.55}
+.final-bg::after{background:linear-gradient(180deg,#0e1f8a 0%,rgba(21,48,201,.55) 40%,#0b1a6b 100%)}
+.foot{background:#0b1a6b;color:#cfd6ff}
+.fcol a,.fbrand p{color:#cfd6ff}
+.fdisc,.fbot{color:rgba(255,255,255,.62)}
+.flogo{font-family:var(--fd);text-transform:uppercase;letter-spacing:.01em}
+.flogo small{color:#cfd6ff;text-transform:none;font-family:var(--fs);font-style:italic}
+.horizon{border-top-color:rgba(255,255,255,.35)!important;background:radial-gradient(ellipse at 50% 0%,rgba(255,255,255,.12),transparent 60%)!important}
+/* большие блоки с фото: подложка вместо белой пустоты, пока грузится */
+.case .photo,.shot,.mate img{background:var(--paper2)}
 </style>
 </head>
 <body>
@@ -1455,7 +1490,7 @@ section.blk>.wrap{position:relative;z-index:1}
     <img class="obj" id="pearR" src="assets/scene/pear-r.webp" alt="">
     <div id="sparks"></div>
     <svg class="lines" aria-hidden="true">
-      <defs><linearGradient id="bladeG" x1="0" x2="1"><stop offset="0" stop-color="#fff7df" stop-opacity="0"/><stop offset=".5" stop-color="#fff7df"/><stop offset="1" stop-color="#ffd98a" stop-opacity="0"/></linearGradient></defs>
+      <defs><linearGradient id="bladeG" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
       <line class="blade" id="blade"/><path id="ln0"/><path id="ln1"/><path id="ln2"/><path id="ln3"/>
     </svg>
     <img class="obj" id="seed0" src="assets/scene/seed.webp" alt=""><img class="obj" id="seed1" src="assets/scene/seed.webp" alt="">
@@ -1845,7 +1880,7 @@ section.blk>.wrap{position:relative;z-index:1}
 
 <!-- ========== 13. ПРИГЛАШЕНИЕ ========== -->
 <section class="blk dark final" id="final" data-chap="Глава XII · Твой ход">
-  <img class="cut dm" data-par=".06" data-rot="-2" src="assets/v3/hand.webp" alt="" loading="lazy" style="width:clamp(260px,34vw,520px);left:-3vw;top:clamp(380px,46vh,480px);z-index:2">
+  <img class="cut dm" data-par=".06" data-rot="-2" src="assets/v3/hand.webp" alt="" loading="lazy" style="width:clamp(260px,30vw,460px);left:-3vw;top:clamp(470px,56vh,560px);z-index:2">
   <div class="final-bg" aria-hidden="true"><img src="assets/film/k6.webp" alt="" loading="lazy" decoding="async"></div>
   <div class="wrap">
     <div class="head center">
@@ -1853,12 +1888,12 @@ section.blk>.wrap{position:relative;z-index:1}
       <h2 class="h1" data-r>Бесплатный разбор. 30&nbsp;минут.</h2>
       <p class="lead" data-r>Разберём твою ситуацию и соберём маршрут: с чего начать, где брать людей и как выйти на первые 14 000 ₽.</p>
     </div>
+    <div class="ctas center" data-r style="margin:28px 0 48px"><a class="btn btn-gold btn-xl" data-cta href="#final">Записаться на разбор</a></div>
     <ol class="bsteps" data-r>
       <li><span>1</span><b>Нажимаешь кнопку</b><p>Откроется чат с моим менеджером в Telegram.</p></li>
       <li><span>2</span><b>Пишешь «Разбор»</b><p>Менеджер подберёт удобное время.</p></li>
       <li><span>3</span><b>Созвон 30 минут</b><p>Получаешь план под себя. Решение — только твоё.</p></li>
     </ol>
-    <div class="ctas center" data-r style="margin:36px 0 56px"><a class="btn btn-gold btn-xl" data-cta href="#final">Записаться на разбор</a></div>
     <div class="final-grid">
       <div class="tile" data-r><div class="vid"><video controls preload="none" playsinline poster="assets/video/petr-40s.jpg"><source src="assets/video/petr-40s.mp4" type="video/mp4"></video></div><p class="small" style="margin-top:10px;color:#a1a1a6">40 секунд от меня. Со звуком.</p></div>
       <div class="tile plan" data-r style="--i:1"><h3>Что ты получишь за 30 минут</h3><ol>
