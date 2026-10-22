@@ -167,7 +167,12 @@ function openSheet(html, onMount, { instant = false } = {}) {
   sheet.scrollTop = prevScroll;
   onMount?.(sheet);
 }
+// Перед закрытием снимаем фокус: iOS иначе теряет недописанное поле (change не успевает сработать).
+function blurInput() {
+  if (document.activeElement?.matches?.("input, textarea, select")) document.activeElement.blur();
+}
 function closeSheet() {
+  blurInput();
   document.querySelector(".sheet-wrap")?.remove();
 }
 
@@ -305,6 +310,7 @@ function render() {
 }
 
 function go(patch) {
+  blurInput();
   Object.assign(state, patch);
   closeSheet();
   window.scrollTo(0, 0);
@@ -730,7 +736,8 @@ function offerSheet(lead, offerId, opts) {
   const lo = lead.offers[offerId] || { status: "none", amount: o.amount, cost: o.cost || 0, comment: "", dueAt: "" };
   const save = async (patch, okText) => {
     const updated = await saveLead(lead.id, { offers: { [offerId]: patch } }, okText);
-    if (updated) offerSheet(updated, offerId, { instant: true });
+    // перерисовываем окно, только если оно ещё открыто (могли закрыть, пока сохранялось)
+    if (updated && document.getElementById("oAmount")) offerSheet(updated, offerId, { instant: true });
   };
   openSheet(
     `<div class="sheet-head">

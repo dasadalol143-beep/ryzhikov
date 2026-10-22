@@ -34,10 +34,10 @@ export const TAG_LABELS = { ip: "ИП", mfo: "МФО", rko: "РКО", dk: "ДК"
 // Свои статусы для МФО и карт. Внутри коды те же (на них завязаны деньги, сводка и сверка),
 // меняются только названия, порядок кнопок и следующий шаг.
 // МФО «Деньги на карте · засчитано» = засчитано + флаг onCard (деньги ещё у лида на карте).
-const CARD_STATUS = { labels: { opened: "Карта оформлена · нужна ЦД" }, short: { opened: "Карта · нужна ЦД" } };
+const CARD_STATUS = { labels: { opened: "Карта оформлена", done: "ЦД выполнено" }, short: { opened: "Карта оформлена", done: "ЦД выполнено" } };
 const CAT_STATUS = {
   mfo: {
-    labels: { applied: "Маскировка", done: "Деньги на карте · не засчитано", oncard: "Деньги на карте · засчитано" },
+    labels: { applied: "Маскировка", done: "Деньги на карте (Не засчитано)", oncard: "Деньги на карте (Засчитано)" },
     short: { applied: "Маскировка", done: "На карте · не засч.", oncard: "На карте · засч." },
     order: ["applied", "oncard", "done", "paid", "rejected", "exists", "none"],
     next: { applied: "done", opened: "done", done: "paid" },

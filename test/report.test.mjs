@@ -46,8 +46,8 @@ test("digest has yesterday's money and today's tasks, HTML-escaped", () => {
 test("CSV opens in Excel: BOM, semicolons, totals row", () => {
   const { leadsCsv, offersCsv } = buildCsvs(leads, DEFAULT_OFFERS, DEFAULT_SETTINGS);
   assert.ok(leadsCsv.startsWith("\uFEFFЛид;ФИО;Телефон;Этап"));
-  assert.match(leadsCsv, /\n@V1dar851;Стариков;;Докрутка;;11000;0;/);
-  assert.match(leadsCsv, /\nИТОГО;;;;;11000;/);
+  assert.match(leadsCsv, /\n@V1dar851;Стариков;;Докрутка;;;11000;0;/);
+  assert.match(leadsCsv, /\nИТОГО;;;;;;11000;/);
   assert.match(offersCsv, /@V1dar851;Стариков;ВТБ — РКО;РКО;Бизнес Система;Счёт открыт · нужна ЦД;7000/);
 });
 

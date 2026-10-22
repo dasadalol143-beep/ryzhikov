@@ -361,7 +361,7 @@ test("offer template edit applies to new leads only", async () => {
 test("MFO statuses: money on card counts as paid, flag clears on status change", async () => {
   const { statusLabel, nextStatusFor } = await import("../public/labels.js");
   assert.equal(statusLabel("applied", "mfo"), "Маскировка");
-  assert.equal(statusLabel("opened", "debit"), "Карта оформлена · нужна ЦД");
+  assert.equal(statusLabel("opened", "debit"), "Карта оформлена");
   assert.equal(statusLabel("opened", "rko"), "Счёт открыт · нужна ЦД");
   assert.equal(nextStatusFor("applied", "mfo"), "done");
   assert.equal(nextStatusFor("applied", "rko"), "opened");
