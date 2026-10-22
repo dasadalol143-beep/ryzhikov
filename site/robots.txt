@@ -1,0 +1,3 @@
+User-agent: *
+Disallow: /ocean.html
+Sitemap: https://ryzhkovpartners.ru/sitemap.xml
