@@ -357,3 +357,21 @@ test("offer template edit applies to new leads only", async () => {
   assert.equal(b.body.offers.vtb.amount, 4100);
   assert.notEqual(a.body.offers.vtb.amount, 4100);
 });
+
+test("MFO statuses: money on card counts as paid, flag clears on status change", async () => {
+  const { statusLabel, nextStatusFor } = await import("../public/labels.js");
+  assert.equal(statusLabel("applied", "mfo"), "Маскировка");
+  assert.equal(statusLabel("opened", "debit"), "Карта оформлена · нужна ЦД");
+  assert.equal(statusLabel("opened", "rko"), "Счёт открыт · нужна ЦД");
+  assert.equal(nextStatusFor("applied", "mfo"), "done");
+  assert.equal(nextStatusFor("applied", "rko"), "opened");
+  const handle = createHandler({ store: memoryStore(), env });
+  const admin = client(handle, { id: 1, first_name: "Пётр" });
+  const lead = await admin("POST", "/leads", { telegram: "mfo1", offers: { zaymer: { status: "paid", onCard: true } } });
+  assert.equal(lead.body.offers.zaymer.onCard, true);
+  const off = await admin("PATCH", `/leads/${lead.body.id}`, { offers: { zaymer: { status: "paid", onCard: false } } });
+  assert.equal(off.body.offers.zaymer.onCard, false);
+  assert.match(off.body.history[0].text, /: Засчитано$/);
+  const back = await admin("PATCH", `/leads/${lead.body.id}`, { offers: { zaymer: { status: "done", onCard: true } } });
+  assert.equal(back.body.offers.zaymer.onCard, undefined);
+});

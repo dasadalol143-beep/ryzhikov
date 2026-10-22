@@ -91,6 +91,7 @@ button.row:active { background: var(--bg2); }
 .st-opened { background: var(--st-opened); color: var(--orange); }
 .st-done { background: var(--st-done); color: #7a4fd0; }
 .st-paid { background: var(--st-paid); color: var(--green); }
+.st-oncard { background: var(--st-paid); color: #c77700; }
 .st-rejected, .st-exists, .st-none { background: var(--st-dead); color: var(--hint); }
 
 /* поля */

@@ -1,5 +1,5 @@
 import { leadMoney, sumMoney, ACTIVE_STAGES } from "./economics.js";
-import { STAGE_LABELS, STATUS_LABELS, STATUS_SHORT, CATEGORY_LABELS, TAG_LABELS } from "./labels.js";
+import { STAGE_LABELS, STATUS_LABELS, STATUS_SHORT, CATEGORY_LABELS, TAG_LABELS, statusKey, statusLabel, statusOrder, nextStatusFor, statusPatch } from "./labels.js";
 import { worklist, paidEvents, todayKey, addDays, daysSince, netOf, networkReport, networkOf } from "./insights.js";
 
 const tg = window.Telegram?.WebApp;
@@ -17,7 +17,6 @@ const AUTH_ERRORS = {
 const ROLE_LABELS = { admin: "Админ", manager: "Менеджер" };
 // Порядок офферов в карточке: сначала то, что требует действий.
 const STATUS_ORDER = ["opened", "applied", "done", "paid", "rejected", "exists", "none"];
-const QUICK_STATUSES = ["applied", "opened", "done", "paid", "rejected", "exists", "none"];
 
 const state = {
   me: null,
@@ -173,7 +172,7 @@ function closeSheet() {
 }
 
 // ---------- shared pieces ----------
-const statusPill = (status) => `<span class="pill st-${status}">${STATUS_SHORT[status]}</span>`;
+const statusPill = (key, category) => `<span class="pill st-${key}">${statusLabel(key, category, true)}</span>`;
 const stageBadge = (stage) => `<span class="badge s-${stage}">${STAGE_LABELS[stage] || stage}</span>`;
 
 // Аватар: инициалы на градиенте, цвет стабилен для лида.
@@ -201,13 +200,15 @@ function leadRow(lead, sub, right, actions = "") {
 }
 
 // Быстрые кнопки «следующий шаг» прямо в списке: ЦД сделали, засчитали, счёт открыли.
-const NEXT_STATUS = { applied: "opened", opened: "done", done: "paid" };
-const NEXT_LABEL = { applied: "счёт ✓", opened: "ЦД ✓", done: "засчитано ✓" };
 const shortName = (n) => n.replace(/ — РКО$/, "").replace(/ — Регбиз$/, "").replace(/ Банк$/, "");
 const quickButtons = (lead, items, status, max = 3) =>
   items
     .slice(0, max)
-    .map((i) => `<button class="qbtn st-${NEXT_STATUS[status]}" data-quick="${lead.id}|${i.id}|${NEXT_STATUS[status]}">${esc(shortName(i.name))} · ${NEXT_LABEL[status]}</button>`)
+    .map((i) => {
+      const cat = offerById(i.id)?.category;
+      const next = nextStatusFor(status, cat);
+      return `<button class="qbtn st-${next}" data-quick="${lead.id}|${i.id}|${next}">${esc(shortName(i.name))} · ${statusLabel(next, cat, true)} ✓</button>`;
+    })
     .join("") + (items.length > max ? `<span class="qmore">+ ещё ${items.length - max}</span>` : "");
 
 function reportRows(m) {
@@ -364,7 +365,7 @@ function renderToday() {
     </div>
 
     ${section("⏰", "Сроки по офферам", w.dues, (d) =>
-      leadRow(d.lead, `${esc(d.name.replace(/ — РКО$/, ""))} · ${statusPill(d.status)}`, `<span class="badge ${d.overdue ? "warn" : ""}">${d.overdue ? "просрочено " : ""}${fmtDate(d.dueAt)}</span>`),
+      leadRow(d.lead, `${esc(d.name.replace(/ — РКО$/, ""))} · ${statusPill(statusKey(d.lead.offers[d.id]), offerById(d.id)?.category)}`, `<span class="badge ${d.overdue ? "warn" : ""}">${d.overdue ? "просрочено " : ""}${fmtDate(d.dueAt)}</span>`),
       { max: 10 },
     )}
 
@@ -384,6 +385,7 @@ function renderToday() {
       leadRow(x.lead, "", `<b>${rub(x.sum)}</b>${x.days ? `<div class="sub">${x.days} дн.</div>` : ""}`, quickButtons(x.lead, x.items, "applied")),
       { filter: "applied" },
     )}
+    ${section("💳", "МФО: деньги ещё на карте у лида", w.onCard, (x) => leadRow(x.lead, `${esc(x.name)} · засчитано, деньги не забрали`, `<b>${rub(x.amount)}</b>${x.days ? `<div class="sub ${x.days >= 5 ? "danger" : ""}">${x.days} дн.</div>` : ""}`), { max: 10 })}
     ${section("🐢", "Без движения 5+ дней", w.stale, (x) => leadRow(x.lead, `${stageBadge(x.lead.stage)} в работе ${rub(x.sum)}`, `<span class="danger">${x.days} дн.</span>`), { filter: "stale" })}
     ${!tasks && !w.applied.length && !w.stale.length ? `<div class="card empty">🔥 Всё разобрано. Время заводить новых лидов.</div>` : ""}
   `;
@@ -711,7 +713,7 @@ function renderLead() {
 const offerRowHtml = ({ id, lo, o }) => `<button class="row" data-offer="${id}">
   <div class="grow"><div class="title">${esc(o.name)}</div>
     <div class="sub">${[networkOf(lo, o), lo.comment].filter(Boolean).map(esc).join(" · ")}</div></div>
-  <div class="right">${statusPill(lo.status)}<div class="sub">${lo.dueAt ? `<span class="${lo.dueAt <= todayKey() ? "danger" : ""}">⏰ ${fmtDate(lo.dueAt)}</span> · ` : ""}${rub(lo.amount)}${lo.cost ? ` · −${short(lo.cost)}` : ""}</div></div>
+  <div class="right">${statusPill(statusKey(lo), o.category)}<div class="sub">${lo.dueAt ? `<span class="${lo.dueAt <= todayKey() ? "danger" : ""}">⏰ ${fmtDate(lo.dueAt)}</span> · ` : ""}${rub(lo.amount)}${lo.cost ? ` · −${short(lo.cost)}` : ""}</div></div>
 </button>`;
 
 const addLocal = (days) => {
@@ -739,7 +741,7 @@ function offerSheet(lead, offerId, opts) {
 
     <div class="sheet-label">Статус</div>
     <div class="status-grid">
-      ${QUICK_STATUSES.map((st) => `<button class="status-btn st-${st} ${lo.status === st ? "current" : ""}" data-set="${st}">${lo.status === st ? "● " : ""}${STATUS_LABELS[st]}</button>`).join("")}
+      ${(statusOrder(o.category).includes(statusKey(lo)) ? statusOrder(o.category) : [statusKey(lo), ...statusOrder(o.category)]).map((st) => `<button class="status-btn st-${st} ${statusKey(lo) === st ? "current" : ""}" data-set="${st}">${statusKey(lo) === st ? "● " : ""}${statusLabel(st, o.category)}</button>`).join("")}
     </div>
 
     <div class="sheet-label">Деньги</div>
@@ -783,10 +785,10 @@ function offerSheet(lead, offerId, opts) {
       el.querySelectorAll("[data-set]").forEach(
         (b) =>
           (b.onclick = () => {
-            if (b.dataset.set === lo.status) return;
-            const label = `${o.name.replace(/ — РКО$/, "")}: ${STATUS_SHORT[b.dataset.set]}`;
-            if (b.dataset.set === "paid") celebrate(lo.amount);
-            save({ status: b.dataset.set }, label);
+            if (b.dataset.set === statusKey(lo)) return;
+            const label = `${o.name.replace(/ — РКО$/, "")}: ${statusLabel(b.dataset.set, o.category, true)}`;
+            if ((b.dataset.set === "paid" || b.dataset.set === "oncard") && lo.status !== "paid") celebrate(lo.amount);
+            save(statusPatch(b.dataset.set), label);
           }),
       );
       el.querySelector("#oAmount").onchange = (e) => save({ amount: e.target.value }, "Ставка сохранена");
@@ -1792,7 +1794,7 @@ $app.addEventListener("click", (e) => {
     const o = offerById(offerId);
     if (status === "paid") celebrate(lead?.offers[offerId]?.amount || 0);
     quick.disabled = true;
-    return saveLead(leadId, { offers: { [offerId]: { status } } }, `${leadTitle(lead)} · ${o.name.replace(/ — РКО$/, "")}: ${STATUS_SHORT[status]}`);
+    return saveLead(leadId, { offers: { [offerId]: { status } } }, `${leadTitle(lead)} · ${o.name.replace(/ — РКО$/, "")}: ${statusLabel(status, o.category, true)}`);
   }
   const open = e.target.closest("[data-open]");
   if (open) return go({ leadId: open.dataset.open });
