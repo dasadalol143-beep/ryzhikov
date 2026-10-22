@@ -22,6 +22,21 @@ export function telegram(botToken, fetchImpl = fetch) {
     sendDocument: (chatId, filename, content, mime, caption) =>
       call("sendDocument", form({ chat_id: chatId, caption, document: new File([content], filename, { type: mime }) })),
     sendChatAction: (chatId, action = "typing") => call("sendChatAction", form({ chat_id: chatId, action })),
+    getMe: () => call("getMe", form({})),
+    getChatMember: (chatId, userId) => call("getChatMember", form({ chat_id: chatId, user_id: userId })),
+    copyMessage: (chatId, fromChatId, messageId, opts = {}) => call("copyMessage", form({ chat_id: chatId, from_chat_id: fromChatId, message_id: messageId, ...opts })),
+    // Файл уже лежит в Telegram — шлём по file_id, без скачивания (размер не ограничен 20 МБ).
+    sendFileById: (kind, chatId, fileId, caption, opts = {}) => {
+      const method = { video: "sendVideo", audio: "sendAudio", voice: "sendVoice", video_note: "sendVideoNote" }[kind] || "sendDocument";
+      const field = { video: "video", audio: "audio", voice: "voice", video_note: "video_note" }[kind] || "document";
+      return call(method, form({ chat_id: chatId, [field]: fileId, caption: kind === "video_note" ? undefined : caption, parse_mode: "HTML", ...opts }));
+    },
+    // Загрузка файла из приложения (Bot API принимает до 50 МБ).
+    uploadDocument: (chatId, file, caption, opts = {}, filename = undefined) => {
+      const fd = form({ chat_id: chatId, caption, parse_mode: "HTML", ...opts });
+      fd.append("document", file, filename || file.name || "file");
+      return call("sendDocument", fd);
+    },
     downloadFile: async (fileId) => {
       const f = await call("getFile", form({ file_id: fileId }));
       const res = await fetchImpl(`https://api.telegram.org/file/bot${botToken}/${f.file_path}`);

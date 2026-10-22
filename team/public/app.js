@@ -1,8 +1,8 @@
 import {
   ROLES, STATUSES, SOURCES, REPORT_FIELDS, AFTER_CALL, FOLLOWUP_TOUCHES, DEFAULT_RATES,
-  statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState,
+  statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState, latestReport, callKind, stuckReason,
   mskKey, mskTime, mskMidnight, addDaysKey, fmtDay, weekday, fmtWhen, monthName, payrollRow, monthSummary,
-  DEFAULT_PAY_LINKS, pace, daysInMonth, payoutsOwed, nextPayday, PAYOUT_ROLES, daySlots, rangesText, cleanRanges, toMin, fromMin,
+  DEFAULT_PAY_LINKS, pace, daysInMonth, canTouchClient, canDeleteClient, payoutsOwed, nextPayday, PAYOUT_ROLES, daySlots, rangesText, cleanRanges, toMin, fromMin, isBossRole,
 } from "./lib/model.js";
 import { rnp, rnpEvents, lidorubStats, periodRange } from "./lib/stats.js";
 import { parseReportText, parseCsv, crmRowsToClients } from "./lib/report.js";
@@ -163,6 +163,8 @@ function avatar(name, seed, size = 40) {
 const ICONS = {
   bell: '<path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15 6 9"/><path d="M10.3 20.5a1.9 1.9 0 0 0 3.4 0"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
+  upload: '<path d="M12 15V4M7.5 8.5 12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
+  rec: '<rect x="3" y="6" width="13" height="12" rx="3"/><path d="m16 10.5 5-3v9l-5-3"/>',
   note: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
   user: '<circle cx="12" cy="8" r="3.6"/><path d="M5 20c.8-3.6 3.7-5.6 7-5.6s6.2 2 7 5.6"/>',
   wallet: '<rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12.5h2M3 9.5h18"/>',
@@ -292,11 +294,14 @@ function callRow(c, call) {
   const now = Date.now();
   const cls = at - now < 15 * 60_000 && now - at < 60 * 60_000 ? "now" : at < now ? "past" : "";
   const passed = now >= at;
-  const noReport = call.outcome === "held" && !call.reportAt && !call.legacy;
+  const noReport = needsReport(c) && call.outcome === "held" && !call.reportAt && !call.legacy && canEdit(c);
+  const mayMark = canEdit(c);
   const btns = noReport
     ? `<div class="quick"><button class="qbtn g-ndz" data-report-open="${c.id}">Заполнить итог</button></div>`
-    : passed && !call.outcome
-    ? `<div class="quick"><button class="qbtn g-won" data-held="${c.id}" data-call="${call.id}">Пришёл</button><button class="qbtn g-ndz" data-ndz="${c.id}" data-call="${call.id}">НДЗ</button>${c.chatUrl ? `<button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>` : ""}</div>`
+    : passed && !call.outcome && mayMark
+    ? `<div class="quick"><button class="qbtn g-won" data-held="${c.id}" data-call="${call.id}">Пришёл</button><button class="qbtn g-ndz" data-ndz="${c.id}" data-call="${call.id}">НДЗ</button><button class="qbtn g-work" data-book="${c.id}">Перенести</button>${c.chatUrl ? `<button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>` : ""}</div>`
+    : !call.outcome && mayMark
+    ? `<div class="quick"><button class="qbtn g-work" data-book="${c.id}">Перенести</button>${c.chatUrl ? `<button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>` : c.telegram ? `<button class="qbtn g-lead" data-link="${esc(tgUrl(c.telegram))}">Написать</button>` : ""}</div>`
     : c.chatUrl ? `<div class="quick"><button class="qbtn g-lead" data-link="${esc(c.chatUrl)}">Чат</button>${c.telegram ? `<button class="qbtn g-lead" data-link="${esc(tgUrl(c.telegram))}">Написать</button>` : ""}</div>` : "";
   const outcome = call.outcome === "held" ? (call.reportAt ? "проведён" : "проведён · нет отчёта") : call.outcome === "ndz" ? "НДЗ" : "";
   return `<div class="tl-row ${cls}" data-open="${c.id}"><div class="tl-time">${mskTime(at)}<small>${fmtDay(mskKey(at))}</small></div><div class="tl-body"><div class="title">${esc(clientTitle(c))}</div><div class="sub">${statusBadge(c.status)}<span class="sub">· ${esc(userName(call.mopId))}${outcome ? ` · ${outcome}` : ""}</span></div>${c.info ? `<div class="sub">${esc(c.info.slice(0, 90))}</div>` : ""}${btns}</div></div>`;
@@ -378,9 +383,9 @@ function renderToday() {
   }
   html += `</div>`;
 
-  // Долги — наверху, жёстко
-  if (reportsOwed.length) html += `<button class="big-cta warn" data-open="${reportsOwed[0].id}" data-report="1"><span>${icon("note")}</span><div>Нет отчёта после созвона: ${reportsOwed.length}<small>${esc(reportsOwed.slice(0, 3).map(clientTitle).join(", "))} — регламент: сразу после звонка</small></div></button>`;
-  if (role === "lidorub") html += `<button class="big-cta" data-new><span>${icon("plus")}</span><div>Новый лид<small>квалифицировать, отправить ЛМ, записать на созвон</small></div></button>`;
+  // Что сделать сейчас — список задач с одной кнопкой на каждую.
+  html += tasksBlock({ role, me, now, reportsOwed, unmarked, follow, todays });
+  if (role === "lidorub") html += `<button class="big-cta" data-new><span>${icon("plus")}</span><div>Новый лид<small>квалифицировать, отправить ЛМ, записать на созвон</small></div></button>` + lidorubHome(me);
 
   if (isBoss()) html += teamToday();
 
@@ -399,7 +404,7 @@ function renderToday() {
     html += section(`Новые без созвона · ${fresh.length}`, fresh.slice(0, 30).map((c) =>
       clientRow(c, {
         sub: `${statusBadge(c.status)}<span class="sub">· ${esc(c.source)}${c.lidorubId ? ` · ${esc(userName(c.lidorubId))}` : ""}</span>`,
-        extra: `<div class="quick">${(c.events || []).some((e) => e.t === "lm") ? `<span class="qmore">ЛМ ✓</span>` : `<button class="qbtn g-hot" data-lm="${c.id}">ЛМ отправлен</button>`}<button class="qbtn g-work" data-book="${c.id}">На созвон</button><button class="qbtn g-lost" data-invalid="${c.id}">Невалид</button></div>`,
+        extra: canEdit(c) ? `<div class="quick">${(c.events || []).some((e) => e.t === "lm") ? `<span class="qmore">ЛМ ✓</span>` : `<button class="qbtn g-hot" data-lm="${c.id}">ЛМ отправлен</button>`}<button class="qbtn g-work" data-book="${c.id}">На созвон</button><button class="qbtn g-lost" data-invalid="${c.id}">Невалид</button></div>` : `<div class="sub">🔒 ведёт ${esc(userName(c.mopId))}</div>`,
       }),
     ));
   }
@@ -410,6 +415,72 @@ function renderToday() {
     if (pend.length) html += `<button class="big-cta" data-more="payroll" style="margin-top:14px"><span>${icon("wallet")}</span><div>Оплаты ждут проверки: ${pend.length}<small>внеси чистую сумму после комиссии и поставь «верифицировано»</small></div></button>`;
   }
   $app.innerHTML = html;
+}
+
+// Задачи на сейчас: что требует действия, по порядку важности. Тап — сразу к нужным клиентам.
+// Созвон проведён за последние 3 дня, а записи после него нет.
+function needsRec(c, now = Date.now()) {
+  const last = (c.calls || []).filter((x) => x.outcome === "held" && !x.legacy && now - Date.parse(x.at) < 3 * 86400_000).sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+  if (!last) return false;
+  return !(c.recordings || []).some((r) => !r.deletedAt && (r.callId === last.id || Date.parse(r.at) >= Date.parse(last.at)));
+}
+
+function tasksBlock({ role, me, now, reportsOwed, unmarked, follow, todays }) {
+  const mine = (c) => role === "owner" || role === "rop" || c.mopId === me.id || c.lidorubId === me.id;
+  const passedToday = todays.filter(({ call }) => !call.outcome && Date.parse(call.at) + 15 * 60_000 < now && (role !== "lidorub"));
+  const stuck = state.clients.filter((c) => mine(c) && stuckReason(c, now));
+  const person = ["owner", "rop"].includes(role) ? "all" : me.id;
+  const lm = role === "lidorub" ? state.clients.filter((c) => c.status === "new" && (!c.lidorubId || c.lidorubId === me.id) && !(c.events || []).some((e) => e.t === "lm")) : [];
+  const toBook = role === "lidorub" ? state.clients.filter((c) => c.status === "new" && (!c.lidorubId || c.lidorubId === me.id) && (c.events || []).some((e) => e.t === "lm")) : [];
+  const noRec = role === "lidorub" ? [] : state.clients.filter((c) => (role === "owner" || role === "rop" ? true : c.mopId === me.id) && needsRec(c, now));
+  const items = [
+    [passedToday.length + unmarked.length, "Отметь: клиент пришёл или НДЗ", "созвон прошёл — нажми «Пришёл» или «НДЗ»", passedToday[0]?.c.id || unmarked[0]?.c.id, null, "warn"],
+    [reportsOwed.length, "Заполни итог диагностики", "после созвона — потребность, боль, возражение, решение", reportsOwed[0]?.id, "report", "warn"],
+    [noRec.length, "Выгрузи запись созвона", "файл созвона — в карточку, чтобы не потерялся", noRec[0]?.id, "norec", ""],
+    [role !== "lidorub" ? follow.length : 0, "Дожим: коснись клиента сегодня", "написал — отметь «тишина» или «ответил»", null, "follow", ""],
+    [lm.length, "Отправь ЛМ новым лидам", "квалифицируй и отправь лид-магнит", null, "new", ""],
+    [toBook.length, "Запиши на созвон — ЛМ уже отправлен", "выбери диагноста и свободное окно", null, "lm", ""],
+    [stuck.length, "Зависли — нет следующего шага", "назначь созвон, касание или закрой статусом", null, "stuck", "warn"],
+  ].filter(([n]) => n > 0);
+  if (!items.length) return `<div class="tasks done"><b>Всё сделано 👌</b><span class="sub">Новых задач нет — загляни в «Окна» и «Клиенты».</span></div>`;
+  return `<div class="list-head"><h2>Что сделать сейчас</h2></div><div class="list tasks">${items
+    .map(([n, title, sub, openId, folder, tone]) => `<div class="row task ${tone}" ${n === 1 && openId ? `data-open="${openId}"${folder === "report" ? ' data-report="1"' : ""}` : `data-goto="${folder || "calls"}|${person}"`}><div class="task-n">${n}</div><div class="grow"><div class="title">${title}</div><div class="sub">${sub}</div></div><div class="right sub">›</div></div>`)
+    .join("")}</div>`;
+}
+
+// Экран лидоруба: где сейчас его лиды, что с них продано, динамика за 2 недели.
+function lidorubHome(me) {
+  const mineAll = state.clients.filter((c) => c.lidorubId === me.id);
+  const has = (c, t) => (c.events || []).some((e) => e.t === t);
+  const stages = [
+    ["Новые, без ЛМ", (c) => c.status === "new" && !has(c, "lm"), "new"],
+    ["ЛМ отправлен — записать", (c) => c.status === "new" && has(c, "lm"), "lm"],
+    ["Записаны на созвон", (c) => !!currentCall(c), "calls"],
+    ["Провели — ждём решения", (c) => !currentCall(c) && (c.calls || []).some((x) => x.outcome === "held") && ["in_work", "thinking", "prepaid", "resched"].includes(c.status), "hot"],
+    ["НДЗ", (c) => /^ndz/.test(c.status), "ndz"],
+    ["Оплатили", (c) => c.status === "paid", "paid"],
+    ["Слив (отказ, игнор, невалид)", (c) => ["refuse_personal", "refuse_bank", "ignore", "invalid"].includes(c.status), "lost"],
+  ];
+  const max = Math.max(1, ...stages.map(([, f]) => mineAll.filter(f).length));
+  let html = `<div class="list-head"><h2>Мои лиды по этапам <span class="cnt">${mineAll.length}</span></h2><button class="link" data-goto="all|${me.id}">Таблица →</button></div><div class="list">${stages
+    .map(([label, f, folder]) => {
+      const n = mineAll.filter(f).length;
+      return `<div class="hbar" data-goto="${folder}|${me.id}" style="cursor:pointer"><div class="hbar-top"><span>${label}</span><b>${n}</b></div><div class="bar-track"><i style="width:${(n / max) * 100}%"></i></div></div>`;
+    })
+    .join("")}</div>`;
+  // 14 дней: сколько завёл и сколько записал
+  const days = Array.from({ length: 14 }, (_, i) => addDaysKey(today(), i - 13));
+  const added = days.map((d) => mineAll.filter((c) => mskKey(Date.parse(c.createdAt)) === d).length);
+  const booked = days.map((d) => mineAll.reduce((n, c) => n + (c.calls || []).filter((x) => !x.legacy && x.setBy === me.id && mskKey(Date.parse(x.setAt || x.at)) === d).length, 0));
+  html += columns(days.map((d, i) => ({ label: d.slice(8), value: added[i], accent: d === today(), tip: `${fmtDay(d)}: завёл ${added[i]}, записал ${booked[i]}` })), { title: "Завёл лидов за 14 дней", height: 120 });
+  html += columns(days.map((d, i) => ({ label: d.slice(8), value: booked[i], accent: d === today(), tip: `${fmtDay(d)}: записал ${booked[i]}` })), { title: "Записал на созвон за 14 дней", height: 120 });
+  // продажи с моих лидов
+  const sold = mineAll.filter((c) => c.status === "paid").map((c) => ({ c, ev: [...(c.events || [])].reverse().find((e) => e.t === "paid") })).sort((a, b) => (b.ev?.at || "").localeCompare(a.ev?.at || ""));
+  if (sold.length) {
+    const sum = sold.reduce((x, y) => x + (Number(y.ev?.sum) || y.c.wantedSum || 0), 0);
+    html += section(`Продажи с моих лидов · ${sold.length}`, sold.slice(0, 20).map(({ c, ev }) => clientRow(c, { sub: `${statusBadge(c.status)}<span class="sub">· ${esc(userName(c.mopId))}${ev ? ` · ${fmtDay(mskKey(Date.parse(ev.at)))}` : ""}</span>`, right: `<b class="money-green">${rub(Number(ev?.sum) || c.wantedSum || 0)}</b>` })), { action: `<span class="sub">${rub(sum)}</span>` });
+  }
+  return html;
 }
 
 // Таблица «кто как сегодня» для РОПа/собственника
@@ -433,6 +504,8 @@ function teamToday() {
 // Папки лидов: путь клиента от заявки до денег. Тап — фильтр списка.
 const FOLDERS = [
   ["active", "В работе", (c) => !isClosed(c.status)],
+  ["stuck", "Зависли — нет следующего шага", (c) => !!stuckReason(c), true],
+  ["norec", "Без записи созвона", (c) => needsRec(c), true],
   ["new", "Новые, без ЛМ", (c) => c.status === "new" && !(c.events || []).some((e) => e.t === "lm")],
   ["lm", "ЛМ отправлен, ждут записи", (c) => c.status === "new" && (c.events || []).some((e) => e.t === "lm")],
   ["calls", "Созвон назначен", (c) => !!currentCall(c)],
@@ -469,12 +542,15 @@ function renderClients() {
     const n = base.filter(fn).length;
     return `<button class="folder ${state.filter === id ? "active" : ""} ${alert && n ? "alert" : ""}" data-filter="${id}"><b>${n}</b><span>${label}</span></button>`;
   }).join("");
+  const asTable = state.clientsView === "table";
+  const folderName = FOLDERS.find((f) => f[0] === state.filter)?.[1] || "";
   $app.innerHTML = `
-    <div class="toolbar"><input type="search" id="q" placeholder="Поиск: имя, ник, телефон, инфа" value="${esc(state.query)}"><button class="btn round" data-new>＋</button></div>
-    ${people.length > 1 ? `<div class="chips"><button class="chip ${state.person === "all" ? "active" : ""}" data-pfilter="all">Вся команда</button>${people.map((u) => `<button class="chip ${state.person === u.id ? "active" : ""}" data-pfilter="${u.id}">${esc(u.name)}</button>`).join("")}</div>` : ""}
+    <div class="toolbar"><input type="search" id="q" placeholder="Поиск: имя, ник, телефон, инфа" value="${esc(state.query)}"><button class="btn round" data-new aria-label="Новый лид">＋</button></div>
+    <div class="seg"><button class="${asTable ? "" : "active"}" data-cview="list">Список</button><button class="${asTable ? "active" : ""}" data-cview="table">Таблица</button></div>
+    ${people.length > 1 ? `<div class="chips"><button class="chip ${state.person === "all" ? "active" : ""}" data-pfilter="all">Вся команда</button>${people.map((u) => `<button class="chip ${state.person === u.id ? "active" : ""}" data-pfilter="${u.id}">${u.id === state.me.id ? "Мои" : esc(u.name)}</button>`).join("")}</div>` : ""}
     <div class="folders">${folders}</div>
-    <div class="sub" style="margin:0 4px 8px">${esc(FOLDERS.find((f) => f[0] === state.filter)?.[1] || "")}: ${list.length} ${plural(list.length, "клиент", "клиента", "клиентов")}</div>
-    ${list.length ? `<div class="list">${list.slice(0, 300).map((c) => clientRow(c)).join("")}</div>` : `<div class="card empty">Пусто. ${state.clients.length ? "Загляни в другую папку." : "Жми ＋ и заводи первого клиента."}</div>`}`;
+    <div class="list-head" style="margin-top:4px"><h2>${esc(folderName)} <span class="cnt">${list.length}</span></h2>${asTable ? `<button class="link" data-bulk>+ Добавить строками</button>` : ""}</div>
+    ${!list.length ? `<div class="card empty">Пусто. ${state.clients.length ? "Загляни в другую папку." : "Жми ＋ и заводи первого клиента."}</div>` : asTable ? crmTable(list) : `<div class="list">${list.slice(0, 300).map((c) => clientRow(c, stuckReason(c) && state.filter === "stuck" ? { extra: `<div class="sub stuck-why">🧊 ${esc(stuckReason(c))}</div>` } : {})).join("")}</div>`}`;
   const q = document.getElementById("q");
   q.oninput = () => {
     state.query = q.value;
@@ -486,9 +562,94 @@ function renderClients() {
   };
 }
 
+// Таблица как CRM-таблица: те же клиенты, что в карточках (одна база — всё синхронно). Тап по строке — карточка.
+function crmTable(list) {
+  const rows = [...list].sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).slice(0, 500);
+  const cell = (t, cls = "") => `<td class="${cls}">${t || "<span class='sub'>—</span>"}</td>`;
+  return `<div class="crm-wrap"><table class="crm"><thead><tr><th>Клиент</th><th>Заявка</th><th>Статус</th><th>Созвон</th><th>Диагност</th><th>Лидоруб</th><th>Источник</th><th>Сумма</th><th>Запрос (итог)</th><th>Дальнейшие шаги</th><th>Телефон</th></tr></thead><tbody>${rows
+    .map((c) => {
+      const call = currentCall(c) || [...(c.calls || [])].filter((x) => x.outcome && x.outcome !== "moved").sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+      const rep = latestReport(c)?.report;
+      const stuck = stuckReason(c);
+      return `<tr data-open="${c.id}" class="${stuck ? "is-stuck" : ""}">${cell(`<b>${esc(clientTitle(c))}</b>${c.name && c.telegram ? `<br><span class="sub">${esc(c.telegram)}</span>` : ""}`, "sticky")}${cell(fmtDay(mskKey(Date.parse(c.createdAt))))}${cell(statusBadge(c.status) + (stuck ? `<br><span class="sub">🧊 завис</span>` : ""))}${cell(call ? `${fmtWhen(Date.parse(call.at))}${call.outcome ? `<br><span class="sub">${call.outcome === "held" ? "проведён" : call.outcome === "ndz" ? "НДЗ" : ""}</span>` : ""}` : "")}${cell(c.mopId ? esc(userName(c.mopId)) : "")}${cell(c.lidorubId ? esc(userName(c.lidorubId)) : "")}${cell(esc(c.source || ""))}${cell(c.wantedSum ? short(c.wantedSum) : "", "num")}${cell(rep?.need ? esc(rep.need.slice(0, 80)) : "", "wide")}${cell(c.nextSteps ? esc(c.nextSteps.slice(0, 90)) : "", "wide")}${cell(esc(c.phone || ""))}</tr>`;
+    })
+    .join("")}</tbody></table></div>${list.length > 500 ? `<div class="sub" style="margin:8px 4px">Показаны первые 500 — уточни поиск или папку.</div>` : ""}`;
+}
+
+// Добавить лидов пачкой — как строки в таблице: «Имя @ник +7… что известно», каждая строка — лид.
+function openBulkAdd() {
+  let src = SOURCES[0];
+  const parse = (text) =>
+    text.split(/\n+/).map((line) => line.trim()).filter(Boolean).map((line) => {
+      const nick = (line.match(/@([A-Za-z][\w]{3,31})/) || line.match(/t\.me\/([A-Za-z][\w]{3,31})/) || [])[1] || "";
+      const phone = (line.match(/\+?\d[\d\s()-]{9,}\d/) || [])[0] || "";
+      let rest = line.replace(/@[A-Za-z][\w]{3,31}|(?:https?:\/\/)?t\.me\/[\w]+/g, " ").replace(phone, " ").replace(/\s+/g, " ").trim();
+      // Имя — слова с заглавной буквы в начале строки (не больше двух): «Антон», «Иван Петров».
+      const words = rest.split(" ");
+      const nameWords = [];
+      for (const w of words) {
+        if (nameWords.length < 2 && /^[А-ЯЁA-Z][а-яёa-z-]*$/.test(w)) nameWords.push(w);
+        else break;
+      }
+      const name = nameWords.join(" ");
+      const info = rest.slice(name.length).replace(/^[\s—–|;,:-]+/, "").trim();
+      const dup = state.clients.find((c) => (nick && c.telegram?.replace(/^@/, "").toLowerCase() === nick.toLowerCase()) || (phone.replace(/\D/g, "").length >= 10 && c.phone?.replace(/\D/g, "").endsWith(phone.replace(/\D/g, "").slice(-10))));
+      return { name, telegram: nick ? `@${nick}` : "", phone: phone.replace(/[^\d+]/g, ""), info, dup };
+    });
+  const draw = (sh, text = "") => {
+    const rows = parse(text);
+    sh.querySelector("#bk-prev").innerHTML = rows.length
+      ? `<div class="crm-wrap"><table class="crm"><thead><tr><th>Имя</th><th>Ник</th><th>Телефон</th><th>Инфа</th><th></th></tr></thead><tbody>${rows.map((r) => `<tr class="${r.dup ? "is-dup" : ""}"><td>${esc(r.name) || "—"}</td><td>${esc(r.telegram) || "—"}</td><td>${esc(r.phone) || "—"}</td><td class="wide">${esc(r.info) || "—"}</td><td>${r.dup ? `<span class="sub">уже есть: ${esc(clientTitle(r.dup))}</span>` : !r.name && !r.telegram && !r.phone ? "<span class='sub'>пусто</span>" : "✓"}</td></tr>`).join("")}</tbody></table></div>`
+      : `<div class="sub" style="margin:6px 4px">Вставь строки — здесь появится таблица, что будет создано.</div>`;
+    const ok = rows.filter((r) => !r.dup && (r.name || r.telegram || r.phone)).length;
+    const b = sh.querySelector("#bk-save");
+    b.textContent = ok ? `Создать ${ok} ${plural(ok, "лида", "лида", "лидов")}` : "Нечего создавать";
+    b.disabled = !ok;
+  };
+  openSheet(
+    `<div class="sheet-title">Добавить лидов строками</div><div class="sub" style="margin:-6px 2px 10px">Каждая строка — один лид: <b>Имя @ник +7 900 … что известно</b>. Дубли по нику и телефону пропущу.</div>
+    <textarea id="bk-text" style="min-height:140px" placeholder="Антон @anton_x хочет выйти на 100к, прогрет на интенсиве&#10;Миша +79001234567 из рилс&#10;@oleg_k — ИП уже есть"></textarea>
+    <div class="sheet-label">Источник</div><div class="chips tight" id="bk-src">${SOURCES.map((x, i) => `<button class="chip ${i === 0 ? "active" : ""}" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>
+    ${state.me.role !== "lidorub" && lidorubs().length ? `<label class="field" style="margin-top:10px"><span>Лидоруб</span><select id="bk-lr"><option value="">—</option>${lidorubs().map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join("")}</select></label>` : ""}
+    <div class="sheet-label">Что будет создано</div><div id="bk-prev"></div>
+    <button class="btn block" id="bk-save" disabled>Нечего создавать</button>`,
+    (sh) => {
+      const ta = sh.querySelector("#bk-text");
+      ta.oninput = () => draw(sh, ta.value);
+      draw(sh, "");
+      sh.querySelector("#bk-src").onclick = (e) => {
+        const b = e.target.closest("[data-v]");
+        if (!b) return;
+        src = b.dataset.v;
+        for (const x of sh.querySelectorAll("#bk-src .chip")) x.classList.toggle("active", x === b);
+      };
+      sh.querySelector("#bk-save").onclick = async (ev) => {
+        const btn = ev.currentTarget;
+        btn.disabled = true;
+        const rows = parse(ta.value).filter((r) => !r.dup && (r.name || r.telegram || r.phone));
+        let made = 0;
+        const skipped = [];
+        for (const r of rows) {
+          try {
+            const res = await api("POST", "/clients", { name: r.name, telegram: r.telegram, phone: r.phone, info: r.info, source: src, lidorubId: sh.querySelector("#bk-lr")?.value || (state.me.role === "lidorub" ? state.me.id : null) });
+            replaceClient(res.client);
+            made++;
+          } catch (e) {
+            skipped.push(`${r.name || r.telegram || r.phone}: ${e.message}`);
+          }
+        }
+        closeSheet();
+        render();
+        if (skipped.length) alertDialog(`Создано: ${made}. Пропущено:\n${skipped.join("\n")}`);
+        else toast(`Создано лидов: ${made}`);
+      };
+    },
+  );
+}
+
 // ---------- КАРТОЧКА ----------
 // Путь клиента: лид → созвон → проведён → итог → решение. Наверху — один понятный следующий шаг.
-const DECISIONS = [["paid", "Оплатил", "g-won"], ["prepaid", "Предоплата", "g-won"], ["thinking", "Думает", "g-hot"], ["resched", "Перенос", "g-work"], ["refuse_bank", "Отказ по банкам", "g-lost"], ["refuse_personal", "Отказ по личным", "g-lost"]];
+const DECISIONS = [["paid", "Оплатил", "g-won"], ["prepaid", "Предоплата", "g-won"], ["thinking", "Думает", "g-hot"], ["resched", "Перенос", "g-work"], ["refuse_bank", "Отказ по банкам", "g-lost"], ["refuse_personal", "Отказ по личным", "g-lost"], ["invalid", "Невалид", "g-lost"]];
 const CLOSED_TEXT = { paid: "Оплатил — клиент закрыт", refuse_bank: "Отказ по банкам → рекрутеру", refuse_personal: "Отказ по личным", ignore: "Игнор — 3 касания без ответа", invalid: "Невалид", archive: "Архив" };
 
 function clientStage(c, now = Date.now()) {
@@ -517,7 +678,15 @@ function nextStep(c) {
   let body = "";
   if (st.kind === "closed") {
     title = CLOSED_TEXT[c.status];
-    body = `<div class="sub">${c.status === "refuse_bank" ? "По регламенту передаём рекрутеру: клиент может зайти в РКО как исполнитель." : "Если клиент вернулся — запиши на новый созвон."}</div><button class="btn block ghost" data-book="${c.id}">Записать на новый созвон</button>`;
+    // Руководству — где эта оплата в ведомости.
+    if (c.status === "paid" && money() && state.payments) {
+      const ps = state.payments.filter((p) => p.clientId === c.id);
+      body += ps.length
+        ? `<div class="paid-line" data-more="payroll">${ps.map((p) => `<span>В ведомости: <b>${rub(p.tariff)}</b> · ${fmtDay(p.date)} · ${p.verified ? "верифицирована" : "ждёт проверки"}</span>`).join("")}<span class="link">Открыть ведомость →</span></div>`
+        : `<div class="paid-line warn">В ведомости этой оплаты нет. <button class="link" data-addpay="${c.id}">Добавить в ведомость</button></div>`;
+    }
+    if (c.status === "paid" && (money() || c.mopId === state.me.id)) body += `<div class="row-links"><button class="link" data-status="paid">Изменить сумму оплаты</button></div>`;
+    body += `<div class="sub">${c.status === "refuse_bank" ? "По регламенту передаём рекрутеру: клиент может зайти в РКО как исполнитель." : "Если клиент вернулся — запиши на новый созвон."}</div><button class="btn block ghost" data-book="${c.id}">Записать на новый созвон</button>`;
   } else if (st.kind === "mark") {
     const at = Date.parse(st.call.at);
     title = `Созвон ${fmtWhen(at)} · ${esc(userName(st.call.mopId))}`;
@@ -531,7 +700,8 @@ function nextStep(c) {
     body = `<div class="sub">Потребность, род деятельности, боль, возражение, договорённости. Можно вставить свой текст целиком.</div><button class="btn block" data-report-open="${c.id}">Заполнить итог</button>`;
   } else if (st.kind === "decide") {
     title = "Что решил клиент?";
-    body = `<div class="sub">Выбери итог — статус и ведомость обновятся сами.</div>${decide}`;
+    const recall = callKind(c, st.call) !== "Диагностика";
+    body = `<div class="sub">${recall ? `${callKind(c, st.call)} проведён — итог диагностики уже есть, выбери решение.` : "Выбери итог — статус и ведомость обновятся сами."}</div>${decide}${recall ? `<div class="row-links"><button class="link" data-report-open="${c.id}">Дополнить итог</button></div>` : ""}`;
   } else if (st.kind === "follow") {
     const f = followupState(c);
     title = `${statusLabel(c.status)} — дожим`;
@@ -553,7 +723,93 @@ function possibleDups(c) {
   if (!nm(c)) return [];
   return state.clients.filter((x) => x.id !== c.id && nm(x) === nm(c) && (!x.telegram || !c.telegram) && x.status !== "archive");
 }
-const canEdit = (c) => money() || [c.createdBy, c.mopId, c.lidorubId].includes(state.me.id);
+// Взял МОП — менять может только он, РОП и собственник. До этого лид общий.
+const canEdit = (c) => canTouchClient(state.me, c);
+// Запись созвона выгружает диагност клиента или руководство (как на сервере).
+const canUploadRec = (c) => isBossRole(state.me.role) || (c.mopId ? c.mopId === state.me.id : ["mop", "rop"].includes(state.me.role));
+const MAX_APP_UPLOAD = 20 * 1024 * 1024;
+const sizeText = (n) => (!n ? "" : n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} ГБ` : n >= 1024 ** 2 ? `${Math.round(n / 1024 ** 2)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
+const durText = (s) => (!s ? "" : s >= 3600 ? `${Math.floor(s / 3600)} ч ${Math.round((s % 3600) / 60)} мин` : `${Math.max(1, Math.round(s / 60))} мин`);
+
+function recordingsBlock(c) {
+  const recs = (c.recordings || []).filter((r) => !r.deletedAt).sort((a, b) => b.at.localeCompare(a.at));
+  const held = (c.calls || []).some((x) => x.outcome === "held");
+  if (!recs.length && !held && !canUploadRec(c)) return "";
+  let html = `<div class="list-head"><h2>Записи созвонов${recs.length ? ` <span class="cnt">${recs.length}</span>` : ""}</h2></div>`;
+  if (canUploadRec(c)) html += `<button class="big-cta" data-rec-up="${c.id}"><span>${icon("upload")}</span><div>Выгрузить созвон<small>${recs.length ? "добавить ещё одну запись" : held ? "созвон проведён — сохрани запись в CRM навсегда" : "видео или аудио созвона, любой формат"}</small></div></button>`;
+  if (recs.length)
+    html += `<div class="list" style="margin-top:8px">${recs
+      .map((r) => `<div class="row" style="cursor:default"><div class="rec-ic">${icon("rec")}</div><div class="grow"><div class="title" style="white-space:normal;word-break:break-word">${esc(r.name)}</div><div class="sub">${r.callAt ? `созвон ${fmtWhen(Date.parse(r.callAt))} · ` : ""}${esc(userName(r.by))}${r.size ? ` · ${sizeText(r.size)}` : ""}${r.duration ? ` · ${durText(r.duration)}` : ""}${r.downloads?.length ? ` · скачали ${r.downloads.length}` : ""}</div>${state.me.role === "owner" ? `<button class="link" style="font-size:12.5px;color:var(--hint);padding:0" data-rec-del="${c.id}|${r.id}">скрыть</button>` : ""}</div><button class="btn small" data-rec-get="${c.id}|${r.id}">Получить</button></div>`)
+      .join("")}</div><div class="sub" style="margin:6px 4px 0">«Получить» — бот пришлёт файл тебе в Telegram. Каждое скачивание видно в истории.</div>`;
+  else if (held) html += `<div class="card empty small" style="margin-top:8px">Записи пока нет</div>`;
+  return html;
+}
+
+// Выгрузить: до 20 МБ — прямо из приложения, больше — через бота (до 2 ГБ).
+function openRecUpload(c) {
+  const viaBot = async () => {
+    try {
+      const r = await api("POST", `/clients/${c.id}/recordings/wait`);
+      closeSheet();
+      toast("Бот ждёт файл — отправь запись ему в чат");
+      if (r.link) openLink(r.link);
+    } catch (e) {
+      alertDialog(e.message);
+    }
+  };
+  openSheet(
+    `<div class="sheet-title">Выгрузить созвон</div><div class="sub" style="margin:0 4px 12px">${esc(clientTitle(c))} · запись сохранится в карточке навсегда, скачать сможет вся команда</div>
+    <label class="btn block" style="display:flex;align-items:center;justify-content:center;gap:8px">${icon("upload")} Выбрать файл<input type="file" id="rec-file" hidden></label>
+    <div class="sub" style="margin:6px 4px 14px">С телефона или компьютера, до 20 МБ. Любой формат: видео, аудио, документ.</div>
+    <div id="rec-progress"></div>
+    <button class="btn block ghost" id="rec-bot">${icon("send")} Отправить через бота · до 2 ГБ</button>
+    <div class="sub" style="margin:6px 4px 0">Для больших записей: откроется чат с ботом — перешли или прикрепи файл, бот сам привяжет его к этому клиенту.</div>`,
+    (sh) => {
+      sh.querySelector("#rec-bot").onclick = viaBot;
+      sh.querySelector("#rec-file").onchange = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = ""; // тот же файл можно выбрать ещё раз
+        if (!file) return;
+        if (file.size > MAX_APP_UPLOAD) {
+          if (await confirmDialog(`Файл ${sizeText(file.size)} — для приложения великоват. Отправить через бота (до 2 ГБ)?`)) viaBot();
+          return;
+        }
+        const box = sh.querySelector("#rec-progress");
+        box.innerHTML = `<div class="card" style="margin-bottom:10px"><div class="sub">Загружаю ${esc(file.name)} · ${sizeText(file.size)}</div><div class="bar-track"><i id="rec-bar" style="width:2%"></i></div></div>`;
+        const fd = new FormData();
+        fd.append("file", file, file.name);
+        const xhr = new XMLHttpRequest();
+        xhr.open("POST", `/api/clients/${c.id}/recordings`);
+        xhr.setRequestHeader("authorization", `tma ${initData()}`);
+        xhr.upload.onprogress = (ev) => ev.lengthComputable && (sh.querySelector("#rec-bar").style.width = `${Math.max(2, Math.round((ev.loaded / ev.total) * 100))}%`);
+        xhr.timeout = 10 * 60_000;
+        xhr.ontimeout = () => ((box.innerHTML = ""), alertDialog("Загрузка слишком долгая — отправь через бота"));
+        xhr.onload = () => {
+          let data = {};
+          try {
+            data = JSON.parse(xhr.responseText || "{}");
+          } catch {
+            // HTML-страница ошибки Cloudflare
+          }
+          if (xhr.status === 413) return confirmDialog("Файл великоват для приложения. Отправить через бота?").then((ok) => ok && viaBot());
+          if (xhr.status >= 400) return (box.innerHTML = ""), alertDialog(data.error || "Не загрузилось — попробуй через бота");
+          replaceClient(data.client);
+          haptic("medium");
+          toast(data.duplicate ? "Эта запись уже есть" : "Запись сохранена ✅");
+          closeSheet();
+          render();
+        };
+        xhr.onerror = () => ((box.innerHTML = ""), alertDialog("Связь оборвалась — попробуй ещё раз или через бота"));
+        xhr.send(fd);
+      };
+    },
+  );
+}
+// Только что сам записал на созвон — 15 минут можно отменить или перенести, даже если лида ведёт другой.
+const freshOwn = (c) => {
+  const call = currentCall(c);
+  return !!call && call.setBy === state.me.id && Date.now() - Date.parse(call.setAt || 0) < 15 * 60_000;
+};
 
 function renderClient(c) {
   const st = clientStage(c);
@@ -565,21 +821,33 @@ function renderClient(c) {
       ${c.telegram ? `<button class="action" data-link="${esc(tgUrl(c.telegram))}"><span>${icon("send")}</span>Написать</button>` : ""}
       ${c.chatUrl ? `<button class="action" data-link="${esc(c.chatUrl)}"><span>${icon("chat")}</span>Чат</button>` : ""}
       ${c.phone ? `<a class="action" href="tel:${esc(c.phone)}"><span>${icon("phone")}</span>Позвонить</a>` : ""}
-      <button class="action" data-paylinks="${c.id}"><span>${icon("card")}</span>Ссылка</button>
+      ${canEdit(c) ? `<button class="action" data-paylinks="${c.id}"><span>${icon("card")}</span>Ссылка</button>` : ""}
     </div>${c.payLinkId ? `<div class="sub" style="margin-top:10px">Отправлена ссылка: <b>${esc(linkById(c.payLinkId)?.label || c.payLinkId)}</b></div>` : ""}</div>`;
 
-  if (dups.length) html += `<div class="dup-card"><b>Похоже на дубль</b><div class="sub">Тот же клиент заведён ещё раз — склей, чтобы история и созвоны были в одной карточке.</div>${dups.map((d) => `<div class="dup-row"><span>${esc(clientTitle(d))} · ${esc(statusLabel(d.status))} · создан ${fmtDay(mskKey(Date.parse(d.createdAt)))}</span><button class="btn small" data-merge="${d.id}">Склеить</button></div>`).join("")}</div>`;
+  if (dups.length && canEdit(c)) html += `<div class="dup-card"><b>Похоже на дубль</b><div class="sub">Тот же клиент заведён ещё раз — склей, чтобы история и созвоны были в одной карточке.</div>${dups.map((d) => `<div class="dup-row"><span>${esc(clientTitle(d))} · ${esc(statusLabel(d.status))} · создан ${fmtDay(mskKey(Date.parse(d.createdAt)))}</span><button class="btn small" data-merge="${d.id}">Склеить</button></div>`).join("")}</div>`;
 
-  html += nextStep(c);
+  const locked = !canEdit(c);
+  html += locked
+    ? `<div class="next-card lock-card"><div class="next-label">Только просмотр</div><div class="next-title">Клиента ведёт ${esc(userName(c.mopId))}</div><div class="sub">Менять карточку может только ${esc(userName(c.mopId))}, РОП или Петя. Нужно что-то поправить — оставь комментарий внизу, ${esc(userName(c.mopId))} получит уведомление.</div>${freshOwn(c) ? `<div class="row-links"><button class="link" data-book="${c.id}">Перенести мою запись</button><button class="link" data-uncall="${c.id}">Отменить мою запись</button></div>` : ""}</div>`
+    : nextStep(c);
+  // Руководству: диагност не заполнил итог — напомнить ему в боте.
+  if (money() && c.mopId && c.mopId !== state.me.id && needsReport(c)) html += `<button class="big-cta" data-nudge="${c.id}" style="margin-top:10px"><span>${icon("bell")}</span><div>Напомнить ${esc(userName(c.mopId))} заполнить итог<small>придёт сообщение в бота с кнопкой «Заполнить итог»</small></div></button>`;
+  // Итога нет — заполнить можно всегда, на любом этапе (даже если созвон убрали или стоит отказ).
+  if (!locked && !latestReport(c) && st.kind !== "report") html += `<button class="big-cta" data-report-new="${c.id}" style="margin-top:10px"><span>${icon("note")}</span><div>Заполнить итог диагностики<small>${(c.calls || []).some((x) => x.outcome === "held") ? "созвон проведён, итога нет" : "созвона в карточке нет — итог создаст проведённый созвон на дату диагностики"}</small></div></button>`;
 
-  html += `<div class="card" style="margin-top:10px"><label class="field" style="margin:0"><span>Дальнейшие шаги и договорённости</span><textarea data-f="nextSteps" style="min-height:52px" placeholder="пересозвон 24.10 в 20:00, ждём снятия самозапрета…">${esc(c.nextSteps || "")}</textarea></label></div>`;
+  html += `<div class="card" style="margin-top:10px"><label class="field" style="margin:0"><span>Дальнейшие шаги и договорённости</span><textarea ${locked ? "disabled" : ""} data-f="nextSteps" style="min-height:52px" placeholder="пересозвон 24.10 в 20:00, ждём снятия самозапрета…">${esc(c.nextSteps || "")}</textarea></label></div>`;
 
+  html += recordingsBlock(c);
+
+  // Итог диагностики — один на клиента; пересозвоны его дополняют, а не дублируют.
+  const lr = latestReport(c);
+  if (lr) {
+    const rep = lr.report;
+    html += `<h2>Итог диагностики</h2><div class="card"><div class="report-view" style="margin-top:-6px">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}${rep.extra ? `<div><b>Заметки</b>${esc(rep.extra)}</div>` : ""}<div class="sub">Презентация тарифов: ${ynText(rep.presented)} · Предложил оплатить: ${ynText(rep.offeredPay)}</div><div class="sub">Обновлён ${fmtWhen(Date.parse(lr.reportAt || lr.at))} · ${esc(callKind(c, lr).toLowerCase())}${c.wantedSum ? ` · тариф ${rub(c.wantedSum)}` : ""}</div></div>${locked ? "" : `<button class="link" data-report-open="${c.id}">Дополнить итог</button>`}</div>`;
+  }
   if (callsDone.length) {
-    html += `<h2>Созвоны и итоги</h2><div class="list">${callsDone
-      .map((x) => {
-        const rep = x.report;
-        return `<div class="card" style="border-radius:0;box-shadow:none"><div class="hbar-top"><b>${fmtWhen(Date.parse(x.at))}</b><span class="stt ${x.outcome === "held" ? "g-won" : "g-ndz"}">${x.outcome === "held" ? "проведён" : "НДЗ"}</span></div><div class="sub">Диагност: ${esc(userName(x.mopId))}${canEdit(c) ? ` · <button class="link" style="font-size:13px;color:var(--hint)" data-dropcall="${c.id}" data-call="${x.id}">убрать созвон</button>` : ""}</div>${rep ? `<div class="report-view">${REPORT_FIELDS.map((rf) => (rep[rf.id] ? `<div><b>${rf.label}</b>${esc(rep[rf.id])}</div>` : "")).join("")}<div class="sub">Презентация тарифов: ${ynText(rep.presented)} · Предложил оплатить: ${ynText(rep.offeredPay)}</div>${rep.extra ? `<div>${esc(rep.extra)}</div>` : ""}</div><button class="link" data-report-open="${c.id}">Изменить итог</button>` : x.outcome === "held" ? `<button class="link" data-report-open="${c.id}">Заполнить итог →</button>` : ""}</div>`;
-      })
+    html += `<h2>Созвоны</h2><div class="list">${[...callsDone]
+      .map((x) => `<div class="call-line"><div class="grow"><div class="title">${esc(callKind(c, x))} · ${fmtWhen(Date.parse(x.at))}</div><div class="sub">${esc(userName(x.mopId))}${x.report && x !== lr ? " · есть свой итог" : ""}${canEdit(c) && x.outcome === "ndz" ? ` · <button class="link" style="font-size:12.5px;padding:0" data-fixheld="${c.id}" data-call="${x.id}">на самом деле проведён</button>` : ""}${canEdit(c) ? ` · <button class="link" style="font-size:12.5px;color:var(--hint);padding:0" data-dropcall="${c.id}" data-call="${x.id}">убрать</button>` : ""}</div></div><span class="stt ${x.outcome === "held" ? "g-won" : "g-ndz"}">${x.outcome === "held" ? "проведён" : "НДЗ"}</span></div>`)
       .join("")}</div>`;
   }
 
@@ -594,13 +862,14 @@ function renderClient(c) {
     <label class="field" style="margin:0"><span>Доп. инфа (для диагноста)</span><textarea data-f="info" placeholder="откуда, что пробовал, долги, на что прогрет">${esc(c.info)}</textarea></label>
   </div></details>`;
 
-  html += `<details class="block-det"><summary><span>Сменить статус вручную</span><span class="sub">сейчас: ${esc(statusLabel(c.status))}</span></summary><div class="chips tight" style="margin:4px 0 0">${STATUSES.map((s) => `<button class="chip ${c.status === s.id ? "active" : ""}" data-status="${s.id}">${s.label}</button>`).join("")}</div></details>`;
+  if (!locked) html += `<details class="block-det"><summary><span>Сменить статус вручную</span><span class="sub">сейчас: ${esc(statusLabel(c.status))}</span></summary><div class="chips tight" style="margin:4px 0 0">${STATUSES.map((s) => `<button class="chip ${c.status === s.id ? "active" : ""}" data-status="${s.id}">${s.label}</button>`).join("")}</div></details>`;
 
   html += `<h2>История</h2><div class="card"><div class="toolbar" style="margin:0"><input id="comment" placeholder="Комментарий — увидят все, кто ведёт клиента"><button class="btn small" data-comment="${c.id}">Отправить</button></div></div>
     <div class="list history" style="margin-top:6px">${(c.history || []).slice(0, 30).map((h) => `<div class="row"><div class="grow">${esc(h.text)}</div><div class="right sub">${esc(userName(h.by))}<br>${fmtWhen(Date.parse(h.at))}</div></div>`).join("")}</div>`;
-  if (canEdit(c)) html += `<button class="btn danger" data-delete="${c.id}">Удалить клиента</button>`;
+  if (canDeleteClient(state.me, c)) html += `<button class="btn danger" data-delete="${c.id}">Удалить клиента</button>`;
   $app.innerHTML = html;
 
+  if (locked) for (const el of $app.querySelectorAll("[data-f]")) el.disabled = true;
   // автосохранение полей
   for (const el of $app.querySelectorAll("[data-f]")) {
     el.onchange = async () => {
@@ -744,33 +1013,57 @@ function openNewClient() {
 const SLOT_HOURS = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00", "21:00"];
 function openBooking(c, day = null) {
   const cur = currentCall(c);
+  const moving = !!cur;
   let pickDay = day || (cur ? mskKey(Date.parse(cur.at)) : today());
   let mop = cur?.mopId || c.mopId || (state.me.role === "mop" ? state.me.id : closers()[0]?.id) || null;
   let time = null;
+  let addWin = true;
+  const curDay = cur ? mskKey(Date.parse(cur.at)) : null;
+  const curTime = cur ? mskTime(Date.parse(cur.at)) : null;
+  // Быстрый перенос: ±час, вечером, завтра в то же время.
+  const quick = cur
+    ? [
+        ["−1 час", curDay, fromMin(toMin(curTime) - 60)],
+        ["+1 час", curDay, fromMin(toMin(curTime) + 60)],
+        ["+2 часа", curDay, fromMin(toMin(curTime) + 120)],
+        ["Завтра так же", addDaysKey(curDay, 1), curTime],
+        ["Послезавтра", addDaysKey(curDay, 2), curTime],
+      ].filter(([, d, t]) => toMin(t) >= 7 * 60 && toMin(t) <= 23 * 60 && Date.parse(`${d}T${t}:00+03:00`) > Date.now())
+    : [];
   const draw = (sh) => {
-    const busy = new Set(callsOn(pickDay, (call) => call.mopId === mop && !call.outcome).map(({ call }) => mskTime(Date.parse(call.at))));
+    // Свой же созвон не считаем занятым — его и переносим.
+    const mine = (call) => cur && call.id === cur.id;
+    const busyList = busyOn(mop, pickDay).filter((x) => !mine(x.call));
+    const busy = new Set(callsOn(pickDay, (call) => call.mopId === mop && !call.outcome && !mine(call)).map(({ call }) => mskTime(Date.parse(call.at))));
     const days = Array.from({ length: 10 }, (_, i) => addDaysKey(today(), i));
     const w = winOf(mop, pickDay);
     // Есть окна — показываем их слоты (свободные зелёным), нет — часовую сетку 10–21.
     const grid = w
-      ? daySlots(pickDay, w.ranges, busyOn(mop, pickDay)).filter((x) => x.state !== "busy" || x.inWindow).map((x) => `<button class="slot ${x.state === "free" ? "free" : "busy"} ${time === x.time ? "active" : ""}" data-time="${x.time}">${x.time}</button>`).join("")
+      ? daySlots(pickDay, w.ranges, busyList).filter((x) => x.state !== "busy" || x.inWindow).map((x) => `<button class="slot ${x.state === "free" ? "free" : "busy"} ${time === x.time ? "active" : ""}" data-time="${x.time}">${x.time}</button>`).join("")
       : SLOT_HOURS.map((t) => `<button class="slot ${busy.has(t) || Date.parse(`${pickDay}T${t}:00+03:00`) < Date.now() ? "busy" : ""} ${time === t ? "active" : ""}" data-time="${t}">${t}</button>`).join("");
-    sh.innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">Созвон с ${esc(clientTitle(c))}</div>
-      ${cur ? `<div class="sub" style="margin:0 4px 10px">Сейчас: ${fmtWhen(Date.parse(cur.at))} — будет перенесён</div>` : ""}
+    const outside = time && w && !w.ranges.some((r) => toMin(r.from) <= toMin(time) && toMin(time) < toMin(r.to));
+    const noWin = time && !w;
+    const label = time ? `${moving ? "Перенести" : "Записать"} на ${fmtDay(pickDay)} в ${time}` : "Выбери время";
+    sh.innerHTML = `<div class="sheet-grip"></div><div class="sheet-title">${moving ? "Перенести созвон" : "Записать на созвон"}</div>
+      <div class="sub" style="margin:0 4px 10px">${esc(clientTitle(c))}${cur ? ` · сейчас <b>${fmtWhen(Date.parse(cur.at))}</b> · ${esc(userName(cur.mopId))}` : ""}</div>
+      ${quick.length ? `<div class="sheet-label">Быстро</div><div class="chips tight">${quick.map(([l, d, t]) => `<button class="chip ${pickDay === d && time === t ? "active" : ""}" data-qd="${d}" data-qt="${t}">${l} · ${t}</button>`).join("")}</div>` : ""}
       <div class="sheet-label">Диагност</div>
       <div class="chips tight">${closers().map((u) => `<button class="chip ${u.id === mop ? "active" : ""}" data-mop="${u.id}">${esc(u.name)}</button>`).join("") || `<span class="sub">Добавь менеджеров в «Ещё → Команда»</span>`}</div>
       <div class="sheet-label">День</div>
       <div class="days">${days.map((d) => `<button class="day ${d === pickDay ? "active" : ""}" data-day="${d}"><small>${weekday(d)}</small><b>${d.slice(8)}</b><i class="${winOf(mop, d) ? "win" : callsOn(d, (call) => call.mopId === mop && !call.outcome).length ? "has" : ""}"></i></button>`).join("")}</div>
-      <div class="sheet-label">${w ? `Окно ${rangesText(w.ranges)} · зелёное — свободно` : "Окна не заданы · зачёркнуто — уже созвон"}</div>
+      <div class="sheet-label">${w ? `Окно ${rangesText(w.ranges)} · зелёное — свободно` : "Окна на этот день не заданы · зачёркнуто — уже созвон"}</div>
       <div class="slots">${grid || `<span class="sub">В окне всё занято — выбери другое время ниже</span>`}</div>
-      <label class="field" style="margin-top:10px"><span>Другое время</span><input type="time" id="b-time" value="${time && !SLOT_HOURS.includes(time) && !w ? time : ""}"></label>
-      <button class="btn block" id="b-save" ${mop && time ? "" : "disabled"}>${time ? `Записать на ${fmtDay(pickDay)} в ${time}` : "Выбери время"}</button>`;
+      <label class="field" style="margin-top:10px"><span>Любое другое время</span><input type="time" id="b-time" value="${time || ""}"></label>
+      ${outside || noWin ? `<label class="check-line"><input type="checkbox" id="b-addwin" ${addWin ? "checked" : ""}> <span>${time} ${noWin ? "— окон нет" : "вне окна"}. Добавить это время в окна ${esc(userName(mop))}</span></label>` : ""}
+      <button class="btn block" id="b-save" ${mop && time ? "" : "disabled"}>${label}</button>
+      ${moving ? `<div class="row-links" style="justify-content:center"><button class="link" id="b-cancel" style="color:var(--bad)">Отменить созвон совсем</button></div>` : ""}`;
     sh.onclick = (e) => {
-      const b = e.target.closest("[data-mop],[data-day],[data-time]");
+      const b = e.target.closest("[data-mop],[data-day],[data-time],[data-qd]");
       if (!b) return;
       if (b.dataset.mop) mop = b.dataset.mop;
       if (b.dataset.day) pickDay = b.dataset.day;
       if (b.dataset.time) time = b.dataset.time;
+      if (b.dataset.qd) [pickDay, time] = [b.dataset.qd, b.dataset.qt];
       haptic();
       draw(sh);
     };
@@ -778,11 +1071,30 @@ function openBooking(c, day = null) {
       time = e.target.value || null;
       draw(sh);
     };
+    const aw = sh.querySelector("#b-addwin");
+    if (aw) aw.onchange = () => (addWin = aw.checked);
+    const cancel = sh.querySelector("#b-cancel");
+    if (cancel) cancel.onclick = async () => {
+      if (!(await confirmDialog(`Отменить созвон ${fmtWhen(Date.parse(cur.at))}?`))) return;
+      if (await act(c.id, { type: "uncall", callId: cur.id }, "Созвон отменён")) closeSheet();
+    };
     sh.querySelector("#b-save").onclick = async () => {
-      const at = new Date(Date.parse(`${pickDay}T${time}:00+03:00`)).toISOString();
-      if (busy.has(time) && !(await confirmDialog("У диагноста уже есть созвон в это время. Всё равно записать?"))) return;
+      const ts = Date.parse(`${pickDay}T${time}:00+03:00`);
+      if (ts < Date.now() - 5 * 60_000) return alertDialog("Это время уже прошло — выбери другое.");
+      if ([...busy].some((t) => Math.abs(toMin(t) - toMin(time)) < 45) && !(await confirmDialog("У диагноста уже есть созвон в это время. Всё равно записать?"))) return;
+      const btn = sh.querySelector("#b-save");
+      btn.disabled = true;
+      const res = await act(c.id, { type: "call", at: new Date(ts).toISOString(), mopId: mop }, `${moving ? "Перенесено" : "Записан"}: ${userName(mop)} · ${fmtDay(pickDay)}, ${time}`);
+      btn.disabled = false;
+      if (!res) return;
+      // Время вне окна — сразу расширяем окно, чтобы в «Окнах» всё было честно.
+      if ((outside || noWin) && addWin) {
+        const end = fromMin(Math.min(toMin(time) + 60, 24 * 60));
+        await api("PUT", "/windows", { mopId: mop, days: [pickDay], ranges: [...(w?.ranges || []), { from: time, to: end }] })
+          .then((r) => ((state.windows = r.windows), render()))
+          .catch(() => {});
+      }
       closeSheet();
-      await act(c.id, { type: "call", at, mopId: mop }, `Записан: ${userName(mop)} · ${fmtDay(pickDay)}, ${time}`);
     };
   };
   openSheet("", draw);
@@ -792,13 +1104,17 @@ function openReport(c, { fresh = false } = {}) {
   if (!c) return;
   const held = fresh ? null : [...(c.calls || [])].reverse().find((x) => x.outcome === "held" && !x.reportAt) || [...(c.calls || [])].reverse().find((x) => x.outcome === "held" && !x.legacy);
   if (!held && !fresh) return openReport(c, { fresh: true });
-  const rep = held?.report || {};
+  // Пересозвон: всё из прошлого итога уже вписано — поправь только то, что изменилось.
+  const prev = latestReport(c);
+  const recall = !!prev && held && prev.id !== held.id && !held.report;
+  const rep = held?.report || prev?.report || {};
   let status = null;
   let presented = rep.presented ?? null;
   let offered = rep.offeredPay ?? null;
   const mopChoices = closers();
   openSheet(
-    `<div class="sheet-title">Итог диагностики</div><div class="sub" style="margin:0 4px 10px">${esc(clientTitle(c))}${held ? ` · ${fmtWhen(Date.parse(held.at))}` : ""}</div>
+    `<div class="sheet-title">${recall ? "Итог пересозвона" : "Итог диагностики"}</div><div class="sub" style="margin:0 4px 10px">${esc(clientTitle(c))}${held ? ` · ${fmtWhen(Date.parse(held.at))}` : ""}</div>
+    ${recall ? `<div class="card" style="margin-bottom:8px;background:var(--accent-wash)"><div class="sub" style="color:var(--text)">Это пересозвон — итог с диагностики ${fmtDay(mskKey(Date.parse(prev.at)))} уже вписан. Поправь только то, что изменилось, и выбери, что решил клиент.</div></div>` : ""}
     ${held ? "" : `<div class="card" style="margin-bottom:8px"><div class="two"><label class="field"><span>Дата диагностики</span><input type="date" id="r-date" value="${today()}"></label><label class="field"><span>Менеджер</span><select id="r-mop">${mopChoices.map((u) => `<option value="${u.id}" ${u.id === (state.me.role === "mop" ? state.me.id : c.mopId) ? "selected" : ""}>${esc(u.name)}</option>`).join("")}</select></label></div></div>`}
     <details class="card paste" style="margin-bottom:8px"><summary class="link">📋 Вставить отчёт текстом (как в таблице)</summary><textarea id="r-paste" style="min-height:120px;margin-top:8px" placeholder="Потребность/запрос клиента: …&#10;Род деятельности: …&#10;О чем глобально мечтает (главная боль): …&#10;Провел презентацию по тарифам: Да&#10;Основное возражение: …&#10;Следующий шаг, договоренности: …&#10;Предложил оплатить: Да"></textarea><button class="btn small block" id="r-parse">Разложить по полям</button></details>
     <div class="card">${REPORT_FIELDS.map((f) => `<label class="field"><span>${f.label}</span><textarea data-r="${f.id}" style="min-height:56px">${esc(rep[f.id] || "")}</textarea></label>`).join("")}
@@ -815,8 +1131,9 @@ function openReport(c, { fresh = false } = {}) {
       const extra = sh.querySelector("#r-extra");
       const drawExtra = () => {
         const needSum = ["paid", "prepaid", "thinking", "resched", "refuse_bank"].includes(status);
-        const label = { paid: "Сумма оплаты (тариф)", prepaid: "Сумма предоплаты", thinking: "Сумма потенциала (тариф)", resched: "Сумма потенциала (тариф)", refuse_bank: "На какую сумму не одобрили" }[status];
-        extra.innerHTML = `${needSum ? `<div class="card" style="margin-top:10px"><label class="field"><span>${label}</span><input id="r-sum" inputmode="numeric" value="${status === "prepaid" ? "" : c.wantedSum || ""}" placeholder="100000"></label>${status === "prepaid" ? `<label class="field"><span>Полный тариф</span><input id="r-wanted" inputmode="numeric" value="${c.wantedSum || ""}"></label>` : ""}</div>` : ""}${status === "resched" ? `<div class="card" style="margin-top:8px"><label class="field"><span>Новый созвон (МСК)</span><input type="datetime-local" id="r-next"></label></div>` : ""}`;
+        const lastPaid = [...(c.events || [])].reverse().find((e) => e.t === "paid");
+  const label = { paid: c.status === "paid" ? "Итоговая сумма оплаты (заменит прежнюю)" : "Сумма оплаты (тариф)", prepaid: "Сумма предоплаты", thinking: "Сумма потенциала (тариф)", resched: "Сумма потенциала (тариф)", refuse_bank: "На какую сумму не одобрили" }[status];
+        extra.innerHTML = `${needSum ? `<div class="card" style="margin-top:10px"><label class="field"><span>${label}</span><input id="r-sum" inputmode="numeric" value="${status === "prepaid" ? "" : (status === "paid" && lastPaid?.sum) || c.wantedSum || ""}" placeholder="100000"></label>${status === "prepaid" ? `<label class="field"><span>Полный тариф</span><input id="r-wanted" inputmode="numeric" value="${c.wantedSum || ""}"></label>` : ""}</div>` : ""}${status === "resched" ? `<div class="card" style="margin-top:8px"><label class="field"><span>Новый созвон (МСК)</span><input type="datetime-local" id="r-next"></label></div>` : ""}`;
       };
       sh.querySelector("#r-parse").onclick = () => {
         const r = parseReportText(sh.querySelector("#r-paste").value);
@@ -863,9 +1180,14 @@ function openReport(c, { fresh = false } = {}) {
         if (sh.querySelector("#r-wanted")) body.wantedSum = sh.querySelector("#r-wanted").value;
         const next = sh.querySelector("#r-next")?.value;
         if (next) body.nextAt = new Date(Date.parse(`${next}:00+03:00`)).toISOString();
-        closeSheet();
+        // Закрываем только после сохранения — при ошибке написанный отчёт не пропадает.
+        const btn = sh.querySelector("#r-save");
+        btn.disabled = true;
         const res = await act(c.id, body, "Отчёт сохранён");
-        if (res && status === "paid") celebrate(Number(body.sum) || 0);
+        btn.disabled = false;
+        if (!res) return;
+        closeSheet();
+        if (status === "paid") celebrate(Number(body.sum) || 0);
       };
     },
   );
@@ -885,9 +1207,13 @@ function openStatus(c, status) {
     (sh) => {
       sh.querySelector("#s-save").onclick = async () => {
         const sum = sh.querySelector("#s-sum").value;
-        closeSheet();
+        const btn = sh.querySelector("#s-save");
+        btn.disabled = true;
         const res = await act(c.id, { type: "status", status, sum }, `Статус: ${statusLabel(status)}`);
-        if (res && status === "paid") celebrate(Number(sum) || 0);
+        btn.disabled = false;
+        if (!res) return;
+        closeSheet();
+        if (status === "paid") celebrate(Number(sum) || 0);
       };
     },
   );
@@ -1026,7 +1352,7 @@ function openSlotBook(mopId, day, time) {
   const at = new Date(Date.parse(`${day}T${time}:00+03:00`)).toISOString();
   let q = "";
   const pool = () => state.clients
-    .filter((c) => !isClosed(c.status) && !currentCall(c))
+    .filter((c) => !isClosed(c.status) && !currentCall(c) && canEdit(c))
     .filter((c) => !q || [c.name, c.telegram, c.phone, c.info].join(" ").toLowerCase().includes(q))
     .sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""))
     .slice(0, 30);
@@ -1296,6 +1622,8 @@ function renderMore() {
   if (state.more === "feed") return renderFeed();
   if (state.more === "links") return renderLinks();
   if (state.more === "payouts" && money()) return renderPayouts();
+  if (state.more === "trash" && money()) return renderTrash();
+  if (state.more === "guide") return renderGuide();
   state.more = null;
   const item = (id, ic, title, sub) => `<div class="row" data-more="${id}"><div class="icon">${ic}</div><div class="grow"><div class="title">${title}</div><div class="sub">${sub}</div></div><div class="right sub">›</div></div>`;
   const pend = (state.payments || []).filter((p) => !p.verified).length;
@@ -1306,10 +1634,58 @@ function renderMore() {
       ${item("feed", icon("bell"), "Лента событий", unreadFeed() ? `новых: ${unreadFeed()}` : "созвоны, продажи, НДЗ, комментарии")}
       ${item("links", icon("card"), "Ссылки на оплату", `${payLinks().length} шт · Т-Банк, Ресурс развития, Продамус`)}
       ${item("team", icon("users"), "Команда", `${state.users.filter((u) => u.active !== false).length} в команде${state.pending.length ? ` · заявок ${state.pending.length}` : ""}`)}
+      ${item("guide", icon("note"), "Как пользоваться", "коротко: куда нажимать в твоей роли")}
       ${item("rules", icon("book"), "Регламент отдела продаж", "кто что делает и когда")}
+      ${money() ? item("trash", icon("box"), "Корзина", "удалённые клиенты — можно восстановить") : ""}
       <div class="row" data-export><div class="icon">${icon("box")}</div><div class="grow"><div class="title">Выгрузить базу</div><div class="sub">Excel-файл в бота${money() ? " + ведомость и полный бэкап" : ""}</div></div><div class="right sub">›</div></div>
       ${money() ? item("settings", icon("gear"), "Настройки", "проценты, план, перенос из таблиц") : ""}
     </div>`;
+}
+
+// ---------- КАК ПОЛЬЗОВАТЬСЯ ----------
+const GUIDES = {
+  lidorub: [
+    ["Завёл лида", "«+ Лид» на «Сегодня» или перешли боту сообщение клиента. Много сразу — «Клиенты → Таблица → Добавить строками». Дубли по нику и телефону приложение не даст создать."],
+    ["Отправил ЛМ", "В карточке или на «Сегодня» — «ЛМ отправлен»."],
+    ["Записал на созвон", "«Окна» → зелёный слот диагноста → выбери клиента. Или в карточке «Записать на созвон». Диагност сразу получит уведомление."],
+    ["Дальше клиент у МОПа", "Как только записал — клиента ведёт диагност, менять карточку может только он, РОП и Петя. Ошибся — отмени запись в первые 15 минут. Нужно что-то передать — комментарий в карточке."],
+    ["Смотри результат", "На «Сегодня» — твои лиды по этапам, графики за 14 дней и продажи с твоих лидов. Тап по этапу — список."],
+  ],
+  mop: [
+    ["Утро", "Открой «Сегодня» → блок «Что сделать сейчас». Всё, что там есть, — твои задачи по порядку. Пусто — значит всё сделано."],
+    ["Планы поменялись", "«Перенести» у созвона в списке или в карточке: ±1 час, «завтра так же» или любое время. Вне окна — время само добавится в окна. Или боту: «моего лида с 21:00 перенеси на 16:00»."],
+    ["Созвон прошёл", "В карточке или на «Сегодня» нажми «Пришёл, провёл» или «Не пришёл (НДЗ)». Бот тоже спросит через 15 минут после начала."],
+    ["Сразу после созвона — итог", "«Заполнить итог»: потребность, род деятельности, боль, возражение, договорённости. Можно вставить свой текст целиком. Не заполнишь — бот напомнит 3 раза, потом сообщит РОПу."],
+    ["Запись созвона", "В карточке «Выгрузить созвон»: до 20 МБ — прямо отсюда, больше (до 2 ГБ) — через бота: откроется чат, кидаешь файл, бот сам привяжет его к лиду."],
+    ["Решение клиента", "В карточке «Что решил клиент?»: Оплатил / Предоплата / Думает / Перенос / Отказы / Невалид. «Оплатил» сам падает в ведомость. Пересозвон — итог заново не нужен, просто выбери решение."],
+    ["Дожим", "«Думает» и НДЗ — коснись каждый день: «Написал — тишина» или «Ответил». 3 раза тишина — «Игнор» сам."],
+    ["Окна", "«Окна» → «+ Окна»: когда ты берёшь созвоны. Лидоруб записывает в свободные слоты."],
+  ],
+  rop: [
+    ["Контроль дня", "«Сегодня»: команда за день, задачи, зависшие лиды. Утром бот присылает вчерашний РнП и список зависших."],
+    ["Ведомость", "«Ещё → Зарплатная ведомость»: внеси чистую после комиссии и поставь «верифицировано». «Ждут проверки» — сверху."],
+    ["РнП", "Любая цифра кликабельна — видно, какие клиенты за ней. Не сходится — поправь в карточке клиента."],
+    ["Лиды команды", "«Клиенты → Таблица» — вся CRM как раньше в таблице, фильтр по человеку и папке. «Зависли» — лиды без следующего шага."],
+    ["Если МОП не заполнил итог", "В карточке «Напомнить … заполнить итог». После 3 напоминаний бот сам пишет тебе."],
+  ],
+};
+GUIDES.owner = [...GUIDES.rop, ["Выплаты", "«Ещё → Выплаты»: кому сколько за что. По понедельникам бот присылает напоминание с кнопками «выплатил»."], ["Корзина и бэкап", "Удалённые клиенты — «Ещё → Корзина», можно восстановить. Каждое утро бот присылает тебе полный бэкап базы."]];
+function renderGuide() {
+  const steps = GUIDES[state.me.role] || GUIDES.mop;
+  $app.innerHTML = `<h1>Как пользоваться</h1><div class="page-sub">${esc(ROLES[state.me.role])} — по шагам.</div><div class="list">${steps.map(([t, d], i) => `<div class="row" style="cursor:default;align-items:flex-start"><div class="task-n">${i + 1}</div><div class="grow"><div class="title" style="white-space:normal">${t}</div><div class="sub" style="display:block;font-size:14px;line-height:1.45">${d}</div></div></div>`).join("")}</div>
+    <div class="card" style="margin-top:10px"><div class="sub" style="font-size:14px">Боту можно писать как человеку и голосом: «запиши Антона к Диме на завтра в 18», «@ivan ндз», «сколько у нас продаж за неделю?».</div></div>`;
+}
+
+// ---------- КОРЗИНА ----------
+async function renderTrash() {
+  $app.innerHTML = `<h1>Корзина</h1><div class="page-sub">Удалённые и склеенные дубли. Восстановить — вернуть клиента со всей историей.</div><div class="loader" style="padding-top:20px">Загрузка…</div>`;
+  try {
+    const { items } = await api("GET", "/trash");
+    if (state.more !== "trash") return;
+    $app.innerHTML = `<h1>Корзина</h1><div class="page-sub">Удалённые и склеенные дубли. Восстановить — вернуть клиента со всей историей.</div>${items.length ? `<div class="list">${items.map((c) => `<div class="row" style="cursor:default">${avatar(clientTitle(c), c.id, 36)}<div class="grow"><div class="title">${esc(clientTitle(c))}${c.name && c.telegram ? ` <span class="sub" style="display:inline">${esc(c.telegram)}</span>` : ""}</div><div class="sub">${statusBadge(c.status)}<span class="sub">· ${esc(c.deleteReason || "удалён")} · ${esc(userName(c.deletedBy))} · ${fmtWhen(Date.parse(c.deletedAt))}</span></div></div><button class="btn small ghost" data-restore="${c.id}">Восстановить</button></div>`).join("")}</div>` : `<div class="card empty">Корзина пуста</div>`}`;
+  } catch (e) {
+    $app.innerHTML = `<div class="card empty">${esc(e.message)}</div>`;
+  }
 }
 
 // ---------- ВЫПЛАТЫ ----------
@@ -1422,9 +1798,12 @@ function openPayment(p) {
         if (verified && body.net === null) return alertDialog("Без чистой суммы верифицировать нельзя");
         try {
           const res = isNew ? await api("POST", "/payments", { ...body, verified }) : await api("PATCH", `/payments/${p.id}`, { ...body, verified });
-          const i = state.payments.findIndex((x) => x.id === res.payment.id);
-          if (i >= 0) state.payments[i] = res.payment;
-          else state.payments.push(res.payment);
+          if (res.payments) state.payments = res.payments;
+          else {
+            const i = state.payments.findIndex((x) => x.id === res.payment.id);
+            if (i >= 0) state.payments[i] = res.payment;
+            else state.payments.push(res.payment);
+          }
           closeSheet();
           toast("Сохранено");
           render();
@@ -1631,7 +2010,7 @@ function renderRules() {
 $app.addEventListener("click", async (e) => {
   const lt = e.target.closest(".link-row .title");
   if (lt && isBoss() && state.more === "links") return openLinkEdit(linkById(lt.closest(".link-row").querySelector("[data-copy]").dataset.copy));
-  const t = e.target.closest("button, [data-open], [data-more], [data-pay], [data-user], [data-person], [data-sperson], [data-export], [data-drill]");
+  const t = e.target.closest("button, [data-open], [data-more], [data-pay], [data-user], [data-person], [data-sperson], [data-export], [data-drill], [data-goto]");
   if (!t) return;
   const d = t.dataset;
   if (d.link) {
@@ -1661,8 +2040,36 @@ $app.addEventListener("click", async (e) => {
     e.stopPropagation();
     return openBooking(clientById(d.book));
   }
+  if (d.recUp) return openRecUpload(clientById(d.recUp));
+  if (d.recGet) {
+    const [cid, rid] = d.recGet.split("|");
+    t.disabled = true;
+    try {
+      const r = await api("POST", `/clients/${cid}/recordings/${rid}/send`);
+      replaceClient(r.client);
+      haptic("medium");
+      toast("Отправил тебе в Telegram — открой чат с ботом");
+      render();
+    } catch (err) {
+      alertDialog(err.message);
+    } finally {
+      t.disabled = false;
+    }
+    return;
+  }
+  if (d.recDel) {
+    const [cid, rid] = d.recDel.split("|");
+    if (!(await confirmDialog("Скрыть запись из карточки? Копия в архиве останется."))) return;
+    try {
+      replaceClient((await api("DELETE", `/clients/${cid}/recordings/${rid}`)).client);
+      render();
+    } catch (err) {
+      alertDialog(err.message);
+    }
+    return;
+  }
   if (d.reportOpen) return openReport(clientById(d.reportOpen));
-  if (d.reportNew) return openReport(clientById(d.reportNew), { fresh: true });
+  if (d.reportNew) return openReport(clientById(d.reportNew));
   if (d.export !== undefined) {
     toast("Готовлю выгрузку…");
     try {
@@ -1703,6 +2110,45 @@ $app.addEventListener("click", async (e) => {
     if (!input.value.trim()) return;
     return act(d.comment, { type: "comment", text: input.value });
   }
+  if (d.addpay) {
+    const c = clientById(d.addpay);
+    const ev = [...(c.events || [])].reverse().find((e) => e.t === "paid");
+    try {
+      const res = await api("POST", "/payments", { clientId: c.id, clientName: clientTitle(c), mopId: c.mopId, lidorubId: c.lidorubId, tariff: ev?.sum || c.wantedSum || 0, date: today() });
+      state.payments = res.payments || [...(state.payments || []), res.payment];
+      toast("Оплата добавлена — внеси чистую в ведомости");
+      return render();
+    } catch (e) {
+      return alertDialog(e.message);
+    }
+  }
+  if (d.nudge) {
+    try {
+      await api("POST", `/clients/${d.nudge}/nudge`);
+      return toast(`Напомнил ${userName(clientById(d.nudge)?.mopId)}`);
+    } catch (e) {
+      return alertDialog(e.message);
+    }
+  }
+  if (d.restore) {
+    try {
+      const res = await api("POST", `/trash/${d.restore}/restore`);
+      replaceClient(res.client);
+      toast("Клиент восстановлен");
+      state.tab = "clients";
+      state.more = null;
+      state.clientId = res.client.id;
+      return render();
+    } catch (e) {
+      return alertDialog(e.message);
+    }
+  }
+  if (d.fixheld) {
+    if (!(await confirmDialog("Клиент на самом деле пришёл? НДЗ уберём, созвон станет проведённым — дальше заполни итог."))) return;
+    const c = await act(d.fixheld, { type: "fixheld", callId: d.call }, "Исправлено: созвон проведён");
+    if (c && !latestReport(c)) openReport(c);
+    return;
+  }
   if (d.dropcall) {
     if (!(await confirmDialog("Убрать этот созвон из карточки? Используй для дублей и ошибок — РнП пересчитается."))) return;
     return act(d.dropcall, { type: "dropcall", callId: d.call }, "Созвон убран");
@@ -1738,6 +2184,15 @@ $app.addEventListener("click", async (e) => {
     return render();
   }
   if (d.filter) return (state.filter = d.filter), render();
+  if (d.cview) return (state.clientsView = d.cview), render();
+  if (d.goto) {
+    const [folder, person] = d.goto.split("|");
+    Object.assign(state, { tab: "clients", filter: folder, person: person || "all", clientId: null, more: null });
+    if (folder === "all") state.clientsView = "table";
+    render();
+    return window.scrollTo(0, 0);
+  }
+  if (d.bulk !== undefined) return openBulkAdd();
   if (d.pfilter) return (state.person = d.pfilter), render();
   if (d.person) return (state.tab = "clients"), (state.person = d.person), (state.filter = "active"), render();
   if (d.cal) return (state.calDay = d.cal), render();

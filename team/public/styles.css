@@ -547,3 +547,42 @@ main > * { animation: rise .22s ease-out both; }
 .rnp td.drill { cursor: pointer; }
 .rnp td.drill:active { background: var(--accent-wash); }
 .rnp td.drill { text-decoration: underline dotted var(--line); text-underline-offset: 3px; }
+.paid-line { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 2px; padding: 10px 12px; border-radius: 12px; background: var(--good-wash); font-size: 14px; cursor: pointer; }
+.paid-line.warn { background: var(--warn-wash); cursor: default; display: block; }
+.call-line { display: flex; align-items: center; gap: 10px; padding: 11px 16px; }
+.call-line .title { font-weight: 600; font-size: 14.5px; }
+.lock-card { border-color: var(--line); background: var(--bg3); }
+.lock-card .next-label { color: var(--hint); }
+textarea:disabled, input:disabled, select:disabled { opacity: .7; }
+
+/* ---------- таблица CRM ---------- */
+.crm-wrap { background: var(--bg); border-radius: var(--radius); overflow: auto; box-shadow: var(--shadow); max-height: 70vh; }
+.sheet .crm-wrap { background: var(--bg3); box-shadow: none; max-height: 40vh; }
+table.crm { border-collapse: separate; border-spacing: 0; font-size: 13px; min-width: 100%; }
+table.crm th { position: sticky; top: 0; z-index: 2; background: var(--bg3); color: var(--hint); font-weight: 600; font-size: 12px; text-align: left; padding: 9px 10px; white-space: nowrap; border-bottom: 1px solid var(--line); }
+table.crm td { padding: 9px 10px; border-bottom: 1px solid var(--line); vertical-align: top; white-space: nowrap; background: var(--bg); }
+.sheet table.crm td { background: var(--bg3); }
+table.crm td.wide { white-space: normal; min-width: 180px; max-width: 240px; }
+table.crm td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.crm td.sticky, table.crm th:first-child { position: sticky; left: 0; z-index: 1; box-shadow: 1px 0 0 var(--line); max-width: 150px; min-width: 120px; white-space: normal; overflow-wrap: anywhere; }
+table.crm th:first-child { z-index: 3; }
+table.crm tbody tr { cursor: pointer; }
+table.crm tbody tr:active td { background: var(--accent-wash); }
+table.crm tr.is-stuck td.sticky { box-shadow: inset 3px 0 0 var(--warn), 1px 0 0 var(--line); }
+table.crm tr.is-dup td { opacity: .5; }
+.stuck-why { color: var(--warn) !important; }
+
+/* ---------- задачи на сейчас ---------- */
+.tasks .task { min-height: 60px; }
+.task-n { flex: none; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 11px; background: var(--accent-wash); color: var(--accent); font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.task.warn .task-n { background: var(--bad); color: #fff; }
+.tasks.done { display: flex; flex-direction: column; gap: 2px; background: var(--good-wash); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 10px; }
+.tasks.done b { color: var(--good); }
+
+/* галочка в шторке: «добавить время в окна» */
+.check-line { display: flex; gap: 10px; align-items: flex-start; margin: 10px 4px 2px; font-size: 14px; line-height: 1.4; color: var(--text); }
+.check-line input { width: 20px; height: 20px; margin: 0; flex: none; accent-color: var(--accent); }
+
+/* записи созвонов */
+.rec-ic { width: 38px; height: 38px; border-radius: 12px; background: var(--accent-wash); color: var(--accent); display: grid; place-items: center; flex: none; }
+.rec-ic svg { width: 20px; height: 20px; }

@@ -28,6 +28,8 @@ export async function dispatch(notes, c, { store, env, tg, appUrl, by, users, se
     if (n.t === "call") {
       to = [n.mop];
       if (n.prevMop && n.prevMop !== n.mop) to.push(n.prevMop);
+      // Перенос — и лидорубу, который записывал: он держит связь с клиентом.
+      if (n.moved && c.lidorubId) to.push(c.lidorubId);
       html = n.moved
         ? `🔁 <b>Перенос созвона</b>\n👤 ${who(c)}\nБыло: ${fmtWhen(Date.parse(n.moved))}\nСтало: <b>${fmtWhen(Date.parse(n.at))} МСК</b> · ${h(name(n.mop))}\nПеренёс: ${h(name(by))}`
         : `🆕 <b>Новый созвон — ${fmtWhen(Date.parse(n.at))} МСК</b>\n👤 ${who(c)}${c.info ? `\n📝 ${h(c.info.slice(0, 250))}` : ""}\nЗаписал: ${h(name(by))}${n.text ? `\n💬 «${h(n.text.slice(0, 400))}»` : ""}`;

@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { checkInitData, parseIds } from "./auth.mjs";
-import { telegram, webhookSecret } from "./telegram.mjs";
+import { telegram, webhookSecret, escapeHtml } from "./telegram.mjs";
 import { handleUpdate, BOT_COMMANDS } from "./bot.mjs";
 import { dispatch } from "./notify.mjs";
 import {
   ROLES, STATUS_IDS, SOURCES, REPORT_FIELDS, AFTER_CALL, DEFAULT_RATES, FOLLOWUP_TOUCHES,
-  canSeeMoney, DEFAULT_PAY_LINKS, payoutsOwed, payrollRow, PAYOUT_ROLES, cleanRanges, rangesText, mskKey, addDaysKey, currentCall, ndzCount, clientTitle, statusLabel, fmtWhen,
+  canSeeMoney, canTouchClient, canDeleteClient, DEFAULT_PAY_LINKS, payoutsOwed, payrollRow, PAYOUT_ROLES, cleanRanges, rangesText, mskKey, addDaysKey, currentCall, ndzCount, clientTitle, statusLabel, fmtWhen,
 } from "../public/lib/model.js";
 
 export const json = (data, status = 200) =>
@@ -15,7 +15,7 @@ const str = (v, max = 500) => (typeof v === "string" ? v.trim().slice(0, max) : 
 // «68 950,50», «68.950», «99.99», «100 000 ₽» → число. Последние «,» или «.» с 1–2 цифрами — копейки, остальные — разделители тысяч.
 export const money = (v) => {
   let t = String(v ?? "").replace(/[\s\u00a0₽]|руб\.?|р\.?$/gi, "");
-  const k = t.match(/^(\d+(?:[.,]\d+)?)к$/i);
+  const k = t.match(/^(\d+(?:[.,]\d+)?)(?:к|k|тыс\.?|т\.?)$/i);
   if (k) return Math.min(Math.round(Number(k[1].replace(",", ".")) * 1000), 100_000_000);
   const dec = t.match(/[.,](\d{1,2})$/);
   if (dec) t = `${t.slice(0, -dec[0].length).replace(/[.,]/g, "")}.${dec[1]}`;
@@ -109,6 +109,12 @@ export function findDup(clients, { telegram, phone }, exceptId = null) {
 }
 
 // Склеить дубль `from` в `to`: созвоны (без повторов по времени), события, история, пустые поля.
+// Лида передали другому диагносту, а прежний с ним так и не созвонился — «лид в работе» в РнП у прежнего снимаем.
+function dropIdleHanded(c, prevMop) {
+  if (!prevMop || (c.calls || []).some((x) => x.mopId === prevMop && (x.outcome === "held" || x.outcome === "ndz"))) return;
+  c.events = (c.events || []).filter((e) => !(e.t === "handed" && e.mop === prevMop));
+}
+
 export function mergeInto(to, from, by) {
   const near = (a, b) => Math.abs(Date.parse(a.at) - Date.parse(b.at)) < 45 * 60_000;
   for (const call of from.calls || []) {
@@ -118,10 +124,25 @@ export function mergeInto(to, from, by) {
     if (same && call.report && !same.report) Object.assign(same, { report: call.report, reportAt: call.reportAt });
   }
   to.calls.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
-  to.events = [...(to.events || []), ...(from.events || []).filter((e) => !(to.events || []).some((x) => x.t === e.t && x.at === e.at))];
+  // Один открытый созвон на клиента: остальные — «перенесён».
+  const open = to.calls.filter((x) => !x.outcome);
+  for (const x of open.slice(0, -1)) Object.assign(x, { outcome: "moved", movedAt: nowIso() });
+  // События: «передан» — один раз на диагноста, «оплатил» — один раз, иначе РнП посчитает дважды.
+  const evs = [...(to.events || []), ...(from.events || [])].sort((a, b) => (a.at || "").localeCompare(b.at || ""));
+  const lastPaid = evs.map((e) => e.t).lastIndexOf("paid");
+  const seen = new Set();
+  to.events = evs.filter((e, i) => {
+    if (e.t === "paid") return i === lastPaid;
+    const k = e.t === "handed" ? `handed:${e.mop}` : `${e.t}:${e.at}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
   for (const f of ["name", "telegram", "phone", "chatUrl", "lidorubId", "mopId", "nextSteps", "payLinkId"]) if (!to[f] && from[f]) to[f] = from[f];
   if (from.info && !(to.info || "").includes(from.info)) to.info = [to.info, from.info].filter(Boolean).join("\n");
   if (!to.wantedSum && from.wantedSum) to.wantedSum = from.wantedSum;
+  // Записи созвонов при склейке не теряем.
+  to.recordings = [...(to.recordings || []), ...(from.recordings || []).filter((r) => !(to.recordings || []).some((x) => x.uniq === r.uniq))];
   // Статус — у кого дальше по воронке (оплата важнее «нового»).
   // Статус — самый свежий из двух (оплата важнее всего).
   if (from.status === "paid" || (to.status !== "paid" && (from.statusAt || "") > (to.statusAt || ""))) Object.assign(to, { status: from.status, statusAt: from.statusAt });
@@ -155,7 +176,72 @@ export async function autoMergeDups(store) {
   return merged;
 }
 
-async function moveToTrash(store, c, by, reason = "") {
+// ---------- сверка «Оплатил» ↔ ведомость ----------
+// Оплата из таблицы (seed) привязывается к клиенту по @нику в названии; клиент «Оплатил» с работой в приложении
+// без единой оплаты в ведомости — получает черновик «ждёт проверки» (так бывает после импорта CRM-таблицы).
+export async function reconcilePaid(store, now = Date.now()) {
+  const [clients, payments, settings] = await Promise.all([store.all("client"), store.all("payment"), loadSettings(store)]);
+  const mopOf = mopResolver(settings);
+  const words = (t) => String(t || "").replace(/@[\w]+/g, " ").toLowerCase().replace(/ё/g, "е").split(/[^a-zа-я0-9]+/).filter((w) => w.length >= 3);
+  const dayOf = (c) => mskKey(Date.parse([...(c.events || [])].reverse().find((e) => e.t === "paid")?.at || [...(c.calls || [])].filter((x) => x.outcome === "held").sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0]?.at || c.statusAt || nowIso()));
+  const near = (a, b, days = 10) => Math.abs(Date.parse(a) - Date.parse(b)) <= days * 86400_000;
+  const linked = [];
+  for (const p of payments) {
+    if (p.clientId) continue;
+    // 1) по @нику в названии оплаты
+    const nick = (String(p.clientName || "").match(/@([A-Za-z][\w]{3,31})/) || [])[1];
+    let c = nick && clients.find((x) => nickKey(x.telegram) === nick.toLowerCase());
+    // 2) заведённую вручную («Алексей», без ника) — по имени + диагност + дата, если кандидат один
+    if (!c) {
+      const pw = words(p.clientName);
+      const cands = clients.filter((x) => x.status === "paid" && x.mopId && x.mopId === mopOf(p) && pw.some((w) => words(x.name).includes(w)) && near(p.date, dayOf(x)));
+      if (cands.length === 1) c = cands[0];
+    }
+    if (c) {
+      p.clientId = c.id;
+      linked.push(p);
+    }
+  }
+  if (linked.length) await store.putMany("payment", linked);
+  // Черновик сверки дублирует настоящую оплату того же клиента — убираем черновик.
+  let removed = 0;
+  for (const c of clients) {
+    const own = payments.filter((p) => p.clientId === c.id);
+    if (own.length < 2) continue;
+    // Пустой автоматический черновик (без чистой, не проверен) лишний, если есть другая оплата этого клиента.
+    const empty = (p) => !p.verified && isAutoDraft(p) && (p.net === null || p.net === undefined);
+    const real = own.filter((p) => !empty(p));
+    const extra = real.length ? own.filter(empty) : own.filter(empty).sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || "")).slice(1);
+    for (const p of extra) {
+      await store.del("payment", p.id);
+      payments.splice(payments.indexOf(p), 1);
+      removed++;
+    }
+  }
+  const created = [];
+  for (const c of clients) {
+    if (c.status !== "paid" || c.payDismissed || payments.some((p) => p.clientId === c.id)) continue;
+    // Только клиенты, которых вели в приложении: исторические оплаты из таблицы уже в ведомости.
+    const appWork = (c.calls || []).some((x) => !x.legacy) || (c.events || []).some((e) => e.t === "paid");
+    if (!appWork) continue;
+    const day = dayOf(c);
+    const ev = [...(c.events || [])].reverse().find((e) => e.t === "paid");
+    const tariff = money(ev?.sum) || c.wantedSum || 0;
+    // Похожая непривязанная оплата у того же диагноста рядом по дате — не дублируем, пусть её привяжут.
+    if (payments.some((p) => !p.clientId && mopOf(p) === c.mopId && near(p.date, day) && (!tariff || Number(p.tariff) === tariff))) continue;
+    const p = { id: randomUUID(), date: day, clientId: c.id, clientName: clientTitle(c), mopId: c.mopId, lidorubId: c.lidorubId, tariff, net: null, verified: false, note: "Добавлено сверкой: у клиента «Оплатил», а в ведомости оплаты не было", auto: true, createdBy: "system", createdAt: nowIso(), paid: { mop: null, rop: null, lidorub: null } };
+    await store.put("payment", p.id, p);
+    payments.push(p);
+    created.push(p);
+  }
+  if (created.length) {
+    const { addFeed } = await import("./notify.mjs");
+    await addFeed(store, { type: "paid", text: `💰 В ведомость добавлены оплаты без записи: ${created.map((p) => `${p.clientName}${p.tariff ? ` ${Math.round(p.tariff).toLocaleString("ru-RU")} ₽` : ""}`).join(", ")} — внеси чистую и верифицируй`, by: "system", to: [] });
+  }
+  return { linked: linked.length, created: created.length, removed };
+}
+
+export async function moveToTrash(store, c, by, reason = "") {
   await store.put("trash", c.id, { ...c, deletedAt: nowIso(), deletedBy: by, deleteReason: reason });
   await store.del("client", c.id);
 }
@@ -169,7 +255,7 @@ const event = (c, t, by, extra = {}) => {
   c.events = [...(c.events || []), { t, at: nowIso(), by, ...extra }];
 };
 
-function applyFields(c, body) {
+export function applyFields(c, body) {
   if ("name" in body) c.name = str(body.name, 120);
   if ("telegram" in body) c.telegram = normTelegram(body.telegram);
   if ("phone" in body) c.phone = str(body.phone, 40);
@@ -182,35 +268,74 @@ function applyFields(c, body) {
 }
 
 // Смена статуса + события для РнП. sum — сумма продажи/предоплаты/потенциала/отказа.
+// День оплаты — день последнего проведённого созвона (пересозвона), если он был за последнюю неделю.
+const payDay = (c) => {
+  const last = (c.calls || []).filter((x) => x.outcome === "held").sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+  const today = mskKey(Date.now());
+  const d = last && mskKey(Date.parse(last.at));
+  return d && d <= today && Date.parse(today) - Date.parse(d) <= 7 * 86400_000 ? d : today;
+};
+
+// Черновик, который создала система (статус «Оплатил» или сверка), а не РОП руками.
+const isAutoDraft = (p) => p.auto === true || p.createdBy === "system" || (!!p.clientId && p.note === "" && !p.verifiedBy && p.createdBy !== undefined && p.payLink !== undefined);
+
 async function setStatus(c, status, { by, sum, store, settings, notes }) {
-  if (!STATUS_IDS.includes(status) || status === c.status) return;
+  if (!STATUS_IDS.includes(status)) return;
+  // «Оплатил» ещё раз — это уточнение суммы той же оплаты, а не вторая продажа.
+  if (status === "paid" && c.status === "paid") {
+    const amount = money(sum);
+    if (!amount) return;
+    const ev = [...(c.events || [])].reverse().find((e) => e.t === "paid");
+    if (ev) ev.sum = amount;
+    const draft = store && (await store.all("payment")).find((p) => p.clientId === c.id && !p.verified && isAutoDraft(p));
+    if (draft) {
+      Object.assign(draft, { tariff: amount, date: payDay(c), net: draft.payLink ? netFromLink(settings, draft.payLink, amount) : draft.net });
+      await store.put("payment", draft.id, draft);
+    }
+    log(c, by, `Сумма оплаты уточнена: ${amount.toLocaleString("ru-RU")} ₽${draft || !store ? "" : " (оплата уже верифицирована — поправь в ведомости)"}`);
+    return;
+  }
+  if (status === c.status) return;
   const mop = c.mopId;
   const amount = money(sum) || c.wantedSum || 0;
   const wasPaid = c.status === "paid";
   c.status = status;
   c.statusAt = nowIso();
   c.touches = [];
-  // Ошибочно нажали «Оплатил» и поправили — продажа уходит из РнП, неверифицированный черновик — из ведомости.
+  // Ошибочно нажали «Оплатил» и поправили — продажа уходит из РнП. Из ведомости уходит только пустой автоматический
+  // черновик; проверенную оплату или заведённую РОПом не трогаем — руководство решит само.
   if (wasPaid && status !== "paid") {
     const i = (c.events || []).map((e) => e.t).lastIndexOf("paid");
     if (i >= 0) c.events.splice(i, 1);
     if (store) {
-      const drafts = (await store.all("payment")).filter((p) => p.clientId === c.id && !p.verified);
-      for (const p of drafts) await store.del("payment", p.id);
-      if (drafts.length) log(c, by, `Черновик оплаты убран из ведомости (${drafts.length})`);
+      const own = (await store.all("payment")).filter((p) => p.clientId === c.id);
+      const drop = own.filter((p) => !p.verified && isAutoDraft(p) && (p.net === null || p.net === undefined));
+      for (const p of drop) await store.del("payment", p.id);
+      if (drop.length) log(c, by, "Черновик оплаты убран из ведомости");
+      const kept = own.filter((p) => !drop.includes(p));
+      if (kept.length) {
+        log(c, by, `⚠️ В ведомости осталась оплата ${kept.map((p) => `${Math.round(p.tariff).toLocaleString("ru-RU")} ₽${p.verified ? " (проверена)" : ""}`).join(", ")} — РОП решит, убирать ли`);
+        const { addFeed } = await import("./notify.mjs");
+        await addFeed(store, { type: "paid", text: `⚠️ ${clientTitle(c)}: статус «Оплатил» сняли, а оплата в ведомости осталась — проверь`, by, to: [] });
+      }
     }
   }
   if (status === "paid") {
     event(c, "paid", by, { mop, sum: amount });
+    c.payDismissed = false;
     // Продажа сразу падает в ведомость черновиком — РОП вносит чистую сумму и верифицирует.
-    const draft = store && (await store.all("payment")).find((p) => p.clientId === c.id && !p.verified);
+    // Оплата этого клиента уже есть (проверенная или от РОПа) — вторую не создаём.
+    const own = store ? (await store.all("payment")).filter((p) => p.clientId === c.id) : [];
+    const draft = own.find((p) => !p.verified && isAutoDraft(p));
     if (draft) {
-      Object.assign(draft, { tariff: amount, mopId: mop, lidorubId: c.lidorubId, net: draft.net ?? netFromLink(settings, c.payLinkId, amount) });
+      Object.assign(draft, { tariff: amount, date: payDay(c), mopId: mop, lidorubId: c.lidorubId, net: draft.net ?? netFromLink(settings, c.payLinkId, amount) });
       await store.put("payment", draft.id, draft);
+    } else if (own.length) {
+      log(c, by, "Оплата этого клиента уже есть в ведомости — вторую не создаю");
     } else if (store) {
       const p = {
         id: randomUUID(),
-        date: new Date(Date.now() + 3 * 3600_000).toISOString().slice(0, 10),
+        date: payDay(c),
         clientId: c.id,
         clientName: clientTitle(c),
         mopId: mop,
@@ -221,6 +346,7 @@ async function setStatus(c, status, { by, sum, store, settings, notes }) {
         payLink: c.payLinkId || null,
         verified: false,
         note: "",
+        auto: true,
         createdBy: by,
         createdAt: nowIso(),
       };
@@ -272,8 +398,11 @@ export async function applyAction(c, body, ctx) {
     if (dupCall) {
       if (!dupCall.outcome && dupCall.mopId !== mopId) {
         notes.push({ t: "call", at: dupCall.at, mop: mopId, moved: dupCall.at, prevMop: dupCall.mopId });
+        const prev = dupCall.mopId;
         dupCall.mopId = mopId;
         c.mopId = mopId;
+        dropIdleHanded(c, prev);
+        if (!(c.events || []).some((e) => e.t === "handed" && e.mop === mopId)) event(c, "handed", by, { mop: mopId });
         log(c, by, `Созвон ${fmtWhen(Date.parse(dupCall.at))} передан ${users?.[mopId]?.name || "другому диагносту"}`);
       }
       ctx.call = dupCall;
@@ -288,6 +417,7 @@ export async function applyAction(c, body, ctx) {
     c.calls.push(call);
     ctx.call = call;
     notes.push({ t: "call", at, mop: mopId, moved: cur ? cur.at : null, prevMop: cur?.mopId || null });
+    if (cur?.mopId && cur.mopId !== mopId) dropIdleHanded(c, cur.mopId);
     c.mopId = mopId;
     if (!["paid"].includes(c.status)) {
       c.status = "in_work";
@@ -308,6 +438,21 @@ export async function applyAction(c, body, ctx) {
       c.events = (c.events || []).filter((e, k, arr) => !(e.t === "ndz" && k === arr.map((x) => x.t).lastIndexOf("ndz")));
     }
     log(c, by, `Убран лишний созвон ${fmtWhen(Date.parse(call.at))}${call.outcome === "held" ? " (проведён)" : call.outcome === "ndz" ? " (НДЗ)" : ""}`);
+    return;
+  }
+  // НДЗ поставили по ошибке — созвон на самом деле был.
+  if (type === "fixheld") {
+    const call = c.calls.find((x) => x.id === body.callId);
+    if (!call || call.outcome !== "ndz") throw Object.assign(new Error("Это не НДЗ"), { status: 400 });
+    Object.assign(call, { outcome: "held", outcomeAt: nowIso(), outcomeBy: by });
+    const i = (c.events || []).map((e) => e.t).lastIndexOf("ndz");
+    if (i >= 0) c.events.splice(i, 1);
+    if (/^ndz\d$/.test(c.status)) {
+      const n = c.calls.filter((x) => x.outcome === "ndz").length;
+      c.status = n ? `ndz${Math.min(n, 3)}` : "in_work";
+      c.statusAt = nowIso();
+    }
+    log(c, by, `НДЗ ${fmtWhen(Date.parse(call.at))} исправлено: созвон проведён`);
     return;
   }
   if (type === "uncall") {
@@ -350,15 +495,19 @@ export async function applyAction(c, body, ctx) {
     // Исправляют уже сохранённый отчёт этого дня — тот же созвон, не новый.
     if (!call) {
       const day = mskKey(Date.parse(isoOrNull(body.date) || nowIso()));
-      call = [...c.calls].reverse().find((x) => x.outcome === "held" && mskKey(Date.parse(x.at)) === day) || null;
+      // Без даты — правка свежего отчёта: созвон за последние 12 часов (вечерний созвон, правка после полуночи).
+      const fresh = (x) => (!body.date || Math.abs(Date.parse(body.date) - Date.now()) < 10 * 60_000) && Date.now() - Date.parse(x.at) < 12 * 3600_000;
+      call = [...c.calls].reverse().find((x) => x.outcome === "held" && (mskKey(Date.parse(x.at)) === day || fresh(x))) || null;
     }
     // Созвон не назначали в приложении (как раньше в таблице) — заводим проведённый созвон на дату диагностики.
     if (!call && body.newCall) {
       const at = isoOrNull(body.date) || nowIso();
       const mopId = String(body.mopId || c.mopId || by);
+      if (users && !["mop", "rop"].includes(users[mopId]?.role) && !c.mopId) throw Object.assign(new Error("Кто проводил диагностику? Отчёт пишет диагност (МОП или РОП)"), { status: 400 });
       if (!(c.events || []).some((e) => e.t === "handed" && e.mop === mopId)) event(c, "handed", by, { mop: mopId });
+      // Будущий пересозвон не трогаем — отчёт про прошедшую диагностику.
       const cur = currentCall(c);
-      if (cur) Object.assign(cur, { outcome: "moved", movedAt: nowIso() });
+      if (cur && Date.parse(cur.at) <= Date.parse(at)) Object.assign(cur, { outcome: "moved", movedAt: nowIso() });
       call = { id: randomUUID().slice(0, 8), at, mopId, setAt: nowIso(), setBy: by, outcome: "held", outcomeAt: at, outcomeBy: by, notified: { h2: at, h1: at, m15: at, after: at } };
       c.calls.push(call);
       c.mopId = mopId;
@@ -435,6 +584,8 @@ function applyPayment(p, body) {
   if ("net" in body) p.net = body.net === null || body.net === "" ? null : money(body.net);
   if ("mopId" in body) p.mopId = body.mopId ? String(body.mopId) : null;
   if ("clientName" in body) p.clientName = str(body.clientName, 120);
+  if ("clientId" in body) p.clientId = body.clientId ? String(body.clientId) : null;
+  if ("lidorubId" in body) p.lidorubId = body.lidorubId ? String(body.lidorubId) : null;
   if ("note" in body) p.note = str(body.note, 300);
   if ("verified" in body) p.verified = !!body.verified && p.net !== null;
 }
@@ -457,7 +608,8 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       const me = auth.me;
       const by = me.id;
       const money_ = canSeeMoney(me.role);
-      const body = ["POST", "PUT", "PATCH"].includes(req.method) ? await req.json().catch(() => ({})) : {};
+      const multipart = /multipart\/form-data/i.test(req.headers.get("content-type") || "");
+      const body = ["POST", "PUT", "PATCH"].includes(req.method) && !multipart ? await req.json().catch(() => ({})) : {};
       const users = Object.fromEntries((await store.all("user")).map((u) => [u.id, u]));
       users[me.id] = { ...(users[me.id] || {}), ...me };
       const settings = await loadSettings(store);
@@ -479,6 +631,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         if (!dd || Date.now() - Date.parse(dd.at) > 10 * 60_000) {
           await store.put("meta", "dedupe-at", { id: "dedupe-at", at: nowIso() });
           await autoMergeDups(store).catch(() => 0);
+          await reconcilePaid(store).catch(() => 0);
         }
         const [clients, legacy, pending, feed, settingsNow, windows] = await Promise.all([store.all("client"), store.get("meta", "legacy"), store.all("pending"), store.recent("feed", 120), loadSettings(store), loadWindows(store)]);
         return json({
@@ -512,14 +665,54 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         await notify(ctx.notes, c);
         return json({ client: c });
       }
+      // 📼 записи созвонов: загрузить, прислать себе в Telegram, скрыть (собственник)
+      const rm = path.match(/^\/clients\/([\w-]+)\/recordings(?:\/([\w-]+)(\/send)?)?$/);
+      if (rm) {
+        const c = await store.get("client", rm[1]);
+        if (!c) return json({ error: "not_found" }, 404);
+        if (!env.BOT_TOKEN) return json({ error: "Бот не подключён" }, 400);
+        const tg = telegram(env.BOT_TOKEN, fetchImpl);
+        const R = await import("./recordings.mjs");
+        if (!rm[2] && req.method === "POST") {
+          if (!R.canUpload(me, c)) return json({ error: c.mopId ? `Запись выгружает ${users[c.mopId]?.name || "диагност"} клиента или руководство` : "Записи выгружают диагносты и руководство" }, 403);
+          if (!multipart) return json({ error: "Нужен файл" }, 400);
+          const len = Number(req.headers.get("content-length") || 0);
+          if (len > R.MAX_APP_UPLOAD + 1024 * 1024) return json({ error: "too_big", code: "too_big" }, 413);
+          const fd = await req.formData().catch(() => null);
+          const res = await R.uploadFromApp({ store, env, tg, c, file: fd?.get("file"), me, users });
+          return json({ client: res.client || c, rec: res.rec, duplicate: res.duplicate });
+        }
+        if (rm[2] === "wait" && req.method === "POST") {
+          if (!R.canUpload(me, c)) return json({ error: "Запись выгружает диагност клиента или руководство" }, 403);
+          await R.waitFor(store, me.id, c.id);
+          let bot = await store.get("meta", "bot-info");
+          if (!bot?.username) {
+            const info = await tg.getMe().catch(() => null);
+            if (info?.username) await store.put("meta", "bot-info", (bot = { id: "bot-info", username: info.username, botId: info.id }));
+          }
+          await tg.sendMessage(me.id, `📼 <b>Жду запись созвона</b> — ${escapeHtml(clientTitle(c))}\n\nПришли сюда файл: видео, аудио или документ, любой формат, до 2 ГБ.`).catch(() => {});
+          return json({ ok: true, link: bot?.username ? `https://t.me/${bot.username}?start=up_${c.id}` : null });
+        }
+        if (rm[2] && rm[3] && req.method === "POST") {
+          const rec = await R.sendRecording({ store, tg, c, recId: rm[2], me, users, settings });
+          return json({ ok: true, client: c, rec });
+        }
+        if (rm[2] && !rm[3] && req.method === "DELETE") {
+          await R.deleteRecording({ store, c, recId: rm[2], me });
+          return json({ client: c });
+        }
+        return json({ error: "not_found" }, 404);
+      }
+
       const cm = path.match(/^\/clients\/([\w-]+)(\/action)?$/);
       if (cm) {
         const c = await store.get("client", cm[1]);
         if (!c) return json({ error: "not_found" }, 404);
-        // Удалить может руководство и тот, кто ведёт клиента (завёл, лидоруб, диагност). Удалённое лежит в корзине.
-        const mine = money_ || [c.createdBy, c.mopId, c.lidorubId].includes(by);
+        // Клиента, которого взял МОП, меняют только этот МОП, РОП и собственник. Комментарий оставить может любой.
+        const lockedMsg = (x) => `Клиента ведёт ${users[x.mopId]?.name || "диагност"} — менять его может только он, РОП или Петя`;
+        const touch = (x) => canTouchClient(me, x);
         if (req.method === "DELETE") {
-          if (!mine) return json({ error: "Удалить может тот, кто ведёт клиента, или руководство" }, 403);
+          if (!canDeleteClient(me, c)) return json({ error: c.mopId ? lockedMsg(c) : "Удалить может тот, кто завёл клиента, или руководство" }, 403);
           await moveToTrash(store, c, by, "удалён вручную");
           const { addFeed } = await import("./notify.mjs");
           await addFeed(store, { type: "comment", text: `🗑 ${me.name} удалил клиента ${clientTitle(c)}`, by, to: [c.mopId, c.lidorubId].filter(Boolean), clientId: null });
@@ -528,13 +721,20 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         if (!cm[2] && req.method === "POST" && body.mergeFrom) {
           const other = await store.get("client", String(body.mergeFrom));
           if (!other || other.id === c.id) return json({ error: "Дубль не найден" }, 404);
-          if (!mine && ![other.createdBy, other.mopId, other.lidorubId].includes(by)) return json({ error: "forbidden" }, 403);
+          if (!touch(c) || !touch(other)) return json({ error: lockedMsg(touch(c) ? other : c) }, 403);
           mergeInto(c, other, by);
           await store.put("client", c.id, c);
           await moveToTrash(store, other, by, `склеен с ${clientTitle(c)}`);
           await repointPayments(store, [other.id], c.id);
           return json({ client: c, removed: other.id, payments: money_ ? await store.all("payment") : null });
         }
+        // Комментарий — любой. Только что сам записал и отменяешь/переносишь (ошибся) — 15 минут можно.
+        const ownFresh = (body.type === "uncall" || body.type === "call") && (() => {
+          const call = (body.type === "uncall" && body.callId && c.calls.find((x) => x.id === body.callId)) || currentCall(c);
+          return call && call.setBy === by && Date.now() - Date.parse(call.setAt || 0) < 15 * 60_000;
+        })();
+        const onlyComment = cm[2] && req.method === "POST" && (body.type === "comment" || ownFresh);
+        if ((req.method === "PATCH" || (cm[2] && req.method === "POST")) && !onlyComment && !touch(c)) return json({ error: lockedMsg(c) }, 403);
         if (req.method === "PATCH" && ("telegram" in body || "phone" in body)) {
           const next = { telegram: "telegram" in body ? normTelegram(body.telegram) : c.telegram, phone: "phone" in body ? str(body.phone, 40) : c.phone };
           const dup = findDup(await store.all("client"), next, c.id);
@@ -559,6 +759,29 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
       }
 
       // выплаты команде: отмечает собственник (он платит), РОП видит
+      // корзина: удалённые клиенты — руководство видит и восстанавливает
+      if (path === "/trash" && req.method === "GET") {
+        if (!money_) return json({ error: "forbidden" }, 403);
+        return json({ items: (await store.all("trash")).sort((x, y) => (y.deletedAt || "").localeCompare(x.deletedAt || "")).slice(0, 100) });
+      }
+      const tr = path.match(/^\/trash\/([\w-]+)\/restore$/);
+      if (tr && req.method === "POST") {
+        if (!money_) return json({ error: "forbidden" }, 403);
+        const c = await restoreFromTrash(store, tr[1], by);
+        return json({ client: c });
+      }
+      // напомнить диагносту заполнить итог
+      const nudge = path.match(/^\/clients\/([\w-]+)\/nudge$/);
+      if (nudge && req.method === "POST") {
+        if (!money_) return json({ error: "forbidden" }, 403);
+        const c = await store.get("client", nudge[1]);
+        if (!c?.mopId) return json({ error: "У клиента нет диагноста" }, 400);
+        const tg = env.BOT_TOKEN ? telegram(env.BOT_TOKEN, fetchImpl) : null;
+        if (!tg) return json({ error: "Бот не подключён" }, 400);
+        await sendReportNudge(tg, c, me, env.APP_URL || `${url.origin}/`);
+        return json({ ok: true });
+      }
+
       if (path === "/payouts" && req.method === "POST") {
         if (me.role !== "owner") return json({ error: "Выплаты отмечает собственник" }, 403);
         const tg = env.BOT_TOKEN ? telegram(env.BOT_TOKEN, fetchImpl) : null;
@@ -581,20 +804,33 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           applyPayment(p, body);
           applyPayment(p, { verified: body.verified });
           await store.put("payment", p.id, p);
-          return json({ payment: p });
+          // Завели оплату вручную — сразу привязать к клиенту и убрать дубль-черновик сверки.
+          await reconcilePaid(store).catch(() => 0);
+          return json({ payment: (await store.get("payment", p.id)) || p, payments: await store.all("payment") });
         }
         if (pm) {
           const p = await store.get("payment", pm[1]);
           if (!p) return json({ error: "not_found" }, 404);
           if (req.method === "DELETE") {
+            // Удалённую оплату помним: сверка не создаст её заново, повторный импорт не вернёт.
+            await store.put("paytrash", p.id, { ...p, deletedAt: nowIso(), deletedBy: by });
             await store.del("payment", p.id);
+            if (p.clientId) {
+              const cl = await store.get("client", p.clientId);
+              if (cl && !(await store.all("payment")).some((x) => x.clientId === cl.id)) {
+                cl.payDismissed = true;
+                log(cl, by, `Оплата ${Math.round(p.tariff).toLocaleString("ru-RU")} ₽ удалена из ведомости`);
+                await store.put("client", cl.id, cl);
+              }
+            }
             return json({ ok: true });
           }
           if (req.method === "PATCH") {
             applyPayment(p, body);
             if ("verified" in body) p.verifiedBy = p.verified ? by : null;
             await store.put("payment", p.id, p);
-            return json({ payment: p });
+            await reconcilePaid(store).catch(() => 0);
+            return json({ payment: (await store.get("payment", p.id)) || p, payments: await store.all("payment") });
           }
         }
         return json({ error: "not_found" }, 404);
@@ -741,14 +977,13 @@ export async function importSeed(store, body) {
   if (Array.isArray(body.payments)) {
     const items = body.payments.filter((p) => p.id && isDay(p.date)).map((p) => ({ net: null, verified: false, ...p, tariff: money(p.tariff), net: p.net === null ? null : money(p.net) }));
     // Повторный импорт не сбрасывает то, что уже проверено и выплачено в приложении.
-    const have = new Map((await store.all("payment")).map((p) => [p.id, p]));
-    for (const p of items) {
-      const old = have.get(p.id);
-      if (old) Object.assign(p, { verified: old.verified, net: old.net, paid: old.paid, verifiedBy: old.verifiedBy, mopId: old.mopId || p.mopId, clientId: old.clientId || p.clientId });
-      if (!p.paid) p.paid = seedPaid(p);
-    }
-    await store.putMany("payment", items);
-    out.payments = items.length;
+    // Повторный импорт не трогает оплаты, которые уже есть (их могли поправить и проверить), и не возвращает удалённые.
+    const have = new Set((await store.all("payment")).map((p) => p.id));
+    const gone = new Set((await store.all("paytrash")).map((p) => p.id));
+    const fresh = items.filter((p) => !have.has(p.id) && !gone.has(p.id));
+    for (const p of fresh) if (!p.paid) p.paid = seedPaid(p);
+    await store.putMany("payment", fresh);
+    out.payments = fresh.length;
   }
   if (body.legacy) {
     await store.put("meta", "legacy", body.legacy);
@@ -774,7 +1009,9 @@ export async function importSeed(store, body) {
       const mopId = raw.mopId || aliases[raw.mopAlias] || null;
       const calls = (raw.calls || []).map((x) => ({ ...x, mopId: x.mopId || mopId }));
       const key = keyOf(raw);
-      const hit = (key && (changed.get(key) || byNick.get(key))) || null;
+      // Клиент уже есть с этим id (ник или имя поправили в приложении) — это он же, не перезаписываем.
+      const byId = raw.id && (changed.get(raw.id) || existing.find((x) => x.id === raw.id));
+      const hit = (key && (changed.get(key) || byNick.get(key))) || byId || null;
       if (hit) {
         for (const call of calls) if (!hit.calls.some((x) => x.id === call.id || (x.legacy && x.at === call.at))) hit.calls.push(call);
         hit.calls.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
@@ -784,7 +1021,17 @@ export async function importSeed(store, body) {
         if (!hit.name && raw.name) hit.name = raw.name;
         if (!hit.mopId && mopId) hit.mopId = mopId;
         // Статус из таблицы берём, только если в приложении клиент ещё «новый» или пришёл из таблицы
-        if (raw.status && (hit.status === "new" || hit.fromSheet) && STATUS_IDS.includes(raw.status)) hit.status = raw.status;
+        // «Оплатил» из таблицы по клиенту, которого ведут в приложении, — как настоящая смена статуса (с оплатой в ведомости).
+        // Клиента уже ведут в приложении — приложение главное, статус из таблицы не перетирает (только отметка).
+        const appWorked = (hit.calls || []).some((x) => !x.legacy) || (hit.events || []).some((e) => e.t === "paid") || (hit.history || []).some((h) => h.by !== "import" && h.by !== "system" && !/^Клиент создан|^Склеен/.test(h.text || ""));
+        if (raw.status && (hit.status === "new" || hit.fromSheet) && STATUS_IDS.includes(raw.status) && raw.status !== hit.status) {
+          if (appWorked) {
+            out.statusConflicts = [...(out.statusConflicts || []), `${clientTitle(hit)}: в таблице «${statusLabel(raw.status)}», в приложении «${statusLabel(hit.status)}»`];
+          } else {
+            hit.status = raw.status;
+            hit.statusAt = nowIso();
+          }
+        }
         changed.set(key, hit);
         out.merged++;
       } else {
@@ -795,7 +1042,13 @@ export async function importSeed(store, body) {
       }
     }
     await store.putMany("client", [...changed.values()]);
+    if (out.statusConflicts?.length) {
+      const { addFeed } = await import("./notify.mjs");
+      await addFeed(store, { type: "comment", text: `📥 Импорт таблицы: статус не перезаписан у клиентов, которых ведут в приложении — проверь:\n${out.statusConflicts.slice(0, 15).join("\n")}`, by: "system", to: [] });
+    }
   }
+  // Оплаты из ведомости ↔ клиенты: привязываем сразу, не дожидаясь фоновой сверки.
+  if (out.payments || out.clients || out.merged) out.reconcile = await reconcilePaid(store).catch(() => null);
   return out;
 }
 
@@ -852,7 +1105,7 @@ export async function ensurePayoutFlags(store) {
 export const mopResolver = (settings) => (p) => p.mopId || settings?.aliases?.[p.mopAlias] || (p.mopAlias ? `legacy:${p.mopAlias}` : null);
 
 // Отметить выплату человеку: все его невыплаченные верифицированные оплаты (или ids).
-export async function markPayout(store, { by, users, settings, role, personId, ids = null, tg = null, now = Date.now() }) {
+export async function markPayout(store, { by, users, settings, role, personId, ids = null, expect = null, tg = null, now = Date.now() }) {
   if (!PAYOUT_ROLES[role]) throw Object.assign(new Error("Кому выплата?"), { status: 400 });
   const payments = await ensurePayoutFlags(store);
   const { groups } = payoutsOwed(payments, Object.values(users), settings.rates, { roles: [role], mopOf: mopResolver(settings) });
@@ -860,6 +1113,8 @@ export async function markPayout(store, { by, users, settings, role, personId, i
   if (!g) throw Object.assign(new Error("Этому человеку ничего не должны"), { status: 400 });
   const pick = Array.isArray(ids) && ids.length ? g.items.filter((it) => ids.includes(it.p.id)) : g.items;
   if (!pick.length) throw Object.assign(new Error("Нет оплат к выплате"), { status: 400 });
+  // Кнопка из старого сообщения: за это время добавились/изменились оплаты — сумма уже другая.
+  if (Number.isFinite(expect) && Math.abs(Math.round(pick.reduce((s, it) => s + it.amount, 0)) - expect) > 1) throw Object.assign(new Error("Сумма изменилась — открой свежее сообщение или «Выплаты» в приложении"), { status: 409 });
   const day = new Date(now + 3 * 3600_000).toISOString().slice(0, 10);
   for (const it of pick) it.p.paid = { ...(it.p.paid || {}), [role]: day };
   await store.putMany("payment", pick.map((it) => it.p));
@@ -890,4 +1145,86 @@ export async function undoPayout(store, id) {
     }
   }
   await store.del("payout", id);
+}
+
+// ---------- корзина и напоминания ----------
+export async function restoreFromTrash(store, id, by) {
+  const t = await store.get("trash", id);
+  if (!t) throw Object.assign(new Error("В корзине такого нет"), { status: 404 });
+  const { deletedAt, deletedBy, deleteReason, ...c } = t;
+  const dup = findDup(await store.all("client"), c);
+  if (dup) throw Object.assign(new Error(`Уже есть клиент с этим ником или телефоном: ${clientTitle(dup)}`), { status: 409 });
+  log(c, by, "Восстановлен из корзины");
+  c.updatedAt = nowIso();
+  await store.put("client", c.id, c);
+  await store.del("trash", id);
+  return c;
+}
+
+export async function sendReportNudge(tg, c, from, appUrl) {
+  const held = [...(c.calls || [])].filter((x) => x.outcome === "held").sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+  const esc = (t) => String(t ?? "").replace(/[&<>]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[ch]);
+  await tg.sendMessage(c.mopId, `📝 <b>${esc(from?.name || "Руководство")}: заполни итог созвона</b>\n👤 ${esc(clientTitle(c))}${c.telegram && c.name ? ` · ${esc(c.telegram)}` : ""}${held ? `\n📅 ${fmtWhen(Date.parse(held.at))} — проведён` : ""}\n\nПотребность, род деятельности, боль, возражение, договорённости — и что решил клиент.`, { inline_keyboard: [[{ text: "Заполнить итог", web_app: { url: `${appUrl}?client=${c.id}&report=1` } }]] });
+}
+
+// Разовые исправления данных по просьбе собственника. Каждое — один раз (флаг в meta).
+export async function runDataFixes({ store, env, tg, appUrl, now = Date.now() }) {
+  const done = [];
+  // 16.10: @iuuhkkk (Артём) пропал после ошибочного НДЗ — вернуть, закрепить за Димой, созвон 16.10 16:00 проведён, напомнить про итог.
+  if (!(await store.get("meta", "fix-iuuhkkk-v1"))) {
+    const users = (await store.all("user")).filter((u) => u.active !== false);
+    const { findUserInText } = await import("./nlp.mjs");
+    const mops = users.filter((u) => ["mop", "rop"].includes(u.role));
+    const dima = mops.find((u) => /сайгин/i.test(u.name)) || findUserInText("Дима", mops) || mops.find((u) => /дмитр|дима/i.test(u.name));
+    if (dima) {
+      let c = (await store.all("client")).find((x) => nickKey(x.telegram) === "iuuhkkk");
+      if (!c) {
+        const t = (await store.all("trash")).find((x) => nickKey(x.telegram) === "iuuhkkk");
+        if (t) c = await restoreFromTrash(store, t.id, "system");
+      }
+      if (!c) {
+        c = blankClient("system");
+        Object.assign(c, { name: "Артём", telegram: "@iuuhkkk", source: "Новая заявка" });
+        log(c, "system", "Клиент восстановлен по просьбе Пети");
+      }
+      const at = new Date(Date.parse("2026-10-16T16:00:00+03:00")).toISOString();
+      c.calls ||= [];
+      let call = c.calls.find((x) => Math.abs(Date.parse(x.at) - Date.parse(at)) < 45 * 60_000 && x.outcome !== "moved");
+      if (!call) {
+        call = { id: randomUUID().slice(0, 8), at, mopId: dima.id, setAt: nowIso(), setBy: "system", outcome: "held", outcomeAt: nowIso(), outcomeBy: "system", notified: { h2: at, h1: at, m15: at, after: at } };
+        c.calls.push(call);
+      }
+      Object.assign(call, { outcome: "held", mopId: dima.id, outcomeAt: call.outcomeAt || nowIso() });
+      c.events = (c.events || []).filter((e) => !(e.t === "ndz" && Math.abs(Date.parse(e.at) - Date.parse(at)) < 86400_000));
+      if (!c.events.some((e) => e.t === "handed" && e.mop === dima.id)) c.events.push({ t: "handed", at, by: "system", mop: dima.id });
+      c.mopId = dima.id;
+      if (["new", "refuse_personal", "ndz1", "ndz2", "ndz3"].includes(c.status)) Object.assign(c, { status: "in_work", statusAt: nowIso() });
+      log(c, "system", "Созвон 16.10 16:00 отмечен проведённым, клиент закреплён за Димой (по просьбе Пети)");
+      c.updatedAt = nowIso();
+      await store.put("client", c.id, c);
+      if (tg) await sendReportNudge(tg, c, { name: "Петя" }, appUrl).catch(() => {});
+      await store.put("meta", "fix-iuuhkkk-v1", { id: "fix-iuuhkkk-v1", at: nowIso(), clientId: c.id });
+      done.push(`iuuhkkk:${c.id}`);
+    }
+  }
+  // 17.10: Петя попросил разослать всем полную инструкцию по их роли. Каждому — один раз (отметка по человеку).
+  if (tg && !(await store.get("meta", "guides-v1"))?.done) {
+    const { sendGuide } = await import("./guides.mjs");
+    const mark = (await store.get("meta", "guides-v1")) || { id: "guides-v1", sent: [] };
+    const users = (await store.all("user")).filter((u) => u.active && u.role && /^\d+$/.test(String(u.id)));
+    for (const id of parseIds(env?.OWNER_IDS)) {
+      const u = users.find((x) => x.id === id);
+      if (u) u.role = "owner";
+      else users.push({ id, role: "owner", name: "Петя" });
+    }
+    for (const u of users) {
+      if (mark.sent.includes(u.id)) continue;
+      mark.sent.push(u.id); // сначала отметка — чтобы при сбое не прислать человеку дважды
+      await store.put("meta", "guides-v1", mark);
+      await sendGuide(tg, u, appUrl).catch(() => {});
+      done.push(`guide:${u.id}`);
+    }
+    await store.put("meta", "guides-v1", { ...mark, done: true, at: nowIso() });
+  }
+  return done;
 }

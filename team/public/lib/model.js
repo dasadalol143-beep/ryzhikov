@@ -35,7 +35,7 @@ export const statusGroup = (id) => STATUSES.find((s) => s.id === id)?.group || "
 export const isClosed = (status) => ["paid", "refuse_personal", "refuse_bank", "ignore", "invalid", "archive"].includes(status);
 
 // Чем закончился созвон / что ставит диагност после созвона.
-export const AFTER_CALL = ["paid", "prepaid", "thinking", "resched", "refuse_personal", "refuse_bank"];
+export const AFTER_CALL = ["paid", "prepaid", "thinking", "resched", "refuse_personal", "refuse_bank", "invalid"];
 
 export const SOURCES = ["Новая заявка", "Работа по базе", "Интенсив", "Рекомендация", "Другое"];
 
@@ -136,7 +136,17 @@ export const clientTitle = (c) => c.name || c.telegram || "Без имени";
 export const ndzCount = (c) => (c.calls || []).filter((x) => x.outcome === "ndz").length;
 
 // Созвон прошёл, а отчёта нет — главный долг диагноста по регламенту.
-export const needsReport = (c) => (c.calls || []).some((x) => x.outcome === "held" && !x.reportAt && !x.legacy);
+// Итог диагностики у клиента один. Пересозвон его не требует заново: если итог уже есть, долга нет.
+export const latestReport = (c) => [...(c.calls || [])].filter((x) => x.report).sort((a, b) => Date.parse(b.reportAt || b.at) - Date.parse(a.reportAt || a.at))[0] || null;
+export const needsReport = (c) => !latestReport(c) && (c.calls || []).some((x) => x.outcome === "held" && !x.reportAt && !x.legacy);
+// «Диагностика» — первый проведённый созвон, дальше — «Пересозвон 1, 2…».
+export function callKind(c, call) {
+  const done = (c.calls || []).filter((x) => x.outcome === "held" || (!x.outcome && x.id === call.id) || x.id === call.id).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  const firstHeld = (c.calls || []).filter((x) => x.outcome === "held").sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0];
+  if (!firstHeld || Date.parse(call.at) <= Date.parse(firstHeld.at)) return "Диагностика";
+  const n = done.filter((x) => Date.parse(x.at) > Date.parse(firstHeld.at) && Date.parse(x.at) <= Date.parse(call.at)).length;
+  return n > 1 ? `Пересозвон ${n}` : "Пересозвон";
+}
 
 // Дожим: «Думает»/«Перенос без даты»/«НДЗ» без нового созвона — касания каждый день, 3 подряд.
 export function followupState(c, now = Date.now()) {
@@ -273,4 +283,36 @@ export function payoutsOwed(payments, users, rates = DEFAULT_RATES, { roles = ["
 export function nextPayday(today) {
   const wd = new Date(`${today}T12:00:00Z`).getUTCDay();
   return addDaysKey(today, (8 - wd) % 7);
+}
+
+// ---------- кто может менять клиента ----------
+// Пока диагност не назначен — лид общий (лидоруб ведёт, записывает). Взял МОП — менять может только он, РОП и собственник.
+export const isBossRole = (role) => role === "owner" || role === "rop";
+export const canTouchClient = (u, c) => !!u && (isBossRole(u.role) || !c?.mopId || c.mopId === u.id);
+// Удалить: руководство; до назначения МОПа — ещё тот, кто завёл, и лидоруб клиента; после — только его МОП.
+export const canDeleteClient = (u, c) => !!u && (isBossRole(u.role) || (c?.mopId ? c.mopId === u.id : [c?.createdBy, c?.lidorubId].includes(u.id)));
+
+// ---------- зависшие лиды ----------
+// Лид не должен потеряться: у каждого незакрытого клиента должен быть следующий шаг.
+// Возвращает причину, если шага нет, иначе null.
+export function stuckReason(c, now = Date.now()) {
+  if (isClosed(c.status) || c.status === "archive") return null;
+  if (c.fromSheet && !(c.calls || []).some((x) => !x.legacy)) return null; // старые из таблицы, пока не взяли в работу
+  const DAY = 86400_000;
+  const calls = (c.calls || []).filter((x) => !x.legacy);
+  const open = calls.filter((x) => !x.outcome);
+  const late = open.find((x) => now - Date.parse(x.at) > DAY);
+  if (late) return "созвон прошёл, итог «пришёл / НДЗ» не отмечен";
+  if (needsReport(c)) {
+    const h = calls.filter((x) => x.outcome === "held" && !x.reportAt).sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0];
+    if (h && now - Date.parse(h.outcomeAt || h.at) > DAY) return "созвон проведён, итог не заполнен больше суток";
+  }
+  if (open.length) return null;
+  const since = Date.parse(c.statusAt || c.updatedAt || c.createdAt);
+  const touched = Math.max(since, ...(c.touches || []).map((t) => Date.parse(t.at)), ...calls.map((x) => Date.parse(x.outcomeAt || x.at)));
+  if (c.status === "new" && now - Date.parse(c.createdAt) > 2 * DAY) return "новый лид 2+ дня без записи на созвон";
+  if (c.status === "in_work" && now - touched > 2 * DAY) return "в работе, но нет созвона и решения 2+ дня";
+  if (["thinking", "prepaid", "resched", "ndz1", "ndz2", "ndz3"].includes(c.status) && now - touched > 4 * DAY) return "дожим заброшен: 4+ дня без касаний";
+  if (!c.mopId && !c.lidorubId && now - Date.parse(c.createdAt) > DAY) return "нет ответственного";
+  return null;
 }
