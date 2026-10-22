@@ -1181,6 +1181,31 @@ section.blk>.wrap{position:relative;z-index:1}
   .rt-money{clip-path:none!important}
   .js img.rv{clip-path:none!important;scale:1!important}
 }
+/* — Гермес: строки въезжают за бюст, потом выплата — */
+.hm-stage{background:radial-gradient(ellipse 80% 70% at 50% 42%,#3157ff 0%,#1d3df2 55%,#1530c9 100%)}
+.hm-cl{position:absolute;width:40vw;left:-8vw;top:14vh;pointer-events:none;will-change:transform}
+.hm-lines{position:absolute;left:0;right:max(var(--gl),5vw);top:calc(80px + 5vh);z-index:2;display:grid;justify-items:end;gap:.04em;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:min(18vh,14.5vw);line-height:.92;color:#fff;pointer-events:none}
+.hm-ln{white-space:nowrap;will-change:transform,opacity}
+.hm-ln span{color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.9)}
+.hm-bust{position:absolute;z-index:3;left:31%;bottom:0;height:min(84vh,860px);width:auto;max-width:none;transform-origin:50% 100%;will-change:transform}
+.hm-pay{position:absolute;z-index:5;right:max(var(--gl),8vw);top:46%;text-align:center;color:#fff;opacity:0;will-change:transform,opacity}
+.hm-pay b{display:block;font-family:var(--fd);font-weight:600;font-size:min(13vh,8vw);line-height:1;white-space:nowrap}
+.hm-pay span{font-family:var(--fs);font-style:italic;font-size:clamp(18px,1.6vw,24px)}
+.hm-pay .mk{position:absolute;left:-12%;top:-22%;width:124%;height:144%;overflow:visible}
+.hm-pay .mk path{transition:none}
+.hm-cap{position:absolute;z-index:6;left:max(var(--gl),4vw);bottom:clamp(20px,6vh,60px);max-width:420px;padding:20px 22px;background:var(--paper);color:var(--ink);rotate:-1.2deg;box-shadow:0 26px 50px -24px rgba(0,0,0,.55);opacity:0;will-change:transform,opacity}
+.hm-cap .eyebrow{color:var(--kob)!important;margin-bottom:6px}
+.hm-cap p{font-size:15px;line-height:1.5;color:var(--ink2)}
+@media (max-width:900px){
+  .hm-lines{top:84px;left:0;right:0;justify-items:center;font-size:12.6vw}
+  .hm-bust{left:50%}
+  .hm-bust{height:min(60svh,500px);bottom:150px}
+  .hm-pay{right:0;left:0;top:auto;bottom:calc(150px + 4svh)}
+  .hm-pay b{font-size:15vw}
+  .hm-cap{left:14px;right:14px;bottom:14px;max-width:none;padding:14px 16px;rotate:-.6deg}
+  .hm-cap p{font-size:13.5px}
+  .hm-cl{width:80vw;top:30svh;left:-30vw}
+}
 </style>
 </head>
 <body>
@@ -1418,7 +1443,7 @@ section.blk>.wrap{position:relative;z-index:1}
 </section>
 
 <!-- ========== 5. ДОХОД: ГРУША (сцена) ========== -->
-<section class="scene" id="income" style="--len:4.4;--from:#f2ede3;--to:#e9e2d4" data-scene="pear" data-dark>
+<section class="scene" id="income" style="--len:4.4;--from:#f2ede3;--to:#1d3df2" data-scene="pear" data-dark>
   <div class="stage">
     <img class="layer" data-bg="b4" alt="">
     <div class="pshadow" id="pearShadow"></div>
@@ -1445,6 +1470,26 @@ section.blk>.wrap{position:relative;z-index:1}
     <div class="pear-total" id="pearTotal"><span>Итого с одного человека</span><b id="pearSum">108 877 ₽</b></div>
   </div>
 </section>
+
+<!-- ========== ГЕРМЕС: один вечер, один человек, один телефон ========== -->
+<section class="scene" id="evening" style="--len:3.2;--from:#1d3df2;--to:#e9e2d4" data-scene="hermes" data-dark>
+  <div class="stage hm-stage">
+    <div class="hgrid" aria-hidden="true"></div>
+    <img class="hm-cl" id="hmCl" src="assets/v3/cloud.webp" alt="" loading="lazy">
+    <div class="hm-lines" aria-hidden="true">
+      <div class="hm-ln" id="hmL0"><span>Один</span> <b>вечер</b></div>
+      <div class="hm-ln" id="hmL1"><span>Один</span> <b>человек</b></div>
+      <div class="hm-ln" id="hmL2"><span>Один</span> <b>телефон</b></div>
+    </div>
+    <img class="hm-bust" id="hmBust" src="assets/v5/hermes.webp" alt="Мраморный бюст Гермеса — бога торговли" loading="lazy">
+    <div class="hm-pay" id="hmPay"><b>14&nbsp;000&nbsp;₽</b><span>выплата за один оффер</span>
+      <svg class="mk" viewBox="0 0 300 120" preserveAspectRatio="none" aria-hidden="true"><path id="hmMk" pathLength="1" d="M18 64C20 22 120 8 200 12C268 16 292 44 286 70C278 104 190 116 112 112C50 108 10 96 16 60C20 40 52 26 92 20"/></svg>
+    </div>
+    <div class="hm-cap" id="hmCap"><span class="eyebrow">Гермес — бог торговли</span><p>Его инструмент — слово. Твой тоже. Ни склада, ни товара, ни вложений: вечер на разговор с человеком, которому это выгодно, — и банк платит, когда засчитает клиента.</p></div>
+    <div class="fx-in"></div><div class="fx-out"></div>
+  </div>
+</section>
+
 
 <!-- ========== 6. ЧЕТЫРЕ ПРОДУКТА ========== -->
 <section class="blk bg2 torn" id="products" data-chap="Глава V · Из чего доход">
@@ -1608,24 +1653,6 @@ section.blk>.wrap{position:relative;z-index:1}
       <div class="node" style="--i:1"><div class="med">Д</div><h4>Дима, друг</h4><p>Проходит банки по твоим ссылкам</p><span class="pay">ему 5 000 ₽ за вечер</span></div>
       <div class="node" style="--i:2"><div class="med">С</div><h4>Саша, друг Димы</h4><p>Его привёл Дима</p><span class="pay">Саше 5 000 ₽, Диме 3 000 ₽</span></div>
       <div class="node" style="--i:3"><div class="med">∞</div><h4>И дальше</h4><p>Через месяц людей приводят сами</p><span class="pay">тебе ~100 000 ₽ с каждого</span></div>
-    </div>
-
-    <div class="head center sub-head">
-      <span class="eyebrow" data-r>Самый страшный шаг</span>
-      <h2 class="h3" data-r>Первое сообщение другу.</h2>
-      <p class="lead" data-r>Пример переписки. Под каждым сообщением — зачем оно.</p>
-    </div>
-    <div class="chat" data-r>
-      <div class="msg me">Привет, брат! Сто лет не общались. Как ты вообще, чем сейчас занимаешься?</div>
-      <p class="why-m">Сначала про него, о деле ни слова. Люди охотно отвечают тем, кто интересуется ими.</p>
-      <div class="msg">Да так, на складе пока. А что?</div>
-      <div class="msg me">О, понял. А по деньгам там как, устраивает? Или так, на пока?</div>
-      <p class="why-m">Он сам говорит, что денег не хватает. Ты не уговариваешь, а отвечаешь на его слова.</p>
-      <div class="msg">Ну такое. На жизнь хватает, не больше.</div>
-      <div class="msg me">Скажу честно, зачем пишу: ничего не продаю и денег не прошу. Я работаю с банками через официальные партнёрки — банки платят за новых клиентов. Ты оформляешь на себя бесплатные бизнес-карты в нескольких банках, а я плачу тебе 5 000 ₽. Карты остаются у тебя, вкладывать ничего не нужно.</div>
-      <p class="why-m">Снимаешь страхи раньше, чем он их озвучит, и называешь конкретную сумму, а не «заработаешь много».</p>
-      <div class="msg me">Давай созвонимся минут на 10 — покажу на своём примере. Не зайдёт — без обид. Тебе удобнее сегодня вечером или завтра днём?</div>
-      <p class="why-m">Просишь не «давай начнём», а 10 минут, и даёшь выбрать время, а не «звонить ли вообще».</p>
     </div>
 
     <div class="head center sub-head">
@@ -2224,7 +2251,27 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     if (on !== rtOn) { rtOn = on; rtSt.forEach((s, i) => s.classList.toggle('on', i === on)); rtStops.forEach((s, i) => s.classList.toggle('on', i <= on)); }
   }
 
-  const DRAW = { hero: drawHero, how: drawHow, pear: drawPear, temple: drawTemple, route: drawRoute, geo: drawGeo };
+  /* — Гермес: «один вечер · один человек · один телефон» въезжают за бюст, потом выплата — */
+  const hmLines = [0, 1, 2].map(i => $('hmL' + i)), hmBust = $('hmBust'), hmPay = $('hmPay'), hmMk = $('hmMk'), hmCap = $('hmCap'), hmCl = $('hmCl');
+  let hmMkV = -1;
+  function drawHermes(p) {
+    hmLines.forEach((l, i) => {
+      const a = .04 + i * .12, k = io3(clamp((p - a) / .18)), dir = i % 2 ? 1 : -1, out = smooth(.5, .66, p);
+      l.style.transform = `translate3d(${(dir * (1 - k) * W * 1.05).toFixed(1)}px,${(-out * H * .05).toFixed(1)}px,0)`;
+      l.style.opacity = (smooth(a, a + .06, p) * (1 - out * .72)).toFixed(3);
+    });
+    const r = ease(clamp(p / .32));
+    hmBust.style.transform = `translate3d(-50%,${((1 - r) * 26).toFixed(2)}%,0) scale(${(1 + .06 * smooth(.3, 1, p)).toFixed(4)})`;
+    const k = smooth(.52, .62, p);
+    hmPay.style.opacity = k.toFixed(3); hmPay.style.transform = `translate3d(0,${((1 - k) * 24).toFixed(1)}px,0) scale(${(.92 + .08 * k).toFixed(3)})`;
+    const mv = Math.round((1 - smooth(.58, .72, p)) * 100) / 100;
+    if (mv !== hmMkV) { hmMkV = mv; hmMk.style.strokeDashoffset = mv; }
+    const c = smooth(.62, .72, p);
+    hmCap.style.opacity = c.toFixed(3); hmCap.style.transform = `translate3d(0,${((1 - c) * 20).toFixed(1)}px,0)`;
+    hmCl.style.transform = `translate3d(${(p * W * .12).toFixed(1)}px,${(-p * H * .08).toFixed(1)}px,0)`;
+  }
+
+  const DRAW = { hermes: drawHermes, hero: drawHero, how: drawHow, pear: drawPear, temple: drawTemple, route: drawRoute, geo: drawGeo };
 
   /* переходы: монета, зерно, метка падают из сцены выше в заголовок следующего блока */
   const drops = reduce ? [] : [...document.querySelectorAll('[data-drop]')].map(el => ({ el, kind: el.dataset.drop, ring: el.querySelector('b'), top: 0 }));
