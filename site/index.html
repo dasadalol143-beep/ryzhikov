@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Храм дохода · Рыжиков</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Банки платят до 110 000 ₽ за одного человека. Пётр Рыжиков за 7 минут показывает, как устроена ниша РКО, как зайти с нуля, и приглашает на бесплатный разбор.">
-<meta property="og:title" content="Пётр Рыжиков · Банки платят за клиентов">
-<meta property="og:description" content="До 110 000 ₽ с одного человека. Как устроена ниша РКО и как зайти с нуля.">
+<meta name="description" content="Не увольняйся: научись делать 14 000 ₽ в день на партнёрках банков параллельно с работой. История Петра Рыжикова, калькулятор дохода и бесплатный разбор.">
+<meta property="og:title" content="Пётр Рыжиков · 14 000 ₽ в день на партнёрках банков">
+<meta property="og:description" content="Не увольняйся. Научись делать 14 000 ₽ в день вместе со мной. Без вложений, параллельно с работой.">
 <meta property="og:image" content="https://ryzhkovpartners.ru/assets/img/petr.jpg">
 <meta property="og:url" content="https://ryzhkovpartners.ru/">
 <meta property="og:type" content="website">
@@ -256,6 +256,75 @@ main{position:relative;z-index:1;background:var(--bg)}
 @media (max-width:900px){.fgrid{grid-template-columns:1fr 1fr;gap:34px 20px}.fbrand{grid-column:1/-1}.freq{margin-top:40px}.fbot{flex-direction:column;gap:6px}.horizon{left:-70%;right:-70%;top:calc(100% - 70px)}}
 @media (prefers-reduced-motion:reduce){.foot [data-f],.menu ol a,.menu .btn,.menu .mdocs{transition:none;opacity:1;transform:none}}
 
+/* ---------- история: кем был → кем стал ---------- */
+.story{position:relative;list-style:none;margin:0 auto;padding:0 0 0 clamp(64px,9vw,120px);max-width:860px}
+.story::before,.story .sfill{content:"";position:absolute;left:clamp(22px,3.4vw,44px);top:10px;bottom:10px;width:2px;border-radius:2px;background:var(--line)}
+.story .sfill{background:linear-gradient(var(--red),var(--gold2) 60%,var(--gold));transform-origin:50% 0;transform:scaleY(0);will-change:transform}
+.chs{list-style:none;margin:0;padding:0}
+.ch{position:relative;padding:0 0 clamp(40px,6vh,64px)}
+.ch:last-child{padding-bottom:0}
+.ch::before{content:"";position:absolute;left:calc(-1 * clamp(64px,9vw,120px) + clamp(22px,3.4vw,44px) - 7px);top:10px;width:16px;height:16px;border-radius:50%;background:var(--bg);border:2px solid var(--line);transition:border-color .4s,background .4s,transform .4s}
+.ch.on::before{border-color:var(--gold);background:var(--gold2);transform:scale(1.15)}
+.ch .sn{display:block;font-size:clamp(30px,4vw,52px);font-weight:700;letter-spacing:-.035em;line-height:1;font-variant-numeric:tabular-nums;color:var(--ink);opacity:.25;transition:opacity .5s,color .5s}
+.ch.on .sn{opacity:1}
+.ch .sn.neg{color:var(--red)}.ch .sn.top{color:var(--gold)}
+.ch h3{margin:10px 0 6px;font-size:clamp(20px,2vw,24px);letter-spacing:-.02em}
+.ch p{margin:0;max-width:36em;color:var(--ink2);font-size:17px}
+.ch p b{color:var(--ink)}
+.ch .q{display:block;margin-top:12px;padding-left:14px;border-left:3px solid var(--gold2);color:var(--ink);font-weight:600;font-size:18px;letter-spacing:-.015em}
+
+/* ---------- что ты уже пробовал ---------- */
+.vs4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.vs4 .tile{position:relative}
+.vs4 .tile h3{font-size:20px;margin:0 0 14px;letter-spacing:-.02em}
+.vs4 dl{margin:0;display:grid;gap:12px}
+.vs4 dt{font-size:13px;color:var(--ink2)}
+.vs4 dd{margin:2px 0 0;font-size:16px;font-weight:600;letter-spacing:-.01em}
+.vs4 .tile.bad h3{text-decoration:line-through;text-decoration-color:var(--red);text-decoration-thickness:2px}
+.vs4 .tile.bad dd{color:#3a3a3c}
+.vs4 .tile.win{background:var(--ink);color:#f5f5f7;box-shadow:0 30px 60px -30px rgba(0,0,0,.45)}
+.vs4 .tile.win dt{color:#a1a1a6}.vs4 .tile.win dd{color:#f5f5f7}.vs4 .tile.win dd.g{color:var(--gold2)}
+.vs4 .tile.win h3{color:var(--gold2)}
+.tried-end{margin:clamp(36px,5vh,56px) auto 0;max-width:30em;text-align:center;font-size:clamp(22px,2.4vw,32px);font-weight:700;letter-spacing:-.03em;line-height:1.2}
+@media (max-width:1000px){.vs4{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.vs4{grid-template-columns:1fr}.vs4 .tile.win{order:-1}}
+
+/* ---------- калькулятор ---------- */
+.calc{display:grid;grid-template-columns:1.1fr .9fr;gap:20px;max-width:1060px;margin:0 auto}
+.calc .tile{padding:clamp(24px,3vw,40px)}
+.rng{margin-bottom:30px}
+.rng label{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:17px;font-weight:600;margin-bottom:12px}
+.rng label output{font-size:28px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;color:var(--gold)}
+.rng small{display:block;margin-top:8px;font-size:14px;color:var(--ink2);min-height:1.4em}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:28px;margin:0;background:transparent;cursor:pointer;--v:30%}
+input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:6px;background:linear-gradient(90deg,var(--gold2) var(--v),var(--line) var(--v))}
+input[type=range]::-moz-range-track{height:6px;border-radius:6px;background:var(--line)}
+input[type=range]::-moz-range-progress{height:6px;border-radius:6px;background:var(--gold2)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:28px;margin-top:-11px;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.04)}
+input[type=range]::-moz-range-thumb{width:28px;height:28px;border:0;border-radius:50%;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+input[type=range]:focus-visible{outline:2px solid var(--gold);outline-offset:4px;border-radius:8px}
+.tgl{display:flex;align-items:center;gap:14px;cursor:pointer;font-size:16px;font-weight:600}
+.tgl input{position:absolute;opacity:0;width:1px;height:1px}
+.tgl i{position:relative;flex:none;width:50px;height:30px;border-radius:30px;background:var(--line);transition:background .25s}
+.tgl i::after{content:"";position:absolute;left:2px;top:2px;width:26px;height:26px;border-radius:50%;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,.2);transition:transform .25s}
+.tgl input:checked+i{background:var(--gold2)}.tgl input:checked+i::after{transform:translateX(20px)}
+.tgl input:focus-visible+i{outline:2px solid var(--gold);outline-offset:3px}
+.tgl span small{display:block;font-weight:400;font-size:14px;color:var(--ink2)}
+.res{display:flex;flex-direction:column;background:var(--ink);color:#f5f5f7}
+.res .k{font-size:15px;color:#a1a1a6}
+.res .day{display:block;margin:6px 0 2px;font-size:clamp(48px,6vw,80px);font-weight:700;letter-spacing:-.045em;line-height:1;color:var(--gold2);font-variant-numeric:tabular-nums}
+.res .mon{font-size:22px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.res .cmp{margin:22px 0 0;padding-top:18px;border-top:1px solid rgba(255,255,255,.14);font-size:16px;color:#d2d2d7}
+.res .cmp b{color:#f5f5f7}
+.res .goal{margin-top:14px;font-size:15px;color:#a1a1a6;min-height:2.8em}
+.res .goal b{color:var(--gold2)}
+.res .btn{margin-top:auto;align-self:flex-start}
+.mini{display:none;margin-top:22px;padding-top:16px;border-top:1px solid var(--line);font-size:16px;color:var(--ink2)}
+.mini b{color:var(--gold);font-size:22px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.res .note{margin-top:14px;font-size:12.5px;color:#86868b;line-height:1.5}
+@media (max-width:900px){.calc{grid-template-columns:1fr}.res .btn{margin-top:22px}.mini{display:block}}
+.hero-cap h1,.hero-cap .lead,.hero-cap .eyebrow{text-shadow:0 2px 24px rgba(0,0,0,.55),0 1px 3px rgba(0,0,0,.35)}
+
 /* ---------- переходы между блоками: что-то падает из сцены выше ---------- */
 .drop{display:block;position:relative;z-index:7;margin:0 0 18px;opacity:0;will-change:transform,opacity;pointer-events:none;user-select:none}
 .head.center .drop{margin-inline:auto}
@@ -474,6 +543,7 @@ footer a{color:var(--ink)}
     <ul>
       <li><a href="#how">Как это работает</a></li>
       <li><a href="#income">Доход</a></li>
+      <li><a href="#calc">Калькулятор</a></li>
       <li><a href="#students">Ученики</a></li>
       <li><a href="#faq">Вопросы</a></li>
     </ul>
@@ -483,12 +553,12 @@ footer a{color:var(--ink)}
 </nav>
 <div class="menu" id="menu" aria-label="Меню" aria-hidden="true">
   <ol>
-    <li><a href="#me" style="--i:0"><span>01</span>Кто я</a></li>
+    <li><a href="#story" style="--i:0"><span>01</span>Моя история</a></li>
     <li><a href="#how" style="--i:1"><span>02</span>Как это работает</a></li>
     <li><a href="#income" style="--i:2"><span>03</span>Доход</a></li>
-    <li><a href="#start" style="--i:3"><span>04</span>С чего начать</a></li>
-    <li><a href="#students" style="--i:4"><span>05</span>Ученики</a></li>
-    <li><a href="#academy" style="--i:5"><span>06</span>Академия</a></li>
+    <li><a href="#calc" style="--i:3"><span>04</span>Калькулятор</a></li>
+    <li><a href="#start" style="--i:4"><span>05</span>С чего начать</a></li>
+    <li><a href="#students" style="--i:5"><span>06</span>Ученики</a></li>
     <li><a href="#faq" style="--i:6"><span>07</span>Вопросы</a></li>
   </ol>
   <a class="btn btn-gold" data-cta href="#final" style="--i:7">Бесплатный разбор</a>
@@ -506,10 +576,10 @@ footer a{color:var(--ink)}
     <img class="obj" id="olive" src="assets/scene/olive.webp" alt="" fetchpriority="high">
     <div class="veil" id="heroVeil" style="opacity:.35"></div>
     <div class="hero-cap" id="heroCap">
-      <span class="eyebrow">Пётр Рыжиков · 7 минут</span>
-      <h1 class="h1">Банки платят за&nbsp;клиентов.<br><span class="gold">До 110 000 ₽ за&nbsp;одного.</span></h1>
-      <p class="lead">Покажу, как это устроено, сколько приносит один человек и как зайти с нуля. Без вложений и без товара.</p>
-      <div class="ctas center"><a class="btn btn-gold" data-cta href="#final">Записаться на разбор</a><a class="link" href="#me">Смотреть дальше ›</a></div>
+      <span class="eyebrow">Пётр Рыжиков · партнёрки банков</span>
+      <h1 class="h1">Не увольняйся.<br><span class="gold">Научись делать 14&nbsp;000&nbsp;₽ в&nbsp;день</span> вместе со&nbsp;мной.</h1>
+      <p class="lead">Параллельно с работой. Банки платят за новых клиентов, и 14 000 ₽ в день — это около трёх человек в неделю. Без вложений и без товара.</p>
+      <div class="ctas center"><a class="btn btn-gold" data-cta href="#final">Записаться на разбор</a><a class="link" href="#calc">Посчитать свой доход ›</a></div>
     </div>
   </div>
 </section>
@@ -528,20 +598,76 @@ footer a{color:var(--ink)}
           <div><b data-count="25" data-suf=" млн ₽">25 млн ₽</b><span>заработали ученики</span></div>
           <div><b>1 млн+ ₽</b><span>мой доход в месяц</span></div>
         </div>
-        <div class="path" data-r><span>Ставки · −90 000 ₽</span><i>→</i><span>Грузчик</span><i>→</i><span>Вейпшоп · 22 000 ₽</span><i>→</i><span class="last">Партнёрки · 1 000 000 ₽</span></div>
         <p class="small" data-r style="margin-top:14px">На фото мой телефон: на копилке 4 476 439 ₽. Не скрин из интернета.</p>
       </div>
     </div>
     <div class="agenda" data-r>
       <h3>За 7 минут ты узнаешь</h3>
       <ol>
-        <li>Откуда у банков деньги для тебя</li>
-        <li>За что именно они платят</li>
-        <li>Как из одного человека выходит 110 000 ₽</li>
-        <li>Как зайти с нуля и где ошибаются</li>
-        <li>Что сделали мои ученики</li>
+        <li>Как я вылез из минуса 90 000 ₽</li>
+        <li>Почему не крипта и не дропшиппинг</li>
+        <li>За что банки платят тебе</li>
+        <li>Сколько это будет у тебя</li>
+        <li>Как зайти с нуля и что сделали ученики</li>
       </ol>
     </div>
+  </div>
+</section>
+
+<!-- ========== ИСТОРИЯ ========== -->
+<section class="blk bg2" id="story">
+  <div class="wrap">
+    <div class="head center">
+      <span class="eyebrow" data-r>Моя история</span>
+      <h2 class="h2" data-r>Кем я был. Кем я стал.</h2>
+      <p class="lead" data-r>Без богатых родителей, связей и капитала. Как было на самом деле.</p>
+    </div>
+    <div class="story" id="storyList">
+      <i class="sfill" id="storyFill" aria-hidden="true"></i>
+      <ol class="chs">
+      <li class="ch"><span class="sn neg">−90 000 ₽</span><h3>Ставки и «темки»</h3><p>Искал кнопку «бабло». Нашёл долг, который надо отдавать.</p></li>
+      <li class="ch"><span class="sn">Грузчик</span><h3>Первая работа</h3><p>Оранжевая жилетка, бетонный пол, копейки в конце смены.</p></li>
+      <li class="ch"><span class="sn">1 год</span><h3>Армия</h3><p>Год, чтобы подумать, куда я иду.</p></li>
+      <li class="ch"><span class="sn">22 000 ₽</span><h3>Вейпшоп</h3><p>Стоял за прилавком 24/7 за 22 тысячи в месяц и всё вкладывал в своё дело.<span class="q">На 22 тысячи из долгов не вылезешь, как ни экономь. Надо не урезать расходы, а найти, где платят в разы больше.</span></p></li>
+      <li class="ch"><span class="sn">500–600 тыс. ₽</span><h3>Нашёл партнёрки</h3><p>Банки платят за новых клиентов. Прошёл всё на себе, потом начал искать людей в чатах подработок. Только на них сделал <b>500–600 тысяч</b>.</p></li>
+      <li class="ch"><span class="sn top">1 000 000 ₽</span><h3>Миллион за март</h3><p>50 человек в работе, и даже не все дошли до конца цепочки. Это не удача, а система.</p></li>
+      <li class="ch"><span class="sn top">150+</span><h3>Сейчас</h3><p>Учеников, которые прошли этот путь со мной. Свои кураторы. Веду дела с Пхукета, с одного телефона. <b>Эту систему я и передаю.</b></p></li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ========== ЧТО ТЫ УЖЕ ПРОБОВАЛ ========== -->
+<section class="blk" id="tried">
+  <div class="wrap">
+    <div class="head center">
+      <span class="eyebrow" data-r>Знакомо?</span>
+      <h2 class="h2" data-r>Ты уже пробовал.<br>Крипта. Трейдинг. Дропшиппинг.</h2>
+      <p class="lead" data-r>И каждый раз сначала надо было вложить свои. А потом надеяться.</p>
+    </div>
+    <div class="vs4">
+      <article class="tile bad" data-r><h3>Крипта и P2P</h3><dl>
+        <div><dt>Чтобы начать</dt><dd>Свой капитал на оборот</dd></div>
+        <div><dt>Чем рискуешь</dt><dd>Деньгами и блокировкой карт по 115-ФЗ</dd></div>
+        <div><dt>Первые деньги</dt><dd>Если повезёт с курсом</dd></div>
+        <div><dt>Зависишь от</dt><dd>Рынка и бирж</dd></div></dl></article>
+      <article class="tile bad" data-r style="--i:1"><h3>Трейдинг</h3><dl>
+        <div><dt>Чтобы начать</dt><dd>Депозит и месяцы обучения</dd></div>
+        <div><dt>Чем рискуешь</dt><dd>Всем депозитом</dd></div>
+        <div><dt>Первые деньги</dt><dd>Через месяцы. Если вообще</dd></div>
+        <div><dt>Зависишь от</dt><dd>Графика и нервов</dd></div></dl></article>
+      <article class="tile bad" data-r><h3>Дропшиппинг</h3><dl>
+        <div><dt>Чтобы начать</dt><dd>Товар, магазин, реклама</dd></div>
+        <div><dt>Чем рискуешь</dt><dd>Бюджетом на рекламу и закупку</dd></div>
+        <div><dt>Первые деньги</dt><dd>После тестов рекламы</dd></div>
+        <div><dt>Зависишь от</dt><dd>Поставщиков и маркетплейсов</dd></div></dl></article>
+      <article class="tile win" data-r style="--i:1"><h3>Партнёрки банков</h3><dl>
+        <div><dt>Чтобы начать</dt><dd class="g">0 ₽. Только телефон</dd></div>
+        <div><dt>Чем рискуешь</dt><dd>Своим временем</dd></div>
+        <div><dt>Первые деньги</dt><dd class="g">В этом месяце, на себе</dd></div>
+        <div><dt>Зависишь от</dt><dd>Своих действий</dd></div></dl></article>
+    </div>
+    <p class="tried-end" data-r>Партнёрки — это то, что у тебя получится. И то, на что реально стоит потратить время.</p>
   </div>
 </section>
 
@@ -653,6 +779,38 @@ footer a{color:var(--ink)}
       <p id="tDesc">Фундамент — ИП. Колонны — банки. Крыша — карты и займы.</p>
     </div>
     <div class="deadcard" id="deadCard"><b id="deadName">Т-Банк</b><span>За ИП на НПД через партнёрки не платит. Эту колонну не ставим.</span></div>
+  </div>
+</section>
+
+<!-- ========== КАЛЬКУЛЯТОР ========== -->
+<section class="blk" id="calc">
+  <div class="wrap">
+    <div class="head center">
+      <span class="eyebrow" data-r>Калькулятор</span>
+      <h2 class="h2" data-r>Сколько это будет у тебя.</h2>
+      <p class="lead" data-r>Двигай ползунки. Считаем по ставкам партнёрок на октябрь 2026, после налога 6%.</p>
+    </div>
+    <div class="calc">
+      <div class="tile" data-r style="background:var(--bg2)">
+        <div class="rng"><label for="cPeople">Людей в неделю <output id="oPeople">3</output></label>
+          <input type="range" id="cPeople" min="1" max="10" step="1" value="3">
+          <small id="hPeople">Друзья, знакомые, люди из чатов подработок.</small></div>
+        <div class="rng"><label for="cBanks">Банков на каждого <output id="oBanks">2</output></label>
+          <input type="range" id="cBanks" min="1" max="8" step="1" value="2">
+          <small id="hBanks">Альфа + Инго · 36 000 ₽ с человека</small></div>
+        <label class="tgl"><input type="checkbox" id="cExtra"><i></i><span>Плюс карты и займы<small>3 дебетовые, 2 кредитные, 4 займа · +31 877 ₽ с человека</small></span></label>
+        <p class="mini">В день: <b id="rMini">14 500 ₽</b></p>
+      </div>
+      <div class="tile res" data-r style="--i:1" aria-live="polite">
+        <span class="k">Твой доход в день</span>
+        <b class="day" id="rDay">14 540 ₽</b>
+        <span class="mon"><span id="rMon">436 000 ₽</span> в месяц</span>
+        <p class="cmp" id="rCmp">Это <b>20 зарплат</b> в вейпшопе, где я стоял за 22 000 ₽.</p>
+        <p class="goal" id="rGoal"></p>
+        <a class="btn btn-gold" data-cta href="#final">Хочу так же — на разбор</a>
+        <p class="note">Это расчёт, а не обещание. Ставки банков меняются каждый месяц, а сколько людей ты проведёшь, зависит только от тебя.</p>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -891,7 +1049,7 @@ footer a{color:var(--ink)}
   <div class="wrap">
     <div class="fgrid">
       <div class="fbrand" data-f><a class="flogo" href="#hero">Рыжиков<small>Ryzhikov Academy</small></a><p>Учу зарабатывать на партнёрских программах банков с нуля. Без вложений и без продаж.</p><a class="btn btn-gold" data-cta href="#final">Бесплатный разбор</a></div>
-      <nav class="fcol" data-f style="--i:1" aria-label="Разделы сайта"><h4>Навигация</h4><a href="#how">Как это работает</a><a href="#income">Доход</a><a href="#start">С чего начать</a><a href="#students">Ученики</a><a href="#academy">Академия</a><a href="#faq">Вопросы</a></nav>
+      <nav class="fcol" data-f style="--i:1" aria-label="Разделы сайта"><h4>Навигация</h4><a href="#story">Моя история</a><a href="#how">Как это работает</a><a href="#income">Доход</a><a href="#calc">Калькулятор</a><a href="#start">С чего начать</a><a href="#students">Ученики</a><a href="#academy">Академия</a><a href="#faq">Вопросы</a></nav>
       <div class="fcol" data-f style="--i:2"><h4>Связь</h4><a data-channel href="#final">Telegram-канал</a><a data-cta href="#final">Записаться на разбор</a><a data-req="telegram" href="#final">Telegram для связи</a><a data-req="email" href="#final">Почта</a></div>
       <div class="fcol" data-f style="--i:3"><h4>Документы</h4><a href="oferta.html">Публичная оферта</a><a href="privacy.html">Политика конфиденциальности</a><a href="consent.html">Согласие на обработку данных</a></div>
     </div>
@@ -1256,6 +1414,46 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
     if (d.ring) { const u = clamp((land - r) / (H * .22)); d.ring.style.transform = `scale(${.3 + u * 1.9})`; d.ring.style.opacity = u > 0 && u < 1 ? 1 - u : 0; }
   }
 
+  /* история: линия заполняется, этапы загораются по мере прокрутки */
+  const storyList = $('storyList'), storyFill = $('storyFill'), chs = [...storyList.querySelectorAll('.ch')];
+  let STORY = {}, chOn = -2;
+  const layoutStory = () => { STORY = { top: absTop(storyList), h: storyList.offsetHeight, pts: chs.map(c => c.offsetTop + 10) }; chOn = -2; };
+  function drawStory(y) {
+    const at = y + H * .62 - STORY.top; if (at < -H || at > STORY.h + H) return;
+    storyFill.style.transform = `scaleY(${clamp(at / STORY.h)})`;
+    let n = -1; STORY.pts.forEach((t, i) => { if (at >= t) n = i; });
+    if (n !== chOn) { chOn = n; chs.forEach((c, i) => c.classList.toggle('on', i <= n)); }
+  }
+  if (reduce) chs.forEach(c => c.classList.add('on'));
+
+  /* калькулятор дохода */
+  {
+    const BK = [['Альфа', 16000], ['Инго', 20000], ['ВТБ', 7000], ['ПСБ', 10000], ['Озон', 8000], ['Уралсиб', 6000], ['Контур', 6000], ['Свой Банк', 6000]];
+    const EXTRA = 31877, TAX = .94, VAPE = 22000;
+    const cP = $('cPeople'), cB = $('cBanks'), cX = $('cExtra');
+    const plural = (n, a, b, c) => { const m = n % 10, h = n % 100; return m === 1 && h !== 11 ? a : m >= 2 && m <= 4 && (h < 12 || h > 14) ? b : c; };
+    let shown = 0, raf2 = 0;
+    const roll = to => { cancelAnimationFrame(raf2); const from = shown, t0 = performance.now();
+      const step = t => { const k = reduce ? 1 : Math.min(1, (t - t0) / 450); shown = from + (to - from) * ease(k); $('rDay').textContent = $('rMini').textContent = fmt(Math.round(shown / 10) * 10) + ' ₽'; if (k < 1) raf2 = requestAnimationFrame(step); };
+      raf2 = requestAnimationFrame(step); };
+    const paint = r => r.style.setProperty('--v', ((r.value - r.min) / (r.max - r.min) * 100) + '%');
+    function calc() {
+      const p = +cP.value, b = +cB.value, per = BK.slice(0, b).reduce((a, x) => a + x[1], 0) + (cX.checked ? EXTRA : 0);
+      const mon = p * per * 30 / 7 * TAX, day = mon / 30;
+      $('oPeople').textContent = p; $('oBanks').textContent = b; paint(cP); paint(cB);
+      $('hPeople').textContent = p <= 2 ? 'Начни с себя и пары друзей.' : p <= 5 ? 'Друзья, знакомые, люди из чатов подработок.' : 'Это уже уровень, когда люди приходят из контента и рекламы.';
+      const names = BK.slice(0, b).map(x => x[0]);
+      $('hBanks').textContent = (b <= 3 ? names.join(' + ') : `${names.slice(0, 2).join(' + ')} и ещё ${b - 2}`) + ' · ' + fmt(BK.slice(0, b).reduce((a, x) => a + x[1], 0)) + ' ₽ с человека';
+      $('rMon').textContent = fmt(Math.round(mon / 1000) * 1000) + ' ₽';
+      const v = Math.max(1, Math.round(mon / VAPE));
+      $('rCmp').innerHTML = `Это <b>${v} ${plural(v, 'зарплата', 'зарплаты', 'зарплат')}</b> в вейпшопе, где я стоял за 22 000 ₽.`;
+      const need = Math.ceil(14000 * 30 / (per * 30 / 7 * TAX) * 10) / 10;
+      $('rGoal').innerHTML = day >= 14000 ? '<b>Ты на цели: 14 000 ₽ в день и больше.</b>' : `До 14 000 ₽ в день: <b>${String(need).replace('.', ',')} ${need % 1 ? 'человека' : plural(need, 'человек', 'человека', 'человек')} в неделю</b> при тех же банках.`;
+      roll(day);
+    }
+    [cP, cB, cX].forEach(i => i.addEventListener('input', calc)); calc();
+  }
+
   /* остальное, что движется */
   const pipe = $('pipe'), pipeFill = $('pipeFill'), pipeCoin = $('pipeCoin'), pipeSteps = [...pipe.querySelectorAll('.st')];
   const nav = $('nav'), prog = $('prog'), hint = $('hint'), finalBg = document.querySelector('.final-bg img'), finalSec = $('final');
@@ -1264,7 +1462,7 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
   function layout() {
     W = innerWidth; H = innerHeight; mob = W < 900;
     scenes.forEach(s => { s.top = absTop(s.sec); s.h = s.sec.offsetHeight; s.p = -1; });
-    layoutHero(); layoutHow(); layoutPear(); layoutTemple(); layoutRoute(); layoutDrops();
+    layoutHero(); layoutHow(); layoutPear(); layoutTemple(); layoutRoute(); layoutDrops(); layoutStory();
     const vertical = getComputedStyle(pipe).gridTemplateColumns.split(' ').length === 1;
     PIPE = { top: absTop(pipe), vertical, pts: pipeSteps.map(s => vertical ? s.offsetTop + 10 : s.offsetLeft + s.offsetWidth / 2) };
     FIN = { top: absTop(finalSec), h: finalSec.offsetHeight };
@@ -1292,7 +1490,7 @@ sizeObj(pearL, PG.hh * 388 / 600); sizeObj(pearR, PG.hh * 404 / 600);
       drawCaps(s, p);
       DRAW[s.kind](p);
     });
-    drops.forEach(d => drawDrop(d, y));
+    drops.forEach(d => drawDrop(d, y)); drawStory(y);
     // подвал выезжает из-под финала: лёгкий подъём и проявление, колонки раскрываются по очереди
     const fr0 = y + H - FOOT.top;
     if (fr0 > -50) { const r = clamp(fr0 / Math.min(FOOT.h, H)); if (!reduce) { footIn.style.transform = `translate3d(0,${(1 - ease(r)) * 70}px,0)`; footIn.style.opacity = .25 + .75 * r; } if (r > .3) foot.classList.add('in'); }
