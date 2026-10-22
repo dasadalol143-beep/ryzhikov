@@ -303,3 +303,9 @@ div.row:active { background: var(--bg2); }
 .sub.up { color: var(--green); }
 .sheet-close { position: sticky; top: 0; float: right; margin: -4px -4px 0 8px; width: 34px; height: 34px; border-radius: 50%; border: 0; background: var(--bg); color: var(--hint); font-size: 16px; cursor: pointer; z-index: 2; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
 .sheet-head .btn { margin-right: 40px; }
+
+/* Теги лида: ИП / МФО / РКО / ДК / КК */
+.pill.tag { background: rgba(124, 92, 255, 0.14); color: #7c5cff; }
+.tags-row { align-items: center; margin: 0 0 8px; }
+.tags-row .sub { margin-right: 2px; }
+.chip.tag.active { background: #7c5cff; border-color: #7c5cff; color: #fff; }

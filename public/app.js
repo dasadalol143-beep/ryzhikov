@@ -1,5 +1,5 @@
 import { leadMoney, sumMoney, ACTIVE_STAGES } from "./economics.js";
-import { STAGE_LABELS, STATUS_LABELS, STATUS_SHORT, CATEGORY_LABELS } from "./labels.js";
+import { STAGE_LABELS, STATUS_LABELS, STATUS_SHORT, CATEGORY_LABELS, TAG_LABELS } from "./labels.js";
 import { worklist, paidEvents, todayKey, addDays, daysSince, netOf, networkReport, networkOf } from "./insights.js";
 
 const tg = window.Telegram?.WebApp;
@@ -30,7 +30,9 @@ const state = {
   tab: "today",
   leadId: null,
   more: null, // offers | settings | team | data
-  filter: "all",
+  filter: "all", // можно несколько через запятую: "in_work,lost"
+  tags: [], // фильтр по тегам ИП/МФО/РКО/ДК/КК
+  ledger: null, // сколько фактически выплачено по строкам отчёта
   sort: "recent",
   query: "",
   offerFilter: null, // { id, cond: none|work|paid|dead }
@@ -223,6 +225,64 @@ function reportRows(m) {
   </div>`;
 }
 
+// Факт: сколько реально получено от сетей и выплачено Дамиру, в налог, лидам, на затраты.
+function ledgerRows(m) {
+  const s = state.settings;
+  return [
+    ["income", "Доход", m.income, "получено от сетей", "сети ещё должны"],
+    ["costs", "Затраты", m.costs, "оплачено", "осталось оплатить"],
+    ["partner", `${s.partnerName} ${s.partnerShare}%`, m.partner, "выплачено", "осталось выплатить"],
+    ["tax", `Налог ${s.taxRate}%`, m.tax, "уплачено", "осталось уплатить"],
+    ["payout", "Лидам", m.payout, "выплачено", "осталось выплатить"],
+  ];
+}
+
+function ledgerBlock(m) {
+  const L = state.ledger;
+  const onHands = L.income - L.costs - L.partner - L.tax - L.payout;
+  return `<div class="list-head"><h2 style="margin:0">Факт · что уже выплачено</h2><button class="link" id="ledgerEdit">✏️ Заполнить</button></div>
+    <div class="list">
+      ${ledgerRows(m)
+        .map(([k, label, calc, done, left]) => {
+          const rest = Math.round(calc - L[k]);
+          return `<div class="row"><div class="grow"><div class="title">${esc(label)}</div><div class="sub">по отчёту ${rub(calc)} · ${done} ${rub(L[k])}</div></div><div class="right ${rest > 0 ? "money-orange" : rest < 0 ? "danger" : "money-green"}">${rest > 0 ? `${left}<br><b>${rub(rest)}</b>` : rest < 0 ? `переплата<br><b>${rub(-rest)}</b>` : "✓ закрыто"}</div></div>`;
+        })
+        .join("")}
+      <div class="row total"><div class="grow">Реально на руках<div class="sub">получено − всё выплаченное</div></div><div class="right">${rub(onHands)}</div></div>
+    </div>
+    <div class="sub note">${L.updatedAt ? `Обновил ${esc(L.by)} ${fmtDate(L.updatedAt.slice(0, 10))}` : "Пока не заполнено — жми «Заполнить» и впиши, сколько уже реально прошло денег."}</div>`;
+}
+
+function ledgerSheet(m) {
+  const L = state.ledger;
+  const received = networkReport(state.leads, state.offers, state.payouts).reduce((t, n) => t + n.received, 0);
+  openSheet(
+    `<h2 class="sheet-title">Сколько уже выплачено</h2>
+    <div class="explain">Впиши суммы нарастающим итогом за всё время — сколько денег реально прошло. Приложение покажет, сколько ещё осталось по каждой строке отчёта.</div>
+    ${ledgerRows(m)
+      .map(([k, label, calc, done]) => `<label class="field"><span>${esc(label)} — ${done} (по отчёту ${rub(calc)})</span><input data-l="${k}" type="number" inputmode="decimal" min="0" value="${L[k] || ""}" placeholder="0"></label>
+        ${k === "income" && received ? `<button class="chip" id="useReceived" style="margin:-4px 0 10px">Подставить из сверки с сетями: ${rub(received)}</button>` : ""}`)
+      .join("")}
+    <button class="btn block" id="lSave">Сохранить</button>
+    ${L.history?.length ? `<h2>История правок</h2><div class="list history">${L.history.slice(0, 10).map((x) => `<div class="row"><div class="grow"><div class="sub">${esc(x.text)}</div></div><div class="right sub">${esc(x.by)}<br>${fmtDate(x.at.slice(0, 10))}</div></div>`).join("")}</div>` : ""}`,
+    (el) => {
+      el.querySelector("#useReceived")?.addEventListener("click", () => (el.querySelector('[data-l="income"]').value = received));
+      el.querySelector("#lSave").onclick = async () => {
+        const body = Object.fromEntries([...el.querySelectorAll("[data-l]")].map((i) => [i.dataset.l, i.value || 0]));
+        try {
+          state.ledger = await api("PUT", "/ledger", body);
+          haptic("medium");
+          closeSheet();
+          toast("Сохранено");
+          render();
+        } catch (e) {
+          toast(`Ошибка: ${e.message}`);
+        }
+      };
+    },
+  );
+}
+
 // Блок экрана «Сегодня»: 5 самых важных + переход ко всему списку.
 const section = (icon, title, items, renderItem, { empty, filter, max = 5 } = {}) =>
   items.length
@@ -365,9 +425,12 @@ function filterLeads() {
     new: (l) => l.stage === "new",
     closed: (l) => l.stage === "closed",
     lost: (l) => l.stage === "lost",
-  }[state.filter] || ((l) => l.stage === state.filter);
+  };
+  // Несколько выбранных фильтров складываются: «В работе» + «Слились» = и те, и другие.
+  const sel = selectedFilters();
   const list = state.leads
-    .filter(pass)
+    .filter((l) => !sel.length || sel.some((f) => (pass[f] || ((x) => x.stage === f))(l)))
+    .filter((l) => !state.tags.length || state.tags.some((t) => l.tags?.includes(t)))
     .filter((l) => !q || `${l.telegram} ${l.fio} ${l.phone || ""} ${l.source} ${l.nextStep || ""}`.toLowerCase().includes(q))
     .filter((l) => {
       const f = state.offerFilter;
@@ -384,6 +447,11 @@ function filterLeads() {
   };
   return list.sort(sorters[state.sort]);
 }
+
+const selectedFilters = () => state.filter.split(",").filter((f) => f && f !== "all");
+const tagPills = (tags) => (tags || []).map((t) => `<span class="pill tag">${TAG_LABELS[t]}</span>`).join(" ");
+const tagChips = (active, attr = "data-tag") =>
+  Object.entries(TAG_LABELS).map(([t, label]) => `<button class="chip tag ${active.includes(t) ? "active" : ""}" ${attr}="${t}">${label}</button>`).join("");
 
 const dupCount = () => {
   const seen = new Map();
@@ -417,8 +485,10 @@ function renderLeads() {
       <button class="btn round" id="addLead" aria-label="Новый лид">＋</button>
     </div>
     <div class="chips">
-      ${FILTERS.map(([f, label]) => `<button class="chip ${state.filter === f ? "active" : ""}" data-filter="${f}">${label}</button>`).join("")}
+      ${FILTERS.map(([f, label]) => `<button class="chip ${(f === "all" ? !selectedFilters().length : selectedFilters().includes(f)) ? "active" : ""}" data-filter="${f}">${label}</button>`).join("")}
     </div>
+    <div class="chips tight tags-row"><span class="sub">Теги:</span>${tagChips(state.tags, "data-tagfilter")}</div>
+    ${selectedFilters().length > 1 ? `<div class="sub" style="margin:0 4px 6px">Показаны сразу: ${selectedFilters().map((f) => FILTERS.find((x) => x[0] === f)?.[1] || STAGE_LABELS[f] || f).join(" + ")} · «Все» — сбросить</div>` : ""}
     ${state.offerFilter ? `<div class="chips tight" style="margin:0 0 8px"><button class="chip active" id="offerFilterClear">${esc(offerById(state.offerFilter.id)?.name.replace(/ — РКО$/, "") || "")}: ${OFFER_CONDS[state.offerFilter.cond]} ✕</button></div>` : ""}
     <div class="list-head">
       <span>${list.length} ${plural(list.length, "лид", "лида", "лидов")} · <button class="link" id="offerFilter">🏦 Фильтр по офферу</button></span>
@@ -439,6 +509,11 @@ function renderLeads() {
     renderLeads();
   };
   document.getElementById("addLead").onclick = addLeadSheet;
+  $app.querySelectorAll("[data-tagfilter]").forEach((b) => (b.onclick = () => {
+    const t = b.dataset.tagfilter;
+    state.tags = state.tags.includes(t) ? state.tags.filter((x) => x !== t) : [...state.tags, t];
+    renderLeads();
+  }));
 }
 
 const OFFER_CONDS = { none: "ещё не делали", work: "в работе", paid: "засчитан", dead: "отказ / уже есть" };
@@ -471,6 +546,7 @@ function leadListHtml(list) {
     .map(({ l, m }) => {
       const cd = Object.values(l.offers || {}).filter((o) => o.status === "opened").length;
       const bits = [stageBadge(l.stage)];
+      if (l.tags?.length) bits.push(tagPills(l.tags));
       if (cd) bits.push(`<span class="pill st-opened">ЦД ×${cd}</span>`);
       if (m.waiting) bits.push(`<span class="pill st-done">ждём ${short(m.waiting)}</span>`);
       if (l.remindAt) bits.push(`<span class="badge">🔔 ${fmtDate(l.remindAt)}</span>`);
@@ -492,13 +568,16 @@ function addLeadSheet() {
     <label class="field"><span>ФИО</span><input id="nFio" placeholder="Можно потом"></label>
     <label class="field"><span>Телефон</span><input id="nPhone" type="tel" placeholder="Можно потом"></label>
     <label class="field"><span>Откуда пришёл</span><input id="nSrc" placeholder="YouTube, Reels, партнёр…"></label>
+    <div class="field"><span>На что крутить</span></div>
+    <div class="chips tight" id="nTags" style="margin-bottom:10px">${tagChips([])}</div>
     <div class="chips tight" style="margin-bottom:6px">${[...new Set([...sources, "YouTube", "Reels", "Telegram", "Сарафан", "Партнёр"])].slice(0, 8).map((x) => `<button class="chip" data-src="${esc(x)}">${esc(x)}</button>`).join("")}</div>
     <button class="btn block" id="nSave">Создать и открыть</button>`,
     (el) => {
       el.querySelector("#nTg").focus();
+      el.querySelectorAll("[data-tag]").forEach((b) => (b.onclick = () => b.classList.toggle("active")));
       el.querySelectorAll("[data-src]").forEach((b) => (b.onclick = () => (el.querySelector("#nSrc").value = b.dataset.src)));
       el.querySelector("#nSave").onclick = async () => {
-        const body = { telegram: el.querySelector("#nTg").value, fio: el.querySelector("#nFio").value, phone: el.querySelector("#nPhone").value, source: el.querySelector("#nSrc").value };
+        const body = { telegram: el.querySelector("#nTg").value, fio: el.querySelector("#nFio").value, phone: el.querySelector("#nPhone").value, source: el.querySelector("#nSrc").value, tags: [...el.querySelectorAll("[data-tag].active")].map((b) => b.dataset.tag) };
         if (!body.telegram.trim() && !body.fio.trim()) return toast("Нужен ник или ФИО");
         const dup = body.telegram && state.leads.find((l) => l.telegram.toLowerCase() === `@${body.telegram.replace(/^@/, "")}`.toLowerCase());
         if (dup && !(await confirmDialog(`${dup.telegram} уже есть в базе. Всё равно создать?`))) return;
@@ -550,6 +629,7 @@ function renderLead() {
     <div class="chips stages">
       ${Object.entries(STAGE_LABELS).map(([s, label]) => `<button class="chip ${lead.stage === s ? "active" : ""}" data-stage="${s}">${label}</button>`).join("")}
     </div>
+    <div class="chips tight tags-row"><span class="sub">На что крутить:</span>${tagChips(lead.tags || [])}</div>
 
     <div class="kpis three">
       <div class="kpi"><div class="label">Чистая</div><div class="value money-green">${rub(m.net)}</div></div>
@@ -612,6 +692,11 @@ function renderLead() {
     if (v) saveLead(lead.id, { addPayout: v }, `💵 Выплата +${rub(v)}`);
   };
   $app.querySelectorAll("[data-stage]").forEach((b) => (b.onclick = () => b.dataset.stage !== lead.stage && saveLead(lead.id, { stage: b.dataset.stage })));
+  $app.querySelectorAll("[data-tag]").forEach((b) => (b.onclick = () => {
+    const t = b.dataset.tag;
+    const cur = lead.tags || [];
+    saveLead(lead.id, { tags: cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t] });
+  }));
   const $next = document.getElementById("nextStep");
   $next.addEventListener("change", () => saveLead(lead.id, { nextStep: $next.value }));
   $app.querySelectorAll("[data-remind]").forEach(
@@ -1113,7 +1198,8 @@ function renderStats() {
     ${hbars(Object.entries(counts).map(([st, n]) => ({ label: STAGE_LABELS[st], value: n, act: `data-stagego="${st}"` })), (r) => String(r.value))}
 
     <h2>Отчётный лист · всё время</h2>
-    ${reportRows(totals)}`;
+    ${reportRows(totals)}
+    ${isAdmin() && state.ledger ? ledgerBlock(totals) : ""}`;
 
   $app.querySelectorAll("[data-period]").forEach((b) => (b.onclick = () => go({ period: b.dataset.period })));
   $app.querySelector("[data-paidrange]").onclick = () => paidSheet(`Засчитано · ${PERIODS.find((p) => p[0] === state.period)[1]}`, inRange);
@@ -1123,6 +1209,7 @@ function renderStats() {
   $app.querySelectorAll("[data-netgo]").forEach((r) => (r.onclick = () => go({ tab: "more", more: "payouts", network: r.dataset.netgo })));
   $app.querySelectorAll("[data-stagego]").forEach((r) => (r.onclick = () => go({ tab: "leads", filter: r.dataset.stagego, query: "" })));
   bindCharts(all);
+  document.getElementById("ledgerEdit")?.addEventListener("click", () => ledgerSheet(totals));
 }
 
 // Тап по столбику: подпись + «Подробнее».
@@ -1666,7 +1753,9 @@ $app.addEventListener("click", (e) => {
   if (jump) return go({ tab: "leads", filter: jump.dataset.goto, query: "", sort: "inwork" });
   const chip = e.target.closest("[data-filter]");
   if (chip) {
-    state.filter = chip.dataset.filter;
+    const f = chip.dataset.filter;
+    const sel = selectedFilters();
+    state.filter = f === "all" ? "all" : (sel.includes(f) ? sel.filter((x) => x !== f) : [...sel, f]).join(",") || "all";
     renderLeads();
   }
 });
@@ -1695,7 +1784,7 @@ document.addEventListener("visibilitychange", () => {
 async function reload() {
   const data = await api("GET", "/state");
   lastLoad = Date.now();
-  Object.assign(state, { me: data.me, offers: data.offers, settings: data.settings, leads: data.leads, payouts: data.payouts || [] });
+  Object.assign(state, { me: data.me, offers: data.offers, settings: data.settings, leads: data.leads, payouts: data.payouts || [], ledger: data.ledger || null });
   render();
 }
 

@@ -27,3 +27,6 @@ export const STATUS_SHORT = {
 };
 
 export const CATEGORY_LABELS = { rko: "РКО", mfo: "МФО", debit: "Дебетовые карты", credit: "Кредитные карты" };
+
+// Теги лида: на что его крутить.
+export const TAG_LABELS = { ip: "ИП", mfo: "МФО", rko: "РКО", dk: "ДК", kk: "КК" };
