@@ -343,3 +343,17 @@ test("lead tags and paid-out ledger", async () => {
   assert.equal((await admin("GET", "/state")).body.ledger.partner, 50000);
   assert.equal((await manager("GET", "/state")).body.ledger, null);
 });
+
+test("offer template edit applies to new leads only", async () => {
+  const handle = createHandler({ store: memoryStore(), env });
+  const admin = client(handle, { id: 1, first_name: "Пётр" });
+  const a = await admin("POST", "/leads", { telegram: "a1", offers: { vtb: { status: "applied" } } });
+  const r = await admin("PATCH", "/offers/vtb", { amount: 4100, partner: "Leadgid", name: "" });
+  assert.equal(r.body.offer.amount, 4100);
+  assert.equal(r.body.offer.partner, "Leadgid");
+  assert.ok(r.body.offer.name);
+  assert.equal((await admin("PATCH", "/offers/nope", { amount: 1 })).status, 404);
+  const b = await admin("POST", "/leads", { telegram: "b1", offers: { vtb: { status: "applied" } } });
+  assert.equal(b.body.offers.vtb.amount, 4100);
+  assert.notEqual(a.body.offers.vtb.amount, 4100);
+});

@@ -710,7 +710,7 @@ function renderLead() {
 
 const offerRowHtml = ({ id, lo, o }) => `<button class="row" data-offer="${id}">
   <div class="grow"><div class="title">${esc(o.name)}</div>
-    <div class="sub">${[o.partner, lo.comment].filter(Boolean).map(esc).join(" · ")}</div></div>
+    <div class="sub">${[networkOf(lo, o), lo.comment].filter(Boolean).map(esc).join(" · ")}</div></div>
   <div class="right">${statusPill(lo.status)}<div class="sub">${lo.dueAt ? `<span class="${lo.dueAt <= todayKey() ? "danger" : ""}">⏰ ${fmtDate(lo.dueAt)}</span> · ` : ""}${rub(lo.amount)}${lo.cost ? ` · −${short(lo.cost)}` : ""}</div></div>
 </button>`;
 
@@ -733,7 +733,7 @@ function offerSheet(lead, offerId, opts) {
   openSheet(
     `<div class="sheet-head">
       <div><h2 class="sheet-title">${esc(o.name)}</h2>
-      <div class="sub">${[o.partner, CATEGORY_LABELS[o.category], o.note].filter(Boolean).map(esc).join(" · ")}</div></div>
+      <div class="sub">${[networkOf(lo, o), CATEGORY_LABELS[o.category], o.note].filter(Boolean).map(esc).join(" · ")}</div></div>
       <button class="btn small" id="oDone">Готово</button>
     </div>
 
@@ -759,6 +759,7 @@ function offerSheet(lead, offerId, opts) {
     <div class="card">
       <input id="oNet" value="${esc(networkOf(lo, o))}" list="netList" placeholder="RKO Group, Бизнес Система, FCN…">
       <datalist id="netList">${[...new Set(state.offers.map((x) => x.partner).filter(Boolean))].map((x) => `<option value="${esc(x)}">`).join("")}</datalist>
+      ${lo.amount !== o.amount || (lo.network && lo.network !== o.partner) ? `<button class="chip" id="oTpl" style="margin-top:8px">📌 Сделать шаблоном: ${rub(lo.amount)}${lo.network ? " · " + esc(lo.network) : ""} — для новых лидов</button>` : ""}
       ${lo.status === "paid" && isAdmin() ? `<button class="chip ${lo.received ? "active" : ""}" id="oRecv" style="margin-top:8px">${lo.received ? "💰 Деньги от сети получены" : "Отметить: деньги от сети пришли"}</button>` : ""}
     </div>
 
@@ -796,6 +797,16 @@ function offerSheet(lead, offerId, opts) {
         if (v > 0) save({ addCost: v }, `Затраты +${v} ₽`);
       };
       el.querySelector("#oNet").onchange = (e) => save({ network: e.target.value === (o.partner || "") ? "" : e.target.value }, "Сеть сохранена");
+      el.querySelector("#oTpl")?.addEventListener("click", async () => {
+        try {
+          const r = await api("PATCH", `/offers/${offerId}`, { amount: lo.amount, ...(lo.network ? { partner: lo.network } : {}) });
+          state.offers = r.offers;
+          toast("📌 Шаблон оффера обновлён");
+          offerSheet(lead, offerId, { instant: true });
+        } catch (e) {
+          toast(`Ошибка: ${e.message}`);
+        }
+      });
       el.querySelector("#oRecv")?.addEventListener("click", () => save({ received: !lo.received }, lo.received ? "Отметка снята" : "💰 Отмечено: деньги пришли"));
       const $c = el.querySelector("#oComment");
       $c.onchange = () => save({ comment: $c.value }, "Комментарий сохранён");
@@ -815,6 +826,40 @@ function offerSheet(lead, offerId, opts) {
       el.querySelector("#oDue").onchange = (e) => e.target.value && save({ dueAt: e.target.value }, `⏰ Срок ${fmtDate(e.target.value)}`);
     },
     opts,
+  );
+}
+
+// Шаблон оффера из каталога: то, что подставляется новым лидам.
+function offerTemplateSheet(offerId, back) {
+  const o = offerById(offerId);
+  openSheet(
+    `<h2 class="sheet-title">Шаблон: ${esc(o.name)}</h2>
+    <div class="explain">Эти данные подставляются, когда оффер добавляют лиду. У лидов, где оффер уже есть, ничего не меняется.</div>
+    <label class="field"><span>Название</span><input id="tName" value="${esc(o.name)}"></label>
+    <div class="two">
+      <label class="field"><span>Ставка, ₽</span><input id="tAmount" type="number" inputmode="decimal" value="${o.amount || ""}"></label>
+      <label class="field"><span>Затраты, ₽</span><input id="tCost" type="number" inputmode="decimal" value="${o.cost || ""}"></label>
+    </div>
+    <label class="field"><span>Партнёрская сеть</span><input id="tNet" list="tNets" value="${esc(o.partner)}"></label>
+    <datalist id="tNets">${[...new Set(state.offers.map((x) => x.partner).filter(Boolean))].map((x) => `<option value="${esc(x)}">`).join("")}</datalist>
+    <label class="field"><span>Заметка</span><input id="tNote" value="${esc(o.note || "")}" placeholder="Условия, нюансы"></label>
+    <button class="btn block" id="tSave">Сохранить шаблон</button>
+    <button class="btn ghost block" id="tHide" style="margin-top:8px">${o.active ? "Скрыть из списка (оффер не работает)" : "Вернуть в список"}</button>`,
+    (el) => {
+      const send = async (patch, text) => {
+        try {
+          const r = await api("PATCH", `/offers/${offerId}`, patch);
+          state.offers = r.offers;
+          toast(text);
+          back();
+        } catch (e) {
+          toast(`Ошибка: ${e.message}`);
+        }
+      };
+      el.querySelector("#tSave").onclick = () =>
+        send({ name: el.querySelector("#tName").value, amount: el.querySelector("#tAmount").value, cost: el.querySelector("#tCost").value, partner: el.querySelector("#tNet").value, note: el.querySelector("#tNote").value }, "Шаблон сохранён");
+      el.querySelector("#tHide").onclick = () => send({ active: !o.active }, o.active ? "Оффер скрыт" : "Оффер возвращён");
+    },
   );
 }
 
@@ -880,6 +925,7 @@ function addOfferSheet(lead) {
   openSheet(
     `<h2 class="sheet-title">Добавить оффер</h2>
     <div class="sub" style="margin:-6px 4px 10px">Тап — заявка заведена. Статус потом меняется в один тап.</div>
+    <div class="chips tight"><button class="chip" id="editMode">✏️ Править шаблоны (ставка, сеть)</button></div>
     <button class="btn ghost block" id="newOfferToggle">＋ Новый оффер — которого нет в списке</button>
     <div class="card new-offer" id="newOffer" hidden>
       <label class="field"><span>Название</span><input id="noName" placeholder="Например: Совкомбанк — РКО"></label>
@@ -905,6 +951,12 @@ function addOfferSheet(lead) {
         e.target.hidden = true;
         el.querySelector("#noName").focus();
       };
+      let editing = false;
+      el.querySelector("#editMode").onclick = (e) => {
+        editing = !editing;
+        e.target.classList.toggle("active", editing);
+        e.target.textContent = editing ? "✏️ Режим правки: тапни оффер · выключить" : "✏️ Править шаблоны (ставка, сеть)";
+      };
       let cat = "rko";
       el.querySelectorAll("[data-cat]").forEach((b) => (b.onclick = () => {
         cat = b.dataset.cat;
@@ -927,6 +979,7 @@ function addOfferSheet(lead) {
       el.querySelectorAll("[data-add]").forEach(
         (b) =>
           (b.onclick = () => {
+            if (editing) return offerTemplateSheet(b.dataset.add, () => addOfferSheet(lead));
             closeSheet();
             const o = offerById(b.dataset.add);
             saveLead(lead.id, { offers: { [o.id]: { status: "applied" } } }, `${o.name.replace(/ — РКО$/, "")}: заявка заведена`);
