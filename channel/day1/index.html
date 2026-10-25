@@ -390,7 +390,7 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
     <p class="lead" data-r>Банки и сервисы платят за нового клиента. Ты приводишь человека — себя или друга — по своей ссылке и получаешь выплату. Большинство новичков хватаются за всё подряд и уходят со словами «не работает». Без карты ты как турист в чужом городе.</p>
     <div class="prods">
       <div class="pr today" data-r style="--i:0"><span class="k">СЕГОДНЯ · ГЛАВНЫЙ</span><h3>ИП + РКО</h3><p>Счёт для бизнеса. Самый прибыльный, через него идёт около 70% денег.</p><span class="m">95–130 тыс. с человека</span></div>
-      <div class="pr today" data-r style="--i:1"><span class="k">СЕГОДНЯ · БАЗА</span><h3>Дебетовые карты</h3><p>Одобряют почти всем. Можно даже с 14 лет.</p><span class="m">~5 тыс. с человека</span></div>
+      <div class="pr today" data-r style="--i:1"><span class="k">СЕГОДНЯ · БАЗА</span><h3>Дебетовые карты</h3><p>Одобряют всем с 18 лет. Самый лёгкий старт.</p><span class="m">~5 тыс. с человека</span></div>
       <div class="pr lock" data-r style="--i:2"><span class="k">ДЕНЬ 2</span><h3>Кредитные карты</h3><p>Платят в 2–3 раза больше дебеток.</p><span class="m">~10 тыс.</span><div class="lk"><div><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Откроется завтра</div></div></div>
       <div class="pr lock" data-r style="--i:3"><span class="k">ДЕНЬ 2</span><h3>МФО</h3><p>Лучшая математика по вложениям.</p><span class="m">~30 тыс.</span><div class="lk"><div><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Откроется завтра</div></div></div>
     </div>
@@ -628,10 +628,10 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
     <div class="dk">
       <div>
         <span class="eyebrow" data-r>Самый простой продукт</span>
-        <h2 class="h2" data-r>Дебетовые карты. Одобряют почти всем.</h2>
+        <h2 class="h2" data-r>Дебетовые карты. Одобряют всем.</h2>
         <p class="lead" data-r>Обычная банковская карта для своих денег. Не кредит, не заём. Банк зарабатывает на комиссиях и на том, что человек становится его клиентом — потом ему можно предложить кредитку, ипотеку, страховку. Поэтому за «свежего» клиента банки платят.</p>
         <div class="kpi" data-r>
-          <div><b>~98%</b><span>одобрение у 18–30 лет</span></div>
+          <div><b>~100%</b><span>одобрение с 18 лет</span></div>
           <div><b>~1 500 ₽</b><span>средняя выплата за карту</span></div>
           <div><b>~500 ₽</b><span>потратить с карты на свои покупки</span></div>
         </div>
@@ -639,7 +639,7 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
       <img class="coin" id="coin" src="assets/coin.webp" alt="Античная монета" loading="lazy">
     </div>
     <div class="why" style="margin-top:40px">
-      <div class="card" data-r style="--i:0"><h4>Можно с 14 лет</h4><p>Единственный продукт, который оформляют на 14–17 лет. Сейчас курьеры почти всегда просят письменное согласие родителя — это формальность, а не блок.</p></div>
+      <div class="card" data-r style="--i:0"><h4>С 18 лет, без условий</h4><p>Сейчас все дебетовые карты по партнёркам открываются с 18 лет. Ни кредитной истории, ни дохода банк не проверяет — одобряют практически всем.</p></div>
       <div class="card" data-r style="--i:1"><h4>Где откажут</h4><p>Только при действующем банкротстве или арестах по счетам в этом банке. В другом банке, где ареста нет, — оформят.</p></div>
       <div class="card" data-r style="--i:2"><h4>Когда предлагать</h4><p>Вторым заходом, после РКО. Человек уже видел выплату и доверяет: «Кстати, ещё 5–6 тысяч можем поднять на дебетовках за пару дней».</p></div>
     </div>
@@ -724,9 +724,8 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
       </div>
     </div>
     <div class="final-cta" data-r>
-      <a class="btn w" id="ctaChannel" href="#" target="_blank" rel="noopener">Забрать день 2 в канале</a>
       <a class="btn ghost" id="ctaDiag" href="#" target="_blank" rel="noopener">Не хочу ждать — бесплатный разбор</a>
-      <p>Включи уведомления в канале, чтобы не пропустить второй материал.</p>
+      <p>Второй материал выйдет завтра в канале — там же, где ты забрал этот. Включи уведомления, чтобы не пропустить.</p>
     </div>
   </div>
 </section>
@@ -737,10 +736,8 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
 (() => {
   /* ===== ССЫЛКИ: поменять на свои ===== */
   const LINKS = {
-    channel: 'https://t.me/+UsWi-cBf5HdlZjQ6',   // канал, где выйдет день 2
     diagnostic: 'https://t.me/m/TklPmdWqNWYy'     // запись на бесплатный разбор
   };
-  document.getElementById('ctaChannel').href = LINKS.channel;
   document.getElementById('ctaDiag').href = LINKS.diagnostic;
 
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
