@@ -430,6 +430,11 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
 .lk-ic svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2}
 .locked h3{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(22px,2.4vw,30px);line-height:1.05}
 .locked p{margin-top:10px;font-size:15.5px;color:rgba(255,255,255,.85);max-width:40em}
+.priv{list-style:none;counter-reset:p;margin:18px 0 6px;padding:0;position:relative;z-index:1}
+.priv li{counter-increment:p;position:relative;padding:12px 0 12px 46px;border-top:1px solid rgba(255,255,255,.14)}
+.priv li::before{content:"0" counter(p);position:absolute;left:0;top:12px;font-family:var(--fd);font-weight:600;font-size:20px;color:var(--red)}
+.priv b{display:block;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:18px;letter-spacing:.01em}
+.priv span{display:block;margin-top:3px;font-size:14.5px;color:rgba(255,255,255,.72)}
 .locked .blurline{filter:blur(4.5px);user-select:none;color:#fff}
 .locked .btn{margin-top:18px;background:#fff;color:var(--ink);position:relative;z-index:1}
 @media (max-width:600px){.locked{grid-template-columns:1fr}}
@@ -631,13 +636,20 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
       <div class="card" data-r style="--i:0"><h4>МФО проверяет человека</h4><ul class="dots"><li>Кредитную историю</li><li>Сколько заявок на займ было за последние дни</li><li>Ошибки в данных</li><li>Стабильность поведения</li><li>Риск, что не вернёт</li></ul></div>
       <div class="card" data-r style="--i:1"><h4>Партнёрка проверяет тебя</h4><ul class="dots"><li>Не подставной ли это трафик</li><li>Нет ли подозрительной активности</li><li>Откуда пришли переходы</li></ul><p style="margin-top:10px">Если партнёрке что-то покажется странным — заявку срежут, и выплаты не будет.</p></div>
     </div>
-    <div class="locked" data-r>
+    <div class="locked big" data-r>
       <div class="lk-ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
       <div>
-        <span class="tag red">Приватно</span>
+        <span class="tag red">Приватно · только на личном звонке</span>
         <h3>Как сделать, чтобы партнёрка не срезала твои заявки</h3>
-        <p class="blurline">Источники трафика · сайт-витрина · subID на каждого человека · как партнёрка видит переходы</p>
-        <p>Это закрытая информация, её я не выкладываю публично. Расскажу только на личном звонке — о нём поговорим позже. Если интересно уже сейчас — напиши мне в личку, обсудим.</p>
+        <p>Выше ты увидел, за чем следит партнёрка. А вот <b>как работать так, чтобы к твоим заявкам не было вопросов</b>, — это закрытая часть. Публично её не выкладываю. Что в неё входит:</p>
+        <ol class="priv">
+          <li><b>Накрутка кликов на партнёрскую ссылку</b><span>Зачем она нужна, через какой сервис, какие настройки ставить и сколько переходов на одну заявку — чтобы статистика кабинета выглядела как у нормального вебмастера.</span></li>
+          <li><b>Сайт-витрина</b><span>Что это, зачем он нужен как «подушка безопасности», когда партнёрка просит подтвердить источник трафика, и как собрать его быстро.</span></li>
+          <li><b>Источники трафика в кабинете</b><span>Какой источник выбирать на ЛидГиде и других партнёрках, чтобы заявки не выглядели подозрительно.</span></li>
+          <li><b>Саб-ID на каждого человека</b><span>Как делать отдельную метку под каждого, видеть, кто на что кликнул и оформил, и как это связать с накруткой.</span></li>
+          <li><b>Порядок действий по времени</b><span>Через сколько после подготовки ссылки отправлять её человеку и как распределять заявки.</span></li>
+        </ol>
+        <p>Это я рассказываю только на личном звонке — о нём поговорим позже. Если интересно уже сейчас, напиши мне в личку, обсудим.</p>
         <a class="btn" data-dm href="#" target="_blank" rel="noopener">Написать в личку</a>
       </div>
     </div>
@@ -654,11 +666,16 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
       <div class="fs" data-r style="--i:0"><span class="num">01</span><h4>Спроси: были ли займы в этой МФО?</h4><p>Платят только за новых клиентов. Если человек уже брал займ в этой МФО — её не делаем, не засчитают.</p><p class="sm">Исключение — «реактивация»: у некоторых офферов (например, Moneyman) платят снова, если прошлый займ закрыт 60+ дней назад.</p></div>
       <div class="fs" data-r style="--i:1"><span class="num">02</span><h4>Прочитай условия оффера</h4><p>На ЛидГиде у каждой МФО написано: сумма, срок, есть ли бесплатный период. Например:</p><div class="terms"><span>Сумма 1 500–80 000 ₽</span><span>Первый займ до 30 000 ₽</span><span>Срок 5 дней – 18 недель</span><span>Первый займ бесплатно 5–21 день</span></div><p class="sm">Взял в этих рамках — займ засчитают.</p></div>
       <div class="fs" data-r style="--i:2"><span class="num">03</span><h4>Выбери сумму и срок — каждый раз разные</h4><p>Не бери по нижней границе (1 500 ₽ никто в жизни не берёт) и не делай одинаковые суммы. Нормально выглядит так:</p><div class="terms"><span>5 000 на 7 дней</span><span>6 000 на 14 дней</span><span>9 000 на 21 день</span><span>4 500 на 16 дней</span></div></div>
-      <div class="fs" data-r style="--i:3"><span class="num">04</span><h4>Заполни анкету честно и без ошибок</h4><p>Ошибки в данных — одна из причин отказа. Вход без VPN, заявку доводишь до конца, ничего не бросаешь на середине.</p></div>
+      <div class="fs" data-r style="--i:3"><span class="num">04</span><h4>Заполни анкету честно и без ошибок</h4><p>Ошибки в данных — одна из причин отказа. Вход без VPN, заявку доводишь до конца, ничего не бросаешь на середине. Повторные займы в той же МФО потом одобряют легче — система тебе уже доверяет.</p></div>
       <div class="fs" data-r style="--i:4"><span class="num">05</span><h4>Сними все галочки допуслуг</h4><p>Страховки, подписки, «сервисы за отдельную плату» включены по умолчанию и съедают деньги с суммы займа. Снимаешь всё.</p></div>
       <div class="fs" data-r style="--i:5"><span class="num">06</span><h4>Деньги пришли — не трать</h4><p>Ими же будешь возвращать займ. Партнёрка засчитывает — тебе идёт выплата.</p></div>
     </div>
-    <div class="note red" data-r style="margin-top:26px"><b>Не бери займ, если не уверен, что вернёшь.</b> Просрочка — это проценты и испорченная история. Вся схема работает только при возврате вовремя.</div>
+    <div class="script" data-r style="margin-top:28px">
+      <small>Что отправить человеку перед займом (пример)</small>
+      <p>«Смотри, для МФО нужен только паспорт, всё делается онлайн с телефона — курьеров нет. Я пришлю ссылку: скопируй её и вставь в браузер, без VPN. Выбираешь 5 000 на 7 дней, жмёшь „Получить деньги“, заполняешь анкету до конца. Деньги придут на карту — не трать их, ими же вернём займ вовремя, переплаты не будет. Если вдруг спишут какую-то комиссию — разберёмся вместе, свои деньги ты не потеряешь».</p>
+    </div>
+    <div class="note" data-r style="margin-top:12px"><b>Сколько ждать.</b> У одних МФО одобрение и выдача почти моментальные, у других дольше — смотри по конкретному офферу. А после того как займ засчитали, конверсия уходит в «холд»: партнёрка проверяет её перед выплатой.</div>
+    <div class="note red" data-r style="margin-top:12px"><b>Не бери займ, если не уверен, что вернёшь.</b> Просрочка — это проценты и испорченная история. Вся схема работает только при возврате вовремя.</div>
   </div>
 </section>
 
