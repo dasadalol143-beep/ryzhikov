@@ -477,6 +477,12 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
 .quote-card{padding:clamp(24px,4vw,44px);background:var(--ink);color:#fff;font-family:var(--fs);font-style:italic;font-size:clamp(22px,2.4vw,30px);line-height:1.3}
 .quote-card b{font-style:normal;font-family:var(--fd);text-transform:uppercase;font-size:.85em}
 .next.one{grid-template-columns:1fr;max-width:720px}
+
+.dict{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:32px 0 0}
+.dict>div{padding:18px 20px;background:var(--marble);border:1px solid var(--line);border-top:3px solid var(--kob)}
+.dict dt{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:19px;color:var(--kob)}
+.dict dd{margin:6px 0 0;font-size:15px;line-height:1.5;color:var(--ink)}
+@media (max-width:900px){.dict{grid-template-columns:1fr 1fr}}@media (max-width:560px){.dict{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -507,7 +513,7 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
   <div class="wrap">
     <span class="eyebrow" data-r>Коротко про вчера</span>
     <h2 class="h2" data-r>Вчера ты построил фундамент. Сегодня — крыша.</h2>
-    <p class="lead" data-r>Вчера: самозанятость, ЛидГид и ФЦН, дебетовые карты, ИП через Альфу, РКО по золотому кругу. Сегодня с того же человека добираем ещё два продукта. Каждый следующий — чуть сложнее предыдущего и платит больше.</p>
+    <p class="lead" data-r>Вчера ты сделал: самозанятость, регистрацию на ЛидГид и ФЦН, дебетовые карты, ИП через Альфу и счета в других банках. Сегодня — ещё два продукта с того же человека. Каждый следующий чуть сложнее предыдущего и платит больше.</p><p class="lead" data-r>«Человек» дальше — это тот, кто оформляет продукт по твоей ссылке. Сначала это ты сам, потом — друзья и другие люди.</p>
     <div class="stairs">
       <div class="sti done" data-r style="--i:0"><span class="k">ВЧЕРА ✓</span><h3>Дебетовки</h3><p>Твои деньги. Одобряют всем.</p><b class="num">~1 500 ₽ за карту</b></div>
       <div class="sti done" data-r style="--i:1"><span class="k">ВЧЕРА ✓</span><h3>ИП + РКО</h3><p>Самый жирный продукт.</p><b class="num">~85 000 ₽ с ИП</b></div>
@@ -515,6 +521,26 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
       <div class="sti on" data-r style="--i:3"><span class="k">СЕГОДНЯ · ШАГ 2</span><h3>МФО</h3><p>Самый последний и самый технический.</p><b class="num">2 600–6 000 ₽ за займ</b></div>
     </div>
     <div class="note" data-r style="margin-top:26px"><b>Порядок не меняем никогда.</b> Сначала дебетовки и РКО, потом кредитки, и только в самом конце МФО. Почему — объясню ниже, это психология человека.</div>
+  </div>
+</section>
+
+
+<!-- ===== СЛОВАРЬ ===== -->
+<section class="bg2 torn" id="dict">
+  <div class="chap"><div class="wrap"><span>Словарь</span><span>Прочитай один раз</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Если ты с полного нуля</span>
+    <h2 class="h2" data-r>Семь слов, без которых дальше будет непонятно.</h2>
+    <p class="lead" data-r>Дальше эти слова будут встречаться постоянно. Запомни их сейчас — и всё остальное станет понятным.</p>
+    <dl class="dict">
+      <div data-r><dt>Кредитка</dt><dd>Карта с деньгами банка. Тратишь, потом возвращаешь.</dd></div>
+      <div data-r><dt>Беспроцентный период</dt><dd>Срок, когда деньги банка или МФО можно использовать бесплатно. Вернул вовремя — переплаты ноль.</dd></div>
+      <div data-r><dt>МФО</dt><dd>Микрофинансовая организация. Сервис, который выдаёт небольшие займы онлайн по паспорту.</dd></div>
+      <div data-r><dt>Займ</dt><dd>Деньги, которые МФО даёт на короткий срок — обычно от недели до трёх.</dd></div>
+      <div data-r><dt>Самозапрет</dt><dd>Запрет на кредиты, который человек сам ставит в Госуслугах. Пока он стоит — всем откажут.</dd></div>
+      <div data-r><dt>Допуслуги</dt><dd>Платные страховки и подписки, которые МФО включает по умолчанию. Их всегда отключаем.</dd></div>
+      <div data-r><dt>Человек (клиент, лид)</dt><dd>Тот, кто оформляет продукт по твоей ссылке — ты сам или человек, которого ты ведёшь.</dd></div>
+    </dl>
   </div>
 </section>
 
@@ -674,7 +700,7 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
       <small>Что отправить человеку перед займом (пример)</small>
       <p>«Смотри, для МФО нужен только паспорт, всё делается онлайн с телефона — курьеров нет. Я пришлю ссылку: скопируй её и вставь в браузер, без VPN. Выбираешь 5 000 на 7 дней, жмёшь „Получить деньги“, заполняешь анкету до конца. Деньги придут на карту — не трать их, ими же вернём займ вовремя, переплаты не будет. Если вдруг спишут какую-то комиссию — разберёмся вместе, свои деньги ты не потеряешь».</p>
     </div>
-    <div class="note" data-r style="margin-top:12px"><b>Сколько ждать.</b> У одних МФО одобрение и выдача почти моментальные, у других дольше — смотри по конкретному офферу. А после того как займ засчитали, конверсия уходит в «холд»: партнёрка проверяет её перед выплатой.</div>
+    <div class="note" data-r style="margin-top:12px"><b>Сколько ждать.</b> У одних МФО одобрение и выдача почти моментальные, у других дольше — смотри по конкретному офферу. После выдачи займ уходит в «холд»: партнёрка проверяет его, и только потом тебе приходит выплата.</div>
     <div class="note red" data-r style="margin-top:12px"><b>Не бери займ, если не уверен, что вернёшь.</b> Просрочка — это проценты и испорченная история. Вся схема работает только при возврате вовремя.</div>
   </div>
 </section>
@@ -692,7 +718,7 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
     <h3 class="h3" data-r style="margin-top:52px">Как вернуть займ без комиссии</h3>
     <div class="flow ret">
       <div class="fs" data-r style="--i:0"><span class="num">−5 дн.</span><h4>За 3–5 дней до конца срока</h4><p>Берёшь реквизиты МФО — через поддержку или на их сайте.</p></div>
-      <div class="fs" data-r style="--i:1"><span class="num">₽</span><h4>Считаешь сумму с запасом</h4><p>Посчитай проценты на 5 дней вперёд, если бесплатного периода нет или он кончается.</p></div>
+      <div class="fs" data-r style="--i:1"><span class="num">₽</span><h4>Считаешь, сколько перевести</h4><p>Перевод по реквизитам идёт до МФО 1–3 дня. Пока деньги в пути, срок может закончиться.</p><p class="sm"><b>Бесплатный период ещё идёт</b> — переводишь ровно сумму займа, например 5 000 ₽.<br><b>Бесплатного периода нет или он кончается</b> — посмотри в личном кабинете МФО, сколько процентов набегает в день, и добавь их за 5 дней вперёд. Например, займ 5 000 ₽ и 40 ₽ в день → переводишь 5 000 + 200 = 5 200 ₽. Так займ точно закроется, даже если перевод задержится.</p></div>
       <div class="fs" data-r style="--i:2"><span class="num">✓</span><h4>Переводишь по реквизитам</h4><p>С назначением платежа:</p><code>Оплата займа по договору № ___ от __.__.____, ФИО, без НДС</code></div>
     </div>
     <p class="lead" data-r style="margin-top:18px">Это чуть дольше, чем оплата картой на сайте, но без комиссии. Дождался поступления денег в МФО — займ закрыт.</p>
@@ -812,7 +838,7 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
           <li>Где брать людей, когда друзья кончились</li>
           <li>Как друг приводит друга — и цепочка растёт сама</li>
           <li>Как вести 5–10 человек параллельно и выйти на 300–500 тысяч в месяц</li>
-          <li class="bl">Моя личная связка с роликами</li>
+          <li>Threads: как я получил 149 заявок за месяц с двух аккаунтов</li>
         </ul>
         <div class="m">От одного человека — к системе</div>
       </div>

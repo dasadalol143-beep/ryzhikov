@@ -1,0 +1,827 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Трафик из Threads · урок Ryzhikov Academy</title>
+<meta name="description" content="Урок Ryzhikov Academy: трафик из Threads — аккаунты, прогрев, посты, воронки, скрипт и чек-лист запуска.">
+<meta property="og:title" content="Трафик из Threads · урок Ryzhikov Academy">
+<meta property="og:description" content="Урок Ryzhikov Academy: трафик из Threads — аккаунты, прогрев, посты, воронки, скрипт и чек-лист запуска.">
+<meta name="theme-color" content="#1d3df2">
+<meta name="robots" content="noindex">
+<style>
+@font-face{font-family:'Oswald';font-weight:500 700;font-display:swap;src:url(assets/oswald-normal-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Oswald';font-weight:500 700;font-display:swap;src:url(assets/oswald-normal-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Oswald';font-weight:500 700;font-display:swap;src:url(assets/oswald-normal-latinext.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1E00-1E9F,U+20A0-20AB,U+20AD-20C4,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:500 600;font-display:swap;src:url(assets/cormorant-italic-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:500 600;font-display:swap;src:url(assets/cormorant-italic-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC}
+@font-face{font-family:'Caveat';font-weight:600;font-display:swap;src:url(assets/caveat-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+
+:root{
+  --kob:#1d3df2;--kob2:#1530c9;--kob3:#0b1a6b;
+  --paper:#f2ede3;--paper2:#e9e2d4;--marble:#fbf9f4;
+  --ink:#141414;--ink2:#5d574d;--line:rgba(20,20,20,.14);
+  --red:#b23a26;--green:#1f7a45;
+  --f:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --fd:"Oswald","Arial Narrow",Impact,sans-serif;
+  --fs:"Cormorant Garamond",Georgia,serif;
+  --fh:"Caveat","Comic Sans MS",cursive;
+  --ease-out:cubic-bezier(.23,1,.32,1);--ease-io:cubic-bezier(.77,0,.175,1);
+  --gl:max(20px,env(safe-area-inset-left,0px));
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{background:var(--paper);-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f);font-size:17px;line-height:1.55;letter-spacing:-.01em;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;display:block}
+a{color:inherit}
+h1,h2,h3,h4,p{margin:0}
+b,strong{font-weight:650}
+.wrap{max-width:1080px;margin:0 auto;padding:0 var(--gl)}
+.narrow{max-width:760px}
+button,.btn{font:inherit;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+
+/* шапка-прогресс дня */
+.bar{position:fixed;left:0;right:0;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:10px var(--gl);padding-top:calc(10px + env(safe-area-inset-top,0px));background:rgba(29,61,242,.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#fff;transform:translateY(-110%);transition:transform .45s var(--ease-out)}
+.bar.on{transform:none}
+.bar b{font-family:var(--fd);font-weight:600;text-transform:uppercase;letter-spacing:.02em;font-size:15px;white-space:nowrap}
+.bar .days{display:flex;gap:6px;margin-left:auto}
+.bar .days i{width:28px;height:4px;background:rgba(255,255,255,.3);overflow:hidden;position:relative}
+.bar .days i:first-child::after{content:"";position:absolute;inset:0;background:#fff;transform-origin:0 50%;transform:scaleX(var(--p,0))}
+.bar .days span{font-family:var(--fd);font-size:13px;margin-left:6px;opacity:.85;white-space:nowrap}
+
+/* общие элементы */
+.eyebrow{display:block;font-family:var(--fs);font-style:italic;font-weight:600;font-size:clamp(20px,1.8vw,24px);color:var(--kob);margin-bottom:10px}
+.kob .eyebrow,.dark .eyebrow{color:#fff}
+.h1{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(46px,8vw,104px);line-height:.92;letter-spacing:0}
+.h2{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(34px,5.2vw,64px);line-height:.98;letter-spacing:0}
+.h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(24px,2.6vw,32px);line-height:1.04;letter-spacing:0}
+.lead{font-size:clamp(17px,1.5vw,20px);line-height:1.55;color:var(--ink2);margin-top:16px;max-width:40em}
+.kob .lead,.dark .lead{color:rgba(255,255,255,.86)}
+section{position:relative;padding:clamp(80px,12vh,140px) 0}
+.kob{background:var(--kob);color:#fff}
+.dark{background:var(--kob3);color:#fff}
+.bg2{background:var(--paper2)}
+.chap{position:absolute;left:0;right:0;top:clamp(26px,4vh,42px)}
+.chap .wrap{display:flex;justify-content:space-between;gap:10px;font-family:var(--fs);font-style:italic;font-weight:600;font-size:17px;color:var(--ink2);border-bottom:1px solid var(--line);padding-bottom:8px}
+.kob .chap .wrap,.dark .chap .wrap{color:rgba(255,255,255,.75);border-color:rgba(255,255,255,.22)}
+.torn{margin-top:-18px;z-index:2}
+.torn::before{content:"";position:absolute;left:0;right:0;top:0;height:20px;background:inherit;-webkit-mask:var(--tear) top left/600px 20px repeat-x;mask:var(--tear) top left/600px 20px repeat-x;transform:translateY(-18px)}
+:root{--tear:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 20' preserveAspectRatio='none'%3E%3Cpath d='M0 9L14 6L27 11L41 5L55 10L68 4L83 9L97 7L110 12L126 6L139 9L153 3L168 10L181 7L196 11L209 5L224 9L238 6L251 12L266 5L280 8L293 4L308 10L322 7L336 12L350 5L363 9L378 6L392 11L405 4L420 9L433 6L448 12L462 5L476 9L489 7L504 11L517 4L532 9L546 6L559 11L574 5L588 9L600 9V20H0Z'/%3E%3C/svg%3E")}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:54px;padding:0 26px;font-family:var(--fd);font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:17px;text-decoration:none;background:var(--kob);color:#fff;border:0;cursor:pointer;transition:transform .16s var(--ease-out),background-color .2s ease}
+.btn:active{transform:scale(.97)}
+.btn.w{background:#fff;color:var(--kob)}
+.btn.ghost{background:transparent;color:inherit;box-shadow:inset 0 0 0 1.5px currentColor}
+@media (hover:hover) and (pointer:fine){.btn:hover{background:var(--kob2)}.btn.w:hover{background:var(--paper)}.btn.ghost:hover{background:rgba(255,255,255,.1)}}
+.card{background:var(--marble);border:1px solid var(--line);padding:clamp(20px,2.4vw,30px)}
+.kob .card{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2)}
+.note{position:relative;padding:16px 18px;border-left:3px solid var(--kob);background:rgba(29,61,242,.06);font-size:15.5px;line-height:1.5}
+.note b{color:var(--kob)}
+.note.red{border-color:var(--red);background:rgba(178,58,38,.07)}.note.red b{color:var(--red)}
+.note.green{border-color:var(--green);background:rgba(31,122,69,.08)}.note.green b{color:var(--green)}
+.kob .note{background:rgba(255,255,255,.1);border-color:#fff}.kob .note b{color:#fff}
+.hand{font-family:var(--fh);font-weight:600;font-size:clamp(24px,2.2vw,30px);line-height:1.15;color:var(--kob)}
+.tag{display:inline-block;padding:4px 10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:13px;letter-spacing:.04em;background:var(--kob);color:#fff}
+.tag.o{background:transparent;color:var(--kob);box-shadow:inset 0 0 0 1.5px var(--kob)}
+.num{font-family:var(--fd);font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0}
+
+/* появления */
+.js [data-r]{opacity:0;transform:translate3d(0,24px,0);transition:opacity .7s var(--ease-out),transform .9s var(--ease-out);transition-delay:calc(var(--i,0) * 70ms)}
+.js [data-r].in{opacity:1;transform:none}
+.rl .w{display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.1em;margin-bottom:-.1em}
+.rl .w>span{display:inline-block;transform:translate3d(0,108%,0);transition:transform .85s var(--ease-out);transition-delay:calc(var(--d,0) * 45ms)}
+.rl.in .w>span{transform:none}
+.js .rl[data-r]{opacity:1;transform:none}
+
+/* 1. первый экран */
+.hero{min-height:100svh;padding:0;overflow:hidden;background:radial-gradient(ellipse 80% 70% at 60% 38%,#3157ff 0%,#1d3df2 55%,#1530c9 100%);color:#fff;display:flex;align-items:flex-end}
+.hero .grid{position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.1) 1px,transparent 1px) 0 0/calc(100% / 6) 100%;pointer-events:none}
+.hero .cl{position:absolute;width:44vw;max-width:620px;left:-8vw;top:12vh;opacity:0;transition:opacity 1.4s var(--ease-out) .2s;pointer-events:none}
+.hero .cl.c2{left:auto;right:-10vw;top:46vh;width:34vw;transform:scaleX(-1)}
+.ready .hero .cl{opacity:1}
+.hero .big{position:absolute;left:0;right:0;top:calc(40px + 6vh);text-align:center;font-family:var(--fd);font-weight:600;font-size:min(46vh,34vw);line-height:.8;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.55);pointer-events:none;opacity:0;transform:translate3d(0,6%,0);transition:opacity 1s var(--ease-out),transform 1.4s var(--ease-out)}
+.ready .hero .big{opacity:1;transform:none}
+.hero .stat{position:absolute;right:max(var(--gl),4vw);bottom:0;height:min(84vh,900px);width:auto;max-width:none;opacity:0;transform:translate3d(0,8%,0);transition:opacity 1s var(--ease-out) .15s,transform 1.5s var(--ease-out) .15s;will-change:transform}
+.ready .hero .stat{opacity:1;transform:none}
+.hero .wrap{position:relative;z-index:3;width:100%;padding-bottom:clamp(28px,7vh,80px)}
+.hcap{max-width:560px;padding:24px 26px 26px;background:var(--paper);color:var(--ink);rotate:-1.2deg;box-shadow:0 30px 60px -28px rgba(0,0,0,.6);opacity:0;translate:0 20px;transition:opacity .8s var(--ease-out) .5s,translate 1s var(--ease-out) .5s}
+.ready .hcap{opacity:1;translate:0 0}
+.hcap::before{content:"";position:absolute;left:50%;top:-12px;width:110px;height:24px;margin-left:-55px;background:rgba(242,237,227,.75);transform:rotate(2.5deg)}
+.hcap .days{display:flex;gap:6px;margin-bottom:14px}
+.hcap .days span{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:13px;letter-spacing:.04em;padding:4px 9px;box-shadow:inset 0 0 0 1.5px var(--line);color:var(--ink2)}
+.hcap .days span.on{background:var(--kob);color:#fff;box-shadow:none}
+.hcap h1{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(34px,4vw,54px);line-height:.98}
+.hcap h1 em{font-style:normal;color:var(--kob)}
+.hcap p{margin-top:12px;color:var(--ink2);font-size:16px}
+.hcap .go{margin-top:18px}
+@media (max-width:900px){
+  .hero{align-items:flex-end}
+  .hero .stat{left:0;right:0;margin:0 auto;height:min(56svh,480px);bottom:calc(250px + 4svh)}
+  .hero .big{top:76px;font-size:44vw}
+  .hero .cl{width:80vw;top:22svh}.hero .cl.c2{width:60vw;top:40svh}
+  .hcap{padding:18px 18px 20px;rotate:-.6deg}
+  .hcap h1{font-size:clamp(30px,8.6vw,40px)}
+  .hcap p{font-size:15px}
+}
+
+/* 2. пролог */
+.path{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-top:clamp(36px,5vh,56px)}
+.st{position:relative}
+.st .ph{aspect-ratio:1;background:var(--paper2);overflow:hidden;border:8px solid #fff;box-shadow:0 18px 34px -20px rgba(0,0,0,.45);rotate:var(--rt,0deg)}
+.st .ph img{width:100%;height:100%;object-fit:cover;scale:1.08;transition:scale 1.4s var(--ease-out)}
+.st.in .ph img{scale:1}
+.st .ph.txt{display:grid;place-items:center;background:var(--marble)}
+.st .ph.txt b{font-family:var(--fd);font-size:clamp(26px,3vw,40px);color:var(--red)}
+.st .v{margin-top:14px;font-family:var(--fd);font-weight:600;font-size:clamp(20px,2vw,28px);line-height:1}
+.st .v.neg{color:var(--red)}.st .v.top{color:var(--kob)}
+.st .d{margin-top:4px;font-size:14px;color:var(--ink2);line-height:1.4}
+@media (max-width:900px){.path{grid-template-columns:repeat(2,minmax(0,1fr))}.st:last-child{grid-column:1/-1}.st:last-child .ph{aspect-ratio:16/10}}
+.now{margin-top:clamp(40px,6vh,64px);display:grid;grid-template-columns:auto 1fr;gap:clamp(20px,4vw,48px);align-items:center}
+.now .n{font-family:var(--fd);font-weight:600;font-size:clamp(64px,10vw,140px);line-height:.85;color:var(--kob)}
+.now .n small{display:block;font-size:.26em;color:var(--ink);margin-top:8px}
+@media (max-width:700px){.now{grid-template-columns:1fr}}
+
+/* 3. карта ниши */
+.prods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:40px}
+.pr{position:relative;padding:22px 20px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);min-height:210px;display:flex;flex-direction:column}
+.pr .k{font-family:var(--fd);font-size:14px;letter-spacing:.06em;opacity:.8}
+.pr h3{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:26px;line-height:1}
+.pr p{margin-top:8px;font-size:14.5px;line-height:1.45;color:rgba(255,255,255,.85)}
+.pr .m{margin-top:auto;padding-top:16px;font-family:var(--fd);font-size:24px}
+.pr.today{background:#fff;color:var(--ink);border-color:#fff}
+.pr.today p{color:var(--ink2)}.pr.today .m{color:var(--kob)}
+.pr.today .k{color:var(--kob);opacity:1}
+.pr.lock{overflow:hidden}
+.pr.lock>*:not(.lk){filter:blur(5px);opacity:.55}
+.pr .lk{position:absolute;inset:0;display:grid;place-items:center;text-align:center;font-family:var(--fd);text-transform:uppercase;font-size:16px;letter-spacing:.04em}
+.pr .lk svg{display:block;margin:0 auto 8px;width:26px;height:26px;fill:none;stroke:#fff;stroke-width:2}
+@media (max-width:900px){.prods{grid-template-columns:repeat(2,minmax(0,1fr))}.pr{min-height:190px}.pr h3{font-size:22px}}
+.order{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:28px;font-family:var(--fd);text-transform:uppercase;font-size:18px}
+.order span{padding:8px 14px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.5)}
+.order span.on{background:#fff;color:var(--kob);box-shadow:none}
+.order i{font-style:normal;opacity:.6}
+
+/* шаги */
+.step{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(28px,5vw,72px);align-items:start}
+.step .sn{font-family:var(--fd);font-weight:600;font-size:clamp(90px,14vw,190px);line-height:.8;color:transparent;-webkit-text-stroke:2px var(--kob)}
+.kob .step .sn{-webkit-text-stroke-color:rgba(255,255,255,.6)}
+@media (max-width:900px){.step{grid-template-columns:1fr}.step .sn{font-size:96px}}
+.ol{list-style:none;margin:22px 0 0;padding:0;counter-reset:o}
+.ol li{counter-increment:o;position:relative;padding:14px 0 14px 52px;border-top:1px solid var(--line)}
+.ol li::before{content:counter(o);position:absolute;left:0;top:14px;width:34px;height:34px;display:grid;place-items:center;background:var(--kob);color:#fff;font-family:var(--fd);font-weight:600}
+.ol li b{display:block;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:19px;letter-spacing:.01em;margin-bottom:2px}
+.ol li p{font-size:15.5px;color:var(--ink2)}
+
+/* партнёрки */
+.pw{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:36px}
+.pt{position:relative;display:flex;flex-direction:column;gap:10px;padding:22px 22px 20px;background:var(--marble);border:1px solid var(--line);border-top:4px solid var(--c,var(--kob))}
+.pt .t{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.pt h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:24px;line-height:1}
+.pt .n2{font-family:var(--fd);font-size:13px;color:var(--ink2);letter-spacing:.04em}
+.pt p{font-size:15px;color:var(--ink2)}
+.pt .ch{display:flex;flex-wrap:wrap;gap:6px}
+.pt .ch span{font-size:12.5px;font-weight:600;padding:3px 8px;background:var(--paper2)}
+.pt .btn{margin-top:auto;min-height:46px;font-size:15px;align-self:flex-start;background:var(--c,var(--kob))}
+.pt .btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2}
+@media (max-width:760px){.pw{grid-template-columns:1fr}}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:26px;border:1px solid var(--line)}
+.vs div{padding:18px 20px}
+.vs div+div{border-left:1px solid var(--line)}
+.vs b{display:block;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:18px;color:var(--kob);margin-bottom:4px}
+.vs p{font-size:15px;color:var(--ink2)}
+@media (max-width:560px){.vs{grid-template-columns:1fr}.vs div+div{border-left:0;border-top:1px solid var(--line)}}
+
+/* три способа ИП */
+.ways{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:40px}
+.way{position:relative;padding:24px 22px;background:#fff;color:var(--ink);display:flex;flex-direction:column;gap:10px}
+.way .tag{align-self:flex-start}
+.way h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:28px;line-height:1}
+.way .pay{font-family:var(--fd);font-weight:600;font-size:40px;line-height:1;color:var(--kob)}
+.way .pay small{font-size:.4em;color:var(--ink2);margin-left:4px}
+.way p{font-size:15px;color:var(--ink2)}
+.way ul{margin:0;padding:0 0 0 18px;font-size:14.5px;color:var(--ink2)}
+.way ul li{margin:3px 0}
+.way.best{outline:3px solid #fff;outline-offset:6px}
+@media (max-width:900px){.ways{grid-template-columns:1fr}}
+.cant{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 24px;margin-top:22px;padding:0;list-style:none}
+.cant li{position:relative;padding-left:26px;font-size:15px;color:rgba(255,255,255,.9)}
+.cant li::before{content:"✕";position:absolute;left:0;top:0;font-weight:700}
+@media (max-width:640px){.cant{grid-template-columns:1fr}}
+
+/* что такое РКО */
+.why{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:36px}
+.why .card h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:20px;margin-bottom:6px}
+.why .card p{font-size:15px;color:var(--ink2)}
+@media (max-width:820px){.why{grid-template-columns:1fr}}
+.cmp{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:18px;margin-top:36px}
+.cmp .card{text-align:center}
+.cmp .card .num{font-size:clamp(40px,5vw,64px);line-height:1;display:block}
+.cmp .card span{font-size:14.5px;color:var(--ink2)}
+.cmp .card.hi{background:var(--kob);color:#fff;border-color:var(--kob)}.cmp .card.hi span{color:rgba(255,255,255,.85)}
+.cmp .x{font-family:var(--fd);font-size:28px;color:var(--kob)}
+@media (max-width:640px){.cmp{grid-template-columns:1fr}.cmp .x{text-align:center}}
+
+/* золотой круг */
+.circle{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:clamp(24px,4vw,56px);margin-top:36px;align-items:start}
+.temple{margin:clamp(28px,4vh,48px) auto 0;width:100%;max-width:820px}
+.tbl{width:100%;border-collapse:collapse;background:var(--marble);font-size:15px}
+.tbl th{position:sticky;top:calc(52px + env(safe-area-inset-top,0px));background:var(--ink);color:#fff;text-align:left;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:13px;letter-spacing:.06em;padding:12px 14px;z-index:1}
+.tbl td{padding:13px 14px;border-top:1px solid var(--line);vertical-align:top}
+.tbl td:first-child{font-weight:650;white-space:nowrap}
+.tbl td.p{font-family:var(--fd);font-weight:600;font-size:18px;color:var(--kob);white-space:nowrap}
+.tbl td.c{color:var(--ink2);font-size:14px}
+.tbl tr.row{transition:background-color .4s ease}
+.tbl tr.row.lit{background:rgba(29,61,242,.06)}
+.sum{position:sticky;top:calc(80px + env(safe-area-inset-top,0px));padding:24px;background:var(--kob);color:#fff}
+.sum .lb{font-family:var(--fs);font-style:italic;font-weight:600;font-size:20px}
+.sum .val{display:block;margin:6px 0 4px;font-family:var(--fd);font-weight:600;font-size:clamp(48px,5vw,64px);line-height:1;font-variant-numeric:tabular-nums}
+.sum p{font-size:14px;color:rgba(255,255,255,.85)}
+.sum .bar2{height:4px;background:rgba(255,255,255,.25);margin:16px 0 0;overflow:hidden}
+.sum .bar2 i{display:block;height:100%;background:#fff;transform-origin:0 50%;transform:scaleX(var(--k,0));transition:transform .5s var(--ease-out)}
+@media (max-width:900px){
+  .circle{grid-template-columns:1fr}
+  .sum{order:-1;top:calc(56px + env(safe-area-inset-top,0px));z-index:3;padding:14px 18px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:0 12px}
+  .sum .val{font-size:34px;margin:0;grid-row:1/span 2;grid-column:2}
+  .sum p{display:none}.sum .bar2{grid-column:1/-1;margin-top:10px}
+  .tbl th{top:calc(140px + env(safe-area-inset-top,0px))}
+  .tbl{font-size:14px}.tbl td{padding:11px 10px}.tbl th{padding:10px}
+  .tbl td.c{font-size:13px}
+  .tbl td:first-child,.tbl td.p{white-space:normal}
+  .bar b{font-size:13px}.bar .days i{width:18px}.bar .days span{display:none}
+}
+
+/* правила ЦД */
+.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:36px}
+.rule{display:flex;gap:16px;padding:22px;background:var(--marble);border:1px solid var(--line)}
+.rule .rn{flex:none;min-width:40px;font-family:var(--fs);font-style:italic;font-weight:600;font-size:34px;line-height:1;color:var(--kob)}
+.rule h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:19px;line-height:1.1;margin-bottom:6px}
+.rule p{font-size:15px;color:var(--ink2)}
+@media (max-width:760px){.rules{grid-template-columns:1fr}}
+.tl{margin-top:22px;border:2px solid var(--ink);background:var(--marble);padding:20px 22px}
+.tl h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:18px;margin-bottom:10px}
+.tl .r{display:grid;grid-template-columns:90px 1fr;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:15px}
+.tl .r b{color:var(--kob);font-family:var(--fd);font-weight:600}
+
+/* FAQ проблем */
+.faq{margin-top:32px;border-top:1px solid var(--line)}
+.faq details{border-bottom:1px solid var(--line)}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:16px;padding:20px 0;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(18px,1.8vw,22px);line-height:1.15}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary i{flex:none;width:22px;height:22px;position:relative;transition:transform .3s var(--ease-out)}
+.faq summary i::before,.faq summary i::after{content:"";position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:var(--kob)}
+.faq summary i::after{transform:rotate(90deg)}
+.faq details[open] summary i{transform:rotate(45deg)}
+.faq .a{padding:0 0 22px;color:var(--ink2);font-size:16px;max-width:46em}
+.faq .a p+p{margin-top:10px}
+
+/* дебетовые карты */
+.dk{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(28px,5vw,64px);align-items:center}
+.dk .coin{width:min(100%,420px);margin:0 auto;will-change:transform}
+@media (max-width:900px){.dk{grid-template-columns:1fr}.dk .coin{width:min(70%,300px);order:-1}}
+.kpi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:28px}
+.kpi div{padding:18px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22)}
+.kpi b{display:block;font-family:var(--fd);font-weight:600;font-size:clamp(28px,3vw,40px);line-height:1}
+.kpi span{font-size:14px;color:rgba(255,255,255,.85)}
+@media (max-width:520px){.kpi{grid-template-columns:1fr 1fr}.kpi div:last-child{grid-column:1/-1}}
+.offers{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:28px}
+.offers div{padding:16px 14px;background:#fff;color:var(--ink)}
+.offers b{display:block;font-family:var(--fd);font-weight:600;font-size:26px;color:var(--kob);line-height:1}
+.offers span{display:block;margin-top:6px;font-size:14px;font-weight:600}
+@media (max-width:900px){.offers{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.script{margin-top:26px;padding:20px 22px;background:#fff;color:var(--ink);border-left:4px solid var(--ink)}
+.script small{display:block;font-family:var(--fd);text-transform:uppercase;letter-spacing:.06em;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.script p{font-size:16px;line-height:1.55}
+
+/* итог дня */
+.math{max-width:760px;margin:32px auto 0;background:var(--marble);border:2px solid var(--ink)}
+.math .r{display:flex;justify-content:space-between;gap:16px;padding:16px 22px;border-top:1px solid var(--line);font-size:16px}
+.math .r:first-child{border-top:0}
+.math .r b{font-family:var(--fd);font-weight:600;font-size:22px;color:var(--kob);white-space:nowrap}
+.math .r.lock{color:var(--ink2)}
+.math .r.lock b{color:var(--ink2);filter:blur(4px)}
+.math .r.t{background:var(--kob);color:#fff;font-family:var(--fd);text-transform:uppercase;font-size:20px}
+.math .r.t b{color:#fff;font-size:30px}
+.todo{list-style:none;margin:32px auto 0;padding:0;max-width:760px}
+.todo li{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-top:1px solid var(--line);font-size:16px}
+.todo li label{display:flex;gap:14px;cursor:pointer;width:100%}
+.todo input{flex:none;appearance:none;-webkit-appearance:none;width:26px;height:26px;margin:0;border:2px solid var(--kob);background:#fff;cursor:pointer;display:grid;place-items:center;transition:background-color .2s ease}
+.todo input:checked{background:var(--kob)}
+.todo input:checked::after{content:"";width:12px;height:7px;border:2.5px solid #fff;border-top:0;border-right:0;transform:translateY(-2px) rotate(-45deg)}
+.todo input:checked+span{color:var(--ink2);text-decoration:line-through;text-decoration-color:var(--kob)}
+
+/* завтра */
+.next{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}
+.nx{position:relative;overflow:hidden;padding:clamp(24px,3vw,34px);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25)}
+.nx .d{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:14px;letter-spacing:.08em;opacity:.8}
+.nx h3{margin-top:8px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(28px,3.2vw,42px);line-height:1}
+.nx ul{margin:16px 0 0;padding:0;list-style:none}
+.nx li{position:relative;padding:8px 0 8px 26px;border-top:1px solid rgba(255,255,255,.16);font-size:15.5px;color:rgba(255,255,255,.9)}
+.nx li::before{content:"";position:absolute;left:0;top:15px;width:12px;height:12px;border:2px solid #fff;border-radius:50%}
+.nx li.bl{filter:blur(4px);user-select:none}
+.nx .m{margin-top:18px;font-family:var(--fd);font-size:22px}
+.nx .lockic{position:absolute;right:20px;top:20px;width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2;opacity:.8}
+@media (max-width:820px){.next{grid-template-columns:1fr}}
+.final-cta{margin-top:40px;display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.final-cta p{flex-basis:100%;font-size:14px;color:rgba(255,255,255,.75)}
+.epi{max-width:820px;margin:0 auto clamp(48px,7vh,80px);text-align:center}
+.epi blockquote{margin:0;font-family:var(--fs);font-style:italic;font-weight:500;font-size:clamp(30px,4vw,54px);line-height:1.1}
+.epi figcaption{margin-top:14px;font-family:var(--fd);text-transform:uppercase;letter-spacing:.08em;font-size:13px;opacity:.75}
+footer{padding:36px 0 calc(36px + env(safe-area-inset-bottom,0px));background:var(--kob3);color:rgba(255,255,255,.62);font-size:13px;text-align:center}
+footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacing:.06em}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .js [data-r],.rl .w>span,.hero *,.hcap{transition:none!important;transform:none!important;opacity:1!important;translate:none!important}
+}
+
+/* v2 правки видимости */
+.kob .card h4,.kob .card h3{color:#fff}
+.kob .card p{color:rgba(255,255,255,.88)}
+.kob .card b{color:#fff}
+.kob .cmp .card span{color:rgba(255,255,255,.85)}
+.kob .cmp .card.hi{background:#fff;color:var(--kob);border-color:#fff}.kob .cmp .card.hi span{color:var(--ink2)}
+.kob .cmp .x{color:#fff}
+.offers{grid-template-columns:repeat(3,minmax(0,1fr))}
+.offers b.q{font-size:18px;color:var(--ink2);padding-top:6px}
+@media (max-width:640px){.offers{grid-template-columns:1fr 1fr}}
+.alfa{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(24px,4vw,56px);margin-top:36px;padding:clamp(22px,3vw,36px);background:var(--marble);border:2px solid var(--ink)}
+.alfa-pay .num{display:block;font-size:clamp(56px,7vw,96px);line-height:.95;color:var(--kob)}
+.alfa-pay small{display:block;margin-top:10px;font-size:15px;color:var(--ink2)}
+.alfa .ol{margin-top:0}.alfa .ol li:first-child{border-top:0;padding-top:0}.alfa .ol li:first-child::before{top:0}
+@media (max-width:820px){.alfa{grid-template-columns:1fr}}
+.ways.two{grid-template-columns:1fr 1fr}
+.ways .way{border:1px solid var(--line)}
+@media (max-width:820px){.ways.two{grid-template-columns:1fr}}
+.cant.dark-li li{color:var(--ink)}
+.cant.dark-li li::before{color:var(--red)}
+.pw.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.pw.three{grid-template-columns:1fr}}
+.first3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:36px}
+.first3 .card{display:flex;flex-direction:column;gap:10px}
+.first3 .tag{align-self:flex-start}
+.first3 h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:28px;line-height:1}
+.first3 b.num{font-size:34px;color:var(--kob);line-height:1}
+.first3 p{font-size:15px;color:var(--ink2)}
+@media (max-width:900px){.first3{grid-template-columns:1fr}}
+.tbl tr.off td{color:var(--ink2);background:rgba(20,20,20,.04)}
+.tbl tr.off td.p{color:var(--red);font-size:15px;text-transform:uppercase}
+.order{font-size:16px}
+
+/* ===== день 2 ===== */
+.bar .days i.done{background:#fff}
+.bar .days i#barP::after{content:"";position:absolute;inset:0;background:#fff;transform-origin:0 50%;transform:scaleX(var(--p,0))}
+.bar .days i:first-child::after{display:none}
+.hcap .days span.done{color:var(--kob);box-shadow:inset 0 0 0 1.5px var(--kob)}
+.stairs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:40px;align-items:end}
+.sti{padding:20px;background:var(--marble);border:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.sti:nth-child(1){min-height:180px}.sti:nth-child(2){min-height:210px}.sti:nth-child(3){min-height:240px}.sti:nth-child(4){min-height:270px}
+.sti .k{font-family:var(--fd);font-size:13px;letter-spacing:.06em;color:var(--ink2)}
+.sti h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:26px;line-height:1}
+.sti p{font-size:14.5px;color:var(--ink2)}
+.sti b{margin-top:auto;font-size:19px;color:var(--kob)}
+.sti.done{opacity:.6}
+.sti.on{background:var(--kob);color:#fff;border-color:var(--kob)}.sti.on .k,.sti.on p{color:rgba(255,255,255,.85)}.sti.on b{color:#fff}
+@media (max-width:820px){.stairs{grid-template-columns:1fr 1fr}.sti{min-height:0!important}}
+.vs2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:32px}
+.vs2 .card{display:flex;flex-direction:column;gap:8px}
+.vs2 .tag{align-self:flex-start}
+.vs2 h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:28px;line-height:1}
+.tag.w{background:#fff;color:var(--kob)}.tag.o.w{background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px #fff}
+.tag.red{background:var(--red);color:#fff}
+@media (max-width:640px){.vs2{grid-template-columns:1fr}}
+.big-note{margin-top:26px;padding:clamp(20px,3vw,32px);background:#fff;color:var(--ink);font-size:clamp(17px,1.6vw,21px);line-height:1.5;border-left:6px solid var(--ink)}
+.big-note em{font-style:normal;background:linear-gradient(transparent 60%,rgba(29,61,242,.22) 60%);font-weight:650}
+.big-note b{display:block;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(18px,1.8vw,22px);margin-bottom:6px}
+.alarm{padding:clamp(24px,4vw,48px);background:var(--marble);border:3px solid var(--red);position:relative}
+.alarm::before{content:"!";position:absolute;right:clamp(16px,3vw,36px);top:clamp(10px,2vw,20px);font-family:var(--fd);font-weight:600;font-size:clamp(90px,12vw,160px);line-height:1;color:rgba(178,58,38,.15)}
+.alarm .eyebrow{color:var(--red)}
+.alarm .ol li::before{background:var(--red)}
+.otable{margin-top:32px;background:var(--marble);border:2px solid var(--ink)}
+.otable>div{display:grid;grid-template-columns:1.1fr .7fr 1.6fr;gap:12px;padding:14px 18px;border-top:1px solid var(--line);align-items:center;font-size:15px}
+.otable .oh{border-top:0;background:var(--ink);color:#fff;font-family:var(--fd);text-transform:uppercase;font-size:13px;letter-spacing:.06em}
+.otable .or>span:first-child{font-weight:650}
+.otable .or b{font-family:var(--fd);font-weight:600;font-size:20px;color:var(--kob);white-space:nowrap}
+.otable .or>span:last-child{color:var(--ink2);font-size:14px}
+.otable .or.hi{background:rgba(29,61,242,.07)}
+@media (max-width:600px){.otable>div{grid-template-columns:1fr auto;padding:12px 14px}.otable>div>span:last-child{grid-column:1/-1}.otable .oh span:last-child{display:none}}
+.psy3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:36px}
+.psy3>div{padding:22px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22)}
+.psy3 .num{font-size:44px;line-height:1;color:rgba(255,255,255,.5)}
+.psy3 h4{margin-top:8px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:20px}
+.psy3 p{margin-top:6px;font-size:15px;color:rgba(255,255,255,.85)}
+@media (max-width:820px){.psy3{grid-template-columns:1fr}}
+.dark .script{background:rgba(255,255,255,.95)}
+.ex{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:32px}
+.ex>div{flex:1 1 180px;padding:18px 20px;background:#fff;color:var(--ink)}
+.ex span{display:block;font-size:14px;color:var(--ink2)}
+.ex b{display:block;font-size:clamp(26px,3vw,38px);line-height:1.05;color:var(--kob)}
+.ex .red b{color:var(--red);font-size:clamp(18px,1.8vw,22px);text-transform:uppercase}
+.ex i{font-style:normal;font-family:var(--fd);font-size:30px}
+.two-eyes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:32px}
+.two-eyes h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:22px;margin-bottom:10px}
+.two-eyes p{font-size:15px;color:var(--ink2)}
+.dots{margin:0;padding:0;list-style:none}
+.dots li{position:relative;padding:7px 0 7px 22px;border-top:1px solid var(--line);font-size:15.5px}
+.dots li::before{content:"";position:absolute;left:0;top:15px;width:8px;height:8px;background:var(--kob)}
+@media (max-width:700px){.two-eyes{grid-template-columns:1fr}}
+.locked{display:grid;grid-template-columns:auto 1fr;gap:clamp(16px,3vw,32px);margin-top:36px;padding:clamp(22px,3.5vw,40px);background:var(--ink);color:#fff;position:relative;overflow:hidden}
+.locked::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent 0 22px,rgba(255,255,255,.035) 22px 44px);pointer-events:none}
+.lk-ic{width:64px;height:64px;display:grid;place-items:center;border:2px solid rgba(255,255,255,.5)}
+.lk-ic svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2}
+.locked h3{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(22px,2.4vw,30px);line-height:1.05}
+.locked p{margin-top:10px;font-size:15.5px;color:rgba(255,255,255,.85);max-width:40em}
+.priv{list-style:none;counter-reset:p;margin:18px 0 6px;padding:0;position:relative;z-index:1}
+.priv li{counter-increment:p;position:relative;padding:12px 0 12px 46px;border-top:1px solid rgba(255,255,255,.14)}
+.priv li::before{content:"0" counter(p);position:absolute;left:0;top:12px;font-family:var(--fd);font-weight:600;font-size:20px;color:var(--red)}
+.priv b{display:block;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:18px;letter-spacing:.01em}
+.priv span{display:block;margin-top:3px;font-size:14.5px;color:rgba(255,255,255,.72)}
+.locked .blurline{filter:blur(4.5px);user-select:none;color:#fff}
+.locked .btn{margin-top:18px;background:#fff;color:var(--ink);position:relative;z-index:1}
+@media (max-width:600px){.locked{grid-template-columns:1fr}}
+.flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:36px}
+.fs{position:relative;padding:22px;background:var(--marble);border:1px solid var(--line)}
+.fs .num{display:block;font-size:34px;line-height:1;color:var(--kob)}
+.fs h4{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:19px;line-height:1.1}
+.fs p{margin-top:6px;font-size:15px;color:var(--ink2)}
+.fs p.sm{font-size:13.5px}
+.terms{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.terms span{font-size:13px;font-weight:650;padding:4px 9px;background:rgba(29,61,242,.09);color:var(--kob)}
+.fs code{display:block;margin-top:10px;padding:10px 12px;background:var(--ink);color:#fff;font-size:13px;line-height:1.45;white-space:normal}
+@media (max-width:900px){.flow{grid-template-columns:1fr}}
+.must{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:32px;border:3px solid var(--ink);background:var(--marble)}
+.must>div{padding:clamp(20px,3vw,32px)}
+.must>div+div{border-left:3px solid var(--ink)}
+.must .num{display:inline-grid;place-items:center;width:44px;height:44px;background:var(--red);color:#fff;font-size:22px}
+.must h4{margin-top:12px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:24px}
+.must p{margin-top:6px;font-size:16px;color:var(--ink2)}
+@media (max-width:700px){.must{grid-template-columns:1fr}.must>div+div{border-left:0;border-top:3px solid var(--ink)}}
+.lim{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:36px}
+.lim>div{padding:24px;background:#fff;color:var(--ink);text-align:center}
+.lim b{display:block;font-size:clamp(72px,9vw,120px);line-height:.9;color:var(--kob)}
+.lim span{display:block;margin-top:8px;font-size:15px;color:var(--ink2)}
+@media (max-width:700px){.lim{grid-template-columns:1fr}}
+.mgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:32px}
+.mgrid>div{padding:16px 16px 18px;background:var(--marble);border:1px solid var(--line);border-top:3px solid var(--kob)}
+.mgrid b{display:block;font-family:var(--fd);font-weight:600;font-size:clamp(22px,2.2vw,30px);line-height:1;color:var(--kob)}
+.mgrid span{display:block;margin-top:6px;font-size:14px;font-weight:650}
+@media (max-width:820px){.mgrid{grid-template-columns:1fr 1fr}}
+.multi{margin-top:36px;padding:clamp(22px,3.5vw,40px);background:var(--marble);border:2px solid var(--ink)}
+.multi .tag{display:inline-block}
+.multi h3{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(24px,2.6vw,34px);line-height:1}
+.multi>p{margin-top:12px;font-size:16px;color:var(--ink2);max-width:46em}
+.mx{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0 6px}
+.mx>div{padding:14px;background:rgba(29,61,242,.07)}
+.mx b{display:block;font-size:30px;line-height:1;color:var(--kob)}
+.mx span{display:block;margin-top:6px;font-size:14.5px}
+@media (max-width:700px){.mx{grid-template-columns:1fr}}
+.quote-card{padding:clamp(24px,4vw,44px);background:var(--ink);color:#fff;font-family:var(--fs);font-style:italic;font-size:clamp(22px,2.4vw,30px);line-height:1.3}
+.quote-card b{font-style:normal;font-family:var(--fd);text-transform:uppercase;font-size:.85em}
+.next.one{grid-template-columns:1fr;max-width:720px}
+
+.dict{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:32px 0 0}
+.dict>div{padding:18px 20px;background:var(--marble);border:1px solid var(--line);border-top:3px solid var(--kob)}
+.dict dt{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:19px;color:var(--kob)}
+.dict dd{margin:6px 0 0;font-size:15px;line-height:1.5;color:var(--ink)}
+@media (max-width:900px){.dict{grid-template-columns:1fr 1fr}}@media (max-width:560px){.dict{grid-template-columns:1fr}}
+
+/* ===== день 3 / threads ===== */
+.big4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:36px}
+.big4>div{padding:22px;background:var(--kob);color:#fff}
+.big4 b{display:block;font-size:clamp(34px,4vw,56px);line-height:1}
+.big4 span{display:block;margin-top:6px;font-size:15px;color:rgba(255,255,255,.85)}
+@media (max-width:820px){.big4{grid-template-columns:1fr 1fr}}
+.why4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:36px}
+.why4>div{padding:22px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.24)}
+.why4 .num{font-size:34px;color:rgba(255,255,255,.55);line-height:1}
+.why4 h4{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:21px}
+.why4 p{margin-top:6px;font-size:15px;color:rgba(255,255,255,.88)}
+@media (max-width:900px){.why4{grid-template-columns:1fr 1fr}}@media (max-width:560px){.why4{grid-template-columns:1fr}}
+.vs2.light .card{background:var(--marble)}
+.vs2.light .card p{color:var(--ink2)}
+.days5{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:36px}
+.dz{padding:22px;background:var(--marble);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.dz .tag{align-self:flex-start}
+.dz h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:22px;line-height:1.05}
+.dz ul{margin:0;padding:0 0 0 18px;font-size:15px;color:var(--ink2)}
+.dz li{margin:4px 0}
+.dz.on{background:var(--kob);color:#fff;border-color:var(--kob)}.dz.on ul{color:rgba(255,255,255,.9)}
+@media (max-width:900px){.days5{grid-template-columns:1fr 1fr}}@media (max-width:560px){.days5{grid-template-columns:1fr}}
+.ptypes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:36px}
+.ptypes .card{display:flex;flex-direction:column;gap:10px}
+.ptypes .tag{align-self:flex-start}
+.ptypes h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:28px;line-height:1}
+.ptypes p{font-size:15.5px;color:var(--ink2)}
+.ex-post{margin-top:auto;padding:16px 18px;background:#fff;border-left:4px solid var(--kob)}
+.ex-post span{display:block;font-family:var(--fd);text-transform:uppercase;font-size:12px;letter-spacing:.06em;color:var(--ink2)}
+.ex-post p{margin-top:6px!important;font-size:17px!important;color:var(--ink)!important;font-weight:600}
+.ex-post small{display:block;margin-top:6px;font-size:13px;color:var(--kob);font-weight:650}
+.ex-post.red{border-color:var(--red)}.ex-post.red small{color:var(--red)}
+@media (max-width:760px){.ptypes{grid-template-columns:1fr}}
+.lvl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:36px;align-items:start}
+.lvl article{padding:24px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.22)}
+.lvl article:nth-child(3){background:#fff;color:var(--ink);border-color:#fff}
+.lh{display:flex;gap:14px;align-items:center}
+.lh .num{flex:none;width:52px;height:52px;display:grid;place-items:center;background:#fff;color:var(--kob);font-size:28px}
+.lvl article:nth-child(3) .lh .num{background:var(--kob);color:#fff}
+.lh .d{display:block;font-family:var(--fd);text-transform:uppercase;font-size:12.5px;letter-spacing:.06em;opacity:.75}
+.lh h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:28px;line-height:1}
+.lvl article>p{margin-top:14px;font-size:15px;color:rgba(255,255,255,.88)}
+.lvl article:nth-child(3)>p{color:var(--ink2)}
+.pm{display:grid;gap:8px;margin-top:14px}
+.pm>div{padding:12px 14px;background:rgba(255,255,255,.08)}
+.lvl article:nth-child(3) .pm>div{background:rgba(29,61,242,.07)}
+.pm b{display:block;font-family:var(--fd);text-transform:uppercase;font-size:14px;letter-spacing:.04em}
+.pm span{display:block;margin-top:3px;font-size:14.5px;line-height:1.45}
+.lvl .rec{font-family:var(--fh);font-size:22px!important;line-height:1.2;color:#fff!important}
+.lvl article:nth-child(3) .rec{color:var(--kob)!important}
+.dots.light li{border-color:rgba(255,255,255,.16);color:rgba(255,255,255,.9)}
+.dots.light li::before{background:#fff}
+.ol.light li p{color:var(--ink2)}
+@media (max-width:900px){.lvl{grid-template-columns:1fr}}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:36px}
+.chain>div{flex:1 1 170px;padding:20px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.24)}
+.chain b{display:block;font-size:clamp(32px,3.6vw,48px);line-height:1}
+.chain span{display:block;margin-top:6px;font-size:14.5px;color:rgba(255,255,255,.85)}
+.chain .hi{background:#fff;color:var(--kob)}.chain .hi span{color:var(--ink2)}
+.chain i{font-style:normal;font-family:var(--fd);font-size:28px}
+@media (max-width:700px){.chain i{display:none}}
+.hero .stat.nike{height:min(92vh,980px)}
+@media (max-width:900px){.hero .stat.nike{height:min(60svh,520px)}}
+.lesson-head{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+
+<div class="bar" id="bar" aria-hidden="true"><b>Ryzhikov Academy · Трафик из Threads</b><div class="days"><i id="barP"></i><span>урок</span></div></div>
+
+<section class="hero" id="top">
+  <div class="grid"></div>
+  <img class="cl" src="assets/cloud.webp" alt="">
+  <img class="cl c2" src="assets/cloud.webp" alt="">
+  <div class="big" aria-hidden="true">TH</div>
+  <img class="stat nike" id="heroStat" src="assets/nike.webp" alt="Ника Самофракийская — богиня победы" fetchpriority="high">
+  <div class="wrap">
+    <div class="hcap">
+      <div class="days"><span class="on">Ryzhikov Academy</span><span>Модуль · Трафик</span></div>
+      <h1>Трафик из Threads. <em>149 заявок за месяц с двух аккаунтов.</em></h1>
+      <p>Урок по моей связке: где взять аккаунты, как прогреть, какие посты выкладывать, куда вести людей и как переписываться. В конце — чек-лист запуска и домашнее задание.</p>
+      <a class="btn go" href="#proof">Начать урок</a>
+    </div>
+  </div>
+</section>
+
+<section class="bg2" id="intro" style="padding-block:clamp(56px,8vh,96px)">
+  <div class="wrap narrow">
+    <span class="eyebrow" data-r>О чём урок</span>
+    <h2 class="h2" data-r>Как превратить посты в людей, которые открывают ИП.</h2>
+    <p class="lead" data-r>Ты уже знаешь, что делать с одним человеком: РКО по золотому кругу, дебетовки, кредитки, МФО. Этот урок — про то, где брать людей потоком. Threads сейчас — мой основной источник. Разбираем всё по порядку, ничего не пропуская.</p>
+    <div class="note" data-r style="margin-top:22px"><b>Трафик</b> — поток людей, которые видят твоё предложение. <b>Воронка</b> — путь человека от поста до открытого ИП. <b>Заявка (лид)</b> — человек, который написал тебе и готов оформлять. <b>Ветка</b> — пост в Threads вместе с комментариями под ним.</div>
+  </div>
+</section>
+<!-- ===== ЦИФРЫ ===== -->
+<section id="proof">
+  <div class="chap"><div class="wrap"><span>Глава I · Результат</span><span>Один месяц</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Сначала цифры, потом теория</span>
+    <h2 class="h2" data-r>Один месяц Threads. Два аккаунта.</h2>
+    <p class="lead" data-r>Это мой результат за месяц только с этой площадки. Без рекламного бюджета и без команды — два аккаунта и посты, которые я выкладывал сам.</p>
+    <div class="big4">
+      <div data-r style="--i:0"><b class="num">149</b><span>заявок от людей</span></div>
+      <div data-r style="--i:1"><b class="num">50+</b><span>регистраций бизнеса</span></div>
+      <div data-r style="--i:2"><b class="num">~600 тыс. ₽</b><span>заработал с этого</span></div>
+      <div data-r style="--i:3"><b class="num">2</b><span>аккаунта — всего</span></div>
+    </div>
+    <div class="why" style="margin-top:28px">
+      <div class="card" data-r style="--i:0"><h4>Пост на охват</h4><p>Один пост набрал <b>22 000 просмотров</b> и <b>3 600 переходов в профиль</b>. Такие посты нужны, чтобы раскачать аккаунт.</p></div>
+      <div class="card" data-r style="--i:1"><h4>Пост под заявки</h4><p>Посты с конкретным предложением: почти <b>50% людей</b> переходят в профиль и дальше попадают в мою воронку.</p></div>
+      <div class="card" data-r style="--i:2"><h4>Что оформляют</h4><p>На момент записи — <b>23 бизнеса</b> только в Сбере. Плюс параллельно Озон и Альфа-Банк.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ПОЧЕМУ THREADS ===== -->
+<section class="kob torn" id="why">
+  <div class="chap"><div class="wrap"><span>Глава II · Почему Threads</span><span>Четыре причины</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Простыми словами</span>
+    <h2 class="h2" data-r>Threads — соцсеть с короткими постами. Там сидит наша аудитория.</h2>
+    <p class="lead" data-r>Threads — это приложение от создателей Instagram: короткие текстовые посты с картинкой, под ними — комментарии и обсуждения («ветки»). Ты пишешь пост, люди его видят и переходят к тебе в профиль.</p>
+    <div class="why4">
+      <div data-r style="--i:0"><span class="num">01</span><h4>Аудитория 18+</h4><p>На моём аккаунте с 50 000+ просмотров основная аудитория — 18–24 и 25–34 года. Несовершеннолетних почти нет. А нам нужны именно люди от 18: им можно открыть ИП, карты и счета.</p></div>
+      <div data-r style="--i:1"><span class="num">02</span><h4>Просто</h4><p>Не нужно снимать видео и монтировать. Картинка и текст — всё. Потом переводишь людей в свою воронку.</p></div>
+      <div data-r style="--i:2"><span class="num">03</span><h4>Легко расти</h4><p>Хочешь больше — добавляешь аккаунты: второй телефон или мобильный прокси. Стоит копейки.</p></div>
+      <div data-r style="--i:3"><span class="num">04</span><h4>Тема не заезжена</h4><p>Здесь ещё нет толпы, которая годами льёт одно и то же. Люди не устали от предложений — конкуренции почти нет.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== АККАУНТЫ ===== -->
+<section id="acc">
+  <div class="chap"><div class="wrap"><span>Глава III · Аккаунты</span><span>С чего начать</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Шаг первый</span>
+    <h2 class="h2" data-r>Где взять аккаунт и сколько их нужно.</h2>
+    <div class="vs2 light">
+      <div class="card" data-r style="--i:0"><span class="tag">Идеал</span><h4>Свой старый Instagram</h4><p>Threads входит через Instagram. Если твоему аккаунту уже несколько лет — платформа ему доверяет: меньше теневых банов и блокировок, можно сразу нормально работать.</p></div>
+      <div class="card" data-r style="--i:1"><span class="tag o">Вариант</span><h4>Купить аккаунт</h4><p>Стоят копейки. Но если плохо прогреешь — он не будет набирать просмотры или его заблокируют. Блокировка — это примерно 50 ₽ потерь. Даже если с одного аккаунта придёт хотя бы один человек, он окупается в сотни раз.</p></div>
+    </div>
+    <div class="alfa" data-r style="margin-top:28px">
+      <div class="alfa-pay"><span class="num">1–2</span><small>аккаунта — столько нужно на старте. Не больше.</small></div>
+      <div>
+        <p class="lead" style="margin-top:0"><b>Один аккаунт</b> — чтобы разобраться, как набираются ветки и как их делать. <b>Второй</b> — если хочешь сравнить разные темы постов.</p>
+        <p class="lead">Один аккаунт спокойно приносит <b>1–5 заявок в день</b> — даже с постов, которые не «залетели». Это моя статистика.</p>
+        <p class="hand" style="margin-top:12px;color:var(--kob)">Новички берут сразу 10–15 аккаунтов и ничего не понимают ни в одном. Сначала разберись на одном — потом масштабируй.</p>
+      </div>
+    </div>
+    <div class="note red" data-r style="margin-top:22px"><b>Фермы и автопостинг не работают.</b> Пролистай ленту: там куча постов от нейросетей, которые ничего не набирают. Работает только живой, человеческий подход. И посмотри, сколько подписчиков у тех, кто продаёт «фермы аккаунтов», — обычно немного. Это о многом говорит.</div>
+  </div>
+</section>
+
+<!-- ===== ПРОГРЕВ ===== -->
+<section class="bg2 torn" id="warm">
+  <div class="chap"><div class="wrap"><span>Глава IV · Прогрев</span><span>Первые 5 дней</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Чтобы аккаунт не забанили и он набирал</span>
+    <h2 class="h2" data-r>Прогрев аккаунта: что делать по дням.</h2>
+    <p class="lead" data-r>Прогрев — это когда новый аккаунт ведёт себя как обычный живой человек, а не как спамер. Платформа к нему привыкает и начинает показывать его посты людям.</p>
+    <div class="days5">
+      <div class="dz" data-r style="--i:0"><span class="tag">День 1–3</span><h4>Пустой аккаунт</h4><ul><li>Регистрируешь аккаунт</li><li><b>Никаких ссылок в профиле</b></li><li>Листаешь ленту, как обычный человек</li><li>Пишешь комментарии под чужими постами — такие, чтобы на них отвечали</li></ul></div>
+      <div class="dz" data-r style="--i:1"><span class="tag">День 3–5</span><h4>Первые посты</h4><ul><li>1–3 поста в день <b>не по теме заработка</b></li><li>Только охватные (что это — ниже)</li><li>Смотришь, что набирает больше всего, — и делаешь похожие</li></ul></div>
+      <div class="dz" data-r style="--i:2"><span class="tag">После 5-го дня</span><h4>Ссылка и целевые посты</h4><ul><li><b>Только сейчас</b> ставишь ссылку в профиль</li><li>Начинаешь выкладывать посты под заявки</li></ul></div>
+      <div class="dz on" data-r style="--i:3"><span class="tag w">Дальше каждый день</span><h4>3–5 постов в день</h4><ul><li><b>2 поста под заявки</b></li><li><b>1–3 охватных поста</b></li><li>Плюс комментарии под чужими постами</li></ul></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ПОСТЫ ===== -->
+<section id="posts">
+  <div class="chap"><div class="wrap"><span>Глава V · Посты</span><span>Охватные и под заявки</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Самое важное в Threads</span>
+    <h2 class="h2" data-r>Два типа постов. Одни приводят просмотры, другие — людей.</h2>
+    <div class="ptypes">
+      <div class="card" data-r style="--i:0"><span class="tag o">Тип 1</span><h4>Охватный пост</h4><p>Его задача — чтобы <b>под ним писали комментарии</b>. В Threads ветка продвигается именно комментариями: больше обсуждают — больше показывают.</p><p>Как сделать: зацепка, спорный вопрос, простая просьба, глупый вопрос, на который хочется ответить.</p>
+        <div class="ex-post"><span>Пример из ленты</span><p>«Люди добрые, накиньте удалёнку, чтобы за месяц заработать»</p><small>8 500 просмотров · 42 комментария</small></div>
+      </div>
+      <div class="card" data-r style="--i:1"><span class="tag">Тип 2</span><h4>Пост под заявки</h4><p>Его задача — чтобы человек <b>перешёл в профиль и написал</b>. Здесь ты прямо говоришь, что нужно сделать и что человек за это получит.</p><p>Без схем и загадок: «нужно оформить пару карт и счёт, за это — вознаграждение». Я работаю только так — на прямое предложение.</p>
+        <div class="ex-post red"><span>Так не работает</span><p>«Я заработал 50 тысяч на РКО, покажи, сколько заработал ты»</p><small>Это не охват и не заявки — просто хвастовство</small></div>
+      </div>
+    </div>
+    <div class="big-note" data-r style="margin-top:28px"><b>Комментарии иногда набирают больше, чем посты.</b> Поэтому в первые 5 дней обязательно комментируй чужие посты. Пример: человек после моего стрима просто начал делать то, что я сказал, — и <em>за 2 дня набрал 10 500 просмотров только на комментариях</em>. Когда он начнёт выкладывать посты, аккаунт уже будет прогретым — и первые заявки придут быстрее.</div>
+    <div class="note" data-r style="margin-top:22px"><b>Где брать идеи.</b> Просто листай ленту и смотри, что у людей набирает просмотры и комментарии. Протестируй 3–5 разных вариантов постов и оставь те, что приводят нужных тебе людей — аудитория бывает разная.</div>
+    <div class="note red" data-r style="margin-top:12px"><b>Посты-просьбы «помогите на мечту, ставьте плюс».</b> Ты их наверняка видел. Охват они собирают, но приводят людей, которые ждут денег просто так. Собирать плюсы и потом уговаривать каждого в личке — самый слабый вариант работы с Threads.</div>
+  </div>
+</section>
+
+<!-- ===== ВОРОНКИ ===== -->
+<section class="dark torn" id="funnel">
+  <div class="chap"><div class="wrap"><span>Глава VI · Воронка</span><span>Куда вести людей</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Человек увидел пост. Дальше что?</span>
+    <h2 class="h2" data-r>Три уровня воронки. Чем выше, тем меньше работы руками.</h2>
+    <p class="lead" data-r>Воронка — это путь человека от твоего поста до момента, когда он открыл ИП по твоей ссылке. Её можно сделать тремя способами.</p>
+    <div class="lvl">
+      <article data-r style="--i:0"><div class="lh"><span class="num">1</span><div><span class="d">Уровень 1 · для новичков</span><h3>Личка</h3></div></div>
+        <p>Человек увидел пост → пишет тебе в личные сообщения → ты всё объясняешь, отвечаешь на вопросы и даёшь ссылки.</p>
+        <div class="pm"><div><b>Плюс</b><span>Ничего не нужно настраивать. Учишься общаться с людьми и видишь, на каком моменте они сливаются.</span></div><div><b>Минус</b><span>Весь день уходит на переписку, в том числе с теми, кто ничего не собирается делать.</span></div></div>
+        <p class="rec">Я советую новичкам начать именно с этого — чтобы набраться опыта.</p>
+      </article>
+      <article data-r style="--i:1"><div class="lh"><span class="num">2</span><div><span class="d">Уровень 2 · канал-переходник</span><h3>Короткий канал</h3></div></div>
+        <p>Из поста человек попадает в небольшой канал. В нём <b>всего 1–2 поста</b>, не больше:</p>
+        <ul class="dots light"><li>Чем человеку предстоит заниматься, чем занимаешься ты и откуда деньги</li><li>Твой кружок или голосовое с ответами на самые частые вопросы</li><li>В закрепе — твоя личка</li></ul>
+        <div class="pm"><div><b>Плюс</b><span>Отсеиваются те, кто хочет денег из ниоткуда. Пишут только те, кто понял предложение, — остаётся дать ссылки.</span></div><div><b>Минус</b><span>Часть людей отсеется. И канал должен быть красивым: оформление, стикеры (нужен Telegram Premium), текст не сплошной стеной.</span></div></div>
+      </article>
+      <article data-r style="--i:2"><div class="lh"><span class="num">3</span><div><span class="d">Уровень 3 · автоматическая воронка</span><h3>Бот</h3></div></div>
+        <p>Делается один раз — и дальше работает сам под любой трафик: Threads, TikTok, Instagram, реклама в каналах.</p>
+        <ol class="ol light"><li><b>Видео</b><p>Короткий ролик с графикой: чем человеку предстоит заниматься и за что платят.</p></li><li><b>Ответы на вопросы</b><p>Посты, которые снимают страхи и сомнения.</p></li><li><b>Отзывы</b><p>Отдельный канал с отзывами. Лучше кружки и голосовые людей, которых ты уже провёл, — текстовым верят меньше.</p></li><li><b>Призыв написать тебе</b><p>Человек приходит в личку уже готовым.</p></li></ol>
+        <div class="pm"><div><b>Догревы</b><span>Если человек застрял на каком-то шаге, бот сам присылает ему текст, кружок или голосовое, чтобы он пошёл дальше.</span></div><div><b>База</b><span>Кто не написал сразу, остаётся в боте. Позже им можно сделать рассылку.</span></div></div>
+        <p class="rec">Когда человек пишет тебе после бота, остаётся спросить: «Остались вопросы?» — и прислать ссылки и инструкцию.</p>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ===== СКРИПТ ===== -->
+<section id="script">
+  <div class="chap"><div class="wrap"><span>Глава VII · Скрипт</span><span>Как переписываться</span></div></div>
+  <div class="wrap narrow">
+    <span class="eyebrow" data-r>Где сливается большинство</span>
+    <h2 class="h2" data-r>Сплошной текст = ноль заявок.</h2>
+    <p class="lead" data-r>Скрипт — это заготовка того, что ты пишешь человеку. Главная ошибка — отправить всё одним огромным сообщением. Человек его не дочитает. Давай информацию порциями: одно сообщение — одна мысль. Так ты сразу видишь, где у человека появляется сомнение, и сразу отвечаешь на него.</p>
+    <ol class="ol" data-r>
+      <li><b>Найди ветки по ключевым словам</b><p>В поиске Threads ищешь посты про подработку и заработок.</p></li>
+      <li><b>Пройди 5–10 чужих воронок</b><p>Напиши тем, кто уже так работает, как обычный человек. Посмотри, как они общаются и что отвечают.</p></li>
+      <li><b>Возьми лучшее и переделай под себя</b><p>Манеру общения, подачу, ответы на вопросы — под свой стиль. И запускайся.</p></li>
+    </ol>
+    <p class="hand" data-r style="margin-top:22px">Это самый быстрый способ получить рабочий скрипт без опыта.</p>
+  </div>
+</section>
+
+<!-- ===== МАТЕМАТИКА ===== -->
+<section class="kob torn" id="math3">
+  <div class="chap"><div class="wrap"><span>Глава VIII · Масштаб</span><span>Как это складывается</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Вот почему это система</span>
+    <h2 class="h2" data-r>Ты умеешь работать с одним человеком. Threads даёт людей потоком.</h2>
+    <div class="chain">
+      <div data-r style="--i:0"><b class="num">1–5</b><span>заявок в день с одного аккаунта</span></div><i>→</i>
+      <div data-r style="--i:1"><b class="num">149</b><span>заявок за месяц у меня с 2 аккаунтов</span></div><i>→</i>
+      <div data-r style="--i:2"><b class="num">50+</b><span>из них открыли бизнес</span></div><i>→</i>
+      <div class="hi" data-r style="--i:3"><b class="num">~600 тыс.</b><span>за месяц</span></div>
+    </div>
+    <p class="lead" data-r style="margin-top:24px">Каждый, кто открыл ИП, дальше проходит весь маршрут: РКО по золотому кругу, дебетовки, кредитки, МФО. Чем больше аккаунтов и чем лучше воронка — тем больше людей в день. Когда понял одну площадку, ту же воронку подключаешь к любому трафику.</p>
+  </div>
+</section>
+
+<!-- ===== ПЛАН ===== -->
+<section id="plan">
+  <div class="chap"><div class="wrap"><span>Глава IX · План запуска</span><span>По шагам</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>У тебя есть система. Осталось делать</span>
+    <h2 class="h2" data-r>Шесть шагов до первых заявок из Threads.</h2>
+    <ul class="todo" data-r id="todo">
+      <li><label><input type="checkbox" data-k="t1"><span>Создать 1–3 аккаунта Threads (на одно устройство — до 3)</span></label></li>
+      <li><label><input type="checkbox" data-k="t2"><span>Прогреть: 3 дня без ссылки, комментарии, потом охватные посты</span></label></li>
+      <li><label><input type="checkbox" data-k="t3"><span>Выбрать, куда вести людей: личка или канал (на старте — личка)</span></label></li>
+      <li><label><input type="checkbox" data-k="t4"><span>Написать свой скрипт: пройти 5–10 чужих воронок и переделать под себя</span></label></li>
+      <li><label><input type="checkbox" data-k="t5"><span>Протестировать 3–5 вариантов постов и оставить рабочие</span></label></li>
+      <li><label><input type="checkbox" data-k="t6"><span>Обрабатывать людей и доводить до регистрации бизнеса</span></label></li>
+    </ul>
+    <div class="big-note" data-r style="margin-top:32px"><b>Честно, чтобы не было иллюзий.</b> За один день у тебя ничего не получится. Чтобы понять, как всё работает, нужно <em>минимум 2–3 недели</em>. Золотой кнопки нет: никто не будет сам писать тебе «давай я открою ИП, а ты мне заплатишь». С людьми придётся работать. Но 99% тех, кто это прочитает, так и не начнут — поэтому конкуренции здесь почти нет.</div>
+  </div>
+</section>
+
+<section class="dark torn" id="hw">
+  <div class="chap"><div class="wrap"><span>Домашнее задание</span><span>Сдать куратору</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Чтобы урок превратился в заявки</span>
+    <h2 class="h2" data-r>Домашнее задание на 2 недели.</h2>
+    <div class="why" style="margin-top:28px">
+      <div class="card" data-r style="--i:0"><h4>Неделя 1</h4><p>Создай и прогрей 1–2 аккаунта по схеме из главы IV. Выложи минимум 10 охватных постов и 30 комментариев под чужими постами. Запиши, какие 3 поста набрали больше всего.</p></div>
+      <div class="card" data-r style="--i:1"><h4>Неделя 2</h4><p>Поставь ссылку в профиль. Выкладывай 2 поста под заявки и 1–3 охватных в день. Пройди 5 чужих воронок и собери свой скрипт.</p></div>
+      <div class="card" data-r style="--i:2"><h4>Что прислать куратору</h4><p>Скрины статистики аккаунта (просмотры, переходы в профиль), 3 лучших поста, текст своего скрипта и сколько заявок пришло. Разберём, что усилить.</p></div>
+    </div>
+    <p class="hand" data-r style="margin-top:28px;color:#fff">Минимум 2–3 недели до стабильного результата. Не бросай на третий день.</p>
+  </div>
+</section>
+
+<footer><b>Работаем · Ryzhikov Academy</b><br>Материал для учеников Ryzhikov Academy. Правила площадок меняются — актуальное уточняй у куратора.</footer>
+
+<script>
+(() => {
+  /* ===== ССЫЛКИ: поменять на свои ===== */
+  const LINKS = {
+    dm: 'https://t.me/ryzhikovpa',               // личка Петра
+    diagnostic: 'https://t.me/m/TklPmdWqNWYy'     // запись на бесплатный разбор
+  };
+  document.querySelectorAll('[data-dm]').forEach(a => a.href = LINKS.dm);
+  const cd = document.getElementById('ctaDiag'); if (cd) cd.href = LINKS.diagnostic;
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const root = document.documentElement, $ = id => document.getElementById(id);
+  const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
+
+  const stat = $('heroStat');
+  const go = () => requestAnimationFrame(() => root.classList.add('ready'));
+  if (reduce) go(); else Promise.race([stat.decode ? stat.decode().catch(() => {}) : Promise.resolve(), new Promise(r => setTimeout(r, 1200))]).then(go);
+
+  document.querySelectorAll('.h2').forEach(el => {
+    let i = 0; el.classList.add('rl');
+    [...el.childNodes].forEach(n => {
+      if (n.nodeType !== 3) return;
+      const f = document.createDocumentFragment();
+      n.textContent.split(/([ \t\n\r]+)/).forEach(t => {
+        if (!t) return;
+        if (/^[ \t\n\r]+$/.test(t)) { f.appendChild(document.createTextNode(' ')); return; }
+        const w = document.createElement('span'), s = document.createElement('span');
+        w.className = 'w'; s.style.setProperty('--d', i++); s.textContent = t; w.appendChild(s); f.appendChild(w);
+      });
+      el.replaceChild(f, n);
+    });
+  });
+
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -12% 0px' });
+  document.querySelectorAll('[data-r]').forEach(n => io.observe(n));
+
+  const bar = $('bar'), barP = $('barP');
+  let ticking = false, H = innerHeight;
+  addEventListener('resize', () => { H = innerHeight; }, { passive: true });
+  const frame = () => {
+    ticking = false;
+    const y = scrollY, max = root.scrollHeight - H;
+    bar.classList.toggle('on', y > H * .7);
+    barP.style.setProperty('--p', clamp(y / max).toFixed(3));
+    if (!reduce && y < H * 1.2) stat.style.translate = `0 ${(y * .18).toFixed(1)}px`;
+  };
+  addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }, { passive: true });
+  frame();
+
+  document.querySelectorAll('#todo input').forEach(cb => {
+    try { cb.checked = localStorage.getItem('threads-' + cb.dataset.k) === '1'; } catch (e) {}
+    cb.addEventListener('change', () => { try { localStorage.setItem('threads-' + cb.dataset.k, cb.checked ? '1' : '0'); } catch (e) {} });
+  });
+})();
+</script>
+</body>
+</html>
