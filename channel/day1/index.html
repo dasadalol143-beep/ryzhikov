@@ -333,6 +333,39 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
   html{scroll-behavior:auto}
   .js [data-r],.rl .w>span,.hero *,.hcap{transition:none!important;transform:none!important;opacity:1!important;translate:none!important}
 }
+
+/* v2 правки видимости */
+.kob .card h4,.kob .card h3{color:#fff}
+.kob .card p{color:rgba(255,255,255,.88)}
+.kob .card b{color:#fff}
+.kob .cmp .card span{color:rgba(255,255,255,.85)}
+.kob .cmp .card.hi{background:#fff;color:var(--kob);border-color:#fff}.kob .cmp .card.hi span{color:var(--ink2)}
+.kob .cmp .x{color:#fff}
+.offers{grid-template-columns:repeat(3,minmax(0,1fr))}
+.offers b.q{font-size:18px;color:var(--ink2);padding-top:6px}
+@media (max-width:640px){.offers{grid-template-columns:1fr 1fr}}
+.alfa{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(24px,4vw,56px);margin-top:36px;padding:clamp(22px,3vw,36px);background:var(--marble);border:2px solid var(--ink)}
+.alfa-pay .num{display:block;font-size:clamp(56px,7vw,96px);line-height:.95;color:var(--kob)}
+.alfa-pay small{display:block;margin-top:10px;font-size:15px;color:var(--ink2)}
+.alfa .ol{margin-top:0}.alfa .ol li:first-child{border-top:0;padding-top:0}.alfa .ol li:first-child::before{top:0}
+@media (max-width:820px){.alfa{grid-template-columns:1fr}}
+.ways.two{grid-template-columns:1fr 1fr}
+.ways .way{border:1px solid var(--line)}
+@media (max-width:820px){.ways.two{grid-template-columns:1fr}}
+.cant.dark-li li{color:var(--ink)}
+.cant.dark-li li::before{color:var(--red)}
+.pw.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.pw.three{grid-template-columns:1fr}}
+.first3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:36px}
+.first3 .card{display:flex;flex-direction:column;gap:10px}
+.first3 .tag{align-self:flex-start}
+.first3 h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:28px;line-height:1}
+.first3 b.num{font-size:34px;color:var(--kob);line-height:1}
+.first3 p{font-size:15px;color:var(--ink2)}
+@media (max-width:900px){.first3{grid-template-columns:1fr}}
+.tbl tr.off td{color:var(--ink2);background:rgba(20,20,20,.04)}
+.tbl tr.off td.p{color:var(--red);font-size:15px;text-transform:uppercase}
+.order{font-size:16px}
 </style>
 </head>
 <body>
@@ -389,199 +422,276 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
     <h2 class="h2" data-r>Четыре продукта. На них стоит вся ниша.</h2>
     <p class="lead" data-r>Банки и сервисы платят за нового клиента. Ты приводишь человека — себя или друга — по своей ссылке и получаешь выплату. Большинство новичков хватаются за всё подряд и уходят со словами «не работает». Без карты ты как турист в чужом городе.</p>
     <div class="prods">
-      <div class="pr today" data-r style="--i:0"><span class="k">СЕГОДНЯ · ГЛАВНЫЙ</span><h3>ИП + РКО</h3><p>Счёт для бизнеса. Самый прибыльный, через него идёт около 70% денег.</p><span class="m">95–130 тыс. с человека</span></div>
-      <div class="pr today" data-r style="--i:1"><span class="k">СЕГОДНЯ · БАЗА</span><h3>Дебетовые карты</h3><p>Одобряют всем с 18 лет. Самый лёгкий старт.</p><span class="m">~5 тыс. с человека</span></div>
+      <div class="pr today" data-r style="--i:0"><span class="k">СЕГОДНЯ · БАЗА</span><h3>Дебетовые карты</h3><p>Одобряют всем с 18 лет. Самый лёгкий старт.</p><span class="m">~5 тыс. с человека</span></div>
+      <div class="pr today" data-r style="--i:1"><span class="k">СЕГОДНЯ · ГЛАВНЫЙ</span><h3>ИП + РКО</h3><p>Счёт для бизнеса. Самый прибыльный, через него идёт около 70% денег.</p><span class="m">~85 тыс. с одного ИП сейчас</span></div>
       <div class="pr lock" data-r style="--i:2"><span class="k">ДЕНЬ 2</span><h3>Кредитные карты</h3><p>Платят в 2–3 раза больше дебеток.</p><span class="m">~10 тыс.</span><div class="lk"><div><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Откроется завтра</div></div></div>
       <div class="pr lock" data-r style="--i:3"><span class="k">ДЕНЬ 2</span><h3>МФО</h3><p>Лучшая математика по вложениям.</p><span class="m">~30 тыс.</span><div class="lk"><div><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>Откроется завтра</div></div></div>
     </div>
-    <div class="order" data-r><span class="on">1 · РКО</span><i>→</i><span class="on">2 · Дебетовые</span><i>→</i><span>3 · Кредитки</span><i>→</i><span>4 · МФО</span></div>
-    <p class="lead" data-r style="margin-top:18px">Порядок — не моё мнение, а психология человека. Сначала самое прибыльное: он получает деньги, видит, что всё честно, и доверяет дальше. Нарушишь порядок — потеряешь даже того, кого мог провести по всем четырём.</p>
+    <h3 class="h3" data-r style="margin-top:36px">Твой маршрут сегодня — всё на себе</h3>
+    <div class="order" data-r><span class="on">Самозанятость</span><i>→</i><span class="on">ЛидГид + ФЦН</span><i>→</i><span class="on">Дебетовки</span><i>→</i><span class="on">ИП через Альфу</span><i>→</i><span class="on">Ещё 3 партнёрки</span><i>→</i><span class="on">Озон · ВТБ · Уралсиб</span></div>
+    <p class="lead" data-r style="margin-top:18px">Сначала всё проходишь на себе — это и есть твои первые деньги, и только так ты потом сможешь уверенно объяснить это другим. Шесть шагов, по порядку. Кредитки и МФО — завтра.</p>
   </div>
 </section>
 
 <!-- ===== 4. ШАГ 1: САМОЗАНЯТОСТЬ ===== -->
 <section id="s1">
-  <div class="chap"><div class="wrap"><span>Глава II · Шаг первый</span><span>10 минут</span></div></div>
+  <div class="chap"><div class="wrap"><span>Глава II · Шаг первый</span><span>10 минут · бесплатно</span></div></div>
   <div class="wrap step">
     <div><div class="sn" data-r>01</div></div>
     <div>
       <span class="eyebrow" data-r>Самозанятость</span>
       <h2 class="h2" data-r>Становишься самозанятым.</h2>
-      <p class="lead" data-r>Это нужно, чтобы партнёрки официально переводили тебе деньги. Бесплатно, без взносов, с телефона.</p>
+      <p class="lead" data-r>С этого начинается всё. Статус самозанятого нужен, чтобы партнёрки официально переводили тебе деньги. Бесплатно, без взносов, с телефона.</p>
       <ol class="ol" data-r>
         <li><b>Качаешь «Мой налог»</b><p>Официальное приложение налоговой.</p></li>
-        <li><b>«Стать самозанятым»</b><p>Вход по паспорту или через Госуслуги. Минут 10.</p></li>
-        <li><b>Налог 4–6% только с заработанного</b><p>Против 13% с зарплаты. Отчётов нет, приложение считает всё само.</p></li>
+        <li><b>Нажимаешь «Стать самозанятым»</b><p>Вход по паспорту или через Госуслуги. Минут 10.</p></li>
+        <li><b>Налог 4–6% только с заработанного</b><p>Против 13% с зарплаты. Отчётов нет, приложение всё считает само.</p></li>
       </ol>
     </div>
   </div>
 </section>
 
-<!-- ===== 5. ШАГ 2: ПАРТНЁРКИ ===== -->
+<!-- ===== 5. ШАГ 2: ЛИДГИД И ФЦН ===== -->
 <section class="bg2 torn" id="s2">
-  <div class="chap"><div class="wrap"><span>Глава III · Шаг второй</span><span>Через что тебе платят</span></div></div>
+  <div class="chap"><div class="wrap"><span>Глава III · Шаг второй</span><span>Первые две партнёрки</span></div></div>
   <div class="wrap">
     <div class="step">
       <div><div class="sn" data-r>02</div></div>
       <div>
         <span class="eyebrow" data-r>Партнёрские программы</span>
-        <h2 class="h2" data-r>Регистрируешься на всех пяти.</h2>
-        <p class="lead" data-r>Продукты — это <b>что</b> ты предлагаешь человеку. Партнёрки — это <b>через что</b> тебе платят. Без них у тебя просто нет инструмента получить деньги. Один и тот же банк на разных партнёрках стоит по-разному, поэтому регистрируешься везде и перед каждой заявкой сверяешь, где выгоднее.</p>
+        <h2 class="h2" data-r>Регистрируешься на ЛидГид и ФЦН.</h2>
+        <p class="lead" data-r>Продукты — это <b>что</b> ты оформляешь. Партнёрки — это <b>через что</b> тебе платят. Банк платит партнёрке, партнёрка — тебе. Со статусом самозанятого можно зарегистрироваться только на двух: <b>ЛидГид и ФЦН</b>. С них и начинаем.</p>
       </div>
     </div>
     <div class="pw">
-      <article class="pt" data-r style="--c:#c8352a;--i:0">
-        <div class="t"><h3>ФЦН</h3><span class="n2">FINCPA NETWORK</span></div>
-        <p>С неё начинают почти все. Можно быть самозанятым или ИП. Здесь большинство делает себе регистрацию бизнеса через Альфа-Банк.</p>
-        <div class="ch"><span>РКО</span><span>Регистрация бизнеса</span><span>МФО</span></div>
-        <a class="btn" href="https://fincpanetwork.ru/registration?referralToken=69feb518a0684417b2c9139dab57955e" target="_blank" rel="noopener">Регистрация <svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
-      </article>
-      <article class="pt" data-r style="--c:#2f5bd8;--i:1">
-        <div class="t"><h3>ЛидГид</h3><span class="n2">LEADGID</span></div>
-        <p>Можно зарегистрироваться даже без самозанятости, как обычное физлицо. Выводить можно на расчётный счёт или в криптовалюте.</p>
+      <article class="pt" data-r style="--c:#2f5bd8;--i:0">
+        <div class="t"><h3>ЛидГид</h3><span class="n2">LEADGID · ДЕБЕТОВКИ</span></div>
+        <p>Здесь делаешь дебетовые карты — шаг 3. Зарегистрироваться можно даже без самозанятости, как обычное физлицо. Выводить можно на расчётный счёт или в криптовалюте.</p>
         <div class="ch"><span>Дебетовые карты</span><span>Кредитки</span><span>МФО</span></div>
-        <a class="btn" href="https://go.leadgid.ru/aff_c?aff_id=148842&amp;offer_id=5474" target="_blank" rel="noopener">Регистрация <svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+        <a class="btn" href="https://go.leadgid.ru/aff_c?aff_id=148842&amp;offer_id=5474" target="_blank" rel="noopener">Регистрация на ЛидГид <svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
       </article>
-      <article class="pt" data-r style="--c:#1f7a45;--i:2">
-        <div class="t"><h3>Бизнес Система</h3><span class="n2">АГЕНТСКИЙ КАНАЛ</span></div>
-        <p>С ней у нас отличные отношения. Заявки на ВТБ и Альфу можно заводить ещё до регистрации бизнеса. Менеджеры всегда на связи.</p>
-        <div class="ch"><span>РКО</span><span>Регистрация бизнеса</span></div>
-        <a class="btn" href="https://lk.bs-rko.ru/auth/register/1624" target="_blank" rel="noopener">Регистрация <svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+      <article class="pt" data-r style="--c:#c8352a;--i:1">
+        <div class="t"><h3>ФЦН</h3><span class="n2">FINCPA NETWORK · ИП</span></div>
+        <p>Здесь делаешь себе регистрацию бизнеса через Альфа-Банк — шаг 4. Это твои первые 16 000 ₽ с одного оффера. На ФЦН можно быть и самозанятым, и ИП.</p>
+        <div class="ch"><span>Регистрация бизнеса</span><span>РКО</span><span>МФО</span></div>
+        <a class="btn" href="https://fincpanetwork.ru/registration?referralToken=69feb518a0684417b2c9139dab57955e" target="_blank" rel="noopener">Регистрация на ФЦН <svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
       </article>
-      <article class="pt" data-r style="--c:#d9771a;--i:3">
-        <div class="t"><h3>РКО Партнёр</h3><span class="n2">ССЫЛКИ + АГЕНТСКИЙ</span></div>
-        <p>Можно работать обычными ссылками и по агентскому каналу. Хорошо льются РКО и регистрация бизнеса. Здесь Инго Банк до 20 000 ₽.</p>
-        <div class="ch"><span>РКО</span><span>Регистрация бизнеса</span></div>
-        <a class="btn" href="https://rko-partner.com/register?ref=X3y3apeeZP7ORAJl" target="_blank" rel="noopener">Регистрация <svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
-      </article>
-      <article class="pt" data-r style="--c:#6a4fd1;--i:4">
-        <div class="t"><h3>РКО Групп</h3><span class="n2">ЦПА + АГЕНТСКИЙ</span></div>
-        <p>Самая универсальная: почти всё в одном месте. Работает и по ссылкам, и по агентскому каналу.</p>
-        <div class="ch"><span>РКО</span><span>Регистрация бизнеса</span><span>Дебетовые</span><span>МФО</span></div>
-        <a class="btn" href="https://rko-group.ru/lk/register?utm_attracted=6245" target="_blank" rel="noopener">Регистрация <svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
-      </article>
-      <div class="pt" data-r style="--c:var(--ink);--i:5;justify-content:center">
-        <p class="hand" style="font-size:28px;color:var(--ink)">Менеджеры на партнёрках — твои лучшие друзья.</p>
-        <p>Не стесняйся писать им: они дают очень много полезной информации. Не получается или непонятно — сразу к менеджеру.</p>
-      </div>
     </div>
-    <div class="vs" data-r>
-      <div><b>ЦПА</b><p>Просто копируешь ссылку и отправляешь человеку. Он переходит и оформляет.</p></div>
-      <div><b>Агентский канал</b><p>Ты сам заполняешь заявку: ФИО, телефон, почта человека. Нужен там, где банк проверяет клиента заранее — например, ВТБ или Альфа до регистрации бизнеса.</p></div>
+    <div class="note" data-r style="margin-top:22px"><b>Остальные три партнёрки — после ИП.</b> РКО Групп, Бизнес Система и РКО Партнёр работают с ИП. Поэтому сначала открываешь ИП через ФЦН, а потом регистрируешься на них — это шаг 5.</div>
+  </div>
+</section>
+
+<!-- ===== 6. ШАГ 3: ДЕБЕТОВЫЕ КАРТЫ ===== -->
+<section class="kob torn" id="dk">
+  <div class="chap"><div class="wrap"><span>Глава IV · Шаг третий</span><span>Дебетовые карты</span></div></div>
+  <div class="wrap">
+    <div class="dk">
+      <div>
+        <div class="sn num" data-r style="font-size:clamp(90px,12vw,160px);line-height:.8;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.6)">03</div>
+        <span class="eyebrow" data-r style="margin-top:18px">Самый простой продукт</span>
+        <h2 class="h2" data-r>Дебетовые карты. Одобряют всем.</h2>
+        <p class="lead" data-r>Дебетовая карта — это обычный банковский счёт с картой для своих денег. Не кредит и не заём. Банку выгоден каждый новый клиент: потом ему можно предложить кредитку, ипотеку, страховку. Поэтому за нового клиента банк платит — через ЛидГид.</p>
+        <div class="kpi" data-r>
+          <div><b>~100%</b><span>одобрение с 18 лет</span></div>
+          <div><b>~1 500 ₽</b><span>средняя выплата за карту</span></div>
+          <div><b>~500 ₽</b><span>потратить с карты на свои покупки</span></div>
+        </div>
+      </div>
+      <img class="coin" id="coin" src="assets/coin.webp" alt="Античная монета" loading="lazy">
+    </div>
+    <h3 class="h3" data-r style="margin-top:48px">Какие дебетовки есть сейчас</h3>
+    <div class="offers">
+      <div data-r style="--i:0"><b>2 300 ₽</b><span>ВТБ · дебетовая карта</span></div>
+      <div data-r style="--i:1"><b>2 300 ₽</b><span>ВТБ · платёжный стикер</span></div>
+      <div data-r style="--i:2"><b>1 400 ₽</b><span>Т-Банк · дебетовая карта</span></div>
+      <div data-r style="--i:3"><b class="q">на партнёрке</b><span>Альфа-Банк · дебетовая карта</span></div>
+      <div data-r style="--i:4"><b class="q">на партнёрке</b><span>ПСБ · дебетовая карта</span></div>
+      <div data-r style="--i:5"><b class="q">на партнёрке</b><span>УБРиР · дебетовая карта</span></div>
+    </div>
+    <p class="lead" data-r style="margin-top:16px">Ставки дебеток меняются чаще всего — точную сумму по каждой смотри в ЛидГиде перед оформлением. Сумма за одну карту небольшая, но дебетовки — это объём: 3–4 карты с одного человека — уже 4–6 тысяч чистыми за полчаса.</p>
+    <div class="why" style="margin-top:32px">
+      <div class="card" data-r style="--i:0"><h4>Как получить выплату</h4><p>Оформляешь карту по ссылке, активируешь и тратишь около 500 ₽ на свои обычные покупки. Банк засчитывает — партнёрка платит.</p></div>
+      <div class="card" data-r style="--i:1"><h4>Главное условие</h4><p>Платят только за новых клиентов. Если в этом банке у тебя уже была карта — выплаты не будет. Начинай с банков, где ты ещё не клиент.</p></div>
+      <div class="card" data-r style="--i:2"><h4>Почему с них начинать</h4><p>Это разминка: без ИП, за 10 минут, и ты сразу видишь, как работает партнёрка и как приходит выплата.</p></div>
     </div>
   </div>
 </section>
 
-<!-- ===== 6. ШАГ 3: БИЗНЕС + РКО ===== -->
-<section class="kob torn" id="s3">
-  <div class="chap"><div class="wrap"><span>Глава IV · Шаг третий</span><span>ИП на НПД</span></div></div>
+<!-- ===== 7. ШАГ 4: ИП ЧЕРЕЗ АЛЬФУ ===== -->
+<section id="s4">
+  <div class="chap"><div class="wrap"><span>Глава V · Шаг четвёртый</span><span>ИП на НПД · первые 16 000 ₽</span></div></div>
   <div class="wrap">
     <div class="step">
-      <div><div class="sn" data-r>03</div></div>
+      <div><div class="sn" data-r>04</div></div>
       <div>
         <span class="eyebrow" data-r>Регистрация бизнеса</span>
-        <h2 class="h2" data-r>Открываешь ИП. Три способа.</h2>
-        <p class="lead" data-r>ИП на НПД — это расширенная самозанятость: тот же налог 4–6%, никаких отчётов. Без ИП банк не откроет счёт для бизнеса, а именно за него платят больше всего.</p>
+        <h2 class="h2" data-r>Открываешь ИП через Альфу. Первые 16&nbsp;000&nbsp;₽.</h2>
+        <p class="lead" data-r>ИП на НПД — это расширенная самозанятость: тот же налог 4–6%, никаких отчётов, регистрация бесплатная. Через ФЦН ты оформляешь себе регистрацию бизнеса в Альфа-Банке — и банк платит тебе около 16 000 ₽ за один оффер.</p>
       </div>
     </div>
-    <div class="ways">
+    <div class="alfa" data-r>
+      <div class="alfa-pay"><span class="num">~16 000 ₽</span><small>Альфа-Банк · регистрация ИП + РКО · ФЦН</small></div>
+      <ol class="ol">
+        <li><b>Берёшь ссылку на ФЦН</b><p>Оффер «Альфа-Банк · регистрация бизнеса» и подаёшь заявку.</p></li>
+        <li><b>Звонит менеджер Альфы</b><p>Отключи блокировщик звонков и антиспам. Заявку лучше подавать в будни, пн–чт.</p></li>
+        <li><b>Госключ в МФЦ или офисе</b><p>Скорее всего, нужно один раз сходить в МФЦ или отделение банка — там полностью помогут, стесняться не нужно.</p></li>
+        <li><b>Налоговая проверяет около 3 дней</b><p>После этого ИП зарегистрирован, счёт открыт.</p></li>
+        <li><b>Целевое действие: ~1 500 ₽ на счёт</b><p>Закидываешь около 1 500 ₽ на новый счёт и держишь хотя бы до 24 часов. Потом можно вывести. Всё — Альфа засчитана.</p></li>
+      </ol>
+    </div>
+    <div class="ways two">
       <article class="way" data-r style="--i:0">
-        <span class="tag o">Быстро</span>
+        <span class="tag o">Если нужно быстро</span>
         <h3>Т-Банк</h3>
         <div class="pay num">0 ₽<small>за регистрацию</small></div>
-        <p>Самая быстрая регистрация. Открываешь приложение, подаёшь заявление, встречаешься с курьером, подписываешь документы — ИП готов через 1–2 дня. Своя электронная подпись, без партнёрки.</p>
-        <ul><li>Минус — ни рубля за саму регистрацию.</li><li>ОКВЭД обычно 73.11 — рекламные агентства.</li><li>Потом спокойно делаешь Альфа РКО и Озон РКО.</li></ul>
+        <p>Самая быстрая регистрация: заявка в приложении, курьер, ИП через 1–2 дня. Но за саму регистрацию не заплатят ни рубля. После этого всё равно делаешь Альфа РКО.</p>
       </article>
-      <article class="way best" data-r style="--i:1">
-        <span class="tag">Выгодно</span>
-        <h3>Альфа-Банк</h3>
-        <div class="pay num">~16 000 ₽<small>за регистрацию</small></div>
-        <p>Регистрация бизнеса плюс РКО через ФЦН. Банк платит тебе за саму регистрацию — это твои первые деньги на себе.</p>
-        <ul><li>Звонит менеджер Альфы — отключи блокировщик звонков и антиспам.</li><li>Подавай заявку в будни, лучше пн–чт.</li><li>Скорее всего, один раз сходить в МФЦ или офис за Госключом — там помогут.</li><li>Налоговая проверяет около 3 дней.</li></ul>
-      </article>
-      <article class="way" data-r style="--i:2">
-        <span class="tag o">Запасной</span>
+      <article class="way" data-r style="--i:1">
+        <span class="tag o">Запасной вариант</span>
         <h3>Озон Банк</h3>
         <div class="pay num">8–11 тыс.<small>регистрация · РКО</small></div>
-        <p>Платят и за регистрацию бизнеса, и за РКО. Выручал всех, когда Альфа временно не платила. Делается дольше остальных.</p>
-        <ul><li>Лайфхак: начни с Т-Банка, а Озон РКО подключи после — меньше мелких сбоев.</li></ul>
+        <p>Выручал всех, когда Альфа временно не платила. Делается дольше остальных, поэтому как первый вариант — не советую.</p>
       </article>
     </div>
-    <div class="note" data-r style="margin-top:22px"><b>Можно комбинировать.</b> Сделал ИП через Т-Банк — потом всё равно открываешь Альфа РКО и Озон РКО. Сделал через Альфу — открываешь Озон РКО и дальше по списку. Сумма за регистрацию меняется, на данный момент у Альфы около 16 000 ₽ — сверяй на партнёрке.</div>
     <div data-r style="margin-top:36px">
       <h3 class="h3">ИП можно открыть почти всем, кроме:</h3>
-      <ul class="cant">
+      <ul class="cant dark-li">
         <li>Младше 18 лет</li>
         <li>Госслужащих и силовиков</li>
         <li>Работников оборонных и стратегических предприятий</li>
         <li>Получателей субсидий, которые запрещают совмещение</li>
       </ul>
-      <p class="lead" style="margin-top:14px">У большинства парней 18–30 ни одного из этих ограничений нет.</p>
     </div>
   </div>
 </section>
 
-<!-- ===== 7. ЧТО ТАКОЕ РКО ===== -->
-<section id="rko">
-  <div class="chap"><div class="wrap"><span>Глава V · Главный продукт</span><span>РКО простыми словами</span></div></div>
+<!-- ===== 8. ЧТО ТАКОЕ РКО ===== -->
+<section class="kob torn" id="rko">
+  <div class="chap"><div class="wrap"><span>Глава VI · Главный продукт</span><span>РКО простыми словами</span></div></div>
   <div class="wrap">
-    <span class="eyebrow" data-r>Простыми словами</span>
+    <span class="eyebrow" data-r>Теперь у тебя есть ИП</span>
     <h2 class="h2" data-r>РКО — это та же карта. Только для бизнеса.</h2>
-    <p class="lead" data-r>Расчётный счёт для предпринимателя. Представь солидного дядю на Крузаке, который решил заняться бизнесом, но без РКО. Неделю-месяц его личная карта проживёт, а потом банк заинтересуется — и начнутся вопросы. РКО делает всё чисто и официально.</p>
+    <p class="lead" data-r>РКО — расчётный счёт для предпринимателя. Представь солидного дядю на Крузаке, который решил заняться бизнесом, но без РКО. Неделю-месяц его личная карта проживёт, а потом банк заинтересуется — и начнутся вопросы. РКО делает всё чисто и официально.</p>
     <div class="why">
       <div class="card" data-r style="--i:0"><h4>Зачем бизнесу</h4><p>Принимать оплату официально, платить подрядчикам и налоги, подключать эквайринг и маркетплейсы, не бояться блокировки личных карт.</p></div>
-      <div class="card" data-r style="--i:1"><h4>Что нужно от человека</h4><p>Паспорт и телефон. Пара кликов, бесплатный тариф, встреча с менеджером банка или онлайн-подтверждение. Все платные услуги убираем.</p></div>
-      <div class="card" data-r style="--i:2"><h4>Почему банк платит тебе</h4><p>Каждый ИП для банка — стабильный кэш на годы: обороты, комиссии, эквайринг, кредиты. Поэтому банки дерутся за каждого клиента.</p></div>
+      <div class="card" data-r style="--i:1"><h4>Что нужно от тебя</h4><p>Паспорт и телефон. Пара кликов, бесплатный тариф, встреча с менеджером банка или онлайн-подтверждение. Все платные услуги убираем.</p></div>
+      <div class="card" data-r style="--i:2"><h4>Почему банк платит</h4><p>Каждый ИП для банка — стабильный доход на годы: обороты, комиссии, эквайринг, кредиты. Поэтому банки дерутся за каждого клиента.</p></div>
     </div>
     <div class="cmp">
-      <div class="card" data-r><span class="num">1–2 тыс.</span><span>платит банк за обычную карту</span></div>
+      <div class="card" data-r><span class="num">1–2 тыс.</span><span>платит банк за обычную дебетовую карту</span></div>
       <div class="x" data-r>→</div>
-      <div class="card hi" data-r style="--i:1"><span class="num">6–20 тыс.</span><span>за ту же карту, но на ИП (РКО)</span></div>
+      <div class="card hi" data-r style="--i:1"><span class="num">6–20 тыс.</span><span>за счёт того же человека, но на ИП (РКО)</span></div>
     </div>
-    <p class="hand" data-r style="margin-top:28px;text-align:center">РКО будет актуален, пока делается бизнес — то есть всегда.</p>
+    <p class="hand" data-r style="margin-top:28px;text-align:center;color:#fff">И главное: один ИП может открыть РКО не в одном банке, а в восьми-десяти.</p>
   </div>
 </section>
 
-<!-- ===== 8. ЗОЛОТОЙ КРУГ ===== -->
-<section class="bg2 torn" id="circle">
-  <div class="chap"><div class="wrap"><span>Глава VI · Золотой круг</span><span>Банки и ставки</span></div></div>
+<!-- ===== 9. ШАГ 5: ОСТАЛЬНЫЕ ПАРТНЁРКИ ===== -->
+<section id="s5">
+  <div class="chap"><div class="wrap"><span>Глава VII · Шаг пятый</span><span>Партнёрки для ИП</span></div></div>
   <div class="wrap">
-    <span class="eyebrow" data-r>Один человек — не один банк</span>
-    <h2 class="h2" data-r>Золотой круг: 8–10 банков с одного человека.</h2>
-    <p class="lead" data-r>Вот главный секрет, который не видят новички. Открыл человек ИП — дальше он может открыть счёт не в одном банке, а в восьми-десяти. За каждый — отдельная выплата. Колонны храма — это банки.</p>
+    <div class="step">
+      <div><div class="sn" data-r>05</div></div>
+      <div>
+        <span class="eyebrow" data-r>Когда ИП открыт</span>
+        <h2 class="h2" data-r>Регистрируешься ещё на трёх партнёрках.</h2>
+        <p class="lead" data-r>Теперь у тебя ИП — и открываются партнёрки, где больше всего РКО. Регистрируешься на всех: один и тот же банк на разных партнёрках стоит по-разному, поэтому перед каждой заявкой сверяешь, где выгоднее.</p>
+      </div>
+    </div>
+    <div class="pw three">
+      <article class="pt" data-r style="--c:#6a4fd1;--i:0">
+        <div class="t"><h3>РКО Групп</h3><span class="n2">ЦПА + АГЕНТСКИЙ</span></div>
+        <p>Самая универсальная: почти всё в одном месте.</p>
+        <div class="ch"><span>РКО</span><span>Регистрация бизнеса</span><span>Дебетовые</span></div>
+        <a class="btn" href="https://rko-group.ru/lk/register?utm_attracted=6245" target="_blank" rel="noopener">Регистрация <svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+      </article>
+      <article class="pt" data-r style="--c:#1f7a45;--i:1">
+        <div class="t"><h3>Бизнес Система</h3><span class="n2">АГЕНТСКИЙ</span></div>
+        <p>С ней у нас отличные отношения. Почти все РКО-офферы, менеджеры всегда на связи.</p>
+        <div class="ch"><span>РКО</span><span>Регистрация бизнеса</span></div>
+        <a class="btn" href="https://lk.bs-rko.ru/auth/register/1624" target="_blank" rel="noopener">Регистрация <svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+      </article>
+      <article class="pt" data-r style="--c:#d9771a;--i:2">
+        <div class="t"><h3>РКО Партнёр</h3><span class="n2">ССЫЛКИ + АГЕНТСКИЙ</span></div>
+        <p>Хорошо льются РКО и регистрация бизнеса. Здесь, например, Озон.</p>
+        <div class="ch"><span>РКО</span><span>Регистрация бизнеса</span></div>
+        <a class="btn" href="https://rko-partner.com/register?ref=X3y3apeeZP7ORAJl" target="_blank" rel="noopener">Регистрация <svg viewBox="0 0 24 24"><path d="M7 17L17 7M9 7h8v8"/></svg></a>
+      </article>
+    </div>
+    <div class="vs" data-r>
+      <div><b>ЦПА</b><p>Просто копируешь ссылку и переходишь по ней сам или отправляешь человеку.</p></div>
+      <div><b>Агентский канал</b><p>Сам заполняешь короткую заявку: ФИО, телефон, почта. Нужен там, где банк проверяет клиента заранее.</p></div>
+    </div>
+    <p class="hand" data-r style="margin-top:24px">Менеджеры на партнёрках — твои лучшие друзья. Не получается или непонятно — сразу пиши им.</p>
+  </div>
+</section>
+
+<!-- ===== 10. ШАГ 6: БАНКИ ПО ПОРЯДКУ ===== -->
+<section class="bg2 torn" id="circle">
+  <div class="chap"><div class="wrap"><span>Глава VIII · Шаг шестой</span><span>Золотой круг</span></div></div>
+  <div class="wrap">
+    <div class="step">
+      <div><div class="sn" data-r>06</div></div>
+      <div>
+        <span class="eyebrow" data-r>Один ИП — не один банк</span>
+        <h2 class="h2" data-r>Следующими делаешь Озон, ВТБ и Уралсиб.</h2>
+        <p class="lead" data-r>После Альфы идёшь по золотому кругу. За каждый банк — отдельная выплата. Первыми после Альфы — эти три: они понятные и надёжно платят.</p>
+      </div>
+    </div>
+    <div class="first3">
+      <article class="card" data-r style="--i:0"><span class="tag">После Альфы · 1</span><h3>Озон Банк</h3><b class="num">до 8 000 ₽</b><p>Положи на счёт больше 3 000 ₽, причём не ровную сумму — например, 4 158 ₽. Подержи 4–9 дней. При выводе оставь на балансе хотя бы 300 ₽ ещё на пару дней.</p></article>
+      <article class="card" data-r style="--i:1"><span class="tag">После Альфы · 2</span><h3>ВТБ</h3><b class="num">до 10 000 ₽</b><p>Открыть счёт и пополнить. Ставка за ВТБ в последнее время растёт — сверяй между Бизнес Системой и РКО Групп.</p></article>
+      <article class="card" data-r style="--i:2"><span class="tag">После Альфы · 3</span><h3>Уралсиб</h3><b class="num">6 000 ₽+</b><p>Переводы со счёта на 15 000 ₽ в сумме — двумя-тремя платежами разными суммами, с нормальным назначением платежа.</p></article>
+    </div>
     <img class="temple" data-r src="assets/temple.webp" alt="Мраморный храм: фундамент — ИП, колонны — банки" loading="lazy">
+    <p class="lead" data-r style="text-align:center;margin:18px auto 0">Фундамент — твой ИП. Колонны — банки. Чем больше колонн, тем больше денег с одного человека.</p>
     <div class="circle">
       <table class="tbl" id="tbl">
         <thead><tr><th>Банк</th><th>Выплата</th><th>Что сделать</th></tr></thead>
         <tbody>
-          <tr class="row" data-v="16000"><td>Альфа · регистрация</td><td class="p">~16 000 ₽</td><td class="c">ФЦН · регистрация ИП + РКО. Первые деньги на себе</td></tr>
-          <tr class="row" data-v="20000"><td>Инго Банк</td><td class="p">до 20 000 ₽</td><td class="c">РКО Партнёр · за 30 дней 3 расходные операции на 50 000 ₽ в сумме</td></tr>
-          <tr class="row" data-v="10000"><td>ВТБ</td><td class="p">до 10 000 ₽</td><td class="c">Бизнес Система (можно до регистрации ИП) · открыть счёт и пополнить</td></tr>
+          <tr class="row" data-v="16000"><td>Альфа · ИП + РКО</td><td class="p">~16 000 ₽</td><td class="c">ФЦН · ~1 500 ₽ на счёт, подержать до 24 часов</td></tr>
+          <tr class="row" data-v="8000"><td>Озон</td><td class="p">до 8 000 ₽</td><td class="c">Больше 3 000 ₽ неровной суммой, 4–9 дней</td></tr>
+          <tr class="row" data-v="10000"><td>ВТБ</td><td class="p">до 10 000 ₽</td><td class="c">Открыть счёт и пополнить</td></tr>
+          <tr class="row" data-v="6000"><td>Уралсиб</td><td class="p">6 000 ₽+</td><td class="c">Переводы на 15 000 ₽ в сумме</td></tr>
           <tr class="row" data-v="9500"><td>Локо Банк</td><td class="p">9 500 ₽</td><td class="c">3 платежа разными суммами за 3–4 дня</td></tr>
           <tr class="row" data-v="9000"><td>ОТП</td><td class="p">9 000 ₽</td><td class="c">ФЦН · 2 платежа разными суммами</td></tr>
-          <tr class="row" data-v="8000"><td>Озон</td><td class="p">до 8 000 ₽</td><td class="c">Положить чуть больше 3 000 ₽ и подержать 4–9 дней</td></tr>
-          <tr class="row" data-v="6000"><td>Уралсиб</td><td class="p">6 000 ₽+</td><td class="c">Переводы со счёта на 15 000 ₽ в сумме</td></tr>
           <tr class="row" data-v="6000"><td>Контур</td><td class="p">6 000 ₽</td><td class="c">РКО Групп · 3 платежа</td></tr>
           <tr class="row" data-v="6000"><td>Свой Банк</td><td class="p">6 000 ₽</td><td class="c">3 платежа на 20 000 ₽ в сумме</td></tr>
-          <tr class="row" data-v="10000"><td>ПСБ</td><td class="p">до 10 000 ₽</td><td class="c">Бизнес Система · без ЦД, но проверяет реальность бизнеса — не первым</td></tr>
+          <tr class="row" data-v="10000"><td>ПСБ</td><td class="p">до 10 000 ₽</td><td class="c">Проверяет реальность бизнеса — делай через 3–4 месяца</td></tr>
           <tr class="row" data-v="4500"><td>Левобережный</td><td class="p">до 4 500 ₽</td><td class="c">Оплата тарифа + 1 исходящая операция</td></tr>
+          <tr class="row off" data-v="0"><td>Инго Банк</td><td class="p">пауза</td><td class="c">Платил до 20 000 ₽ — сейчас временно ушёл</td></tr>
+          <tr class="row off" data-v="0"><td>Газпромбанк</td><td class="p">пауза</td><td class="c">~10 000 ₽ — ждём возвращения</td></tr>
         </tbody>
       </table>
       <aside class="sum" aria-live="polite">
-        <span class="lb">С одного человека</span>
+        <span class="lb">С одного ИП сейчас</span>
         <span class="val" id="sumV">0 ₽</span>
         <p>Листай таблицу — сумма растёт с каждым банком.</p>
         <div class="bar2"><i id="sumB"></i></div>
       </aside>
     </div>
-    <div class="note red" data-r style="margin-top:22px"><b>Кто не платит за НПД.</b> Точка и Т-Банк через партнёрки за клиента на НПД, как правило, не платят. Заводи их, только когда у человека уже другая система налогообложения.</div>
-    <div class="note" data-r style="margin-top:12px"><b>Ставки и банки живые.</b> Они меняются постоянно, новые банки появляются, старые уходят на паузу. Таблица — ориентир, актуальные цифры всегда сверяй в кабинете партнёрки перед заявкой.</div>
+    <div class="note red" data-r style="margin-top:22px"><b>Кто не платит за НПД.</b> Точка и Т-Банк через партнёрки за ИП на НПД, как правило, не платят. Их не делаем.</div>
+  </div>
+</section>
+
+<!-- ===== 11. НИША ЖИВАЯ ===== -->
+<section class="kob torn" id="live">
+  <div class="chap"><div class="wrap"><span>Глава IX · Важно</span><span>Ниша живая</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Запомни это раз и навсегда</span>
+    <h2 class="h2" data-r>Банки уходят и приходят. Ставки меняются каждый месяц.</h2>
+    <p class="lead" data-r>Это нормальная жизнь ниши, а не «тема закрылась». Банк набрал клиентов — ставит оффер на паузу. Появляется новый банк — платит больше всех, чтобы быстро набрать базу. Тот, кто это понимает, зарабатывает стабильно. Тот, кто нет, — паникует при первой паузе.</p>
+    <div class="why">
+      <div class="card" data-r style="--i:0"><h4>Прямо сейчас</h4><p><b>Инго Банк временно ушёл.</b> Ещё недавно он платил до 20 000 ₽ — больше всех. Газпромбанк тоже на паузе, ждём возвращения.</p></div>
+      <div class="card" data-r style="--i:1"><h4>Так было и раньше</h4><p>Когда Альфа временно перестала платить за регистрацию, все спокойно ушли в Озон. Через время Альфа вернулась.</p></div>
+      <div class="card" data-r style="--i:2"><h4>Что делать тебе</h4><p>Перед каждой заявкой смотри ставку в кабинете партнёрки и спрашивай менеджера. Цифры на этой странице — ориентир на сегодня, не прайс.</p></div>
+    </div>
   </div>
 </section>
 
 <!-- ===== 9. ПРАВИЛА ЦД ===== -->
 <section id="rules">
-  <div class="chap"><div class="wrap"><span>Глава VII · Целевое действие</span><span>Где теряют выплату</span></div></div>
+  <div class="chap"><div class="wrap"><span>Глава X · Целевое действие</span><span>Где теряют выплату</span></div></div>
   <div class="wrap">
     <span class="eyebrow" data-r>Самая важная часть дня</span>
     <h2 class="h2" data-r>Выплата приходит не за счёт. А за действие.</h2>
@@ -606,7 +716,7 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
 
 <!-- ===== 10. ТЕХНИЧЕСКИЕ МОМЕНТЫ ===== -->
 <section class="bg2 torn" id="tech">
-  <div class="chap"><div class="wrap"><span>Глава VIII · Частые вопросы</span><span>Чтобы не паниковать</span></div></div>
+  <div class="chap"><div class="wrap"><span>Глава XI · Частые вопросы</span><span>Чтобы не паниковать</span></div></div>
   <div class="wrap narrow">
     <span class="eyebrow" data-r>Знать заранее</span>
     <h2 class="h2" data-r>Что пойдёт не так. И что делать.</h2>
@@ -621,67 +731,30 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
   </div>
 </section>
 
-<!-- ===== 11. ДЕБЕТОВЫЕ КАРТЫ ===== -->
-<section class="kob torn" id="dk">
-  <div class="chap"><div class="wrap"><span>Глава IX · Второй продукт</span><span>Дебетовые карты</span></div></div>
-  <div class="wrap">
-    <div class="dk">
-      <div>
-        <span class="eyebrow" data-r>Самый простой продукт</span>
-        <h2 class="h2" data-r>Дебетовые карты. Одобряют всем.</h2>
-        <p class="lead" data-r>Обычная банковская карта для своих денег. Не кредит, не заём. Банк зарабатывает на комиссиях и на том, что человек становится его клиентом — потом ему можно предложить кредитку, ипотеку, страховку. Поэтому за «свежего» клиента банки платят.</p>
-        <div class="kpi" data-r>
-          <div><b>~100%</b><span>одобрение с 18 лет</span></div>
-          <div><b>~1 500 ₽</b><span>средняя выплата за карту</span></div>
-          <div><b>~500 ₽</b><span>потратить с карты на свои покупки</span></div>
-        </div>
-      </div>
-      <img class="coin" id="coin" src="assets/coin.webp" alt="Античная монета" loading="lazy">
-    </div>
-    <div class="why" style="margin-top:40px">
-      <div class="card" data-r style="--i:0"><h4>С 18 лет, без условий</h4><p>Сейчас все дебетовые карты по партнёркам открываются с 18 лет. Ни кредитной истории, ни дохода банк не проверяет — одобряют практически всем.</p></div>
-      <div class="card" data-r style="--i:1"><h4>Где откажут</h4><p>Только при действующем банкротстве или арестах по счетам в этом банке. В другом банке, где ареста нет, — оформят.</p></div>
-      <div class="card" data-r style="--i:2"><h4>Когда предлагать</h4><p>Вторым заходом, после РКО. Человек уже видел выплату и доверяет: «Кстати, ещё 5–6 тысяч можем поднять на дебетовках за пару дней».</p></div>
-    </div>
-    <h3 class="h3" data-r style="margin-top:44px">Что платят сейчас · ЛидГид</h3>
-    <div class="offers">
-      <div data-r style="--i:0"><b>2 300 ₽</b><span>ВТБ дебет</span></div>
-      <div data-r style="--i:1"><b>2 300 ₽</b><span>ВТБ Стикер</span></div>
-      <div data-r style="--i:2"><b>1 900 ₽</b><span>ОТП дебет</span></div>
-      <div data-r style="--i:3"><b>1 400 ₽</b><span>Т-Банк дебет</span></div>
-      <div data-r style="--i:4"><b>900 ₽</b><span>Озон Банк</span></div>
-    </div>
-    <p class="lead" data-r style="margin-top:16px">Дебетовки есть почти у всех банков: Альфа, Совкомбанк, новички вроде Тинго. Цифры меняются — актуальный список смотри на партнёрках. Сама сумма не огромная, но дебетовка — это про объём: 3–4 банка с одного человека — уже 4–6 тысяч чистыми за полчаса.</p>
-    <div class="script" data-r>
-      <small>Что написать человеку после первой выплаты по РКО</small>
-      <p>«Бро, смотри, что ещё можно докрутить. Есть пара дебетовых карт — оформляются за 10 минут, тратишь с неё 500 ₽ на свои же покупки, и банк платит 1 500 ₽. Это не заём и не кредит, просто карта. У тебя в Т-Банке или ВТБ карта раньше была?»</p>
-    </div>
-  </div>
-</section>
-
 <!-- ===== 12. ИТОГ ДНЯ ===== -->
 <section id="sum">
-  <div class="chap"><div class="wrap"><span>Глава X · Итог дня</span><span>Математика одного человека</span></div></div>
+  <div class="chap"><div class="wrap"><span>Глава XII · Итог дня</span><span>Математика одного человека</span></div></div>
   <div class="wrap">
     <div style="text-align:center">
       <span class="eyebrow" data-r>Что ты сегодня узнал</span>
       <h2 class="h2" data-r>Один человек — это не 15 тысяч.</h2>
-      <p class="lead" data-r style="margin-inline:auto">90% новичков думают, что один человек — это одна выплата. А это целый маршрут. Сегодня мы прошли первые две его части.</p>
+      <p class="lead" data-r style="margin-inline:auto">90% новичков думают, что один человек — это одна выплата. А это целый маршрут. Сегодня ты прошёл первые две его части на себе. Цифры — ориентир: ставки меняются, банки уходят и приходят, но порядок сумм такой.</p>
     </div>
     <div class="math" data-r>
-      <div class="r"><span>РКО × 8–10 банков (золотой круг)</span><b>95–130 тыс. ₽</b></div>
       <div class="r"><span>Дебетовые карты × 3–4 банка</span><b>~5 000 ₽</b></div>
+      <div class="r"><span>Альфа · регистрация ИП</span><b>~16 000 ₽</b></div>
+      <div class="r"><span>РКО ещё в 9 банках золотого круга</span><b>~69 000 ₽</b></div>
       <div class="r lock"><span>Кредитные карты × 2–3 банка · день 2</span><b>~10 000 ₽</b></div>
       <div class="r lock"><span>МФО × 5–8 сервисов · день 2</span><b>~30 000 ₽</b></div>
-      <div class="r t"><span>Уже сегодня с одного человека</span><b>до 135 000 ₽</b></div>
+      <div class="r t"><span>Сегодняшний маршрут целиком</span><b>~90 000 ₽</b></div>
     </div>
-    <p class="lead" data-r style="margin:22px auto 0;text-align:center">Это потолок, когда человек одобряется везде. Реально по нише — 80–100 тысяч с активного человека. Но если вести 5–10 человек параллельно, это уже 300–500 тысяч в месяц.</p>
+    <p class="lead" data-r style="margin:22px auto 0;text-align:center">Это сначала на себе. А потом тот же маршрут ты проводишь с другими людьми — и каждый человек приносит столько же. Где их брать и как вести 5–10 человек параллельно — это дни 2 и 3.</p>
     <h3 class="h3" data-r style="text-align:center;margin-top:56px">Задание на сегодня</h3>
     <ul class="todo" data-r id="todo">
       <li><label><input type="checkbox" data-k="t1"><span>Стать самозанятым в «Мой налог»</span></label></li>
-      <li><label><input type="checkbox" data-k="t2"><span>Зарегистрироваться на всех пяти партнёрках</span></label></li>
-      <li><label><input type="checkbox" data-k="t3"><span>Выбрать способ открыть ИП: Т-Банк, Альфа или Озон</span></label></li>
-      <li><label><input type="checkbox" data-k="t4"><span>Написать менеджеру ФЦН и узнать актуальную ставку Альфы</span></label></li>
+      <li><label><input type="checkbox" data-k="t2"><span>Зарегистрироваться на ЛидГид и ФЦН</span></label></li>
+      <li><label><input type="checkbox" data-k="t3"><span>Оформить первую дебетовую карту в банке, где ты ещё не клиент</span></label></li>
+      <li><label><input type="checkbox" data-k="t4"><span>Подать заявку на ИП через Альфу на ФЦН — узнать актуальную ставку у менеджера</span></label></li>
     </ul>
   </div>
 </section>
@@ -696,7 +769,7 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
     </figure>
     <span class="eyebrow" data-r>Сегодня ты увидел половину маршрута</span>
     <h2 class="h2" data-r>Вторая половина денег — в следующих двух днях.</h2>
-    <p class="lead" data-r>РКО и дебетовки — это фундамент. Но с того же человека можно поднять ещё десятки тысяч, а потом понять, где брать людей и как выйти на 300–500 тысяч в месяц. Это я покажу в следующих материалах.</p>
+    <p class="lead" data-r>Сегодня ты прошёл маршрут на себе. Но настоящие деньги — когда этот маршрут проходят другие люди через тебя. Завтра добираем с того же человека ещё десятки тысяч на кредитках и МФО. Послезавтра — где находить первых людей, как их вести и как масштабироваться до 300–500 тысяч в месяц.</p>
     <div class="next">
       <div class="nx" data-r style="--i:0">
         <svg class="lockic" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
@@ -715,7 +788,8 @@ footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacin
         <span class="d">День 3 · послезавтра</span>
         <h3>Связки и масштабирование</h3>
         <ul>
-          <li>Где брать людей без бюджета, когда друзья кончились</li>
+          <li>Как найти первых клиентов без бюджета</li>
+          <li>Где брать людей, когда друзья кончились</li>
           <li>Как друг приводит друга и цепочка растёт сама</li>
           <li>Как выйти на 300–500 тысяч в месяц</li>
           <li class="bl">Моя личная связка с роликами</li>
