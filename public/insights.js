@@ -19,6 +19,7 @@ export function worklist(leads, offers, now = Date.now()) {
   const applied = [];
   const stale = [];
   const dues = [];
+  const onCard = [];
 
   for (const lead of leads) {
     const active = ACTIVE_STAGES.has(lead.stage);
@@ -29,6 +30,7 @@ export function worklist(leads, offers, now = Date.now()) {
       if (lo.dueAt && lo.dueAt <= today && !["paid", "rejected", "exists"].includes(lo.status)) {
         dues.push({ lead, id, name: offerName(offers, id), status: lo.status, amount: lo.amount, dueAt: lo.dueAt, overdue: lo.dueAt < today });
       }
+      if (lo.status === "paid" && lo.onCard) onCard.push({ lead, id, name: offerName(offers, id), amount: lo.amount, days: daysSince(lo.changedAt, now) });
       if (by[lo.status]) by[lo.status].push({ id, name: offerName(offers, id), amount: lo.amount, days: daysSince(lo.changedAt, now) });
     }
     const sum = (items) => items.reduce((s, i) => s + i.amount, 0);
@@ -50,6 +52,7 @@ export function worklist(leads, offers, now = Date.now()) {
     waiting: waiting.sort((a, b) => b.days - a.days || b.sum - a.sum),
     applied: applied.sort(bySum),
     stale: stale.sort((a, b) => b.days - a.days),
+    onCard: onCard.sort((a, b) => (b.days ?? 0) - (a.days ?? 0)),
   };
 }
 

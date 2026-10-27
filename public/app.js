@@ -1,5 +1,5 @@
 import { leadMoney, sumMoney, ACTIVE_STAGES } from "./economics.js";
-import { STAGE_LABELS, STATUS_LABELS, STATUS_SHORT, CATEGORY_LABELS } from "./labels.js";
+import { STAGE_LABELS, STATUS_LABELS, STATUS_SHORT, CATEGORY_LABELS, TAG_LABELS, statusKey, statusLabel, statusOrder, nextStatusFor, statusPatch } from "./labels.js";
 import { worklist, paidEvents, todayKey, addDays, daysSince, netOf, networkReport, networkOf } from "./insights.js";
 
 const tg = window.Telegram?.WebApp;
@@ -17,7 +17,6 @@ const AUTH_ERRORS = {
 const ROLE_LABELS = { admin: "Админ", manager: "Менеджер" };
 // Порядок офферов в карточке: сначала то, что требует действий.
 const STATUS_ORDER = ["opened", "applied", "done", "paid", "rejected", "exists", "none"];
-const QUICK_STATUSES = ["applied", "opened", "done", "paid", "rejected", "exists", "none"];
 
 const state = {
   me: null,
@@ -30,7 +29,9 @@ const state = {
   tab: "today",
   leadId: null,
   more: null, // offers | settings | team | data
-  filter: "all",
+  filter: "all", // можно несколько через запятую: "in_work,lost"
+  tags: [], // фильтр по тегам ИП/МФО/РКО/ДК/КК
+  ledger: null, // сколько фактически выплачено по строкам отчёта
   sort: "recent",
   query: "",
   offerFilter: null, // { id, cond: none|work|paid|dead }
@@ -166,12 +167,17 @@ function openSheet(html, onMount, { instant = false } = {}) {
   sheet.scrollTop = prevScroll;
   onMount?.(sheet);
 }
+// Перед закрытием снимаем фокус: iOS иначе теряет недописанное поле (change не успевает сработать).
+function blurInput() {
+  if (document.activeElement?.matches?.("input, textarea, select")) document.activeElement.blur();
+}
 function closeSheet() {
+  blurInput();
   document.querySelector(".sheet-wrap")?.remove();
 }
 
 // ---------- shared pieces ----------
-const statusPill = (status) => `<span class="pill st-${status}">${STATUS_SHORT[status]}</span>`;
+const statusPill = (key, category) => `<span class="pill st-${key}">${statusLabel(key, category, true)}</span>`;
 const stageBadge = (stage) => `<span class="badge s-${stage}">${STAGE_LABELS[stage] || stage}</span>`;
 
 // Аватар: инициалы на градиенте, цвет стабилен для лида.
@@ -199,13 +205,15 @@ function leadRow(lead, sub, right, actions = "") {
 }
 
 // Быстрые кнопки «следующий шаг» прямо в списке: ЦД сделали, засчитали, счёт открыли.
-const NEXT_STATUS = { applied: "opened", opened: "done", done: "paid" };
-const NEXT_LABEL = { applied: "счёт ✓", opened: "ЦД ✓", done: "засчитано ✓" };
 const shortName = (n) => n.replace(/ — РКО$/, "").replace(/ — Регбиз$/, "").replace(/ Банк$/, "");
 const quickButtons = (lead, items, status, max = 3) =>
   items
     .slice(0, max)
-    .map((i) => `<button class="qbtn st-${NEXT_STATUS[status]}" data-quick="${lead.id}|${i.id}|${NEXT_STATUS[status]}">${esc(shortName(i.name))} · ${NEXT_LABEL[status]}</button>`)
+    .map((i) => {
+      const cat = offerById(i.id)?.category;
+      const next = nextStatusFor(status, cat);
+      return `<button class="qbtn st-${next}" data-quick="${lead.id}|${i.id}|${next}">${esc(shortName(i.name))} · ${statusLabel(next, cat, true)} ✓</button>`;
+    })
     .join("") + (items.length > max ? `<span class="qmore">+ ещё ${items.length - max}</span>` : "");
 
 function reportRows(m) {
@@ -221,6 +229,64 @@ function reportRows(m) {
     ${rows.map(([k, v]) => `<div class="row"><div class="grow">${esc(k)}</div><div class="right">${v < 0 ? "−" : ""}${rub(Math.abs(v))}</div></div>`).join("")}
     <div class="row total"><div class="grow">Чистая выручка</div><div class="right">${rub(m.net)}</div></div>
   </div>`;
+}
+
+// Факт: сколько реально получено от сетей и выплачено Дамиру, в налог, лидам, на затраты.
+function ledgerRows(m) {
+  const s = state.settings;
+  return [
+    ["income", "Доход", m.income, "получено от сетей", "сети ещё должны"],
+    ["costs", "Затраты", m.costs, "оплачено", "осталось оплатить"],
+    ["partner", `${s.partnerName} ${s.partnerShare}%`, m.partner, "выплачено", "осталось выплатить"],
+    ["tax", `Налог ${s.taxRate}%`, m.tax, "уплачено", "осталось уплатить"],
+    ["payout", "Лидам", m.payout, "выплачено", "осталось выплатить"],
+  ];
+}
+
+function ledgerBlock(m) {
+  const L = state.ledger;
+  const onHands = L.income - L.costs - L.partner - L.tax - L.payout;
+  return `<div class="list-head"><h2 style="margin:0">Факт · что уже выплачено</h2><button class="link" id="ledgerEdit">✏️ Заполнить</button></div>
+    <div class="list">
+      ${ledgerRows(m)
+        .map(([k, label, calc, done, left]) => {
+          const rest = Math.round(calc - L[k]);
+          return `<div class="row"><div class="grow"><div class="title">${esc(label)}</div><div class="sub">по отчёту ${rub(calc)} · ${done} ${rub(L[k])}</div></div><div class="right ${rest > 0 ? "money-orange" : rest < 0 ? "danger" : "money-green"}">${rest > 0 ? `${left}<br><b>${rub(rest)}</b>` : rest < 0 ? `переплата<br><b>${rub(-rest)}</b>` : "✓ закрыто"}</div></div>`;
+        })
+        .join("")}
+      <div class="row total"><div class="grow">Реально на руках<div class="sub">получено − всё выплаченное</div></div><div class="right">${rub(onHands)}</div></div>
+    </div>
+    <div class="sub note">${L.updatedAt ? `Обновил ${esc(L.by)} ${fmtDate(L.updatedAt.slice(0, 10))}` : "Пока не заполнено — жми «Заполнить» и впиши, сколько уже реально прошло денег."}</div>`;
+}
+
+function ledgerSheet(m) {
+  const L = state.ledger;
+  const received = networkReport(state.leads, state.offers, state.payouts).reduce((t, n) => t + n.received, 0);
+  openSheet(
+    `<h2 class="sheet-title">Сколько уже выплачено</h2>
+    <div class="explain">Впиши суммы нарастающим итогом за всё время — сколько денег реально прошло. Приложение покажет, сколько ещё осталось по каждой строке отчёта.</div>
+    ${ledgerRows(m)
+      .map(([k, label, calc, done]) => `<label class="field"><span>${esc(label)} — ${done} (по отчёту ${rub(calc)})</span><input data-l="${k}" type="number" inputmode="decimal" min="0" value="${L[k] || ""}" placeholder="0"></label>
+        ${k === "income" && received ? `<button class="chip" id="useReceived" style="margin:-4px 0 10px">Подставить из сверки с сетями: ${rub(received)}</button>` : ""}`)
+      .join("")}
+    <button class="btn block" id="lSave">Сохранить</button>
+    ${L.history?.length ? `<h2>История правок</h2><div class="list history">${L.history.slice(0, 10).map((x) => `<div class="row"><div class="grow"><div class="sub">${esc(x.text)}</div></div><div class="right sub">${esc(x.by)}<br>${fmtDate(x.at.slice(0, 10))}</div></div>`).join("")}</div>` : ""}`,
+    (el) => {
+      el.querySelector("#useReceived")?.addEventListener("click", () => (el.querySelector('[data-l="income"]').value = received));
+      el.querySelector("#lSave").onclick = async () => {
+        const body = Object.fromEntries([...el.querySelectorAll("[data-l]")].map((i) => [i.dataset.l, i.value || 0]));
+        try {
+          state.ledger = await api("PUT", "/ledger", body);
+          haptic("medium");
+          closeSheet();
+          toast("Сохранено");
+          render();
+        } catch (e) {
+          toast(`Ошибка: ${e.message}`);
+        }
+      };
+    },
+  );
 }
 
 // Блок экрана «Сегодня»: 5 самых важных + переход ко всему списку.
@@ -244,6 +310,7 @@ function render() {
 }
 
 function go(patch) {
+  blurInput();
   Object.assign(state, patch);
   closeSheet();
   window.scrollTo(0, 0);
@@ -304,7 +371,7 @@ function renderToday() {
     </div>
 
     ${section("⏰", "Сроки по офферам", w.dues, (d) =>
-      leadRow(d.lead, `${esc(d.name.replace(/ — РКО$/, ""))} · ${statusPill(d.status)}`, `<span class="badge ${d.overdue ? "warn" : ""}">${d.overdue ? "просрочено " : ""}${fmtDate(d.dueAt)}</span>`),
+      leadRow(d.lead, `${esc(d.name.replace(/ — РКО$/, ""))} · ${statusPill(statusKey(d.lead.offers[d.id]), offerById(d.id)?.category)}`, `<span class="badge ${d.overdue ? "warn" : ""}">${d.overdue ? "просрочено " : ""}${fmtDate(d.dueAt)}</span>`),
       { max: 10 },
     )}
 
@@ -324,6 +391,7 @@ function renderToday() {
       leadRow(x.lead, "", `<b>${rub(x.sum)}</b>${x.days ? `<div class="sub">${x.days} дн.</div>` : ""}`, quickButtons(x.lead, x.items, "applied")),
       { filter: "applied" },
     )}
+    ${section("💳", "МФО: деньги ещё на карте у лида", w.onCard, (x) => leadRow(x.lead, `${esc(x.name)} · засчитано, деньги не забрали`, `<b>${rub(x.amount)}</b>${x.days ? `<div class="sub ${x.days >= 5 ? "danger" : ""}">${x.days} дн.</div>` : ""}`), { max: 10 })}
     ${section("🐢", "Без движения 5+ дней", w.stale, (x) => leadRow(x.lead, `${stageBadge(x.lead.stage)} в работе ${rub(x.sum)}`, `<span class="danger">${x.days} дн.</span>`), { filter: "stale" })}
     ${!tasks && !w.applied.length && !w.stale.length ? `<div class="card empty">🔥 Всё разобрано. Время заводить новых лидов.</div>` : ""}
   `;
@@ -365,9 +433,12 @@ function filterLeads() {
     new: (l) => l.stage === "new",
     closed: (l) => l.stage === "closed",
     lost: (l) => l.stage === "lost",
-  }[state.filter] || ((l) => l.stage === state.filter);
+  };
+  // Несколько выбранных фильтров складываются: «В работе» + «Слились» = и те, и другие.
+  const sel = selectedFilters();
   const list = state.leads
-    .filter(pass)
+    .filter((l) => !sel.length || sel.some((f) => (pass[f] || ((x) => x.stage === f))(l)))
+    .filter((l) => !state.tags.length || state.tags.some((t) => l.tags?.includes(t)))
     .filter((l) => !q || `${l.telegram} ${l.fio} ${l.phone || ""} ${l.source} ${l.nextStep || ""}`.toLowerCase().includes(q))
     .filter((l) => {
       const f = state.offerFilter;
@@ -384,6 +455,11 @@ function filterLeads() {
   };
   return list.sort(sorters[state.sort]);
 }
+
+const selectedFilters = () => state.filter.split(",").filter((f) => f && f !== "all");
+const tagPills = (tags) => (tags || []).map((t) => `<span class="pill tag">${TAG_LABELS[t]}</span>`).join(" ");
+const tagChips = (active, attr = "data-tag") =>
+  Object.entries(TAG_LABELS).map(([t, label]) => `<button class="chip tag ${active.includes(t) ? "active" : ""}" ${attr}="${t}">${label}</button>`).join("");
 
 const dupCount = () => {
   const seen = new Map();
@@ -417,19 +493,21 @@ function renderLeads() {
       <button class="btn round" id="addLead" aria-label="Новый лид">＋</button>
     </div>
     <div class="chips">
-      ${FILTERS.map(([f, label]) => `<button class="chip ${state.filter === f ? "active" : ""}" data-filter="${f}">${label}</button>`).join("")}
+      ${FILTERS.map(([f, label]) => `<button class="chip ${(f === "all" ? !selectedFilters().length : selectedFilters().includes(f)) ? "active" : ""}" data-filter="${f}">${label}</button>`).join("")}
     </div>
+    <div class="chips tight tags-row"><span class="sub">Теги:</span>${tagChips(state.tags, "data-tagfilter")}</div>
+    ${selectedFilters().length > 1 ? `<div class="sub" style="margin:0 4px 6px">Показаны сразу: ${selectedFilters().map((f) => FILTERS.find((x) => x[0] === f)?.[1] || STAGE_LABELS[f] || f).join(" + ")} · «Все» — сбросить</div>` : ""}
     ${state.offerFilter ? `<div class="chips tight" style="margin:0 0 8px"><button class="chip active" id="offerFilterClear">${esc(offerById(state.offerFilter.id)?.name.replace(/ — РКО$/, "") || "")}: ${OFFER_CONDS[state.offerFilter.cond]} ✕</button></div>` : ""}
     <div class="list-head">
-      <span>${list.length} ${plural(list.length, "лид", "лида", "лидов")} · <button class="link" id="offerFilter">🏦 Фильтр по офферу</button></span>
+      <span>${splitSide(list).main.length} ${plural(splitSide(list).main.length, "лид", "лида", "лидов")} · <button class="link" id="offerFilter">🏦 Фильтр по офферу</button></span>
       <select id="sort">${SORTS.map(([s, label]) => `<option value="${s}" ${state.sort === s ? "selected" : ""}>${label}</option>`).join("")}</select>
     </div>
-    <div id="leadList">${leadListHtml(list)}</div>`;
+    <div id="leadList">${leadsBlock(list)}</div>`;
 
   const $q = document.getElementById("q");
   $q.addEventListener("input", () => {
     state.query = $q.value;
-    document.getElementById("leadList").innerHTML = leadListHtml(filterLeads());
+    document.getElementById("leadList").innerHTML = leadsBlock(filterLeads());
   });
   document.getElementById("mergeDups")?.addEventListener("click", (e) => mergeDuplicates(e.target));
   document.getElementById("offerFilter").onclick = offerFilterSheet;
@@ -439,6 +517,11 @@ function renderLeads() {
     renderLeads();
   };
   document.getElementById("addLead").onclick = addLeadSheet;
+  $app.querySelectorAll("[data-tagfilter]").forEach((b) => (b.onclick = () => {
+    const t = b.dataset.tagfilter;
+    state.tags = state.tags.includes(t) ? state.tags.filter((x) => x !== t) : [...state.tags, t];
+    renderLeads();
+  }));
 }
 
 const OFFER_CONDS = { none: "ещё не делали", work: "в работе", paid: "засчитан", dead: "отказ / уже есть" };
@@ -465,12 +548,32 @@ function offerFilterSheet() {
   );
 }
 
+// «Цикл закрыт» и «Слились» не мешают в основном списке — уходят в свёрнутые блоки внизу.
+// Если явно выбран фильтр этого этапа — показываем их как обычно.
+const SIDE_STAGES = [["closed", "✅ Цикл закрыт"], ["lost", "😶 Слились"]];
+const splitSide = (list) => {
+  const sel = selectedFilters();
+  const side = SIDE_STAGES.filter(([st]) => !sel.includes(st)).map(([st, title]) => ({ st, title, items: list.filter(({ l }) => l.stage === st) }));
+  const hidden = new Set(side.map((x) => x.st));
+  return { main: list.filter(({ l }) => !hidden.has(l.stage)), side: side.filter((x) => x.items.length) };
+};
+
+state.sideOpen = {};
+function leadsBlock(list) {
+  const { main, side } = splitSide(list);
+  return `${main.length || !side.length ? leadListHtml(main) : ""}
+    ${side.map((x) => `<details class="cat side-block" data-side="${x.st}" ${state.sideOpen[x.st] ? "open" : ""}><summary><span>${x.title}</span><span class="sub">${x.items.length}</span></summary>${leadListHtml(x.items)}</details>`).join("")}`;
+}
+// toggle не всплывает — ловим на захвате, чтобы блок не схлопывался при перерисовке
+document.addEventListener("toggle", (e) => e.target.dataset?.side && (state.sideOpen[e.target.dataset.side] = e.target.open), true);
+
 function leadListHtml(list) {
   if (!list.length) return `<div class="card empty">Никого не нашёл</div>`;
   return `<div class="list">${list
     .map(({ l, m }) => {
       const cd = Object.values(l.offers || {}).filter((o) => o.status === "opened").length;
       const bits = [stageBadge(l.stage)];
+      if (l.tags?.length) bits.push(tagPills(l.tags));
       if (cd) bits.push(`<span class="pill st-opened">ЦД ×${cd}</span>`);
       if (m.waiting) bits.push(`<span class="pill st-done">ждём ${short(m.waiting)}</span>`);
       if (l.remindAt) bits.push(`<span class="badge">🔔 ${fmtDate(l.remindAt)}</span>`);
@@ -492,13 +595,16 @@ function addLeadSheet() {
     <label class="field"><span>ФИО</span><input id="nFio" placeholder="Можно потом"></label>
     <label class="field"><span>Телефон</span><input id="nPhone" type="tel" placeholder="Можно потом"></label>
     <label class="field"><span>Откуда пришёл</span><input id="nSrc" placeholder="YouTube, Reels, партнёр…"></label>
+    <div class="field"><span>На что крутить</span></div>
+    <div class="chips tight" id="nTags" style="margin-bottom:10px">${tagChips([])}</div>
     <div class="chips tight" style="margin-bottom:6px">${[...new Set([...sources, "YouTube", "Reels", "Telegram", "Сарафан", "Партнёр"])].slice(0, 8).map((x) => `<button class="chip" data-src="${esc(x)}">${esc(x)}</button>`).join("")}</div>
     <button class="btn block" id="nSave">Создать и открыть</button>`,
     (el) => {
       el.querySelector("#nTg").focus();
+      el.querySelectorAll("[data-tag]").forEach((b) => (b.onclick = () => b.classList.toggle("active")));
       el.querySelectorAll("[data-src]").forEach((b) => (b.onclick = () => (el.querySelector("#nSrc").value = b.dataset.src)));
       el.querySelector("#nSave").onclick = async () => {
-        const body = { telegram: el.querySelector("#nTg").value, fio: el.querySelector("#nFio").value, phone: el.querySelector("#nPhone").value, source: el.querySelector("#nSrc").value };
+        const body = { telegram: el.querySelector("#nTg").value, fio: el.querySelector("#nFio").value, phone: el.querySelector("#nPhone").value, source: el.querySelector("#nSrc").value, tags: [...el.querySelectorAll("[data-tag].active")].map((b) => b.dataset.tag) };
         if (!body.telegram.trim() && !body.fio.trim()) return toast("Нужен ник или ФИО");
         const dup = body.telegram && state.leads.find((l) => l.telegram.toLowerCase() === `@${body.telegram.replace(/^@/, "")}`.toLowerCase());
         if (dup && !(await confirmDialog(`${dup.telegram} уже есть в базе. Всё равно создать?`))) return;
@@ -550,6 +656,7 @@ function renderLead() {
     <div class="chips stages">
       ${Object.entries(STAGE_LABELS).map(([s, label]) => `<button class="chip ${lead.stage === s ? "active" : ""}" data-stage="${s}">${label}</button>`).join("")}
     </div>
+    <div class="chips tight tags-row"><span class="sub">На что крутить:</span>${tagChips(lead.tags || [])}</div>
 
     <div class="kpis three">
       <div class="kpi"><div class="label">Чистая</div><div class="value money-green">${rub(m.net)}</div></div>
@@ -612,6 +719,11 @@ function renderLead() {
     if (v) saveLead(lead.id, { addPayout: v }, `💵 Выплата +${rub(v)}`);
   };
   $app.querySelectorAll("[data-stage]").forEach((b) => (b.onclick = () => b.dataset.stage !== lead.stage && saveLead(lead.id, { stage: b.dataset.stage })));
+  $app.querySelectorAll("[data-tag]").forEach((b) => (b.onclick = () => {
+    const t = b.dataset.tag;
+    const cur = lead.tags || [];
+    saveLead(lead.id, { tags: cur.includes(t) ? cur.filter((x) => x !== t) : [...cur, t] });
+  }));
   const $next = document.getElementById("nextStep");
   $next.addEventListener("change", () => saveLead(lead.id, { nextStep: $next.value }));
   $app.querySelectorAll("[data-remind]").forEach(
@@ -625,8 +737,8 @@ function renderLead() {
 
 const offerRowHtml = ({ id, lo, o }) => `<button class="row" data-offer="${id}">
   <div class="grow"><div class="title">${esc(o.name)}</div>
-    <div class="sub">${[o.partner, lo.comment].filter(Boolean).map(esc).join(" · ")}</div></div>
-  <div class="right">${statusPill(lo.status)}<div class="sub">${lo.dueAt ? `<span class="${lo.dueAt <= todayKey() ? "danger" : ""}">⏰ ${fmtDate(lo.dueAt)}</span> · ` : ""}${rub(lo.amount)}${lo.cost ? ` · −${short(lo.cost)}` : ""}</div></div>
+    <div class="sub">${[networkOf(lo, o), lo.comment].filter(Boolean).map(esc).join(" · ")}</div></div>
+  <div class="right">${statusPill(statusKey(lo), o.category)}<div class="sub">${lo.dueAt ? `<span class="${lo.dueAt <= todayKey() ? "danger" : ""}">⏰ ${fmtDate(lo.dueAt)}</span> · ` : ""}${rub(lo.amount)}${lo.cost ? ` · −${short(lo.cost)}` : ""}</div></div>
 </button>`;
 
 const addLocal = (days) => {
@@ -643,18 +755,19 @@ function offerSheet(lead, offerId, opts) {
   const lo = lead.offers[offerId] || { status: "none", amount: o.amount, cost: o.cost || 0, comment: "", dueAt: "" };
   const save = async (patch, okText) => {
     const updated = await saveLead(lead.id, { offers: { [offerId]: patch } }, okText);
-    if (updated) offerSheet(updated, offerId, { instant: true });
+    // перерисовываем окно, только если оно ещё открыто (могли закрыть, пока сохранялось)
+    if (updated && document.getElementById("oAmount")) offerSheet(updated, offerId, { instant: true });
   };
   openSheet(
     `<div class="sheet-head">
       <div><h2 class="sheet-title">${esc(o.name)}</h2>
-      <div class="sub">${[o.partner, CATEGORY_LABELS[o.category], o.note].filter(Boolean).map(esc).join(" · ")}</div></div>
+      <div class="sub">${[networkOf(lo, o), CATEGORY_LABELS[o.category], o.note].filter(Boolean).map(esc).join(" · ")}</div></div>
       <button class="btn small" id="oDone">Готово</button>
     </div>
 
     <div class="sheet-label">Статус</div>
     <div class="status-grid">
-      ${QUICK_STATUSES.map((st) => `<button class="status-btn st-${st} ${lo.status === st ? "current" : ""}" data-set="${st}">${lo.status === st ? "● " : ""}${STATUS_LABELS[st]}</button>`).join("")}
+      ${(statusOrder(o.category).includes(statusKey(lo)) ? statusOrder(o.category) : [statusKey(lo), ...statusOrder(o.category)]).map((st) => `<button class="status-btn st-${st} ${statusKey(lo) === st ? "current" : ""}" data-set="${st}">${statusKey(lo) === st ? "● " : ""}${statusLabel(st, o.category)}</button>`).join("")}
     </div>
 
     <div class="sheet-label">Деньги</div>
@@ -674,6 +787,7 @@ function offerSheet(lead, offerId, opts) {
     <div class="card">
       <input id="oNet" value="${esc(networkOf(lo, o))}" list="netList" placeholder="RKO Group, Бизнес Система, FCN…">
       <datalist id="netList">${[...new Set(state.offers.map((x) => x.partner).filter(Boolean))].map((x) => `<option value="${esc(x)}">`).join("")}</datalist>
+      ${lo.amount !== o.amount || (lo.network && lo.network !== o.partner) ? `<button class="chip" id="oTpl" style="margin-top:8px">📌 Сделать шаблоном: ${rub(lo.amount)}${lo.network ? " · " + esc(lo.network) : ""} — для новых лидов</button>` : ""}
       ${lo.status === "paid" && isAdmin() ? `<button class="chip ${lo.received ? "active" : ""}" id="oRecv" style="margin-top:8px">${lo.received ? "💰 Деньги от сети получены" : "Отметить: деньги от сети пришли"}</button>` : ""}
     </div>
 
@@ -697,10 +811,10 @@ function offerSheet(lead, offerId, opts) {
       el.querySelectorAll("[data-set]").forEach(
         (b) =>
           (b.onclick = () => {
-            if (b.dataset.set === lo.status) return;
-            const label = `${o.name.replace(/ — РКО$/, "")}: ${STATUS_SHORT[b.dataset.set]}`;
-            if (b.dataset.set === "paid") celebrate(lo.amount);
-            save({ status: b.dataset.set }, label);
+            if (b.dataset.set === statusKey(lo)) return;
+            const label = `${o.name.replace(/ — РКО$/, "")}: ${statusLabel(b.dataset.set, o.category, true)}`;
+            if ((b.dataset.set === "paid" || b.dataset.set === "oncard") && lo.status !== "paid") celebrate(lo.amount);
+            save(statusPatch(b.dataset.set), label);
           }),
       );
       el.querySelector("#oAmount").onchange = (e) => save({ amount: e.target.value }, "Ставка сохранена");
@@ -711,6 +825,16 @@ function offerSheet(lead, offerId, opts) {
         if (v > 0) save({ addCost: v }, `Затраты +${v} ₽`);
       };
       el.querySelector("#oNet").onchange = (e) => save({ network: e.target.value === (o.partner || "") ? "" : e.target.value }, "Сеть сохранена");
+      el.querySelector("#oTpl")?.addEventListener("click", async () => {
+        try {
+          const r = await api("PATCH", `/offers/${offerId}`, { amount: lo.amount, ...(lo.network ? { partner: lo.network } : {}) });
+          state.offers = r.offers;
+          toast("📌 Шаблон оффера обновлён");
+          offerSheet(lead, offerId, { instant: true });
+        } catch (e) {
+          toast(`Ошибка: ${e.message}`);
+        }
+      });
       el.querySelector("#oRecv")?.addEventListener("click", () => save({ received: !lo.received }, lo.received ? "Отметка снята" : "💰 Отмечено: деньги пришли"));
       const $c = el.querySelector("#oComment");
       $c.onchange = () => save({ comment: $c.value }, "Комментарий сохранён");
@@ -730,6 +854,40 @@ function offerSheet(lead, offerId, opts) {
       el.querySelector("#oDue").onchange = (e) => e.target.value && save({ dueAt: e.target.value }, `⏰ Срок ${fmtDate(e.target.value)}`);
     },
     opts,
+  );
+}
+
+// Шаблон оффера из каталога: то, что подставляется новым лидам.
+function offerTemplateSheet(offerId, back) {
+  const o = offerById(offerId);
+  openSheet(
+    `<h2 class="sheet-title">Шаблон: ${esc(o.name)}</h2>
+    <div class="explain">Эти данные подставляются, когда оффер добавляют лиду. У лидов, где оффер уже есть, ничего не меняется.</div>
+    <label class="field"><span>Название</span><input id="tName" value="${esc(o.name)}"></label>
+    <div class="two">
+      <label class="field"><span>Ставка, ₽</span><input id="tAmount" type="number" inputmode="decimal" value="${o.amount || ""}"></label>
+      <label class="field"><span>Затраты, ₽</span><input id="tCost" type="number" inputmode="decimal" value="${o.cost || ""}"></label>
+    </div>
+    <label class="field"><span>Партнёрская сеть</span><input id="tNet" list="tNets" value="${esc(o.partner)}"></label>
+    <datalist id="tNets">${[...new Set(state.offers.map((x) => x.partner).filter(Boolean))].map((x) => `<option value="${esc(x)}">`).join("")}</datalist>
+    <label class="field"><span>Заметка</span><input id="tNote" value="${esc(o.note || "")}" placeholder="Условия, нюансы"></label>
+    <button class="btn block" id="tSave">Сохранить шаблон</button>
+    <button class="btn ghost block" id="tHide" style="margin-top:8px">${o.active ? "Скрыть из списка (оффер не работает)" : "Вернуть в список"}</button>`,
+    (el) => {
+      const send = async (patch, text) => {
+        try {
+          const r = await api("PATCH", `/offers/${offerId}`, patch);
+          state.offers = r.offers;
+          toast(text);
+          back();
+        } catch (e) {
+          toast(`Ошибка: ${e.message}`);
+        }
+      };
+      el.querySelector("#tSave").onclick = () =>
+        send({ name: el.querySelector("#tName").value, amount: el.querySelector("#tAmount").value, cost: el.querySelector("#tCost").value, partner: el.querySelector("#tNet").value, note: el.querySelector("#tNote").value }, "Шаблон сохранён");
+      el.querySelector("#tHide").onclick = () => send({ active: !o.active }, o.active ? "Оффер скрыт" : "Оффер возвращён");
+    },
   );
 }
 
@@ -795,6 +953,7 @@ function addOfferSheet(lead) {
   openSheet(
     `<h2 class="sheet-title">Добавить оффер</h2>
     <div class="sub" style="margin:-6px 4px 10px">Тап — заявка заведена. Статус потом меняется в один тап.</div>
+    <div class="chips tight"><button class="chip" id="editMode">✏️ Править шаблоны (ставка, сеть)</button></div>
     <button class="btn ghost block" id="newOfferToggle">＋ Новый оффер — которого нет в списке</button>
     <div class="card new-offer" id="newOffer" hidden>
       <label class="field"><span>Название</span><input id="noName" placeholder="Например: Совкомбанк — РКО"></label>
@@ -820,6 +979,12 @@ function addOfferSheet(lead) {
         e.target.hidden = true;
         el.querySelector("#noName").focus();
       };
+      let editing = false;
+      el.querySelector("#editMode").onclick = (e) => {
+        editing = !editing;
+        e.target.classList.toggle("active", editing);
+        e.target.textContent = editing ? "✏️ Режим правки: тапни оффер · выключить" : "✏️ Править шаблоны (ставка, сеть)";
+      };
       let cat = "rko";
       el.querySelectorAll("[data-cat]").forEach((b) => (b.onclick = () => {
         cat = b.dataset.cat;
@@ -842,6 +1007,7 @@ function addOfferSheet(lead) {
       el.querySelectorAll("[data-add]").forEach(
         (b) =>
           (b.onclick = () => {
+            if (editing) return offerTemplateSheet(b.dataset.add, () => addOfferSheet(lead));
             closeSheet();
             const o = offerById(b.dataset.add);
             saveLead(lead.id, { offers: { [o.id]: { status: "applied" } } }, `${o.name.replace(/ — РКО$/, "")}: заявка заведена`);
@@ -1113,7 +1279,8 @@ function renderStats() {
     ${hbars(Object.entries(counts).map(([st, n]) => ({ label: STAGE_LABELS[st], value: n, act: `data-stagego="${st}"` })), (r) => String(r.value))}
 
     <h2>Отчётный лист · всё время</h2>
-    ${reportRows(totals)}`;
+    ${reportRows(totals)}
+    ${isAdmin() && state.ledger ? ledgerBlock(totals) : ""}`;
 
   $app.querySelectorAll("[data-period]").forEach((b) => (b.onclick = () => go({ period: b.dataset.period })));
   $app.querySelector("[data-paidrange]").onclick = () => paidSheet(`Засчитано · ${PERIODS.find((p) => p[0] === state.period)[1]}`, inRange);
@@ -1123,6 +1290,7 @@ function renderStats() {
   $app.querySelectorAll("[data-netgo]").forEach((r) => (r.onclick = () => go({ tab: "more", more: "payouts", network: r.dataset.netgo })));
   $app.querySelectorAll("[data-stagego]").forEach((r) => (r.onclick = () => go({ tab: "leads", filter: r.dataset.stagego, query: "" })));
   bindCharts(all);
+  document.getElementById("ledgerEdit")?.addEventListener("click", () => ledgerSheet(totals));
 }
 
 // Тап по столбику: подпись + «Подробнее».
@@ -1652,7 +1820,7 @@ $app.addEventListener("click", (e) => {
     const o = offerById(offerId);
     if (status === "paid") celebrate(lead?.offers[offerId]?.amount || 0);
     quick.disabled = true;
-    return saveLead(leadId, { offers: { [offerId]: { status } } }, `${leadTitle(lead)} · ${o.name.replace(/ — РКО$/, "")}: ${STATUS_SHORT[status]}`);
+    return saveLead(leadId, { offers: { [offerId]: { status } } }, `${leadTitle(lead)} · ${o.name.replace(/ — РКО$/, "")}: ${statusLabel(status, o.category, true)}`);
   }
   const open = e.target.closest("[data-open]");
   if (open) return go({ leadId: open.dataset.open });
@@ -1666,7 +1834,9 @@ $app.addEventListener("click", (e) => {
   if (jump) return go({ tab: "leads", filter: jump.dataset.goto, query: "", sort: "inwork" });
   const chip = e.target.closest("[data-filter]");
   if (chip) {
-    state.filter = chip.dataset.filter;
+    const f = chip.dataset.filter;
+    const sel = selectedFilters();
+    state.filter = f === "all" ? "all" : (sel.includes(f) ? sel.filter((x) => x !== f) : [...sel, f]).join(",") || "all";
     renderLeads();
   }
 });
@@ -1695,7 +1865,7 @@ document.addEventListener("visibilitychange", () => {
 async function reload() {
   const data = await api("GET", "/state");
   lastLoad = Date.now();
-  Object.assign(state, { me: data.me, offers: data.offers, settings: data.settings, leads: data.leads, payouts: data.payouts || [] });
+  Object.assign(state, { me: data.me, offers: data.offers, settings: data.settings, leads: data.leads, payouts: data.payouts || [], ledger: data.ledger || null });
   render();
 }
 
