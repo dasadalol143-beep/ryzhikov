@@ -286,7 +286,7 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
   if (st) {
     const c = byNick(clients, st.nick);
     if (!c) return reply(`Не нашёл @${h(st.nick)} в CRM. Сначала запиши на созвон или перешли его сообщение — заведу.`);
-    return applyStatus(c, st, { me, store, tg, appUrl, reply, usersMap, settings, env });
+    return applyStatus(c, { ...st, text }, { me, store, tg, appUrl, reply, usersMap, settings, env });
   }
 
   // Ответ реплаем на пересланное ботом сообщение — обратно автору
@@ -321,7 +321,7 @@ async function applyStatus(c, st, { me, store, tg, appUrl, reply, usersMap, sett
       const open = (c.calls || []).filter((x) => !x.outcome).sort((a, b) => Date.parse(a.at) - Date.parse(b.at))[0];
       if (!open) return reply(`У ${who(c)} нет назначенного созвона. Запиши: <code>сегодня у Димы в 14:00 был созвон с ${h(c.telegram || c.name || "клиента")}</code>`);
       await applyAction(c, { type: st.action, callId: open.id }, ctx);
-    } else await applyAction(c, { type: "status", status: st.action, sum: st.sum || c.wantedSum || 0 }, ctx);
+    } else await applyAction(c, { type: "status", status: st.action, sum: st.sum || c.wantedSum || 0, text: st.text || "" }, ctx);
   } catch (e) {
     return reply(`⚠️ ${h(e.message)}`);
   }
@@ -680,6 +680,15 @@ export async function moveCall({ c, call, at, mopId = null }, { me, clients, sto
 async function handleReschedule(rs, deps) {
   const { me, clients, closers, text, reply } = deps;
   const hit = findCallToMove(rs, { me, clients, closers, text });
+  // По @нику созвона нет (поставили «Перенос» без даты) — просто назначаем новый.
+  if (hit.error && rs.nick && !rs.fromTime) {
+    const c = byNick(clients, rs.nick);
+    const mop = findUserInText(text, closers) || (c?.mopId && deps.usersMap[c.mopId]) || (["mop", "rop"].includes(me.role) ? me : null);
+    if (c && mop) {
+      const at = Date.parse(`${rs.toDay}T${rs.toTime}:00+03:00`);
+      return handleBookings([{ at, day: rs.toDay, time: rs.toTime, mop, nick: rs.nick, name: c.name || "", phone: "", text }], deps);
+    }
+  }
   if (hit.error) return reply(hit.error);
   const toDay = rs.toDayExplicit || rs.fromTime ? rs.toDay : mskKey(Date.parse(hit.call.at));
   return moveCall({ c: hit.c, call: hit.call, at: Date.parse(`${toDay}T${rs.toTime}:00+03:00`) }, deps);

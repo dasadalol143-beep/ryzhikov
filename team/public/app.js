@@ -1180,6 +1180,7 @@ function openReport(c, { fresh = false } = {}) {
         if (sh.querySelector("#r-wanted")) body.wantedSum = sh.querySelector("#r-wanted").value;
         const next = sh.querySelector("#r-next")?.value;
         if (next) body.nextAt = new Date(Date.parse(`${next}:00+03:00`)).toISOString();
+        if (status === "resched" && !next && !/\d{1,2}[.:]\d{2}|завтра|числ/i.test(body.nextSteps || "") && !(await confirmDialog("Перенос без даты — созвон в календаре не появится, напоминаний не будет. Сохранить так?"))) return;
         // Закрываем только после сохранения — при ошибке написанный отчёт не пропадает.
         const btn = sh.querySelector("#r-save");
         btn.disabled = true;
@@ -1203,13 +1204,16 @@ function openStatus(c, status) {
   openSheet(
     `<div class="sheet-title">${statusLabel(status)}</div><div class="card"><label class="field"><span>${label}</span><input id="s-sum" inputmode="numeric" value="${status === "prepaid" ? "" : c.wantedSum || ""}" placeholder="100000"></label></div>
     ${status === "paid" ? `<div class="sub" style="margin:8px 4px">Оплата упадёт в зарплатную ведомость — Андрей внесёт чистую и верифицирует.</div>` : ""}
+    ${status === "resched" ? `<div class="card" style="margin-top:8px"><label class="field" style="margin:0"><span>Новый созвон (МСК)</span><input type="datetime-local" id="s-next"></label></div>` : ""}
     <button class="btn block" id="s-save">Сохранить</button>`,
     (sh) => {
       sh.querySelector("#s-save").onclick = async () => {
         const sum = sh.querySelector("#s-sum").value;
+        const next = sh.querySelector("#s-next")?.value;
+        if (status === "resched" && !next && !(await confirmDialog("Перенос без даты — созвон в календаре не появится, напоминаний не будет. Сохранить так?"))) return;
         const btn = sh.querySelector("#s-save");
         btn.disabled = true;
-        const res = await act(c.id, { type: "status", status, sum }, `Статус: ${statusLabel(status)}`);
+        const res = await act(c.id, { type: "status", status, sum, ...(next ? { nextAt: new Date(Date.parse(`${next}:00+03:00`)).toISOString() } : {}) }, `Статус: ${statusLabel(status)}`);
         btn.disabled = false;
         if (!res) return;
         closeSheet();

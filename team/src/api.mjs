@@ -367,6 +367,20 @@ async function setStatus(c, status, { by, sum, store, settings, notes }) {
   log(c, by, `Статус → ${statusLabel(status)}${shown && ["paid", "prepaid", "thinking", "resched", "refuse_bank"].includes(status) ? ` · ${shown.toLocaleString("ru-RU")} ₽` : ""}`);
 }
 
+// «Перенос» с датой — сразу созвон в календаре: из поля «Новый созвон» или из текста («перенос 28.10 20:00»).
+async function reschedCall(c, body, text, mopId, ctx) {
+  if (body.status !== "resched" || !mopId) return;
+  let at = isoOrNull(body.nextAt);
+  if (!at && text) {
+    const { parseWhen } = await import("./nlp.mjs");
+    const t = parseWhen(text);
+    if (t && t > Date.now()) at = new Date(t).toISOString();
+  }
+  if (!at) return;
+  await applyAction(c, { type: "call", at, mopId }, ctx);
+  c.status = "resched";
+}
+
 // Действия с карточкой: созвоны, итоги, отчёт, касания дожима.
 export async function applyAction(c, body, ctx) {
   const { by, store, users, settings } = ctx;
@@ -531,14 +545,12 @@ export async function applyAction(c, body, ctx) {
     }
     if (AFTER_CALL.includes(body.status)) await setStatus(c, body.status, { by, sum: body.sum, store, settings, notes });
     log(c, by, "Отчёт после диагностики");
-    if (body.status === "resched" && isoOrNull(body.nextAt)) {
-      await applyAction(c, { type: "call", at: body.nextAt, mopId: call.mopId }, ctx);
-      c.status = "resched";
-    }
+    await reschedCall(c, body, body.nextSteps || report.nextStep, call.mopId, ctx);
     return;
   }
   if (type === "status") {
     await setStatus(c, body.status, { by, sum: body.sum, store, settings, notes });
+    await reschedCall(c, body, body.text, c.mopId, ctx);
     return;
   }
   if (type === "touch") {
@@ -1206,6 +1218,68 @@ export async function runDataFixes({ store, env, tg, appUrl, now = Date.now() })
       await store.put("meta", "fix-iuuhkkk-v1", { id: "fix-iuuhkkk-v1", at: nowIso(), clientId: c.id });
       done.push(`iuuhkkk:${c.id}`);
     }
+  }
+  // 27.10: разбор сообщения лидоруба отдал @vansa Артёму (имя диагноста со следующей строки), «Перенос» @cool8r без созвона.
+  // По словам Пети: у Димы 28.10 — @vansa в 18:00 и @cool8r в 20:00. Чиним и присылаем Пете сводку созвонов + что писал бот.
+  if (!(await store.get("meta", "fix-2810-v1"))) {
+    const users = (await store.all("user")).filter((u) => u.active !== false);
+    const dima = users.find((u) => /сайгин/i.test(u.name || "")) || users.find((u) => ["mop", "rop"].includes(u.role) && /дмитр|дима/i.test(u.name || ""));
+    const artem = users.find((u) => u.role === "mop" && /арт[её]м|тём|тем/i.test(u.name || ""));
+    const all = await store.all("client");
+    const log2 = [];
+    const ensureCall = async (nick, hhmm) => {
+      let c = all.find((x) => nickKey(x.telegram) === nick);
+      if (!c) {
+        const t = (await store.all("trash")).find((x) => nickKey(x.telegram) === nick);
+        if (t) c = await restoreFromTrash(store, t.id, "system");
+      }
+      if (!c || !dima) return log2.push(`@${nick}: не найден в CRM — не трогал`);
+      const at = new Date(Date.parse(`2026-10-28T${hhmm}:00+03:00`)).toISOString();
+      c.calls ||= [];
+      const open = c.calls.filter((x) => !x.outcome);
+      const prev = open.map((x) => `${fmtWhen(Date.parse(x.at))} · ${users.find((u) => u.id === x.mopId)?.name || "?"}`).join(", ") || "нет";
+      // Ровно один открытый созвон: 28.10 hh:mm у Димы.
+      let keep = open.find((x) => mskKey(Date.parse(x.at)) === "2026-10-28") || open[0];
+      for (const x of open) if (x !== keep) Object.assign(x, { outcome: "moved", movedAt: nowIso() });
+      if (!keep) {
+        keep = { id: randomUUID().slice(0, 8), at, mopId: dima.id, setAt: nowIso(), setBy: "system", outcome: null, notified: {} };
+        c.calls.push(keep);
+      }
+      const prevMop = keep.mopId;
+      if (keep.at !== at || keep.mopId !== dima.id) Object.assign(keep, { at, mopId: dima.id, notified: {} });
+      if (prevMop && prevMop !== dima.id) dropIdleHanded(c, prevMop);
+      c.events ||= [];
+      if (!c.events.some((e) => e.t === "handed" && e.mop === dima.id)) c.events.push({ t: "handed", at: nowIso(), by: "system", mop: dima.id });
+      c.mopId = dima.id;
+      if (["refuse_personal", "refuse_bank", "ignore", "invalid", "archive", "new"].includes(c.status)) Object.assign(c, { status: c.status === "new" ? "in_work" : "resched", statusAt: nowIso() });
+      log(c, "system", `Созвон 28.10 ${hhmm} закреплён за ${dima.name} (исправление ошибки бота, по просьбе Пети)`);
+      c.updatedAt = nowIso();
+      await store.put("client", c.id, c);
+      log2.push(`@${nick} → ${dima.name} 28.10 ${hhmm} (было: ${prev})`);
+      if (tg) {
+        await tg.sendMessage(dima.id, `📅 <b>Поправил созвон</b>: 28.10 (ср) ${hhmm} — ${escapeHtml(clientTitle(c))}${c.telegram && c.name ? ` · ${escapeHtml(c.telegram)}` : ""}\nОн твой. Бот ошибся при разборе сообщения — извини.`, { inline_keyboard: [[{ text: "Карточка", web_app: { url: `${appUrl}?client=${c.id}` } }]] }).catch(() => {});
+        if (artem && prevMop === artem.id) await tg.sendMessage(artem.id, `ℹ️ Созвон 28.10 с ${escapeHtml(clientTitle(c))} ошибочно попал к тебе — это лид Димы, убрал из твоего расписания.`).catch(() => {});
+      }
+    };
+    await ensureCall("vansa", "18:00");
+    await ensureCall("cool8r", "20:00");
+    // Сводка для Пети: все назначенные созвоны 27–28.10 и что бот получал про созвоны за 2 дня.
+    if (tg) {
+      const fresh = await store.all("client");
+      const name = (id) => users.find((u) => u.id === id)?.name || "?";
+      const rows = [];
+      for (const c of fresh) for (const x of c.calls || []) if (!x.outcome && ["2026-10-27", "2026-10-28"].includes(mskKey(Date.parse(x.at)))) rows.push({ t: Date.parse(x.at), line: `${fmtWhen(Date.parse(x.at))} · <b>${escapeHtml(name(x.mopId))}</b> — ${escapeHtml(clientTitle(c))}${c.telegram && c.name ? ` ${escapeHtml(c.telegram)}` : ""} (записал ${escapeHtml(name(x.setBy))})` });
+      rows.sort((a, b) => a.t - b.t);
+      const feed = (await store.all("feed")).filter((f) => f.type === "call" && Date.now() - Date.parse(f.at) < 2 * 86400_000).sort((a, b) => a.at.localeCompare(b.at));
+      const msgs = feed.map((f) => `• ${String(f.at).slice(5, 16).replace("T", " ")} UTC · ${escapeHtml(name(f.by))}: ${escapeHtml(String(f.text).slice(0, 300))}`);
+      const text = `🛠 <b>Исправил созвоны 28.10</b>\n${log2.map((x) => `• ${escapeHtml(x)}`).join("\n")}\n\n📅 <b>Все назначенные созвоны 27–28.10</b>\n${rows.map((r) => r.line).join("\n") || "нет"}`;
+      for (const id of parseIds(env?.OWNER_IDS)) {
+        await tg.sendMessage(id, text.slice(0, 4000)).catch(() => {});
+        if (msgs.length) await tg.sendMessage(id, `💬 <b>Что бот получал про созвоны за 2 дня</b>\n${msgs.join("\n")}`.slice(0, 4000)).catch(() => {});
+      }
+    }
+    await store.put("meta", "fix-2810-v1", { id: "fix-2810-v1", at: nowIso(), log: log2 });
+    done.push(...log2);
   }
   // 17.10: Петя попросил разослать всем полную инструкцию по их роли. Каждому — один раз (отметка по человеку).
   if (tg && !(await store.get("meta", "guides-v1"))?.done) {

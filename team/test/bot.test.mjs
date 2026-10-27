@@ -1057,3 +1057,44 @@ test("relay via AI: «передай Артёму и Диме…» goes to AI, c
   await tell("Какое смс передал?");
   assert.ok(!asks.at(-1).tools.some((t) => t.name === "send_message"));
 });
+
+test("27.10 incident: lidorub list «Дима / 18:00 @vansa / Артем / …» books vansa to Dima; «28 числа»; «Перенос 28.10 20:00» creates the call; data fix", async () => {
+  const { parseBookings, parseWhen } = await import("../src/nlp.mjs");
+  const u = [{ id: "501", name: "Артем", role: "mop" }, { id: "502", name: "Дмитрий Сайгин", role: "mop" }];
+  const now = Date.parse("2026-10-27T15:00:00+03:00");
+  const r = parseBookings("Завтра\nДима\n18:00 Иван @vansa\nАртем\n16:00 Даниил @danil_q\n17:00 @verylongusername123", u, { now });
+  assert.deepEqual(r.map((x) => [x.time, x.mop.id, x.nick]), [["18:00", "502", "vansa"], ["16:00", "501", "danil_q"], ["17:00", "501", "verylongusername123"]]);
+  assert.equal(parseBookings("28 числа Диме в 18:00 Иван @vansa", u, { now })[0].day, "2026-10-28");
+  assert.equal(parseBookings("Диме на 28 число 18.00 Иван @vansa", u, { now })[0].name, "Иван");
+  assert.equal(new Date(parseWhen("перенос 28.10 в 20:00", now)).toISOString(), "2026-10-28T17:00:00.000Z");
+
+  // «Перенос» в отчёте с датой в договорённостях → созвон в календаре
+  const { store, api, sent } = await setup();
+  await api(1, "POST", "/users", { id: "502", role: "mop", name: "Дмитрий Сайгин" });
+  await api(1, "POST", "/users", { id: "501", role: "mop", name: "Артем" });
+  const c = (await api(503, "POST", "/clients", { name: "Иван", telegram: "cool8r" })).body.client;
+  await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at: new Date(Date.now() - 3600_000).toISOString(), mopId: "502" });
+  await api(502, "POST", `/clients/${c.id}/action`, { type: "held" });
+  const future = new Date(Date.now() + 2 * 86400_000);
+  const dd = new Date(future.getTime() + 3 * 3600_000).toISOString();
+  const cl = (await api(502, "POST", `/clients/${c.id}/action`, { type: "report", report: { need: "x" }, status: "resched", sum: 50000, nextSteps: `перенос ${dd.slice(8, 10)}.${dd.slice(5, 7)} в 20:00` })).body.client;
+  const open = cl.calls.filter((x) => !x.outcome);
+  assert.equal(open.length, 1);
+  assert.equal(open[0].at, new Date(Date.parse(`${dd.slice(0, 10)}T20:00:00+03:00`)).toISOString());
+
+  // данные: vansa у Артёма → Диме 28.10 18:00
+  const v = (await api(503, "POST", "/clients", { name: "Иван", telegram: "vansa" })).body.client;
+  await api(503, "POST", `/clients/${v.id}/action`, { type: "call", at: new Date(Date.parse("2026-10-28T18:00:00+03:00")).toISOString(), mopId: "501" });
+  const { runDataFixes } = await import("../src/api.mjs");
+  const tg = { sendMessage: async (chat, text) => sent.push({ chat: String(chat), text }) };
+  await store.put("meta", "fix-iuuhkkk-v1", { id: "fix-iuuhkkk-v1" });
+  await store.put("meta", "guides-v1", { id: "guides-v1", done: true });
+  await runDataFixes({ store, env: { OWNER_IDS: "1" }, tg, appUrl: "https://t/" });
+  const vv = await store.get("client", v.id);
+  assert.equal(vv.mopId, "502");
+  assert.deepEqual(vv.calls.filter((x) => !x.outcome).map((x) => [x.at, x.mopId]), [[new Date(Date.parse("2026-10-28T18:00:00+03:00")).toISOString(), "502"]]);
+  const cc = await store.get("client", c.id);
+  assert.deepEqual(cc.calls.filter((x) => !x.outcome).map((x) => [x.at, x.mopId]), [[new Date(Date.parse("2026-10-28T20:00:00+03:00")).toISOString(), "502"]]);
+  assert.ok(sent.some((m) => m.chat === "1" && /Все назначенные созвоны 27–28\.10/.test(m.text)));
+  assert.ok(sent.some((m) => m.chat === "501" && /ошибочно попал к тебе/.test(m.text)));
+});
