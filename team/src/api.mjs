@@ -367,6 +367,28 @@ async function setStatus(c, status, { by, sum, store, settings, notes }) {
   log(c, by, `Статус → ${statusLabel(status)}${shown && ["paid", "prepaid", "thinking", "resched", "refuse_bank"].includes(status) ? ` · ${shown.toLocaleString("ru-RU")} ₽` : ""}`);
 }
 
+// Диагност уже работал с клиентом: был созвон (пришёл/НДЗ), отчёт или касания дожима.
+export function workedBy(c, mopId) {
+  if (!mopId) return false;
+  return (c.calls || []).some((x) => x.mopId === mopId && (x.outcome === "held" || x.outcome === "ndz" || x.report)) || (c.touches || []).some((t) => t.by === mopId);
+}
+
+// Передать клиента другому диагносту: открытые созвоны и «ведёт» — новому, время то же.
+function transferClient(c, toId, { by, users, notes }) {
+  const to = users?.[toId];
+  if (!to || !["mop", "rop"].includes(to.role)) throw Object.assign(new Error("Передать можно только диагносту (МОП или РОП)"), { status: 400 });
+  const prev = c.mopId || null;
+  if (prev === toId) throw Object.assign(new Error(`${to.name} уже ведёт этого клиента`), { status: 400 });
+  const open = (c.calls || []).filter((x) => !x.outcome);
+  for (const x of open) Object.assign(x, { mopId: toId, notified: {} });
+  c.mopId = toId;
+  if (prev) dropIdleHanded(c, prev);
+  c.events ||= [];
+  if (!c.events.some((e) => e.t === "handed" && e.mop === toId)) event(c, "handed", by, { mop: toId });
+  log(c, by, `Клиент передан: ${users?.[prev]?.name || "—"} → ${to.name}`);
+  notes.push({ t: "handover", from: prev, mop: toId, at: open[0]?.at || null });
+}
+
 // «Перенос» с датой — сразу созвон в календаре: из поля «Новый созвон» или из текста («перенос 28.10 20:00»).
 async function reschedCall(c, body, text, mopId, ctx) {
   if (body.status !== "resched" || !mopId) return;
@@ -467,6 +489,28 @@ export async function applyAction(c, body, ctx) {
       c.statusAt = nowIso();
     }
     log(c, by, `НДЗ ${fmtWhen(Date.parse(call.at))} исправлено: созвон проведён`);
+    return;
+  }
+  // Передать другому диагносту (свой клиент / руководство) или «Забрать себе» (лид не трогали — поставили по ошибке).
+  if (type === "transfer") {
+    const toId = String(body.to || "");
+    const me = users?.[by];
+    const allowed = canTouchClient(me, c) || (toId === by && ["mop", "rop"].includes(me?.role) && !workedBy(c, c.mopId));
+    if (!allowed) throw Object.assign(new Error(`${users?.[c.mopId]?.name || "Диагност"} уже работал с клиентом — отправь ему запрос «Отдай мне»`), { status: 403, code: "need_request" });
+    // У нового диагноста в это время уже созвон — не ставим двоих на одно время.
+    for (const x of (c.calls || []).filter((y) => !y.outcome)) {
+      const clash = (ctx.clients || []).find((o) => o.id !== c.id && (o.calls || []).some((y) => !y.outcome && y.mopId === toId && Math.abs(Date.parse(y.at) - Date.parse(x.at)) < 45 * 60_000));
+      if (clash && !body.force) throw Object.assign(new Error(`У ${users?.[toId]?.name} в ${fmtWhen(Date.parse(x.at))} уже созвон с ${clientTitle(clash)}`), { status: 409, code: "clash" });
+    }
+    transferClient(c, toId, { by, users, notes });
+    return;
+  }
+  // Запрос текущему диагносту «Отдай клиента мне» — решает он (или руководство) кнопкой в боте.
+  if (type === "takeRequest") {
+    if (!c.mopId || c.mopId === by) throw Object.assign(new Error("Клиент и так твой"), { status: 400 });
+    c.takeRequests = [...(c.takeRequests || []).filter((r) => r.by !== by), { by, at: nowIso() }].slice(-5);
+    log(c, by, `Просит передать клиента себе`);
+    notes.push({ t: "takeRequest", from: c.mopId, mop: by, reason: str(body.reason, 300) });
     return;
   }
   if (type === "uncall") {
@@ -745,14 +789,16 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           const call = (body.type === "uncall" && body.callId && c.calls.find((x) => x.id === body.callId)) || currentCall(c);
           return call && call.setBy === by && Date.now() - Date.parse(call.setAt || 0) < 15 * 60_000;
         })();
-        const onlyComment = cm[2] && req.method === "POST" && (body.type === "comment" || ownFresh);
+        // «Забрать себе» и «Отдай мне» проверяются внутри действия (лид не трогали / запрос текущему диагносту).
+        const selfTake = ["mop", "rop"].includes(me.role) && ((body.type === "transfer" && String(body.to) === by) || body.type === "takeRequest");
+        const onlyComment = cm[2] && req.method === "POST" && (body.type === "comment" || ownFresh || selfTake);
         if ((req.method === "PATCH" || (cm[2] && req.method === "POST")) && !onlyComment && !touch(c)) return json({ error: lockedMsg(c) }, 403);
         if (req.method === "PATCH" && ("telegram" in body || "phone" in body)) {
           const next = { telegram: "telegram" in body ? normTelegram(body.telegram) : c.telegram, phone: "phone" in body ? str(body.phone, 40) : c.phone };
           const dup = findDup(await store.all("client"), next, c.id);
           if (dup) return json({ error: `Этот ${"telegram" in body ? "ник" : "телефон"} уже у клиента ${clientTitle(dup)} — открой его или склей дубли`, duplicate: true, client: dup }, 409);
         }
-        const ctx = { by, store, users, settings, notes: [] };
+        const ctx = { by, store, users, settings, notes: [], clients: body.type === "transfer" ? await store.all("client") : null };
         // Продажу ставит руководство или диагност клиента — чтобы не было «чужих» продаж в ведомости.
         if (cm[2] && body.type === "status" && ["paid", "prepaid"].includes(body.status) && !money_ && c.mopId && c.mopId !== by) return json({ error: `Оплату отмечает диагност клиента (${users[c.mopId]?.name || "менеджер"}) или руководство` }, 403);
         // Лидоруба клиента меняет руководство (от этого зависят его 2%); свободное поле можно заполнить.
@@ -915,7 +961,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
 
       return json({ error: "not_found" }, 404);
     } catch (e) {
-      return json({ error: e.message || "error" }, e.status || 500);
+      return json({ error: e.message || "error", code: e.code || null }, e.status || 500);
     }
   };
 }

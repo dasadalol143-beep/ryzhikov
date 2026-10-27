@@ -731,6 +731,58 @@ const MAX_APP_UPLOAD = 20 * 1024 * 1024;
 const sizeText = (n) => (!n ? "" : n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} ГБ` : n >= 1024 ** 2 ? `${Math.round(n / 1024 ** 2)} МБ` : `${Math.max(1, Math.round(n / 1024))} КБ`);
 const durText = (s) => (!s ? "" : s >= 3600 ? `${Math.floor(s / 3600)} ч ${Math.round((s % 3600) / 60)} мин` : `${Math.max(1, Math.round(s / 60))} мин`);
 
+// Диагност уже работал с клиентом (как на сервере): созвон прошёл/НДЗ, отчёт, касания.
+const workedBy = (c, mopId) => !!mopId && ((c.calls || []).some((x) => x.mopId === mopId && (x.outcome === "held" || x.outcome === "ndz" || x.report)) || (c.touches || []).some((t) => t.by === mopId));
+const isCloser = () => ["mop", "rop"].includes(state.me.role);
+
+function handoverBlock(c, locked) {
+  if (isClosed(c.status) || !closers().length) return "";
+  if (!locked) {
+    if (!c.mopId && !currentCall(c)) return "";
+    return `<div class="row-links" style="margin:8px 4px 0"><button class="link" data-handover="${c.id}">🔀 ${c.mopId ? "Передать другому диагносту" : "Назначить диагноста"}</button></div>`;
+  }
+  if (!isCloser() || c.mopId === state.me.id) return "";
+  const asked = (c.takeRequests || []).some((r) => r.by === state.me.id);
+  const worked = workedBy(c, c.mopId);
+  return `<button class="big-cta" data-take="${c.id}" style="margin-top:10px"><span>${icon("users")}</span><div>${worked ? `Попросить ${esc(userName(c.mopId))} отдать клиента` : "Забрать клиента себе"}<small>${asked ? "запрос уже отправлен — ждём ответа" : worked ? `${esc(userName(c.mopId))} уже работал с ним — придёт запрос с кнопками «Отдать / Оставить»` : "если лида поставили не тому диагносту — созвон перейдёт к тебе"}</small></div></button>`;
+}
+
+function openHandover(c) {
+  const cur = currentCall(c);
+  openSheet(
+    `<div class="sheet-title">${c.mopId ? "Передать клиента" : "Назначить диагноста"}</div><div class="sub" style="margin:0 4px 12px">${esc(clientTitle(c))}${c.mopId ? ` · сейчас ведёт ${esc(userName(c.mopId))}` : ""}${cur ? ` · созвон ${fmtWhen(Date.parse(cur.at))} — время останется` : ""}</div>
+    <div class="chips">${closers().filter((u) => u.id !== c.mopId).map((u) => `<button class="chip" data-to="${u.id}">${esc(u.name)}</button>`).join("")}</div>
+    <div class="sub" style="margin:10px 4px 0">Новый диагност и лидоруб получат уведомление. Сменить ещё и время — «Перенести».</div>`,
+    (sh) => {
+      sh.onclick = async (e) => {
+        const b = e.target.closest("[data-to]");
+        if (!b) return;
+        await doTransfer(c, b.dataset.to, sh);
+      };
+    },
+  );
+}
+
+async function doTransfer(c, to, sh = null, force = false) {
+  try {
+    const res = await api("POST", `/clients/${c.id}/action`, { type: "transfer", to, force });
+    replaceClient(res.client);
+    haptic("medium");
+    toast(to === state.me.id ? "Клиент теперь твой" : `Передан: ${userName(to)}`);
+    closeSheet();
+    render();
+  } catch (e) {
+    if (e.data?.code === "clash" && (await confirmDialog(`${e.message}. Всё равно передать?`))) return doTransfer(c, to, sh, true);
+    if (e.data?.code === "need_request" && to === state.me.id) return askTake(c);
+    alertDialog(e.message);
+  }
+}
+
+async function askTake(c) {
+  if (!(await confirmDialog(`${userName(c.mopId)} уже работал с клиентом. Отправить ему запрос «Отдай мне»?`))) return;
+  await act(c.id, { type: "takeRequest" }, "Запрос отправлен — ответ придёт в бота");
+}
+
 function recordingsBlock(c) {
   const recs = (c.recordings || []).filter((r) => !r.deletedAt).sort((a, b) => b.at.localeCompare(a.at));
   const held = (c.calls || []).some((x) => x.outcome === "held");
@@ -830,6 +882,7 @@ function renderClient(c) {
   html += locked
     ? `<div class="next-card lock-card"><div class="next-label">Только просмотр</div><div class="next-title">Клиента ведёт ${esc(userName(c.mopId))}</div><div class="sub">Менять карточку может только ${esc(userName(c.mopId))}, РОП или Петя. Нужно что-то поправить — оставь комментарий внизу, ${esc(userName(c.mopId))} получит уведомление.</div>${freshOwn(c) ? `<div class="row-links"><button class="link" data-book="${c.id}">Перенести мою запись</button><button class="link" data-uncall="${c.id}">Отменить мою запись</button></div>` : ""}</div>`
     : nextStep(c);
+  html += handoverBlock(c, locked);
   // Руководству: диагност не заполнил итог — напомнить ему в боте.
   if (money() && c.mopId && c.mopId !== state.me.id && needsReport(c)) html += `<button class="big-cta" data-nudge="${c.id}" style="margin-top:10px"><span>${icon("bell")}</span><div>Напомнить ${esc(userName(c.mopId))} заполнить итог<small>придёт сообщение в бота с кнопкой «Заполнить итог»</small></div></button>`;
   // Итога нет — заполнить можно всегда, на любом этапе (даже если созвон убрали или стоит отказ).
@@ -1660,6 +1713,7 @@ const GUIDES = {
     ["Планы поменялись", "«Перенести» у созвона в списке или в карточке: ±1 час, «завтра так же» или любое время. Вне окна — время само добавится в окна. Или боту: «моего лида с 21:00 перенеси на 16:00»."],
     ["Созвон прошёл", "В карточке или на «Сегодня» нажми «Пришёл, провёл» или «Не пришёл (НДЗ)». Бот тоже спросит через 15 минут после начала."],
     ["Сразу после созвона — итог", "«Заполнить итог»: потребность, род деятельности, боль, возражение, договорённости. Можно вставить свой текст целиком. Не заполнишь — бот напомнит 3 раза, потом сообщит РОПу."],
+    ["Лид не твой / нужен другому", "«Забрать клиента себе» — если с ним не работали, сразу твой; иначе диагносту придёт запрос «Отдать / Оставить». Свой лид — «Передать другому диагносту», время созвона сохранится."],
     ["Запись созвона", "В карточке «Выгрузить созвон»: до 20 МБ — прямо отсюда, больше (до 2 ГБ) — через бота: откроется чат, кидаешь файл, бот сам привяжет его к лиду."],
     ["Решение клиента", "В карточке «Что решил клиент?»: Оплатил / Предоплата / Думает / Перенос / Отказы / Невалид. «Оплатил» сам падает в ведомость. Пересозвон — итог заново не нужен, просто выбери решение."],
     ["Дожим", "«Думает» и НДЗ — коснись каждый день: «Написал — тишина» или «Ответил». 3 раза тишина — «Игнор» сам."],
@@ -2045,6 +2099,14 @@ $app.addEventListener("click", async (e) => {
     return openBooking(clientById(d.book));
   }
   if (d.recUp) return openRecUpload(clientById(d.recUp));
+  if (d.handover) return openHandover(clientById(d.handover));
+  if (d.take) {
+    const c = clientById(d.take);
+    if (workedBy(c, c.mopId)) return askTake(c);
+    const cur = currentCall(c);
+    if (!(await confirmDialog(`Забрать ${clientTitle(c)} себе?${cur ? ` Созвон ${fmtWhen(Date.parse(cur.at))} станет твоим.` : ""} ${userName(c.mopId)} получит уведомление.`))) return;
+    return doTransfer(c, state.me.id);
+  }
   if (d.recGet) {
     const [cid, rid] = d.recGet.split("|");
     t.disabled = true;

@@ -484,6 +484,22 @@ async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, 
         const toMop = closers.find((u) => u.name === inp.to_mop);
         return moveCall({ c, call, at: Date.parse(`${day}T${time}:00+03:00`), mopId: toMop?.id || null }, { me, clients, store, tg, appUrl, reply, usersMap, settings, env });
       }
+      if (name === "transfer_client") {
+        const c = await pick(inp.client);
+        const to = closers.find((u) => u.name === inp.to_mop);
+        if (!c || !to) return c ? reply("Кому передать? Назови диагноста.") : undefined;
+        const tctx = { ...ctx, clients: await store.all("client") };
+        try {
+          await applyAction(c, { type: "transfer", to: to.id }, tctx);
+        } catch (e) {
+          if (e.code !== "need_request" || to.id !== me.id) return reply(`⚠️ ${h(e.message)}`);
+          await applyAction(c, { type: "takeRequest" }, tctx);
+          await save(c, tctx);
+          return reply(`🙋 ${h(usersMap[c.mopId]?.name || "Диагност")} уже работал с ${who(c)} — отправил ему запрос «отдай мне». Как ответит — напишу.`);
+        }
+        await save(c, tctx);
+        return reply(`🔀 ${who(c)} теперь у <b>${h(to.name)}</b>${currentCall(c) ? ` · созвон ${fmtWhen(Date.parse(currentCall(c).at))}` : ""}`, { inline_keyboard: [[openApp(appUrl, "Карточка", `?client=${c.id}`)]] });
+      }
       if (name === "update_client") {
         const c = await pick(inp.client);
         if (!c) return;
@@ -928,6 +944,32 @@ async function handleCallback(cb, { store, env, tg, appUrl }) {
   const c = await store.get("client", clientId);
   if (!c) return answer("Клиент не найден");
   const { applyAction } = await import("./api.mjs");
+  // tk/tn:<client>:<кто просит> — ответ на «Отдай клиента мне»
+  if (action === "tk" || action === "tn") {
+    const requester = users.find((u) => u.id === callId);
+    if (c.mopId !== me.id && !["owner", "rop"].includes(me.role)) return answer("Решает тот, кто ведёт клиента, или руководство");
+    if (!requester) return answer("Нет такого человека в команде");
+    if (action === "tn") {
+      await tg.sendMessage(requester.id, `🙅 ${h(me.name)} оставил клиента себе — ${who(c)}`).catch(() => {});
+      await answer("Оставил тебе");
+      return tg.editMessage(cb.message.chat.id, cb.message.message_id, `${h(cb.message.text || "")}\n\n🙅 Оставил себе`).catch(() => {});
+    }
+    if (c.mopId === requester.id) return answer("Уже передан");
+    const settings = (await store.get("meta", "settings")) || {};
+    const usersMap = Object.fromEntries(users.map((u) => [u.id, u]));
+    const ctx = { by: me.id, store, users: usersMap, settings, notes: [], clients: await store.all("client") };
+    try {
+      await applyAction(c, { type: "transfer", to: requester.id }, ctx);
+    } catch (e) {
+      return answer(e.message.slice(0, 190));
+    }
+    c.takeRequests = [];
+    c.updatedAt = nowIso();
+    await store.put("client", c.id, c);
+    await dispatch(ctx.notes, c, { store, env, tg, appUrl, by: me.id, users: usersMap, settings });
+    await answer(`Передал ${requester.name}`);
+    return tg.editMessage(cb.message.chat.id, cb.message.message_id, `${h(cb.message.text || "")}\n\n✅ Отдал ${h(requester.name)}`).catch(() => {});
+  }
   const lockedFor = () => (canTouchClient(me, c) ? null : `🔒 Клиента ведёт ${users.find((u) => u.id === c.mopId)?.name || "диагност"} — менять может только он, РОП или Петя`);
   if (action === "uncall") {
     const call = c.calls.find((x) => x.id === callId);

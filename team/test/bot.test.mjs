@@ -1098,3 +1098,49 @@ test("27.10 incident: lidorub list «Дима / 18:00 @vansa / Артем / …�
   assert.ok(sent.some((m) => m.chat === "1" && /Все назначенные созвоны 27–28\.10/.test(m.text)));
   assert.ok(sent.some((m) => m.chat === "501" && /ошибочно попал к тебе/.test(m.text)));
 });
+
+test("handover: MOP passes own lead, another MOP takes an untouched lead, worked lead needs «отдай» via bot, clash and lidorub guarded", async () => {
+  const { store, sent, api } = await setup();
+  const { createHandler } = await import("../src/api.mjs");
+  const { webhookSecret } = await import("../src/telegram.mjs");
+  const at = new Date(Date.now() + 86400_000).toISOString();
+  // лидоруб ошибся: поставил Ивана Теме, а надо Диме
+  const c = (await api(503, "POST", "/clients", { name: "Иван", telegram: "vansa_t" })).body.client;
+  await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at, mopId: "501" });
+  // лидоруб сам «забрать себе» не может
+  assert.equal((await api(503, "POST", `/clients/${c.id}/action`, { type: "transfer", to: "503" })).status, 403);
+  // Дима забирает: лид не трогали
+  let r = await api(502, "POST", `/clients/${c.id}/action`, { type: "transfer", to: "502" });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.client.mopId, "502");
+  assert.equal(r.body.client.calls.filter((x) => !x.outcome)[0].mopId, "502");
+  assert.equal(r.body.client.calls.filter((x) => !x.outcome)[0].at, at);
+  assert.ok(sent.some((m) => m.chat === "501" && /Клиент передан/.test(m.text)));
+  assert.ok(sent.some((m) => m.chat === "503" && /Клиент передан/.test(m.text)));
+  // Дима передаёт обратно Теме, но у Темы в это время другой созвон → 409, с force — можно
+  const d = (await api(503, "POST", "/clients", { name: "Даня", telegram: "danya_t" })).body.client;
+  await api(503, "POST", `/clients/${d.id}/action`, { type: "call", at, mopId: "501" });
+  r = await api(502, "POST", `/clients/${c.id}/action`, { type: "transfer", to: "501" });
+  assert.equal(r.status, 409);
+  assert.equal(r.body.code, "clash");
+
+  // с клиентом уже работали (созвон прошёл) → забрать нельзя, только запрос
+  const w = (await api(503, "POST", "/clients", { name: "Олег", telegram: "oleg_w" })).body.client;
+  await api(503, "POST", `/clients/${w.id}/action`, { type: "call", at: new Date(Date.now() - 3600_000).toISOString(), mopId: "501" });
+  await api(501, "POST", `/clients/${w.id}/action`, { type: "held" });
+  r = await api(502, "POST", `/clients/${w.id}/action`, { type: "transfer", to: "502" });
+  assert.equal(r.status, 403);
+  assert.equal(r.body.code, "need_request");
+  assert.equal((await api(502, "POST", `/clients/${w.id}/action`, { type: "takeRequest" })).status, 200);
+  const ask = sent.filter((m) => m.chat === "501" && /просит отдать клиента/.test(m.text)).at(-1);
+  assert.match(ask.markup, new RegExp(`tk:${w.id}:502`));
+  // Тема жмёт «Отдать»
+  const env = { BOT_TOKEN: "123:abc", OWNER_IDS: "1", APP_URL: "https://team.test/" };
+  const handle = createHandler({ store, env, fetch: async (url, init) => (sent.push({ chat: init.body.get("chat_id"), text: init.body.get("text") }), new Response(JSON.stringify({ ok: true, result: { message_id: 1 } }))) });
+  const secret = await webhookSecret("123:abc");
+  // чужой (лидоруб) нажать не может
+  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: 777, callback_query: { id: "x0", from: { id: 503 }, data: `tk:${w.id}:502`, message: { message_id: 9, chat: { id: 503 }, text: "…" } } }) }));
+  assert.equal((await store.get("client", w.id)).mopId, "501");
+  await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: 778, callback_query: { id: "x1", from: { id: 501 }, data: `tk:${w.id}:502`, message: { message_id: 9, chat: { id: 501 }, text: "…" } } }) }));
+  assert.equal((await store.get("client", w.id)).mopId, "502");
+});

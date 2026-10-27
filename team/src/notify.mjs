@@ -25,6 +25,15 @@ export async function dispatch(notes, c, { store, env, tg, appUrl, by, users, se
     let html = "";
     let to = [];
     let kb = { inline_keyboard: [[...chatBtn, card()]] };
+    if (n.t === "handover") {
+      to = [n.mop, n.from, c.lidorubId];
+      html = `🔀 <b>Клиент передан</b>\n👤 ${who(c)}\n${h(name(n.from))} → <b>${h(name(n.mop))}</b>${n.at ? `\n📅 созвон ${fmtWhen(Date.parse(n.at))} МСК — теперь у ${h(name(n.mop))}` : ""}\nПередал: ${h(name(by))}`;
+    }
+    if (n.t === "takeRequest") {
+      to = [n.from];
+      html = `🙋 <b>${h(name(n.mop))} просит отдать клиента</b>\n👤 ${who(c)}${n.reason ? `\n💬 ${h(n.reason)}` : ""}\n\nЕсли его поставили тебе по ошибке — отдай.`;
+      kb = { inline_keyboard: [[{ text: `✅ Отдать ${name(n.mop)}`, callback_data: `tk:${c.id}:${n.mop}` }, { text: "Оставить себе", callback_data: `tn:${c.id}:${n.mop}` }], [card()]] };
+    }
     if (n.t === "call") {
       to = [n.mop];
       if (n.prevMop && n.prevMop !== n.mop) to.push(n.prevMop);
