@@ -31,7 +31,7 @@ export async function dispatch(notes, c, { store, env, tg, appUrl, by, users, se
     }
     if (n.t === "takeRequest") {
       to = [n.from];
-      html = `🙋 <b>${h(name(n.mop))} просит отдать клиента</b>\n👤 ${who(c)}${n.reason ? `\n💬 ${h(n.reason)}` : ""}\n\nЕсли его поставили тебе по ошибке — отдай.`;
+      html = `🙋 <b>${n.asker && n.asker !== n.mop ? `${h(name(n.asker))} просит передать клиента ${h(name(n.mop))}` : `${h(name(n.mop))} просит отдать клиента`}</b>\n👤 ${who(c)}${n.reason ? `\n💬 ${h(n.reason)}` : ""}\n\nЕсли его поставили тебе по ошибке — отдай.`;
       kb = { inline_keyboard: [[{ text: `✅ Отдать ${name(n.mop)}`, callback_data: `tk:${c.id}:${n.mop}` }, { text: "Оставить себе", callback_data: `tn:${c.id}:${n.mop}` }], [card()]] };
     }
     if (n.t === "call") {

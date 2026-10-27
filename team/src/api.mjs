@@ -506,11 +506,14 @@ export async function applyAction(c, body, ctx) {
     return;
   }
   // Запрос текущему диагносту «Отдай клиента мне» — решает он (или руководство) кнопкой в боте.
+  // to — кому передать (по умолчанию себе); лидоруб может попросить отдать лида нужному диагносту.
   if (type === "takeRequest") {
-    if (!c.mopId || c.mopId === by) throw Object.assign(new Error("Клиент и так твой"), { status: 400 });
-    c.takeRequests = [...(c.takeRequests || []).filter((r) => r.by !== by), { by, at: nowIso() }].slice(-5);
-    log(c, by, `Просит передать клиента себе`);
-    notes.push({ t: "takeRequest", from: c.mopId, mop: by, reason: str(body.reason, 300) });
+    const toId = String(body.to || by);
+    if (!["mop", "rop"].includes(users?.[toId]?.role)) throw Object.assign(new Error("Передать можно только диагносту"), { status: 400 });
+    if (!c.mopId || c.mopId === toId) throw Object.assign(new Error("Клиент и так у него"), { status: 400 });
+    c.takeRequests = [...(c.takeRequests || []).filter((r) => r.by !== by), { by, to: toId, at: nowIso() }].slice(-5);
+    log(c, by, toId === by ? "Просит передать клиента себе" : `Просит передать клиента ${users?.[toId]?.name || ""}`);
+    notes.push({ t: "takeRequest", from: c.mopId, mop: toId, asker: by, reason: str(body.reason, 300) });
     return;
   }
   if (type === "uncall") {
@@ -790,9 +793,9 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           return call && call.setBy === by && Date.now() - Date.parse(call.setAt || 0) < 15 * 60_000;
         })();
         // «Забрать себе» и «Отдай мне» проверяются внутри действия (лид не трогали / запрос текущему диагносту).
-        const selfTake = ["mop", "rop"].includes(me.role) && ((body.type === "transfer" && String(body.to) === by) || body.type === "takeRequest");
+        const selfTake = (["mop", "rop"].includes(me.role) && body.type === "transfer" && String(body.to) === by) || (["mop", "rop", "lidorub"].includes(me.role) && body.type === "takeRequest");
         const onlyComment = cm[2] && req.method === "POST" && (body.type === "comment" || ownFresh || selfTake);
-        if ((req.method === "PATCH" || (cm[2] && req.method === "POST")) && !onlyComment && !touch(c)) return json({ error: lockedMsg(c) }, 403);
+        if ((req.method === "PATCH" || (cm[2] && req.method === "POST")) && !onlyComment && !touch(c)) return json({ error: lockedMsg(c), code: "locked", mopId: c.mopId, canTake: ["mop", "rop"].includes(me.role) && !workedBy(c, c.mopId) }, 403);
         if (req.method === "PATCH" && ("telegram" in body || "phone" in body)) {
           const next = { telegram: "telegram" in body ? normTelegram(body.telegram) : c.telegram, phone: "phone" in body ? str(body.phone, 40) : c.phone };
           const dup = findDup(await store.all("client"), next, c.id);
@@ -1225,6 +1228,42 @@ export async function sendReportNudge(tg, c, from, appUrl) {
   await tg.sendMessage(c.mopId, `📝 <b>${esc(from?.name || "Руководство")}: заполни итог созвона</b>\n👤 ${esc(clientTitle(c))}${c.telegram && c.name ? ` · ${esc(c.telegram)}` : ""}${held ? `\n📅 ${fmtWhen(Date.parse(held.at))} — проведён` : ""}\n\nПотребность, род деятельности, боль, возражение, договорённости — и что решил клиент.`, { inline_keyboard: [[{ text: "Заполнить итог", web_app: { url: `${appUrl}?client=${c.id}&report=1` } }]] });
 }
 
+// 28.10: созвон клиента у Димы на 28.10 в hh:mm (исправление ошибки разбора сообщения лидоруба).
+async function ensureCall2810({ store, tg, appUrl, users, dima, artem, all, log2 }, nick, hhmm) {
+  let c = all.find((x) => nickKey(x.telegram) === nick);
+  if (!c) {
+    const t = (await store.all("trash")).find((x) => nickKey(x.telegram) === nick);
+    if (t) c = await restoreFromTrash(store, t.id, "system");
+  }
+  if (!c || !dima) return log2.push(`@${nick}: не найден в CRM — не трогал`);
+  const at = new Date(Date.parse(`2026-10-28T${hhmm}:00+03:00`)).toISOString();
+  c.calls ||= [];
+  const open = c.calls.filter((x) => !x.outcome);
+  const prev = open.map((x) => `${fmtWhen(Date.parse(x.at))} · ${users.find((u) => u.id === x.mopId)?.name || "?"}`).join(", ") || "нет";
+  // Ровно один открытый созвон: 28.10 hh:mm у Димы.
+  let keep = open.find((x) => mskKey(Date.parse(x.at)) === "2026-10-28") || open[0];
+  for (const x of open) if (x !== keep) Object.assign(x, { outcome: "moved", movedAt: nowIso() });
+  if (!keep) {
+    keep = { id: randomUUID().slice(0, 8), at, mopId: dima.id, setAt: nowIso(), setBy: "system", outcome: null, notified: {} };
+    c.calls.push(keep);
+  }
+  const prevMop = keep.mopId;
+  if (keep.at !== at || keep.mopId !== dima.id) Object.assign(keep, { at, mopId: dima.id, notified: {} });
+  if (prevMop && prevMop !== dima.id) dropIdleHanded(c, prevMop);
+  c.events ||= [];
+  if (!c.events.some((e) => e.t === "handed" && e.mop === dima.id)) c.events.push({ t: "handed", at: nowIso(), by: "system", mop: dima.id });
+  c.mopId = dima.id;
+  if (["refuse_personal", "refuse_bank", "ignore", "invalid", "archive", "new"].includes(c.status)) Object.assign(c, { status: c.status === "new" ? "in_work" : "resched", statusAt: nowIso() });
+  log(c, "system", `Созвон 28.10 ${hhmm} закреплён за ${dima.name} (исправление ошибки бота, по просьбе Пети)`);
+  c.updatedAt = nowIso();
+  await store.put("client", c.id, c);
+  log2.push(`@${nick} → ${dima.name} 28.10 ${hhmm} (было: ${prev})`);
+  if (tg) {
+    await tg.sendMessage(dima.id, `📅 <b>Поправил созвон</b>: 28.10 (ср) ${hhmm} — ${escapeHtml(clientTitle(c))}${c.telegram && c.name ? ` · ${escapeHtml(c.telegram)}` : ""}\nОн твой. Бот ошибся при разборе сообщения — извини.`, { inline_keyboard: [[{ text: "Карточка", web_app: { url: `${appUrl}?client=${c.id}` } }]] }).catch(() => {});
+    if (artem && prevMop === artem.id) await tg.sendMessage(artem.id, `ℹ️ Созвон 28.10 с ${escapeHtml(clientTitle(c))} ошибочно попал к тебе — это лид Димы, убрал из твоего расписания.`).catch(() => {});
+  }
+}
+
 // Разовые исправления данных по просьбе собственника. Каждое — один раз (флаг в meta).
 export async function runDataFixes({ store, env, tg, appUrl, now = Date.now() }) {
   const done = [];
@@ -1265,6 +1304,17 @@ export async function runDataFixes({ store, env, tg, appUrl, now = Date.now() })
       done.push(`iuuhkkk:${c.id}`);
     }
   }
+  // 27.10 (2): у клиента ник @vanszsa, а не @vansa — переносим его к Диме на 28.10 18:00.
+  if (!(await store.get("meta", "fix-2810-v2")) && Date.now() < Date.parse("2026-10-28T18:00:00+03:00")) {
+    const users = (await store.all("user")).filter((u) => u.active !== false);
+    const dima = users.find((u) => /сайгин/i.test(u.name || "")) || users.find((u) => ["mop", "rop"].includes(u.role) && /дмитр|дима/i.test(u.name || ""));
+    const artem = users.find((u) => u.role === "mop" && /арт[её]м|тём|тем/i.test(u.name || ""));
+    const log2 = [];
+    await ensureCall2810({ store, tg, appUrl, users, dima, artem, all: await store.all("client"), log2 }, "vanszsa", "18:00");
+    if (tg) for (const id of parseIds(env?.OWNER_IDS)) await tg.sendMessage(id, `🛠 <b>Исправил</b>\n${log2.map((x) => `• ${escapeHtml(x)}`).join("\n")}`).catch(() => {});
+    await store.put("meta", "fix-2810-v2", { id: "fix-2810-v2", at: nowIso(), log: log2 });
+    done.push(...log2);
+  }
   // 27.10: разбор сообщения лидоруба отдал @vansa Артёму (имя диагноста со следующей строки), «Перенос» @cool8r без созвона.
   // По словам Пети: у Димы 28.10 — @vansa в 18:00 и @cool8r в 20:00. Чиним и присылаем Пете сводку созвонов + что писал бот.
   if (!(await store.get("meta", "fix-2810-v1"))) {
@@ -1273,42 +1323,9 @@ export async function runDataFixes({ store, env, tg, appUrl, now = Date.now() })
     const artem = users.find((u) => u.role === "mop" && /арт[её]м|тём|тем/i.test(u.name || ""));
     const all = await store.all("client");
     const log2 = [];
-    const ensureCall = async (nick, hhmm) => {
-      let c = all.find((x) => nickKey(x.telegram) === nick);
-      if (!c) {
-        const t = (await store.all("trash")).find((x) => nickKey(x.telegram) === nick);
-        if (t) c = await restoreFromTrash(store, t.id, "system");
-      }
-      if (!c || !dima) return log2.push(`@${nick}: не найден в CRM — не трогал`);
-      const at = new Date(Date.parse(`2026-10-28T${hhmm}:00+03:00`)).toISOString();
-      c.calls ||= [];
-      const open = c.calls.filter((x) => !x.outcome);
-      const prev = open.map((x) => `${fmtWhen(Date.parse(x.at))} · ${users.find((u) => u.id === x.mopId)?.name || "?"}`).join(", ") || "нет";
-      // Ровно один открытый созвон: 28.10 hh:mm у Димы.
-      let keep = open.find((x) => mskKey(Date.parse(x.at)) === "2026-10-28") || open[0];
-      for (const x of open) if (x !== keep) Object.assign(x, { outcome: "moved", movedAt: nowIso() });
-      if (!keep) {
-        keep = { id: randomUUID().slice(0, 8), at, mopId: dima.id, setAt: nowIso(), setBy: "system", outcome: null, notified: {} };
-        c.calls.push(keep);
-      }
-      const prevMop = keep.mopId;
-      if (keep.at !== at || keep.mopId !== dima.id) Object.assign(keep, { at, mopId: dima.id, notified: {} });
-      if (prevMop && prevMop !== dima.id) dropIdleHanded(c, prevMop);
-      c.events ||= [];
-      if (!c.events.some((e) => e.t === "handed" && e.mop === dima.id)) c.events.push({ t: "handed", at: nowIso(), by: "system", mop: dima.id });
-      c.mopId = dima.id;
-      if (["refuse_personal", "refuse_bank", "ignore", "invalid", "archive", "new"].includes(c.status)) Object.assign(c, { status: c.status === "new" ? "in_work" : "resched", statusAt: nowIso() });
-      log(c, "system", `Созвон 28.10 ${hhmm} закреплён за ${dima.name} (исправление ошибки бота, по просьбе Пети)`);
-      c.updatedAt = nowIso();
-      await store.put("client", c.id, c);
-      log2.push(`@${nick} → ${dima.name} 28.10 ${hhmm} (было: ${prev})`);
-      if (tg) {
-        await tg.sendMessage(dima.id, `📅 <b>Поправил созвон</b>: 28.10 (ср) ${hhmm} — ${escapeHtml(clientTitle(c))}${c.telegram && c.name ? ` · ${escapeHtml(c.telegram)}` : ""}\nОн твой. Бот ошибся при разборе сообщения — извини.`, { inline_keyboard: [[{ text: "Карточка", web_app: { url: `${appUrl}?client=${c.id}` } }]] }).catch(() => {});
-        if (artem && prevMop === artem.id) await tg.sendMessage(artem.id, `ℹ️ Созвон 28.10 с ${escapeHtml(clientTitle(c))} ошибочно попал к тебе — это лид Димы, убрал из твоего расписания.`).catch(() => {});
-      }
-    };
-    await ensureCall("vansa", "18:00");
-    await ensureCall("cool8r", "20:00");
+    const fx = { store, tg, appUrl, users, dima, artem, all, log2 };
+    await ensureCall2810(fx, "vansa", "18:00");
+    await ensureCall2810(fx, "cool8r", "20:00");
     // Сводка для Пети: все назначенные созвоны 27–28.10 и что бот получал про созвоны за 2 дня.
     if (tg) {
       const fresh = await store.all("client");

@@ -248,9 +248,29 @@ async function act(clientId, body, okText) {
     render();
     return res.client;
   } catch (e) {
+    // Записывают на созвон чужого лида (поставили не тому) — не тупик, а «забрать» или «попросить передать».
+    if (e.data?.code === "locked" && body.type === "call") return offerTake(clientById(clientId), body, okText, e.data);
     alertDialog(e.message);
     return null;
   }
+}
+
+async function offerTake(c, body, okText, info) {
+  const owner = userName(info.mopId);
+  const target = body.mopId || state.me.id;
+  // Сам диагност, лид не трогали — забираем и сразу ставим время.
+  if (target === state.me.id && info.canTake) {
+    if (!(await confirmDialog(`Клиента ведёт ${owner}, но он с ним ещё не работал. Забрать себе и поставить созвон?`))) return null;
+    try {
+      replaceClient((await api("POST", `/clients/${c.id}/action`, { type: "transfer", to: state.me.id, force: true })).client);
+    } catch (e) {
+      alertDialog(e.message);
+      return null;
+    }
+    return act(c.id, body, okText);
+  }
+  if (!(await confirmDialog(`Клиента ведёт ${owner}. Отправить ${owner} запрос передать его ${target === state.me.id ? "тебе" : userName(target)}? После «Отдать» созвон можно будет поставить.`))) return null;
+  return act(c.id, { type: "takeRequest", to: target }, `Запрос отправлен ${owner}`);
 }
 
 // ---------- навигация ----------

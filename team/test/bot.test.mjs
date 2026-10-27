@@ -1144,3 +1144,38 @@ test("handover: MOP passes own lead, another MOP takes an untouched lead, worked
   await handle(new Request("https://team.test/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": secret }, body: JSON.stringify({ update_id: 778, callback_query: { id: "x1", from: { id: 501 }, data: `tk:${w.id}:502`, message: { message_id: 9, chat: { id: 501 }, text: "…" } } }) }));
   assert.equal((await store.get("client", w.id)).mopId, "502");
 });
+
+test("locked booking in «Окна»: 403 says who and whether it can be taken; lidorub asks Artem to pass it to Dima; @vanszsa data fix", async () => {
+  const { store, sent, api } = await setup();
+  const at = new Date(Date.now() + 86400_000).toISOString();
+  const c = (await api(503, "POST", "/clients", { name: "Иван", telegram: "vanszsa_t" })).body.client;
+  await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at, mopId: "501" });
+  await api(501, "POST", `/clients/${c.id}/action`, { type: "comment", text: "x" });
+  // лидоруб (не автор свежей записи уже через 15 мин) пытается поставить в окно Димы
+  await store.put("client", c.id, { ...(await store.get("client", c.id)), calls: (await store.get("client", c.id)).calls.map((x) => ({ ...x, setAt: new Date(Date.now() - 3600_000).toISOString() })) });
+  let r = await api(503, "POST", `/clients/${c.id}/action`, { type: "call", at, mopId: "502" });
+  assert.equal(r.status, 403);
+  assert.equal(r.body.code, "locked");
+  assert.equal(r.body.mopId, "501");
+  // Дима сам: может забрать (Тема с ним не работал)
+  assert.equal((await api(502, "POST", `/clients/${c.id}/action`, { type: "call", at, mopId: "502" })).body.canTake, true);
+  // лидоруб просит Тему передать Диме
+  assert.equal((await api(503, "POST", `/clients/${c.id}/action`, { type: "takeRequest", to: "502" })).status, 200);
+  const ask = sent.filter((m) => m.chat === "501" && /просит передать клиента Дима/.test(m.text)).at(-1);
+  assert.ok(ask);
+  assert.match(ask.markup, new RegExp(`tk:${c.id}:502`));
+
+  // данные: @vanszsa у Артёма → Диме 28.10 18:00 (если ещё не прошло)
+  if (Date.now() < Date.parse("2026-10-28T18:00:00+03:00")) {
+    await api(1, "POST", "/users", { id: "601", role: "mop", name: "Дмитрий Сайгин" });
+    const v = (await api(503, "POST", "/clients", { name: "Ваня", telegram: "vanszsa" })).body.client;
+    await api(503, "POST", `/clients/${v.id}/action`, { type: "call", at: new Date(Date.parse("2026-10-28T18:00:00+03:00")).toISOString(), mopId: "501" });
+    const { runDataFixes } = await import("../src/api.mjs");
+    for (const k of ["fix-iuuhkkk-v1", "fix-2810-v1"]) await store.put("meta", k, { id: k });
+    await store.put("meta", "guides-v1", { id: "guides-v1", done: true });
+    await runDataFixes({ store, env: { OWNER_IDS: "1" }, tg: { sendMessage: async () => ({}) }, appUrl: "https://t/" });
+    const vv = await store.get("client", v.id);
+    assert.equal(vv.mopId, "601");
+    assert.equal(vv.calls.filter((x) => !x.outcome)[0].mopId, "601");
+  }
+});
