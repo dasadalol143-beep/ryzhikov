@@ -714,6 +714,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         const c = blankClient(by);
         applyFields(c, body);
         if (!c.lidorubId && me.role === "lidorub") c.lidorubId = me.id;
+        if (me.role === "traffer") c.trafferId = me.id;
         if (!c.name && !c.telegram && !c.phone) return json({ error: "Нужно имя, ник или телефон" }, 400);
         const dup = findDup(await store.all("client"), c);
         if (dup) return json({ error: `Такой клиент уже есть: ${clientTitle(dup)}`, duplicate: true, client: dup }, 409);
@@ -793,7 +794,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           return call && call.setBy === by && Date.now() - Date.parse(call.setAt || 0) < 15 * 60_000;
         })();
         // «Забрать себе» и «Отдай мне» проверяются внутри действия (лид не трогали / запрос текущему диагносту).
-        const selfTake = (["mop", "rop"].includes(me.role) && body.type === "transfer" && String(body.to) === by) || (["mop", "rop", "lidorub"].includes(me.role) && body.type === "takeRequest");
+        const selfTake = (["mop", "rop"].includes(me.role) && body.type === "transfer" && String(body.to) === by) || (["mop", "rop", "lidorub", "traffer"].includes(me.role) && body.type === "takeRequest");
         const onlyComment = cm[2] && req.method === "POST" && (body.type === "comment" || ownFresh || selfTake);
         if ((req.method === "PATCH" || (cm[2] && req.method === "POST")) && !onlyComment && !touch(c)) return json({ error: lockedMsg(c), code: "locked", mopId: c.mopId, canTake: ["mop", "rop"].includes(me.role) && !workedBy(c, c.mopId) }, 403);
         if (req.method === "PATCH" && ("telegram" in body || "phone" in body)) {
@@ -926,12 +927,18 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
         const id = str(String(body.id || ""), 20);
         if (!/^\d+$/.test(id) || !ROLES[body.role]) return json({ error: "Нужны Telegram ID и роль" }, 400);
         // РОП добавляет менеджеров и лидорубов, роли выше — только собственник.
-        if (me.role === "rop" && !["mop", "lidorub"].includes(body.role)) return json({ error: "forbidden" }, 403);
-        const prev = (await store.get("user", id)) || (await store.get("pending", id)) || {};
+        if (me.role === "rop" && !["mop", "lidorub", "traffer"].includes(body.role)) return json({ error: "forbidden" }, 403);
+        const pendingDoc = await store.get("pending", id);
+        const prev = (await store.get("user", id)) || pendingDoc || {};
         const u = { id, name: str(body.name, 60) || prev.name || id, username: prev.username || "", role: body.role, active: body.active !== false, addedBy: by, addedAt: prev.addedAt || nowIso() };
         await store.put("user", id, u);
         await store.del("pending", id);
         await linkPeople(store);
+        // Новому человеку (или при смене роли) — сразу инструкция по его роли в бота.
+        if (env.BOT_TOKEN && u.active && prev.role !== u.role && (pendingDoc || prev.botStarted)) {
+          const { sendGuide } = await import("./guides.mjs");
+          await sendGuide(telegram(env.BOT_TOKEN, fetchImpl), u, env.APP_URL || `${url.origin}/`).catch(() => {});
+        }
         return json({ user: u });
       }
       const um = path.match(/^\/users\/(\d+)$/);

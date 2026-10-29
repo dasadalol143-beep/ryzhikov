@@ -2,7 +2,7 @@ import {
   ROLES, STATUSES, SOURCES, REPORT_FIELDS, AFTER_CALL, FOLLOWUP_TOUCHES, DEFAULT_RATES,
   statusLabel, statusGroup, isClosed, canSeeMoney, currentCall, lastCall, clientTitle, needsReport, followupState, latestReport, callKind, stuckReason,
   mskKey, mskTime, mskMidnight, addDaysKey, fmtDay, weekday, fmtWhen, monthName, payrollRow, monthSummary,
-  DEFAULT_PAY_LINKS, pace, daysInMonth, canTouchClient, canDeleteClient, payoutsOwed, nextPayday, PAYOUT_ROLES, daySlots, rangesText, cleanRanges, toMin, fromMin, isBossRole,
+  DEFAULT_PAY_LINKS, pace, daysInMonth, canTouchClient, canDeleteClient, payoutsOwed, nextPayday, PAYOUT_ROLES, daySlots, rangesText, cleanRanges, toMin, fromMin, isBossRole, isLeadRole, leadOwnerOf,
 } from "./lib/model.js";
 import { rnp, rnpEvents, lidorubStats, periodRange } from "./lib/stats.js";
 import { parseReportText, parseCsv, crmRowsToClients } from "./lib/report.js";
@@ -367,18 +367,25 @@ function renderToday() {
   const hello = `${["Доброй ночи", "Доброе утро", "Добрый день", "Добрый вечер"][Math.floor(((new Date(now).getUTCHours() + 3) % 24) / 6)]}, ${esc((me.name || "").split(" ")[0])}`;
   const dateLine = new Date(mskMidnight(today()) + 12 * 3600_000).toLocaleDateString("ru-RU", { weekday: "long", day: "numeric", month: "long" });
   const mineCall = (call) => role === "mop" ? call.mopId === me.id : true;
-  const todays = callsOn(today(), (call) => (role === "lidorub" ? true : mineCall(call)));
-  const tomorrow = callsOn(addDaysKey(today(), 1), (call) => (role === "lidorub" ? false : mineCall(call)));
+  const todays = callsOn(today(), (call) => (isLeadRole(role) ? true : mineCall(call)));
+  const tomorrow = callsOn(addDaysKey(today(), 1), (call) => (isLeadRole(role) ? false : mineCall(call)));
   const reportsOwed = state.clients.filter((c) => needsReport(c) && (role !== "mop" || c.mopId === me.id));
   const unmarked = [];
   for (const c of state.clients) for (const call of c.calls || []) if (!call.outcome && Date.parse(call.at) + 15 * 60_000 < now && mskKey(Date.parse(call.at)) !== today() && (role !== "mop" || call.mopId === me.id)) unmarked.push({ c, call });
   const follow = state.clients.filter((c) => c.mopId && (role !== "mop" || c.mopId === me.id) && followupState(c, now)?.due);
-  const fresh = state.clients.filter((c) => c.status === "new" && (role !== "lidorub" || !c.lidorubId || c.lidorubId === me.id));
+  const fresh = state.clients.filter((c) => c.status === "new" && (role === "traffer" ? c.trafferId === me.id : role !== "lidorub" || !c.lidorubId || c.lidorubId === me.id));
 
   const unread = unreadFeed();
   let html = `<div class="hero"><div class="hero-top"><div><div class="hero-hi">${hello}</div><div class="hero-date">${esc(dateLine)} · ${esc(ROLES[role])}</div></div><div class="hero-actions"><button class="icon-btn" data-feed aria-label="Лента">${icon("bell", 18)}${unread ? `<em>${unread > 9 ? "9+" : unread}</em>` : ""}</button>${role !== "mop" ? `<button class="btn small light" data-new>+ Лид</button>` : ""}</div></div>`;
   const mk = today().slice(0, 7);
-  if (role === "lidorub") {
+  if (role === "traffer") {
+    const mine = state.clients.filter((c) => c.trafferId === me.id);
+    const bookedOn = (pred) => mine.reduce((n, c) => n + (c.calls || []).filter((x) => !x.legacy && x.setBy === me.id && pred(mskKey(Date.parse(x.setAt || x.at)))).length, 0);
+    const addedToday = mine.filter((c) => mskKey(Date.parse(c.createdAt)) === today()).length;
+    const heldMonth = mine.filter((c) => (c.calls || []).some((x) => x.outcome === "held" && mskKey(Date.parse(x.at)).startsWith(mk))).length;
+    html += `<div class="hero-label">Поставил на созвон сегодня</div><div class="hero-value">${bookedOn((d) => d === today())}</div>`;
+    html += `<div class="hero-stats"><div><small>лидов сегодня</small><b>${addedToday}</b></div><div><small>созвонов за месяц</small><b>${bookedOn((d) => d.startsWith(mk))}</b></div><div><small>дошли за месяц</small><b>${heldMonth}</b></div></div>`;
+  } else if (role === "lidorub") {
     const t = lidorubStats(state.clients, state.legacy, { from: today(), to: today(), people: new Set([me.id]), aliases: aliasesFor() }).total;
     const m = lidorubStats(state.clients, state.legacy, { ...periodRange("month"), people: new Set([me.id]), aliases: aliasesFor() }).total;
     const plan = state.settings.personPlans?.[me.id] || 0;
@@ -406,12 +413,13 @@ function renderToday() {
   // Что сделать сейчас — список задач с одной кнопкой на каждую.
   html += tasksBlock({ role, me, now, reportsOwed, unmarked, follow, todays });
   if (role === "lidorub") html += `<button class="big-cta" data-new><span>${icon("plus")}</span><div>Новый лид<small>квалифицировать, отправить ЛМ, записать на созвон</small></div></button>` + lidorubHome(me);
+  if (role === "traffer") html += `<button class="big-cta" data-new><span>${icon("plus")}</span><div>Новый лид<small>заполни анкету лида и поставь в свободное окно диагноста</small></div></button>` + lidorubHome(me, "trafferId");
 
   if (isBoss()) html += teamToday();
 
-  html += section(`Созвоны сегодня · ${todays.length}`, todays.map(({ c, call }) => callRow(c, call)), { empty: role === "lidorub" ? "Сегодня пока никого не записал. Свободные окна — во вкладке «Окна»." : "Созвонов на сегодня нет" });
+  html += section(`Созвоны сегодня · ${todays.length}`, todays.map(({ c, call }) => callRow(c, call)), { empty: isLeadRole(role) ? "Сегодня пока никого не записал. Свободные окна — во вкладке «Окна»." : "Созвонов на сегодня нет" });
   if (unmarked.length) html += section(`Не отмечен итог · ${unmarked.length}`, unmarked.map(({ c, call }) => callRow(c, call)));
-  if (role !== "lidorub" && follow.length) {
+  if (!isLeadRole(role) && follow.length) {
     html += section(`Дожим — касание сегодня · ${follow.length}`, follow.map((c) => {
       const f = followupState(c, now);
       return clientRow(c, {
@@ -446,20 +454,20 @@ function needsRec(c, now = Date.now()) {
 }
 
 function tasksBlock({ role, me, now, reportsOwed, unmarked, follow, todays }) {
-  const mine = (c) => role === "owner" || role === "rop" || c.mopId === me.id || c.lidorubId === me.id;
-  const passedToday = todays.filter(({ call }) => !call.outcome && Date.parse(call.at) + 15 * 60_000 < now && (role !== "lidorub"));
+  const mine = (c) => role === "owner" || role === "rop" || c.mopId === me.id || c.lidorubId === me.id || c.trafferId === me.id;
+  const passedToday = todays.filter(({ call }) => !call.outcome && Date.parse(call.at) + 15 * 60_000 < now && !isLeadRole(role));
   const stuck = state.clients.filter((c) => mine(c) && stuckReason(c, now));
   const person = ["owner", "rop"].includes(role) ? "all" : me.id;
   const lm = role === "lidorub" ? state.clients.filter((c) => c.status === "new" && (!c.lidorubId || c.lidorubId === me.id) && !(c.events || []).some((e) => e.t === "lm")) : [];
-  const toBook = role === "lidorub" ? state.clients.filter((c) => c.status === "new" && (!c.lidorubId || c.lidorubId === me.id) && (c.events || []).some((e) => e.t === "lm")) : [];
-  const noRec = role === "lidorub" ? [] : state.clients.filter((c) => (role === "owner" || role === "rop" ? true : c.mopId === me.id) && needsRec(c, now));
+  const toBook = role === "lidorub" ? state.clients.filter((c) => c.status === "new" && (!c.lidorubId || c.lidorubId === me.id) && (c.events || []).some((e) => e.t === "lm")) : role === "traffer" ? state.clients.filter((c) => c.status === "new" && c.trafferId === me.id && !currentCall(c)) : [];
+  const noRec = isLeadRole(role) ? [] : state.clients.filter((c) => (role === "owner" || role === "rop" ? true : c.mopId === me.id) && needsRec(c, now));
   const items = [
     [passedToday.length + unmarked.length, "Отметь: клиент пришёл или НДЗ", "созвон прошёл — нажми «Пришёл» или «НДЗ»", passedToday[0]?.c.id || unmarked[0]?.c.id, null, "warn"],
     [reportsOwed.length, "Заполни итог диагностики", "после созвона — потребность, боль, возражение, решение", reportsOwed[0]?.id, "report", "warn"],
     [noRec.length, "Выгрузи запись созвона", "файл созвона — в карточку, чтобы не потерялся", noRec[0]?.id, "norec", ""],
-    [role !== "lidorub" ? follow.length : 0, "Дожим: коснись клиента сегодня", "написал — отметь «тишина» или «ответил»", null, "follow", ""],
+    [!isLeadRole(role) ? follow.length : 0, "Дожим: коснись клиента сегодня", "написал — отметь «тишина» или «ответил»", null, "follow", ""],
     [lm.length, "Отправь ЛМ новым лидам", "квалифицируй и отправь лид-магнит", null, "new", ""],
-    [toBook.length, "Запиши на созвон — ЛМ уже отправлен", "выбери диагноста и свободное окно", null, "lm", ""],
+    [toBook.length, role === "traffer" ? "Поставь новых лидов на созвон" : "Запиши на созвон — ЛМ уже отправлен", "выбери диагноста и свободное окно", toBook[0]?.id, role === "traffer" ? "new" : "lm", ""],
     [stuck.length, "Зависли — нет следующего шага", "назначь созвон, касание или закрой статусом", null, "stuck", "warn"],
   ].filter(([n]) => n > 0);
   if (!items.length) return `<div class="tasks done"><b>Всё сделано 👌</b><span class="sub">Новых задач нет — загляни в «Окна» и «Клиенты».</span></div>`;
@@ -469,12 +477,11 @@ function tasksBlock({ role, me, now, reportsOwed, unmarked, follow, todays }) {
 }
 
 // Экран лидоруба: где сейчас его лиды, что с них продано, динамика за 2 недели.
-function lidorubHome(me) {
-  const mineAll = state.clients.filter((c) => c.lidorubId === me.id);
+function lidorubHome(me, field = "lidorubId") {
+  const mineAll = state.clients.filter((c) => c[field] === me.id);
   const has = (c, t) => (c.events || []).some((e) => e.t === t);
   const stages = [
-    ["Новые, без ЛМ", (c) => c.status === "new" && !has(c, "lm"), "new"],
-    ["ЛМ отправлен — записать", (c) => c.status === "new" && has(c, "lm"), "lm"],
+    ...(field === "trafferId" ? [["Новые — поставить на созвон", (c) => c.status === "new" && !currentCall(c), "new"]] : [["Новые, без ЛМ", (c) => c.status === "new" && !has(c, "lm"), "new"], ["ЛМ отправлен — записать", (c) => c.status === "new" && has(c, "lm"), "lm"]]),
     ["Записаны на созвон", (c) => !!currentCall(c), "calls"],
     ["Провели — ждём решения", (c) => !currentCall(c) && (c.calls || []).some((x) => x.outcome === "held") && ["in_work", "thinking", "prepaid", "resched"].includes(c.status), "hot"],
     ["НДЗ", (c) => /^ndz/.test(c.status), "ndz"],
@@ -552,11 +559,11 @@ function filterClients() {
       return (b.updatedAt || "").localeCompare(a.updatedAt || "");
     });
 }
-const byPerson = (list) => (state.person === "all" ? list : list.filter((c) => c.mopId === state.person || c.lidorubId === state.person));
+const byPerson = (list) => (state.person === "all" ? list : list.filter((c) => c.mopId === state.person || c.lidorubId === state.person || c.trafferId === state.person));
 
 function renderClients() {
   const list = filterClients();
-  const people = [...closers(), ...lidorubs()];
+  const people = [...closers(), ...lidorubs(), ...state.users.filter((u) => u.active !== false && u.role === "traffer")];
   const base = byPerson(state.clients);
   const folders = FOLDERS.map(([id, label, fn, alert]) => {
     const n = base.filter(fn).length;
@@ -630,7 +637,7 @@ function openBulkAdd() {
     `<div class="sheet-title">Добавить лидов строками</div><div class="sub" style="margin:-6px 2px 10px">Каждая строка — один лид: <b>Имя @ник +7 900 … что известно</b>. Дубли по нику и телефону пропущу.</div>
     <textarea id="bk-text" style="min-height:140px" placeholder="Антон @anton_x хочет выйти на 100к, прогрет на интенсиве&#10;Миша +79001234567 из рилс&#10;@oleg_k — ИП уже есть"></textarea>
     <div class="sheet-label">Источник</div><div class="chips tight" id="bk-src">${SOURCES.map((x, i) => `<button class="chip ${i === 0 ? "active" : ""}" data-v="${esc(x)}">${esc(x)}</button>`).join("")}</div>
-    ${state.me.role !== "lidorub" && lidorubs().length ? `<label class="field" style="margin-top:10px"><span>Лидоруб</span><select id="bk-lr"><option value="">—</option>${lidorubs().map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join("")}</select></label>` : ""}
+    ${!isLeadRole(state.me.role) && lidorubs().length ? `<label class="field" style="margin-top:10px"><span>Лидоруб</span><select id="bk-lr"><option value="">—</option>${lidorubs().map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join("")}</select></label>` : ""}
     <div class="sheet-label">Что будет создано</div><div id="bk-prev"></div>
     <button class="btn block" id="bk-save" disabled>Нечего создавать</button>`,
     (sh) => {
@@ -1016,6 +1023,15 @@ function openPayLinks(c) {
 const ynText = (v) => (v === true ? "да" : v === false ? "нет" : v || "—");
 
 // ---------- шторки: новый лид, запись на созвон, отчёт, сумма ----------
+// Анкета лида для трафера: диагност перед созвоном видит, кто это и с чем пришёл.
+const LEAD_AWARE = ["Ничего не знает", "Слышал, но не разбирается", "Уже в теме / пробовал"];
+const LEAD_FORM_HTML = `<div class="sheet-label" style="margin-top:12px">Анкета лида — для диагноста</div>
+  <div class="two"><label class="field"><span>Возраст *</span><input id="n-age" inputmode="numeric" placeholder="21"></label><label class="field"><span>Откуда пришёл</span><input id="n-from" placeholder="TikTok, чат, реклама…"></label></div>
+  <div class="sheet-label">Насколько знаком с темой *</div><div class="chips tight" id="n-aware">${LEAD_AWARE.map((x) => `<button class="chip" data-v="${x}">${x}</button>`).join("")}</div>
+  <label class="field" style="margin-top:10px"><span>Чем занимается / доход</span><input id="n-job" placeholder="курьер, 40к; студент"></label>
+  <label class="field"><span>Что хочет, запрос *</span><textarea id="n-want" style="min-height:52px" placeholder="хочет выйти на 100к, ищет подработку без вложений"></textarea></label>
+  <label class="field"><span>Комментарий</span><textarea id="n-note" style="min-height:44px" placeholder="что ещё важно: долги, самозапрет, есть ли ИП, когда удобно"></textarea></label>`;
+
 function openNewClient() {
   const me = state.me;
   openSheet(
@@ -1024,14 +1040,23 @@ function openNewClient() {
       <label class="field"><span>Имя</span><input id="n-name" placeholder="Иван"></label>
       <div class="two"><label class="field"><span>Telegram</span><input id="n-tg" placeholder="@nick"></label><label class="field"><span>Телефон</span><input id="n-phone" inputmode="tel"></label></div>
       <div class="sheet-label">Источник</div><div class="chips tight" id="n-src">${SOURCES.map((s, i) => `<button class="chip ${i === 0 ? "active" : ""}" data-v="${s}">${s}</button>`).join("")}</div>
-      ${me.role !== "lidorub" && lidorubs().length ? `<label class="field" style="margin-top:10px"><span>Лидоруб</span><select id="n-lr"><option value="">—</option>${lidorubs().map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join("")}</select></label>` : ""}
-      <label class="field" style="margin-top:10px"><span>Доп. инфа</span><textarea id="n-info" placeholder="откуда пришёл, что пробовал, на что прогрет"></textarea></label>
+      ${!isLeadRole(me.role) && lidorubs().length ? `<label class="field" style="margin-top:10px"><span>Лидоруб</span><select id="n-lr"><option value="">—</option>${lidorubs().map((u) => `<option value="${u.id}">${esc(u.name)}</option>`).join("")}</select></label>` : ""}
+      ${me.role === "traffer" ? LEAD_FORM_HTML : `<label class="field" style="margin-top:10px"><span>Доп. инфа</span><textarea id="n-info" placeholder="откуда пришёл, что пробовал, на что прогрет"></textarea></label>`}
       <label class="field"><span>Чат с клиентом (если уже создан)</span><input id="n-chat" placeholder="https://t.me/+..."></label>
     </div>
     <button class="btn block" id="n-save">Создать</button>
     <button class="btn block ghost" id="n-save-book">Создать и записать на созвон</button>`,
     (sh) => {
-      let src = SOURCES[0];
+      let src = me.role === "traffer" ? "Трафик" : SOURCES[0];
+      for (const x of sh.querySelectorAll("#n-src .chip")) x.classList.toggle("active", x.dataset.v === src);
+      let aware = null;
+      const aw = sh.querySelector("#n-aware");
+      if (aw) aw.onclick = (e) => {
+        const b = e.target.closest("[data-v]");
+        if (!b) return;
+        aware = b.dataset.v;
+        for (const x of aw.querySelectorAll(".chip")) x.classList.toggle("active", x === b);
+      };
       sh.querySelector("#n-src").onclick = (e) => {
         const b = e.target.closest("[data-v]");
         if (!b) return;
@@ -1047,11 +1072,21 @@ function openNewClient() {
           busy = false;
           for (const x of sh.querySelectorAll("#n-save,#n-save-book")) x.disabled = false;
         };
+        // Трафер: анкета обязательна — диагносту нужно понимать, кого ему привели.
+        let info = sh.querySelector("#n-info")?.value || "";
+        if (me.role === "traffer") {
+          const v = (id) => sh.querySelector(id)?.value.trim() || "";
+          if (!v("#n-age") || !aware || !v("#n-want")) {
+            alertDialog("Заполни анкету: возраст, насколько знаком с темой и что хочет — диагносту это нужно перед созвоном.");
+            return done();
+          }
+          info = [`Возраст: ${v("#n-age")}`, v("#n-from") && `Откуда пришёл: ${v("#n-from")}`, `Знаком с темой: ${aware}`, v("#n-job") && `Чем занимается / доход: ${v("#n-job")}`, `Что хочет: ${v("#n-want")}`, v("#n-note") && `Комментарий: ${v("#n-note")}`].filter(Boolean).join("\n");
+        }
         const body = {
           name: sh.querySelector("#n-name").value,
           telegram: sh.querySelector("#n-tg").value,
           phone: sh.querySelector("#n-phone").value,
-          info: sh.querySelector("#n-info").value,
+          info,
           chatUrl: sh.querySelector("#n-chat").value,
           source: src,
           lidorubId: sh.querySelector("#n-lr")?.value || (me.role === "lidorub" ? me.id : null),
@@ -1747,6 +1782,13 @@ const GUIDES = {
     ["Если МОП не заполнил итог", "В карточке «Напомнить … заполнить итог». После 3 напоминаний бот сам пишет тебе."],
   ],
 };
+GUIDES.traffer = [
+  ["Завёл лида", "«Новый лид»: имя, @ник или телефон и анкета — возраст, откуда пришёл, насколько знаком с темой, чем занимается, что хочет, комментарий. Без возраста, знакомства и запроса лид не сохранится."],
+  ["Поставил на созвон", "«Создать и записать на созвон» или «Окна» → зелёный слот диагноста. Диагност сразу получит уведомление."],
+  ["Дописать про лида", "Комментарий внизу карточки — диагност получит уведомление."],
+  ["Ошибся", "15 минут можно отменить или перенести свою запись. Позже — «Попросить передать» в карточке или напиши диагносту."],
+  ["Результат", "На «Сегодня»: поставил на созвон, дошли, продажи с твоих лидов — по каждому лиду."],
+];
 GUIDES.owner = [...GUIDES.rop, ["Выплаты", "«Ещё → Выплаты»: кому сколько за что. По понедельникам бот присылает напоминание с кнопками «выплатил»."], ["Корзина и бэкап", "Удалённые клиенты — «Ещё → Корзина», можно восстановить. Каждое утро бот присылает тебе полный бэкап базы."]];
 function renderGuide() {
   const steps = GUIDES[state.me.role] || GUIDES.mop;
@@ -1914,7 +1956,7 @@ function renderTeam() {
 
 function openUser(id, isPending) {
   const u = (isPending ? state.pending : state.users).find((x) => x.id === id) || { id: "", name: "" };
-  const allowed = state.me.role === "owner" ? Object.keys(ROLES) : ["mop", "lidorub"];
+  const allowed = state.me.role === "owner" ? Object.keys(ROLES) : ["mop", "lidorub", "traffer"];
   let role = u.role && allowed.includes(u.role) ? u.role : allowed.includes("mop") ? "mop" : allowed[0];
   openSheet(
     `<div class="sheet-title">${esc(u.name || "Новый человек")}</div><div class="card">

@@ -217,7 +217,7 @@ async function handleMessage(msg, { me, users, reply, store, env, tg, appUrl, tu
     }
     const { blankClient, log } = await import("./api.mjs");
     const c = blankClient(me.id);
-    Object.assign(c, { name: name.slice(0, 120), telegram: nick, info: text.slice(0, 1000), lidorubId: me.role === "lidorub" ? me.id : null });
+    Object.assign(c, { name: name.slice(0, 120), telegram: nick, info: text.slice(0, 1000), lidorubId: me.role === "lidorub" ? me.id : null, trafferId: me.role === "traffer" ? me.id : null });
     log(c, me.id, "Клиент создан из пересланного сообщения");
     await store.put("client", c.id, c);
     return reply(`🆕 Лид заведён: <b>${who(c)}</b>${nick ? "" : "\n⚠️ Ника нет (скрыт) — допиши телефон или ник в карточке."}\n\nЗаписать: <code>созвон завтра в 15 к Тёме ${nick || h(name)}</code>`, { inline_keyboard: [[openApp(appUrl, "📅 Записать на созвон", `?client=${c.id}&book=1`)]] });
@@ -465,7 +465,7 @@ async function handleAI(text, { me, users, clients, closers, store, tg, appUrl, 
         if (dup) return reply(`Уже есть: <b>${who(dup)}</b> — ${statusLabel(dup.status)}`);
         if (!nick && !inp.name && !inp.phone) return reply("Кого завести? Нужно имя, @ник или телефон.");
         const c = blankClient(me.id);
-        Object.assign(c, { name: String(inp.name || "").slice(0, 120), telegram: nick ? `@${nick}` : "", phone: String(inp.phone || "").replace(/[^\d+]/g, ""), info: String(inp.info || "").slice(0, 1000), lidorubId: me.role === "lidorub" ? me.id : null });
+        Object.assign(c, { name: String(inp.name || "").slice(0, 120), telegram: nick ? `@${nick}` : "", phone: String(inp.phone || "").replace(/[^\d+]/g, ""), info: String(inp.info || "").slice(0, 1000), lidorubId: me.role === "lidorub" ? me.id : null, trafferId: me.role === "traffer" ? me.id : null });
         log(c, me.id, "Клиент создан из бота");
         clients.push(c);
         await store.put("client", c.id, c);
@@ -734,7 +734,7 @@ export function windowsText(day, mops, clients, windows = []) {
 }
 
 function dayCalls(user, clients, day, usersMap) {
-  const boss = ["owner", "rop", "lidorub"].includes(user.role);
+  const boss = ["owner", "rop", "lidorub", "traffer"].includes(user.role);
   const list = [];
   for (const c of clients) for (const call of c.calls || []) if (!call.outcome && mskKey(Date.parse(call.at)) === day && (boss || call.mopId === user.id)) list.push({ c, call });
   list.sort((a, b) => Date.parse(a.call.at) - Date.parse(b.call.at));
@@ -808,7 +808,7 @@ async function handleBookings(items, { me, text, clients, closers, store, tg, ap
     let created = false;
     if (!c) {
       c = blankClient(me.id);
-      Object.assign(c, { name: b.name, telegram: nick, phone: b.phone, lidorubId: me.role === "lidorub" ? me.id : null });
+      Object.assign(c, { name: b.name, telegram: nick, phone: b.phone, lidorubId: me.role === "lidorub" ? me.id : null, trafferId: me.role === "traffer" ? me.id : null });
       log(c, me.id, "Клиент создан из бота");
       clients.push(c);
       created = true;
@@ -864,7 +864,7 @@ async function handleBooking(book, { me, text, clients, closers, store, tg, appU
   let created = false;
   if (!c) {
     c = blankClient(me.id);
-    Object.assign(c, { name: book.name, telegram: nick, phone: book.phone, lidorubId: me.role === "lidorub" ? me.id : null });
+    Object.assign(c, { name: book.name, telegram: nick, phone: book.phone, lidorubId: me.role === "lidorub" ? me.id : null, trafferId: me.role === "traffer" ? me.id : null });
     log(c, me.id, "Клиент создан из бота");
     created = true;
   }
@@ -1135,7 +1135,7 @@ export function dayPlan(user, clients, now = Date.now()) {
   calls.sort((a, b) => Date.parse(a.call.at) - Date.parse(b.call.at));
   const reports = clients.filter((c) => needsReport(c) && (c.mopId === user.id || ["owner", "rop"].includes(user.role)));
   const follow = clients.filter((c) => mine(c) && c.mopId && (c.mopId === user.id || ["owner", "rop"].includes(user.role)) && followupState(c, now)?.due);
-  const fresh = user.role === "lidorub" ? clients.filter((c) => c.status === "new" && (!c.lidorubId || c.lidorubId === user.id)) : [];
+  const fresh = user.role === "lidorub" ? clients.filter((c) => c.status === "new" && (!c.lidorubId || c.lidorubId === user.id)) : user.role === "traffer" ? clients.filter((c) => c.status === "new" && c.trafferId === user.id && !currentCall(c)) : [];
   const parts = [];
   if (calls.length) parts.push(`📞 <b>Созвоны сегодня (${calls.length})</b>\n${calls.map(({ c, call }) => `• ${mskTime(Date.parse(call.at))} — ${who(c)}`).join("\n")}`);
   if (reports.length) parts.push(`📝 <b>Нет отчёта (${reports.length})</b>\n${reports.slice(0, 10).map((c) => `• ${who(c)}`).join("\n")}`);

@@ -6,7 +6,13 @@ export const ROLES = {
   rop: "РОП",
   mop: "Менеджер ОП",
   lidorub: "Лидоруб",
+  traffer: "Трафер",
 };
+// Кто приводит лидов и ставит на созвоны (без продаж): лидоруб и трафер.
+export const LEAD_ROLES = ["lidorub", "traffer"];
+export const isLeadRole = (role) => LEAD_ROLES.includes(role);
+// Чей лид: трафер — по trafferId, лидоруб — по lidorubId.
+export const leadOwnerOf = (c) => c.trafferId || c.lidorubId || null;
 // Кто видит зарплатную ведомость и правит настройки.
 export const MONEY_ROLES = ["owner", "rop"];
 export const canSeeMoney = (role) => MONEY_ROLES.includes(role);
@@ -37,7 +43,7 @@ export const isClosed = (status) => ["paid", "refuse_personal", "refuse_bank", "
 // Чем закончился созвон / что ставит диагност после созвона.
 export const AFTER_CALL = ["paid", "prepaid", "thinking", "resched", "refuse_personal", "refuse_bank", "invalid"];
 
-export const SOURCES = ["Новая заявка", "Работа по базе", "Интенсив", "Рекомендация", "Другое"];
+export const SOURCES = ["Новая заявка", "Работа по базе", "Интенсив", "Рекомендация", "Трафик", "Другое"];
 
 // Форма отчёта после диагностики — поля 1-в-1 из регламента.
 export const REPORT_FIELDS = [

@@ -26,7 +26,7 @@ export async function dispatch(notes, c, { store, env, tg, appUrl, by, users, se
     let to = [];
     let kb = { inline_keyboard: [[...chatBtn, card()]] };
     if (n.t === "handover") {
-      to = [n.mop, n.from, c.lidorubId];
+      to = [n.mop, n.from, c.lidorubId, c.trafferId];
       html = `🔀 <b>Клиент передан</b>\n👤 ${who(c)}\n${h(name(n.from))} → <b>${h(name(n.mop))}</b>${n.at ? `\n📅 созвон ${fmtWhen(Date.parse(n.at))} МСК — теперь у ${h(name(n.mop))}` : ""}\nПередал: ${h(name(by))}`;
     }
     if (n.t === "takeRequest") {
@@ -38,17 +38,17 @@ export async function dispatch(notes, c, { store, env, tg, appUrl, by, users, se
       to = [n.mop];
       if (n.prevMop && n.prevMop !== n.mop) to.push(n.prevMop);
       // Перенос — и лидорубу, который записывал: он держит связь с клиентом.
-      if (n.moved && c.lidorubId) to.push(c.lidorubId);
+      if (n.moved) to.push(c.lidorubId, c.trafferId);
       html = n.moved
         ? `🔁 <b>Перенос созвона</b>\n👤 ${who(c)}\nБыло: ${fmtWhen(Date.parse(n.moved))}\nСтало: <b>${fmtWhen(Date.parse(n.at))} МСК</b> · ${h(name(n.mop))}\nПеренёс: ${h(name(by))}`
         : `🆕 <b>Новый созвон — ${fmtWhen(Date.parse(n.at))} МСК</b>\n👤 ${who(c)}${c.info ? `\n📝 ${h(c.info.slice(0, 250))}` : ""}\nЗаписал: ${h(name(by))}${n.text ? `\n💬 «${h(n.text.slice(0, 400))}»` : ""}`;
     }
     if (n.t === "ndz") {
-      to = [c.lidorubId, ...bosses];
+      to = [c.lidorubId, c.trafferId, ...bosses];
       html = `❌ <b>НДЗ-${n.n}</b> · ${who(c)}\nДиагност: ${h(name(n.mop))}. Лидоруб — перезаписать, клиент ушёл в дожим.`;
     }
     if (n.t === "paid") {
-      to = [...bosses, n.mop, c.lidorubId];
+      to = [...bosses, n.mop, c.lidorubId, c.trafferId];
       const plan = settings?.monthPlan;
       let tail = "";
       if (settings?.salesPlan || plan) {
@@ -59,18 +59,18 @@ export async function dispatch(notes, c, { store, env, tg, appUrl, by, users, se
           ? `\n📈 Продажа ${m.sales} из ${settings.salesPlan} за месяц · ${rub(m.salesSum)}`
           : `\n📈 Месяц: ${rub(m.salesSum)} из ${rub(plan)} (${Math.round((m.salesSum / plan) * 100)}%)`;
       }
-      html = `💰 <b>Продажа ${rub(n.sum)}</b>\n👤 ${who(c)}\n🎯 ${h(name(n.mop))}${c.lidorubId ? ` · лид от ${h(name(c.lidorubId))}` : ""}${tail}`;
+      html = `💰 <b>Продажа ${rub(n.sum)}</b>\n👤 ${who(c)}\n🎯 ${h(name(n.mop))}${c.trafferId || c.lidorubId ? ` · лид от ${h(name(c.trafferId || c.lidorubId))}` : ""}${tail}`;
     }
     if (n.t === "prepaid") {
       to = [...bosses];
       html = `💵 <b>Предоплата ${rub(n.sum)}</b> · ${who(c)} · ${h(name(n.mop))}`;
     }
     if (n.t === "refuse_bank") {
-      to = [...bosses, c.lidorubId];
+      to = [...bosses, c.lidorubId, c.trafferId];
       html = `🏦 <b>Отказ по банкам</b> · ${who(c)}${n.sum ? ` на ${rub(n.sum)}` : ""}\nПо регламенту — передать рекрутеру: может зайти в РКО исполнителем.`;
     }
     if (n.t === "comment") {
-      to = [c.mopId, c.lidorubId, ...bosses];
+      to = [c.mopId, c.lidorubId, c.trafferId, ...bosses];
       html = `💬 <b>${h(name(by))}</b> → ${who(c)}\n${h(n.text)}`;
       kb = { inline_keyboard: [[card("Открыть и ответить")]] };
     }

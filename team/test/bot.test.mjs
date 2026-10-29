@@ -1179,3 +1179,31 @@ test("locked booking in «Окна»: 403 says who and whether it can be taken; 
     assert.equal(vv.calls.filter((x) => !x.outcome)[0].mopId, "601");
   }
 });
+
+test("traffer role: gets the guide on role assign, leads are his (trafferId), books into windows, hears NDZ; can't take leads", async () => {
+  const { store, sent, say, api } = await setup();
+  // Матвей написал боту → в заявках; Петя выдаёт роль «Трафер» → в бота приходит инструкция
+  await say(701, "привет");
+  assert.ok(await store.get("pending", "701"));
+  assert.equal((await api(1, "POST", "/users", { id: "701", role: "traffer", name: "Матвей" })).status, 200);
+  const toM = sent.filter((m) => m.chat === "701").map((m) => m.text).join("\n");
+  assert.match(toM, /Твоя роль: <b>Трафер/);
+  assert.match(toM, /анкета лида/i);
+  // заводит лида с анкетой
+  const c = (await api(701, "POST", "/clients", { name: "Кирилл", telegram: "kirill_tr", info: "Возраст: 22\nЗнаком с темой: слышал\nЧто хочет: 100к", source: "Трафик" })).body.client;
+  assert.equal(c.trafferId, "701");
+  assert.equal(c.source, "Трафик");
+  // ставит на созвон к Диме ботом
+  await say(701, "созвон завтра в 18 к Диме @kirill_tr Кирилл");
+  let cl = await store.get("client", c.id);
+  assert.equal(cl.calls.filter((x) => !x.outcome)[0].mopId, "502");
+  // новый лид через бота — тоже его
+  await say(701, "созвон завтра в 19 к Теме @new_tr Олег");
+  assert.equal((await store.all("client")).find((x) => x.telegram === "@new_tr").trafferId, "701");
+  // НДЗ — трафер в курсе
+  await store.put("client", c.id, { ...cl, calls: cl.calls.map((x) => ({ ...x, at: new Date(Date.now() - 3600_000).toISOString() })) });
+  await api(502, "POST", `/clients/${c.id}/action`, { type: "ndz" });
+  assert.ok(sent.some((m) => m.chat === "701" && /НДЗ/.test(m.text)));
+  // забрать лида себе не может
+  assert.equal((await api(701, "POST", `/clients/${c.id}/action`, { type: "transfer", to: "701" })).status, 403);
+});
