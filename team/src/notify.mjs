@@ -48,7 +48,8 @@ export async function dispatch(notes, c, { store, env, tg, appUrl, by, users, se
       html = `❌ <b>НДЗ-${n.n}</b> · ${who(c)}\nДиагност: ${h(name(n.mop))}. Лидоруб — перезаписать, клиент ушёл в дожим.`;
     }
     if (n.t === "paid") {
-      to = [...bosses, n.mop, c.lidorubId, c.trafferId];
+      // Трафер о продажах не узнаёт (только руководство, диагност и лидоруб).
+      to = [...bosses, n.mop, c.lidorubId];
       const plan = settings?.monthPlan;
       let tail = "";
       if (settings?.salesPlan || plan) {

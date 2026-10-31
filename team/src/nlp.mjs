@@ -255,8 +255,8 @@ function timeAnchors(t) {
   const push = (idx, end, h, m, tail) => {
     if (h > 23 || m > 59) return;
     if (tail === "дня" || tail === "вечера") h = h < 12 ? h + 12 : h;
-    // Созвонов в 1–7 утра не бывает: «в 4» — это 16:00, если не сказали «утра»/«ночи».
-    else if (!tail && h >= 1 && h <= 7) h += 12;
+    // Созвонов в 1–7 утра не бывает: «в 4» — это 16:00, если не сказали «утра»/«ночи». «07:25» с нулём — как написано.
+    else if (!tail && h >= 1 && h <= 7 && !/(^|[^\d])0\d/.test(t.slice(idx, end))) h += 12;
     if (out.some((a) => idx < a.end && end > a.idx)) return;
     out.push({ idx, end, h, m });
   };

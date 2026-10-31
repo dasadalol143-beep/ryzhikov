@@ -1206,4 +1206,9 @@ test("traffer role: gets the guide on role assign, leads are his (trafferId), bo
   assert.ok(sent.some((m) => m.chat === "701" && /НДЗ/.test(m.text)));
   // забрать лида себе не может
   assert.equal((await api(701, "POST", `/clients/${c.id}/action`, { type: "transfer", to: "701" })).status, 403);
+  // о продаже трафер не узнаёт
+  const before = sent.filter((m) => m.chat === "701").length;
+  await api(502, "POST", `/clients/${c.id}/action`, { type: "status", status: "paid", sum: 90000 });
+  assert.ok(sent.some((m) => m.chat === "1" && /Продажа/.test(m.text)));
+  assert.equal(sent.filter((m) => m.chat === "701").length, before);
 });
