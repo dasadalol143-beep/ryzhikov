@@ -1212,3 +1212,25 @@ test("traffer role: gets the guide on role assign, leads are his (trafferId), bo
   assert.ok(sent.some((m) => m.chat === "1" && /Продажа/.test(m.text)));
   assert.equal(sent.filter((m) => m.chat === "701").length, before);
 });
+
+test("sale day = payroll date: «Оплатил» pressed after midnight for a 31.10 call counts in October, not November", async () => {
+  const { store, api } = await setup();
+  const { rnp } = await import("../public/lib/stats.js");
+  const { runDataFixes } = await import("../src/api.mjs");
+  // как в бою: событие продажи записано 01.11 00:20, без дня; оплата в ведомости — 31.10, 100 000 / чистая 69 000
+  const c = { id: "misha", name: "Миша", telegram: "@misha_t", status: "paid", mopId: "501", calls: [{ id: "k1", at: "2026-10-31T17:00:00.000Z", mopId: "501", outcome: "held", reportAt: "2026-10-31T18:00:00.000Z" }], events: [{ t: "handed", at: "2026-10-30T10:00:00.000Z", mop: "501" }, { t: "paid", at: "2026-10-31T21:20:00.000Z", mop: "501", sum: 100000 }], history: [] };
+  await store.put("client", c.id, c);
+  await store.put("payment", "p-misha", { id: "p-misha", date: "2026-10-31", tariff: 100000, net: 69000, verified: true, mopId: "501", clientId: "misha", clientName: "Миша" });
+  for (const k of ["fix-iuuhkkk-v1", "fix-2810-v1", "fix-2810-v2"]) await store.put("meta", k, { id: k });
+  await store.put("meta", "guides-v1", { id: "guides-v1", done: true });
+  const before = rnp([c], {}, { from: "2026-11-01", to: "2026-11-30" }).total.sales;
+  assert.equal(before, 1); // так было: ноябрь «1 из 25»
+  await runDataFixes({ store, env: { OWNER_IDS: "1" }, tg: { sendMessage: async () => ({}) }, appUrl: "https://t/" });
+  const fixed = await store.get("client", "misha");
+  assert.equal(rnp([fixed], {}, { from: "2026-11-01", to: "2026-11-30" }).total.sales, 0);
+  const oct = rnp([fixed], {}, { from: "2026-10-01", to: "2026-10-31" }).total;
+  assert.deepEqual([oct.sales, oct.salesSum], [1, 100000]);
+  // поправили дату в ведомости — продажа переезжает за ней
+  await api(1, "PATCH", "/payments/p-misha", { date: "2026-10-30" });
+  assert.equal((await store.get("client", "misha")).events.find((e) => e.t === "paid").day, "2026-10-30");
+});

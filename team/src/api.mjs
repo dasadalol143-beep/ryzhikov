@@ -183,7 +183,7 @@ export async function reconcilePaid(store, now = Date.now()) {
   const [clients, payments, settings] = await Promise.all([store.all("client"), store.all("payment"), loadSettings(store)]);
   const mopOf = mopResolver(settings);
   const words = (t) => String(t || "").replace(/@[\w]+/g, " ").toLowerCase().replace(/ё/g, "е").split(/[^a-zа-я0-9]+/).filter((w) => w.length >= 3);
-  const dayOf = (c) => mskKey(Date.parse([...(c.events || [])].reverse().find((e) => e.t === "paid")?.at || [...(c.calls || [])].filter((x) => x.outcome === "held").sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0]?.at || c.statusAt || nowIso()));
+  const dayOf = (c) => [...(c.events || [])].reverse().find((e) => e.t === "paid")?.day || mskKey(Date.parse([...(c.events || [])].reverse().find((e) => e.t === "paid")?.at || [...(c.calls || [])].filter((x) => x.outcome === "held").sort((a, b) => Date.parse(b.at) - Date.parse(a.at))[0]?.at || c.statusAt || nowIso()));
   const near = (a, b, days = 10) => Math.abs(Date.parse(a) - Date.parse(b)) <= days * 86400_000;
   const linked = [];
   for (const p of payments) {
@@ -249,6 +249,20 @@ async function repointPayments(store, fromIds, toId) {
   const hit = (await store.all("payment")).filter((p) => fromIds.includes(p.clientId));
   for (const p of hit) p.clientId = toId;
   if (hit.length) await store.putMany("payment", hit);
+}
+
+// День продажи в РнП = дата оплаты в ведомости. Поправили дату в ведомости — продажа переезжает за ней.
+export async function syncPaidDay(store, clientId) {
+  if (!clientId) return false;
+  const c = await store.get("client", clientId);
+  const ev = c && [...(c.events || [])].reverse().find((e) => e.t === "paid");
+  if (!ev) return false;
+  const pays = (await store.all("payment")).filter((p) => p.clientId === clientId && isDay(p.date)).sort((a, b) => (b.verified - a.verified) || b.date.localeCompare(a.date));
+  const day = pays[0]?.date;
+  if (!day || ev.day === day) return false;
+  ev.day = day;
+  await store.put("client", c.id, c);
+  return true;
 }
 
 const event = (c, t, by, extra = {}) => {
@@ -321,7 +335,8 @@ async function setStatus(c, status, { by, sum, store, settings, notes }) {
     }
   }
   if (status === "paid") {
-    event(c, "paid", by, { mop, sum: amount });
+    // День продажи — как в ведомости (день проведённого созвона), а не момент нажатия: «Оплатил» после полуночи за вчерашний созвон — вчера.
+    event(c, "paid", by, { mop, sum: amount, day: payDay(c) });
     c.payDismissed = false;
     // Продажа сразу падает в ведомость черновиком — РОП вносит чистую сумму и верифицирует.
     // Оплата этого клиента уже есть (проверенная или от РОПа) — вторую не создаём.
@@ -868,6 +883,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
           await store.put("payment", p.id, p);
           // Завели оплату вручную — сразу привязать к клиенту и убрать дубль-черновик сверки.
           await reconcilePaid(store).catch(() => 0);
+          await syncPaidDay(store, (await store.get("payment", p.id))?.clientId).catch(() => 0);
           return json({ payment: (await store.get("payment", p.id)) || p, payments: await store.all("payment") });
         }
         if (pm) {
@@ -892,6 +908,7 @@ export function createHandler({ store, env, fetch: fetchImpl = fetch }) {
             if ("verified" in body) p.verifiedBy = p.verified ? by : null;
             await store.put("payment", p.id, p);
             await reconcilePaid(store).catch(() => 0);
+            await syncPaidDay(store, (await store.get("payment", p.id))?.clientId).catch(() => 0);
             return json({ payment: (await store.get("payment", p.id)) || p, payments: await store.all("payment") });
           }
         }
@@ -1310,6 +1327,22 @@ export async function runDataFixes({ store, env, tg, appUrl, now = Date.now() })
       await store.put("meta", "fix-iuuhkkk-v1", { id: "fix-iuuhkkk-v1", at: nowIso(), clientId: c.id });
       done.push(`iuuhkkk:${c.id}`);
     }
+  }
+  // 01.11: день продажи в РнП = дата оплаты в ведомости (раньше считали по моменту нажатия «Оплатил»).
+  if (!(await store.get("meta", "fix-paid-day-v1"))) {
+    const moved = [];
+    for (const c of await store.all("client")) {
+      const ev = [...(c.events || [])].reverse().find((e) => e.t === "paid");
+      if (!ev) continue;
+      const before = ev.day || mskKey(Date.parse(ev.at));
+      if (await syncPaidDay(store, c.id)) {
+        const after = (await store.get("client", c.id)).events.filter((e) => e.t === "paid").at(-1).day;
+        if (after.slice(0, 7) !== before.slice(0, 7)) moved.push(`${clientTitle(c)}: ${before.split("-").reverse().join(".")} → ${after.split("-").reverse().join(".")}`);
+      }
+    }
+    if (tg && moved.length) for (const id of parseIds(env?.OWNER_IDS)) await tg.sendMessage(id, `🛠 <b>Продажи встали в месяц по дате ведомости</b>\n${moved.map((x) => `• ${escapeHtml(x)}`).join("\n")}`).catch(() => {});
+    await store.put("meta", "fix-paid-day-v1", { id: "fix-paid-day-v1", at: nowIso(), moved });
+    done.push(...moved);
   }
   // 27.10 (2): у клиента ник @vanszsa, а не @vansa — переносим его к Диме на 28.10 18:00.
   if (!(await store.get("meta", "fix-2810-v2")) && Date.now() < Date.parse("2026-10-28T18:00:00+03:00")) {

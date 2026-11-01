@@ -505,7 +505,7 @@ function lidorubHome(me, field = "lidorubId") {
   const sold = mineAll.filter((c) => c.status === "paid").map((c) => ({ c, ev: [...(c.events || [])].reverse().find((e) => e.t === "paid") })).sort((a, b) => (b.ev?.at || "").localeCompare(a.ev?.at || ""));
   if (sold.length) {
     const sum = sold.reduce((x, y) => x + (Number(y.ev?.sum) || y.c.wantedSum || 0), 0);
-    html += section(`Продажи с моих лидов · ${sold.length}`, sold.slice(0, 20).map(({ c, ev }) => clientRow(c, { sub: `${statusBadge(c.status)}<span class="sub">· ${esc(userName(c.mopId))}${ev ? ` · ${fmtDay(mskKey(Date.parse(ev.at)))}` : ""}</span>`, right: `<b class="money-green">${rub(Number(ev?.sum) || c.wantedSum || 0)}</b>` })), { action: `<span class="sub">${rub(sum)}</span>` });
+    html += section(`Продажи с моих лидов · ${sold.length}`, sold.slice(0, 20).map(({ c, ev }) => clientRow(c, { sub: `${statusBadge(c.status)}<span class="sub">· ${esc(userName(c.mopId))}${ev ? ` · ${fmtDay(ev.day || mskKey(Date.parse(ev.at)))}` : ""}</span>`, right: `<b class="money-green">${rub(Number(ev?.sum) || c.wantedSum || 0)}</b>` })), { action: `<span class="sub">${rub(sum)}</span>` });
   }
   return html;
 }
@@ -2242,7 +2242,7 @@ $app.addEventListener("click", async (e) => {
     const c = clientById(d.addpay);
     const ev = [...(c.events || [])].reverse().find((e) => e.t === "paid");
     try {
-      const res = await api("POST", "/payments", { clientId: c.id, clientName: clientTitle(c), mopId: c.mopId, lidorubId: c.lidorubId, tariff: ev?.sum || c.wantedSum || 0, date: today() });
+      const res = await api("POST", "/payments", { clientId: c.id, clientName: clientTitle(c), mopId: c.mopId, lidorubId: c.lidorubId, tariff: ev?.sum || c.wantedSum || 0, date: ev?.day || today() });
       state.payments = res.payments || [...(state.payments || []), res.payment];
       toast("Оплата добавлена — внеси чистую в ведомости");
       return render();

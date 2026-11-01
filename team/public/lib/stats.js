@@ -43,7 +43,8 @@ export function rnpEvents(clients, legacy = {}, aliases = {}) {
     for (const e of c.events || []) {
       const day = mskKey(Date.parse(e.at));
       if (e.t === "handed") push(e.mop, day, "leads");
-      if (e.t === "paid") push(e.mop, day, "sales"), push(e.mop, day, "salesSum", Number(e.sum) || 0);
+      // Продажа — в день оплаты из ведомости (e.day), а не в момент нажатия «Оплатил».
+      if (e.t === "paid") push(e.mop, e.day || day, "sales"), push(e.mop, e.day || day, "salesSum", Number(e.sum) || 0);
       if (e.t === "prepaid") push(e.mop, day, "prepays"), push(e.mop, day, "prepaySum", Number(e.sum) || 0);
       if (e.t === "refuse_bank") push(e.mop, day, "bank"), push(e.mop, day, "bankSum", Number(e.sum) || 0);
       if (e.t === "potential") push(e.mop, day, "potential"), push(e.mop, day, "potentialSum", Number(e.sum) || 0);
