@@ -28,7 +28,9 @@ if re.match(r"https?://", a.src):
     video = out / "ref.mp4"
 else:
     video = pathlib.Path(a.src).resolve()
-    out = ROOT / "work" / f"ref_{video.stem}"; out.mkdir(parents=True, exist_ok=True)
+    # ref.mp4 внутри work/ref_<id>/ — пишем туда же, а не в общую ref_ref (иначе разборы перетирают друг друга)
+    out = video.parent if video.parent.name.startswith("ref_") else ROOT / "work" / f"ref_{video.stem}"
+    out.mkdir(parents=True, exist_ok=True)
 
 probe = json.loads(subprocess.check_output(["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=width,height,r_frame_rate,codec_type", "-of", "json", str(video)]))
 dur = float(probe["format"]["duration"])
@@ -86,7 +88,7 @@ def load_audio(path):  # декодируем ffmpeg-ом: не зависим �
     raw = _sp.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "s16le", "-ac", "1", "-ar", "16000", "-"], capture_output=True, check=True).stdout
     return _np.frombuffer(raw, _np.int16).astype(_np.float32) / 32768.0
     m = WhisperModel(a.model, device="cpu", compute_type="int8", download_root=str(ROOT / "models"))
-    segs, info = m.transcribe(load_audio(video), word_timestamps=True, vad_filter=True)
+    segs, info = m.transcribe(load_audio(video), language="ru", word_timestamps=True, vad_filter=False)  # VAD режет голос под музыкой
     for sg in segs:
         for w in sg.words: words.append({"w": w.word.strip(), "s": round(w.start, 2), "e": round(w.end, 2)})
     (out / "words.json").write_text(json.dumps(words, ensure_ascii=False, indent=1))
