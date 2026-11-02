@@ -48,6 +48,13 @@
 | `subs.py` | слова → ASS: субтитры внизу + крупные слова по центру + цензура мата |
 | `counter.py` | счётчик денег прозрачным .mov (gold/red, ступеньки по банкам) |
 | `plate.py` | плашки PNG (ШАГ 1, ПИШИ «РКО», БЕСПЛАТНО, пуш «+14 000 ₽») |
+| `analyze_ref.py` | референс (ссылка/файл) → склейки, темп, листы кадров, речь → основа для покадрового плана |
 | `make_sfx.py` | пак звуков: notification, cash_push, click, tick, impact, whoosh, riser, scratch, bass_drop, type_key, slap |
 
 Исходники кидай в `montage/input/`, промежуточное идёт в `montage/work/`, готовое в `montage/output/`. Видео и модели в git не попадают.
+
+## Remotion (`montage/remotion`)
+Моушен и ролики без лица. Брендовые компоненты: `Scene`, `KenBurns`, `MoneyCounter`, `BigText`, `Plate`, `Push`, `Flow`, `CTA`, `Captions`. Тема и цвета в `src/theme.ts`, образец в `src/scenes/InviteFriendDemo.tsx`. Как работать, описано в скиле `.claude/skills/ryzhikov-montage`.
+
+## Ещё установлено
+auto-editor (резка пауз), PySceneDetect (склейки), yt-dlp (скачать референс), Hyperframes (`npx hyperframes`, HTML-видео), moviepy, OpenCV, librosa. Модели Whisper (large-v3-turbo, small) скачиваются в `montage/models/` при первом запуске.

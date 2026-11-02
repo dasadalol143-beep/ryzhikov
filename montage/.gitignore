@@ -3,3 +3,7 @@ work/*
 output/*
 models/
 !*/.gitkeep
+remotion/node_modules/
+remotion/public/media/*
+!remotion/public/media/.gitkeep
+remotion/out/
