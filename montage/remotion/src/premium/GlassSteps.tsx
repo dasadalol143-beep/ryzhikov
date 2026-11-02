@@ -13,7 +13,7 @@ export const LeafBG: React.FC<{ src?: string }> = ({ src = "media/fern_bw.jpg" }
     <AbsoluteFill style={{ background: "#050505", overflow: "hidden" }}>
       <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover",
         transform: `scale(${s}) translate(${Math.sin(frame / 80) * 8}px, ${Math.cos(frame / 95) * 10}px) rotate(${Math.sin(frame / 120) * 0.4}deg)`,
-        filter: "grayscale(1) contrast(1.05)" }} />
+        filter: "grayscale(1) brightness(0.97)" }} />
       <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 45%, rgba(255,255,255,0.05), transparent 60%)" }} />
     </AbsoluteFill>
   );
@@ -33,21 +33,22 @@ const Chip: React.FC<{ st: Step; y: number; x: number }> = ({ st, y, x }) => {
   return (
     <div style={{ position: "absolute", left: x, top: y, transformOrigin: "left center", transform: `translateY(-50%) translateY(${(1 - p) * 30}px) scale(${0.92 + 0.08 * p})`,
       opacity: p, filter: `blur(${(1 - p) * 8}px)` }}>
-      <div style={{ position: "relative", padding: "30px 50px", borderRadius: 26,
+      <div style={{ position: "relative", padding: "34px 58px", borderRadius: 28,
         background: `rgba(255,255,255,${0.055 + 0.12 * hot})`, border: "1.5px solid rgba(255,255,255,0.12)",
         backdropFilter: "blur(14px)", boxShadow: `0 18px 40px rgba(0,0,0,0.55), 0 0 ${60 * hot}px rgba(255,255,255,${0.35 * hot}), inset 0 1px 0 rgba(255,255,255,0.08)`,
-        fontFamily: theme.fonts.ui, fontWeight: 700, fontSize: 46, letterSpacing: "0.01em", color: "#F4F4F4", whiteSpace: "nowrap",
+        fontFamily: theme.fonts.ui, fontWeight: 700, fontSize: 54, letterSpacing: "0.01em", color: "#F4F4F4", whiteSpace: "nowrap",
         textShadow: `0 0 ${18 * hot}px rgba(255,255,255,${0.9 * hot})` }}>
         {st.label}
-        <div style={{ position: "absolute", left: -22, top: -30, width: 60, height: 60, borderRadius: 16, background: "rgba(40,40,42,0.95)",
-          border: "1.5px solid rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 34, fontWeight: 700, color: "#EDEDED", opacity: badgeP, transform: `scale(${0.6 + 0.4 * badgeP})` }}>{st.n}</div>
+        {/* номерок как в оригинале: ~76 px, тёмная плашка со светлой рамкой, цифра ~46 px */}
+        <div style={{ position: "absolute", left: -30, top: -38, width: 76, height: 76, borderRadius: 20, background: "rgba(28,28,30,0.98)",
+          border: "2px solid rgba(255,255,255,0.22)", boxShadow: "0 8px 18px rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 46, fontWeight: 700, textShadow: "none", color: "#EDEDED", opacity: badgeP, transform: `scale(${0.6 + 0.4 * badgeP})` }}>{st.n}</div>
       </div>
     </div>
   );
 };
 
-export const GlassSteps: React.FC<{ q: Q; steps: Step[]; gap?: number; exitAt?: number; x?: number }> = ({ q, steps, gap = 192, exitAt, x = 0.19 }) => {
+export const GlassSteps: React.FC<{ q: Q; steps: Step[]; gap?: number; exitAt?: number; x?: number }> = ({ q, steps, gap = 200, exitAt, x = 0.17 }) => {
   const frame = useCurrentFrame();
   const { fps, height, width } = useVideoConfig();
   const sec = (s: number) => Math.round(s * fps);

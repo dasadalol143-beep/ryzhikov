@@ -6,7 +6,8 @@ import { theme } from "../theme";
 
 const C = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 
-export type ZKey = { t: number; z: number; ease?: "snap" | "smooth" };
+/** smooth — плавно от прошлого ключа; snap — удар с пружиной; cut — джамп-кат за 1 кадр (как пробивки в оригинале) */
+export type ZKey = { t: number; z: number; ease?: "snap" | "smooth" | "cut" };
 /** face: [[t, cx, cy, w], ...] — из montage/tools/face_track.py (доли кадра) */
 export type FaceData = number[][];
 
@@ -24,7 +25,9 @@ export const zoomAt = (keys: ZKey[], frame: number, fps: number): number => {
     const k = keys[i];
     const prev = keys[i - 1];
     const d = k.z - prev.z;
-    if (k.ease === "snap") {
+    if (k.ease === "cut") {
+      if (frame >= Math.round(k.t * fps)) z += d;
+    } else if (k.ease === "snap") {
       // удар: 4–6 кадров с лёгким перелётом
       z += d * spring({ frame: frame - Math.round(k.t * fps), fps, config: { damping: 15, stiffness: 260, mass: 0.6 } });
     } else {
@@ -40,7 +43,8 @@ export const ZoomTrack: React.FC<{ keys: ZKey[]; face?: FaceData; children: Reac
   const z = zoomAt(keys, frame, fps);
   const dz = Math.abs(z - zoomAt(keys, frame - 1, fps));
   const [cx, cy] = faceAt(face, frame / fps);
-  const blur = dz > 0.02 ? Math.min(4, (dz - 0.02) * 120) : 0; // смаз только в момент удара, плавные зумы чистые
+  const isCut = keys.some((k) => k.ease === "cut" && Math.round(k.t * fps) === frame);
+  const blur = !isCut && dz > 0.02 ? Math.min(4, (dz - 0.02) * 120) : 0; // смаз только в момент удара, плавные зумы чистые
   return (
     <AbsoluteFill style={{ overflow: "hidden" }}>
       <AbsoluteFill style={{ transform: `scale(${z})`, transformOrigin: `${cx * 100}% ${cy * 100}%`, filter: blur > 0.3 ? `blur(${blur}px)` : undefined }}>

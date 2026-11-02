@@ -23,6 +23,8 @@ export type GSeg = {
   outline?: boolean; // контурное эхо (цифры, CTA)
   dx?: number[]; // сдвиг каждой строки, доля ширины (КРЕДИТНУЮ ← / КАРТУ →)
   gap?: number; // расстояние между строками, px (может быть отрицательным)
+  /** phrase — вся фраза сразу (по умолчанию для 1 строки), line — по строкам (лесенка), word — по словам */
+  reveal?: "phrase" | "line" | "word";
 };
 
 const SIZE: Record<Lvl, number> = { small: 64, cap: 106, big: 160 };
@@ -41,11 +43,11 @@ const textStyle = (lvl: Lvl): React.CSSProperties => ({
 });
 
 /** Одно слово: проявляется из размытия с увеличением, за ним гаснет увеличенная копия-эхо. */
-const Word: React.FC<{ w: GWord; outline?: boolean }> = ({ w, outline }) => {
+const Word: React.FC<{ w: GWord; outline?: boolean; at: number }> = ({ w, outline, at }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const lvl = w.lvl ?? "cap";
-  const local = frame - Math.round(w.s * fps);
+  const local = frame - Math.round(at * fps);
   if (local < 0) return <span style={{ ...textStyle(lvl), opacity: 0 }}>{w.t}</span>; // держит место в строке
   const p = interpolate(local, [0, 0.3 * fps], [0, 1], { ...C, easing: theme.ease.out });
   const q = interpolate(local, [0, 0.6 * fps], [0, 1], { ...C, easing: theme.ease.out });
@@ -81,13 +83,17 @@ export const GlowSeg: React.FC<{ seg: GSeg }> = ({ seg }) => {
   if (frame < sf || frame > ef + exitDur) return null;
   const x = interpolate(frame, [ef, ef + exitDur], [0, 1], { ...C, easing: theme.ease.out });
   const align = seg.align ?? "center";
+  // замер оригинала: короткая фраза появляется целиком в начале; лесенка — по строкам, +0,08 с к первому слову строки
+  const reveal = seg.reveal ?? (seg.lines.length > 1 ? "line" : "phrase");
+  const startOf = (li: number, w: GWord) =>
+    reveal === "word" ? w.s : reveal === "phrase" ? seg.s : li === 0 ? seg.s : Math.max(seg.s, seg.lines[li][0].s + 0.08);
   const left = (seg.x ?? 0.5) * width;
   const top = (seg.y ?? 0.72) * height;
   const body = (
     <div style={{ display: "flex", flexDirection: "column", alignItems: align === "left" ? "flex-start" : "center", gap: seg.gap ?? 4 }}>
       {seg.lines.map((line, i) => (
         <div key={i} style={{ display: "flex", gap: 40, alignItems: "baseline", transform: `translateX(${(seg.dx?.[i] ?? 0) * width}px)` }}>
-          {line.map((w, j) => <Word key={j} w={w} outline={seg.outline} />)}
+          {line.map((w, j) => <Word key={j} w={w} outline={seg.outline} at={startOf(i, w)} />)}
         </div>
       ))}
     </div>
@@ -105,14 +111,19 @@ export const GlowSeg: React.FC<{ seg: GSeg }> = ({ seg }) => {
   );
 };
 
-export const GlowCaptions: React.FC<{ segs: GSeg[]; shade?: number }> = ({ segs, shade = 0.5 }) => (
+export const GlowCaptions: React.FC<{ segs: GSeg[]; shade?: number | ((t: number) => number) }> = ({ segs, shade = 0.5 }) => {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const sh = typeof shade === "function" ? shade(frame / fps) : shade;
+  return (
   <AbsoluteFill style={{ pointerEvents: "none" }}>
-    {shade > 0 && (
-      <AbsoluteFill style={{ background: `linear-gradient(180deg, transparent 52%, rgba(0,0,0,${shade * 0.55}) 72%, rgba(0,0,0,${shade}) 100%)` }} />
+    {sh > 0 && (
+      <AbsoluteFill style={{ background: `linear-gradient(180deg, transparent 52%, rgba(0,0,0,${sh * 0.55}) 72%, rgba(0,0,0,${sh}) 100%)` }} />
     )}
     {segs.map((s, i) => <GlowSeg key={i} seg={s} />)}
   </AbsoluteFill>
-);
+  );
+};
 
 /** Быстрый конструктор: "В 18 ЛЕТ" + таймкоды слов → GWord[] */
 export const words = (pairs: [string, number, Lvl?][]): GWord[] => pairs.map(([t, s, lvl]) => ({ t, s, lvl }));

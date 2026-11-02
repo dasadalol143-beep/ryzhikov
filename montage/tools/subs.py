@@ -10,7 +10,9 @@ CENSOR = {r"пиздец": "п*здец", r"ебашу": "еб*шу", r"заеб
 def censor(w):
     lw = w.lower()
     for k, v in CENSOR.items():
-        if re.match(k, lw): return v + w[len(v):] if len(w) > len(v) else v
+        if re.match(k, lw):
+            r = v + w[len(v):] if len(w) > len(v) else v
+            return r[0].upper() + r[1:] if w[:1].isupper() else r  # сохраняем заглавную в начале фразы
     return w
 COL = {"gold": "&H0037AFD4&", "red": "&H003030E6&", "white": "&H00FFFFFF&", "yellow": "&H0000E1FF&"}
 def ts(x): return f"{int(x//3600)}:{int(x%3600//60):02}:{x%60:05.2f}"

@@ -10,7 +10,11 @@ const CENSOR: [RegExp, string][] = [
   [/^хуй/i, "х*й"], [/^бля/i, "бл*"], [/^сука/i, "с*ка"], [/^еба/i, "е*а"],
 ];
 export const censor = (w: string) => {
-  for (const [re, rep] of CENSOR) if (re.test(w)) return rep + w.slice(rep.length);
+  for (const [re, rep] of CENSOR)
+    if (re.test(w)) {
+      const r = rep + w.slice(rep.length);
+      return w[0] !== w[0].toLowerCase() ? r[0].toUpperCase() + r.slice(1) : r; // сохраняем заглавную
+    }
   return w;
 };
 

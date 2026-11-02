@@ -8,13 +8,13 @@ import { GlowCaptions, GSeg, words } from "../premium/Glow";
 import { FxScene } from "../premium/Transitions";
 import { GlassSteps, LeafBG } from "../premium/GlassSteps";
 import { BankCarousel } from "../premium/BankCarousel";
-import { ZoomTrack, ZKey } from "../premium/ZoomTrack";
+import { ZoomTrack, ZKey, zoomAt } from "../premium/ZoomTrack";
 import { Grain } from "../components/Layers";
 import faceC from "../data/plateC.face.json";
 
 const Plate: React.FC<{ src: string }> = ({ src }) => (
   <AbsoluteFill>
-    <OffthreadVideo src={staticFile(src)} muted style={{ width: "100%", height: "100%", objectFit: "cover", filter: "saturate(0.95) contrast(1.04)" }} />
+    <OffthreadVideo src={staticFile(src)} muted style={{ width: "100%", height: "100%", objectFit: "cover", filter: "saturate(0.86)" }} />
   </AbsoluteFill>
 );
 
@@ -41,14 +41,15 @@ const segC: GSeg[] = [
   { s: 5.21, e: 5.9, y: 0.77, outline: true, lines: [words([["ДОЛГ", 5.21, "big"]])] },
 ];
 // Зумы C: медленный наезд → удар на «90» → отпускаем → сильный удар на «ДОЛГ»
+// Словарь зумов оригинала (замеры audit): медленный наезд ×1,2 за 3 с → джамп-кат ×1,5 → отъезд ×0,85 → джамп-кат ×1,55
 const zoomC: ZKey[] = [
   { t: 0, z: 1.0 },
-  { t: 2.9, z: 1.12 },
-  { t: 3.05, z: 1.42, ease: "snap" },
-  { t: 3.9, z: 1.42 },
-  { t: 4.45, z: 1.18 },
-  { t: 5.21, z: 1.72, ease: "snap" },
-  { t: 5.65, z: 1.78 },
+  { t: 3.0, z: 1.2 },
+  { t: 3.05, z: 1.55, ease: "cut" },
+  { t: 3.95, z: 1.55 },
+  { t: 4.65, z: 1.32 },
+  { t: 5.21, z: 1.75, ease: "cut" },
+  { t: 5.65, z: 1.8 },
 ];
 
 const A = 6.0, CC = 5.65, BB = 24.1;
@@ -61,28 +62,29 @@ export const GlowTest: React.FC = () => {
   return (
     <AbsoluteFill style={{ background: "#000" }}>
       <Sequence durationInFrames={sec(A)}>
-        <FxScene flashIn={0.35} blurOut={0.25}>
+        <FxScene flashIn={0.3} blurOut={0.08}>
           <Plate src="media/plateA.mp4" />
-          <GlowCaptions segs={segA} shade={0.22} />
+          <GlowCaptions segs={segA} shade={0} />
         </FxScene>
         <Audio src={staticFile("media/voiceA.wav")} endAt={sec(A)} />
       </Sequence>
 
       <Sequence from={sec(A)} durationInFrames={sec(CC)}>
-        <FxScene blurIn={0.3} blurOut={0.14}>
+        <FxScene blurIn={0.75} blurOut={0.1}>
           <ZoomTrack keys={zoomC} face={faceC}>
             <Plate src="media/plateC.mp4" />
           </ZoomTrack>
-          <GlowCaptions segs={segC} shade={0.35} />
+          {/* затемнение растёт вместе с зумом: зум срезает тёмный камень, низ должен остаться ≈0,46 от середины, как в оригинале */}
+          <GlowCaptions segs={segC} shade={(t) => 0.42 + 0.5 * Math.min(1, Math.max(0, zoomAt(zoomC, Math.round(t * 30), 30) - 1) / 0.75)} />
         </FxScene>
         <Audio src={staticFile("media/voiceC.wav")} />
       </Sequence>
 
       <Sequence from={sec(A + CC)} durationInFrames={sec(BB)}>
-        <FxScene blurIn={0.35} flashOut={0.35}>
+        <FxScene strobeIn={0.93} blurOut={0.45} flashOut={0.12}>
           <LeafBG />
           <GlassSteps
-            q={{ small: "что для этого", big: "НУЖНО?", s1: b(29.94), s2: b(30.72) }}
+            q={{ small: "что для этого", big: "НУЖНО?", s1: b(29.7), s2: b(30.27) }} // как в оригинале: вопрос встаёт на ~0,3–0,45 с раньше голоса
             steps={[
               { n: 1, label: "СТАТЬ САМОЗАНЯТЫМ", at: b(31.26) },
               { n: 2, label: "ЗАРЕГАТЬ ПАРТНЕРКУ", at: b(33.62) },

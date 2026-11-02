@@ -16,7 +16,7 @@ import argparse, json, pathlib, re, subprocess, sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ap = argparse.ArgumentParser()
 ap.add_argument("src"); ap.add_argument("--cookies"); ap.add_argument("--threshold", type=float, default=27.0)
-ap.add_argument("--no-asr", action="store_true"); ap.add_argument("--dense", type=float, default=0.25, help="шаг плотной раскадровки, сек (0 = выкл)"); ap.add_argument("--model", default="small")
+ap.add_argument("--no-asr", action="store_true"); ap.add_argument("--dense", type=float, default=0.25, help="шаг плотной раскадровки, сек (0 = выкл)"); ap.add_argument("--model", default="large-v3-turbo")
 a = ap.parse_args()
 
 if re.match(r"https?://", a.src):
@@ -81,12 +81,13 @@ rms = [float(x) for x in re.findall(r"RMS_level=(-?[\d.]+|-inf)", vol.replace("-
 
 # 4. речь
 words = []
+def load_audio(path):  # декодируем ffmpeg-ом: не зависим от версии PyAV
+    raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "s16le", "-ac", "1", "-ar", "16000", "-"], capture_output=True, check=True).stdout
+    import numpy as _np
+    return _np.frombuffer(raw, _np.int16).astype(_np.float32) / 32768.0
+
 if not a.no_asr and any(s["codec_type"] == "audio" for s in probe["streams"]):
     from faster_whisper import WhisperModel
-import numpy as _np, subprocess as _sp
-def load_audio(path):  # декодируем ffmpeg-ом: не зависим от версии PyAV
-    raw = _sp.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "s16le", "-ac", "1", "-ar", "16000", "-"], capture_output=True, check=True).stdout
-    return _np.frombuffer(raw, _np.int16).astype(_np.float32) / 32768.0
     m = WhisperModel(a.model, device="cpu", compute_type="int8", download_root=str(ROOT / "models"))
     segs, info = m.transcribe(load_audio(video), language="ru", word_timestamps=True, vad_filter=False)  # VAD режет голос под музыкой
     for sg in segs:

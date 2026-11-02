@@ -12,7 +12,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 ap = argparse.ArgumentParser(); ap.add_argument("media"); ap.add_argument("--model", default="large-v3-turbo")
 a = ap.parse_args()
 m = WhisperModel(a.model, device="cpu", compute_type="int8", download_root=str(ROOT / "models"))
-segs, info = m.transcribe(load_audio(a.media), language="ru", word_timestamps=True, vad_filter=True,
+segs, info = m.transcribe(load_audio(a.media), language="ru", word_timestamps=True, vad_filter=False,  # VAD режет голос под музыкой
                           initial_prompt="РКО, ИП на НПД, Альфа, ВТБ, Озон, FCN, партнёрка, Пхукет, Мой налог.")
 words, srt = [], []
 for i, s in enumerate(segs, 1):
