@@ -75,7 +75,7 @@ export const GlowTest: React.FC = () => {
             <Plate src="media/plateC.mp4" />
           </ZoomTrack>
           {/* затемнение растёт вместе с зумом: зум срезает тёмный камень, низ должен остаться ≈0,46 от середины, как в оригинале */}
-          <GlowCaptions segs={segC} shade={(t) => 0.42 + 0.5 * Math.min(1, Math.max(0, zoomAt(zoomC, Math.round(t * 30), 30) - 1) / 0.75)} />
+          <GlowCaptions segs={segC} shade={(t) => 0.36 + 0.5 * Math.min(1, Math.max(0, zoomAt(zoomC, Math.round(t * 30), 30) - 1) / 0.75)} />
         </FxScene>
         <Audio src={staticFile("media/voiceC.wav")} />
       </Sequence>

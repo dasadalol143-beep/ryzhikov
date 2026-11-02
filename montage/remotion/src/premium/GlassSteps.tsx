@@ -13,7 +13,7 @@ export const LeafBG: React.FC<{ src?: string }> = ({ src = "media/fern_bw.jpg" }
     <AbsoluteFill style={{ background: "#050505", overflow: "hidden" }}>
       <Img src={staticFile(src)} style={{ width: "100%", height: "100%", objectFit: "cover",
         transform: `scale(${s}) translate(${Math.sin(frame / 80) * 8}px, ${Math.cos(frame / 95) * 10}px) rotate(${Math.sin(frame / 120) * 0.4}deg)`,
-        filter: "grayscale(1) brightness(0.97)" }} />
+        filter: "grayscale(1) brightness(0.82)" }} />
       <AbsoluteFill style={{ background: "radial-gradient(ellipse at 50% 45%, rgba(255,255,255,0.05), transparent 60%)" }} />
     </AbsoluteFill>
   );
