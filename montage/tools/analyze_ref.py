@@ -16,7 +16,7 @@ import argparse, json, pathlib, re, subprocess, sys
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 ap = argparse.ArgumentParser()
 ap.add_argument("src"); ap.add_argument("--cookies"); ap.add_argument("--threshold", type=float, default=27.0)
-ap.add_argument("--no-asr", action="store_true"); ap.add_argument("--model", default="small")
+ap.add_argument("--no-asr", action="store_true"); ap.add_argument("--dense", type=float, default=0.25, help="шаг плотной раскадровки, сек (0 = выкл)"); ap.add_argument("--model", default="small")
 a = ap.parse_args()
 
 if re.match(r"https?://", a.src):
@@ -37,7 +37,7 @@ vs = next(s for s in probe["streams"] if s["codec_type"] == "video")
 # 1. склейки
 from scenedetect import detect, ContentDetector
 scenes = detect(str(video), ContentDetector(threshold=a.threshold))
-cuts = [round(s[0].get_seconds(), 2) for s in scenes] or [0.0]
+cuts = [round(s[0].seconds, 2) for s in scenes] or [0.0]
 shots = [{"start": c, "len": round((cuts[i + 1] if i + 1 < len(cuts) else dur) - c, 2)} for i, c in enumerate(cuts)]
 (out / "cuts.json").write_text(json.dumps(shots, ensure_ascii=False, indent=1))
 
@@ -46,9 +46,10 @@ from PIL import Image, ImageDraw, ImageFont
 font = ImageFont.truetype(str(ROOT / "assets/fonts/Inter.ttf"), 26)
 thumbs = []
 for i, s in enumerate(shots):
-    t = s["start"] + min(s["len"] / 2, 0.4)
+    t = min(s["start"] + min(s["len"] / 2, 0.4), dur - 0.15)
     png = out / f"f_{i:03}.png"
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{t:.2f}", "-i", str(video), "-frames:v", "1", "-vf", "scale=240:-2", str(png)], check=True)
+    if not png.exists(): continue
     im = Image.open(png).convert("RGB"); d = ImageDraw.Draw(im)
     d.rectangle((0, 0, im.width, 34), fill=(0, 0, 0)); d.text((6, 3), f"#{i+1} {s['start']:.1f}s ({s['len']:.1f})", font=font, fill=(255, 225, 0))
     thumbs.append(im); png.unlink()
@@ -57,6 +58,19 @@ for k in range(0, len(thumbs), 12):
     sheet = Image.new("RGB", (cols * (w + 6), rows * (h + 6)), "white")
     for j, im in enumerate(grp): sheet.paste(im, ((j % cols) * (w + 6), (j // cols) * (h + 6)))
     sheet.save(out / f"sheet_{k // 12 + 1}.png")
+
+# 2b. плотная раскадровка: видно движение внутри шота (зумы, вылеты текста, переходы)
+if a.dense > 0:
+    dd = out / "dense"; dd.mkdir(exist_ok=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), "-vf", f"fps={1/a.dense},scale=216:-2", str(dd / "d_%04d.png")], check=True)
+    frames = sorted(dd.glob("d_*.png"))
+    for k in range(0, len(frames), 24):
+        grp = [Image.open(f).convert("RGB") for f in frames[k:k + 24]]; w, h = grp[0].size; cols = 8; rows = (len(grp) + cols - 1) // cols
+        sheet = Image.new("RGB", (cols * (w + 4), rows * (h + 4)), "white")
+        for j, im in enumerate(grp):
+            d = ImageDraw.Draw(im); d.rectangle((0, 0, 92, 30), fill=(0, 0, 0)); d.text((4, 2), f"{(k + j) * a.dense:.2f}s", font=font, fill=(255, 225, 0))
+            sheet.paste(im, ((j % cols) * (w + 4), (j // cols) * (h + 4)))
+        sheet.save(out / f"dense_{k // 24 + 1:02}.png")
 
 # 3. громкость по секундам (тишина перед крючком, дропы)
 vol = subprocess.run(["ffmpeg", "-v", "info", "-i", str(video), "-af", "astats=metadata=1:reset=30,ametadata=print:key=lavfi.astats.Overall.RMS_level", "-f", "null", "-"],
@@ -67,8 +81,12 @@ rms = [float(x) for x in re.findall(r"RMS_level=(-?[\d.]+|-inf)", vol.replace("-
 words = []
 if not a.no_asr and any(s["codec_type"] == "audio" for s in probe["streams"]):
     from faster_whisper import WhisperModel
+import numpy as _np, subprocess as _sp
+def load_audio(path):  # декодируем ffmpeg-ом: не зависим от версии PyAV
+    raw = _sp.run(["ffmpeg", "-v", "error", "-i", str(path), "-f", "s16le", "-ac", "1", "-ar", "16000", "-"], capture_output=True, check=True).stdout
+    return _np.frombuffer(raw, _np.int16).astype(_np.float32) / 32768.0
     m = WhisperModel(a.model, device="cpu", compute_type="int8", download_root=str(ROOT / "models"))
-    segs, info = m.transcribe(str(video), word_timestamps=True, vad_filter=True)
+    segs, info = m.transcribe(load_audio(video), word_timestamps=True, vad_filter=True)
     for sg in segs:
         for w in sg.words: words.append({"w": w.word.strip(), "s": round(w.start, 2), "e": round(w.end, 2)})
     (out / "words.json").write_text(json.dumps(words, ensure_ascii=False, indent=1))
