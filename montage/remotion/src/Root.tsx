@@ -9,6 +9,6 @@ loadFonts();
 export const RemotionRoot: React.FC = () => (
   <>
     <Composition id="InviteFriendDemo" component={InviteFriendDemo} durationInFrames={450} fps={30} width={1080} height={1920} />
-    <Composition id="GlowTest" component={GlowTest} durationInFrames={903} fps={30} width={1080} height={1920} />
+    <Composition id="GlowTest" component={GlowTest} durationInFrames={1073} fps={30} width={1080} height={1920} />
   </>
 );

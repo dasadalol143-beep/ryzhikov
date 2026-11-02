@@ -76,9 +76,10 @@ export const GlowSeg: React.FC<{ seg: GSeg }> = ({ seg }) => {
   const { fps, width, height } = useVideoConfig();
   const sf = Math.round(seg.s * fps);
   const ef = Math.round(seg.e * fps);
-  const exitDur = Math.round(0.3 * fps);
+  // выход быстрый (0,16 с) и с ease-out: старая фраза почти сразу освобождает место новой, остаётся только шлейф
+  const exitDur = Math.round(0.16 * fps);
   if (frame < sf || frame > ef + exitDur) return null;
-  const x = interpolate(frame, [ef, ef + exitDur], [0, 1], { ...C, easing: theme.ease.in });
+  const x = interpolate(frame, [ef, ef + exitDur], [0, 1], { ...C, easing: theme.ease.out });
   const align = seg.align ?? "center";
   const left = (seg.x ?? 0.5) * width;
   const top = (seg.y ?? 0.72) * height;
@@ -95,11 +96,11 @@ export const GlowSeg: React.FC<{ seg: GSeg }> = ({ seg }) => {
     <div style={{ position: "absolute", left, top, transform: `translate(${align === "left" ? "0" : "-50%"}, -50%)` }}>
       {/* растворение: копия разлетается шире и гаснет — даёт тот самый шлейф между словами */}
       {x > 0 && (
-        <div aria-hidden style={{ position: "absolute", inset: 0, opacity: 0.45 * (1 - x), transform: `scale(${1.1 + 0.35 * x})`, filter: `blur(${4 + 10 * x}px)` }}>
+        <div aria-hidden style={{ position: "absolute", inset: 0, opacity: 0.3 * (1 - x), transform: `scale(${1.1 + 0.35 * x})`, filter: `blur(${4 + 10 * x}px)` }}>
           {body}
         </div>
       )}
-      <div style={{ opacity: 1 - x, transform: `scale(${1 + 0.12 * x})`, filter: `blur(${9 * x}px)` }}>{body}</div>
+      <div style={{ opacity: Math.pow(1 - x, 2), transform: `scale(${1 + 0.12 * x})`, filter: `blur(${9 * x}px)` }}>{body}</div>
     </div>
   );
 };
