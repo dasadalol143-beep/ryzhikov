@@ -16,7 +16,7 @@ run = lambda *c: subprocess.run(c, check=True)
 run("ffmpeg", "-v", "error", "-y", "-i", str(P / "voice_raw.wav"), "-af",
     "highpass=f=75,afftdn=nr=10:nf=-42,equalizer=f=250:t=q:w=1.2:g=-2,equalizer=f=3200:t=q:w=1.4:g=2.5,"
     "equalizer=f=9000:t=q:w=1:g=1.5,acompressor=threshold=-21dB:ratio=3:attack=6:release=140:makeup=3,alimiter=limit=0.95,"
-    f"apad=whole_dur={total}", "-ar", str(SR), "-ac", "2", str(P / "voice_proc.wav"))
+    f"atrim=start=0.030,asetpts=PTS-STARTPTS,apad=whole_dur={total}", "-ar", str(SR), "-ac", "2", str(P / "voice_proc.wav"))
 
 # 2. музыка: своя подложка (или трек пользователя), обрыв на смене плана
 clip5 = cues["clips"][5]["t_in"]
