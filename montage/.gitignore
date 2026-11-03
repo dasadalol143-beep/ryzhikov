@@ -19,3 +19,4 @@ remotion/public/media/v14k_*
 projects/*/*.log
 projects/*/qa*/
 projects/*/st*/
+projects/*/demo_st/
