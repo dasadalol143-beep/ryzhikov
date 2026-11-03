@@ -8,6 +8,8 @@
     "still": "remotion still src/index.ts"
   },
   "dependencies": {
+    "@react-three/drei": "^9.122.0",
+    "@react-three/fiber": "^8.18.0",
     "@remotion/captions": "^4.0.540",
     "@remotion/cli": "^4.0.540",
     "@remotion/google-fonts": "^4.0.540",
@@ -18,12 +20,15 @@
     "@remotion/noise": "^4.0.540",
     "@remotion/paths": "^4.0.540",
     "@remotion/shapes": "^4.0.540",
+    "@remotion/three": "^4.0.540",
     "@remotion/transitions": "^4.0.540",
     "@types/react": "^19.3.0",
+    "@types/three": "^0.171.0",
     "lottie-web": "^5.13.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "remotion": "^4.0.540",
+    "three": "^0.171.0",
     "typescript": "^7.0.2"
   }
 }
