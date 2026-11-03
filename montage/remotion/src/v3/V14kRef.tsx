@@ -15,7 +15,7 @@ export const cam: CamCfg = {
   levels: [1.0, 1.06, 1.0, 1.08, 1.03, 1.0, 1.07, 1.0, 1.05, 1.0, 1.08, 1.02, 1.0, 1.06, 1.0, 1.07, 1.02, 1.0, 1.06, 1.0],
   drift: 0,
   bySeg: true,
-  keys: [{ t: ev.notEarn, z: 1.14, ease: "cut" }, { t: wt("Как", 17.98) - 0.04, z: 1.0, ease: "cut" }],
+  keys: [{ t: ev.notEarn, z: 1.14, ease: "cut" }, { t: wt("Как", 17.15) - 0.04, z: 1.0, ease: "cut" }],
   pans: [],
   face: face as number[][],
 };

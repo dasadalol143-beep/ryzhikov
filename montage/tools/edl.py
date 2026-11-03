@@ -59,8 +59,17 @@ for si, s in enumerate(E["segments"]):
         while a0 < k1 - 5 and db[a0] < thr: a0 += 1
         b0 = k1
         while b0 > a0 + 5 and db[b0 - 1] < thr: b0 -= 1
-        trimmed.append((max(i, a0 / 100 - 0.05), min(o, b0 / 100 + 0.06)))
-    parts = trimmed
+        trimmed.append((max(i, a0 / 100 - E.get("edge_in", 0.05)), min(o, b0 / 100 + E.get("edge_out", 0.06))))
+    # микро-куски (< min_part) дают мигание картинки: без слов — выкидываем, со словами — склеиваем с соседом
+    mp = E.get("min_part", 0.25)
+    hasw = lambda a, b: any(w["e"] > a + 0.02 and w["s"] < b - 0.02 for w in sw)
+    trimmed = [p for p in trimmed if p[1] - p[0] >= mp or hasw(*p)]
+    merged = []
+    for p in trimmed:
+        if merged and (p[1] - p[0] < mp or merged[-1][1] - merged[-1][0] < mp) and p[0] - merged[-1][1] < 0.6:
+            merged[-1] = (merged[-1][0], p[1])
+        else: merged.append(p)
+    parts = merged
     for pi, (i, o) in enumerate(parts):
         pass  # границы уже стоят по звуку (см. выше), дополнительная подгонка не нужна
         clips.append({"src_in": round(i, 3), "src_out": round(o, 3), "t_in": round(t, 3), "t_out": round(t + o - i, 3), "seg": si, "note": s.get("note", "")})

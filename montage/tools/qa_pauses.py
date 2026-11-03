@@ -1,8 +1,8 @@
 """Обязательная проверка монтажа: в готовом голосе не должно быть пауз длиннее порога. Падает с кодом 1.
-python3 montage/tools/qa_pauses.py <voice.wav> [--max 0.25] [--skip_end 0.8]
+python3 montage/tools/qa_pauses.py <voice.wav> [--max 0.12] [--skip_end 0.8]
 """
 import argparse, sys, wave, numpy as np
-ap = argparse.ArgumentParser(); ap.add_argument("wav"); ap.add_argument("--max", type=float, default=0.25); ap.add_argument("--skip_end", type=float, default=0.8)
+ap = argparse.ArgumentParser(); ap.add_argument("wav"); ap.add_argument("--max", type=float, default=0.12); ap.add_argument("--skip_end", type=float, default=0.8)
 a = ap.parse_args()
 with wave.open(a.wav) as w:
     x = np.frombuffer(w.readframes(w.getnframes()), np.int16).astype(np.float32).reshape(-1, w.getnchannels()).mean(1) / 32768; sr = w.getframerate()

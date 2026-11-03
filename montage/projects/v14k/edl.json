@@ -1,6 +1,6 @@
 {
- "max_pause": 0.24,
- "keep_pause": 0.12,
+ "max_pause": 0.15,
+ "keep_pause": 0.06,
  "segments": [
   {
    "in": 13.3,
@@ -74,5 +74,9 @@
    "note": "первые 16 000"
   }
  ],
- "sil_db": 21
+ "sil_db": 17,
+ "sil_max": 0.1,
+ "sil_keep": 0.06,
+ "edge_in": 0.03,
+ "edge_out": 0.04
 }

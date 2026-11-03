@@ -84,19 +84,29 @@ put(whip(), E["cardsOut"] - 0.04, 0.4, -0.8, 0.15); put(whip(), E["cardsOut"], 0
 put(riser(0.6), E["why"] - 0.55, 0.2); put(boom(1.2), E["why"], 0.45)
 for i in range(6): put(pop(500 + i * 60), E["why"] + i * 0.035, 0.12)
 put(whoosh(0.3), E["pay"] - 0.1, 0.18)
-# 3. сцена банков
-put(shing(1.0, 2200), E["scene"][0] + 0.12, 0.1); put(boom(1.8), E["scene"][0], 0.5); put(whoosh(0.5, up=False), E["scene"][0] - 0.15, 0.3)
-put(pad(E["scene"][1] - E["scene"][0]) * 0.5, E["scene"][0], 0.12)
-for i in range(5): put(thud(0.4, 80, 40), E["banks"] + i * 0.09 + 0.12, 0.35, -0.8 + i * 0.4)
+# 3. сцена банков (3D): вход-удар, гул подъёма башен, дождь монет со звоном, счётчик, клиенты-мерцание, свет окон
+sc0, sc1 = E["scene"][0], E["scene"][1]
+put(boom(1.8), sc0, 0.45, 0, 0.3); put(whoosh(0.45, up=False), sc0 - 0.14, 0.3); put(shing(1.0, 2200), sc0 + 0.1, 0.07, 0, 0.5)
+put(pad(sc1 - sc0) * 0.5, sc0, 0.11, 0, 0.2)
+def rumble(d=1.1):
+    t = T(d); return bp(rng.normal(size=len(t)), 25, 160) * np.sin(np.pi * np.minimum(1, t / d)) ** 0.6 * 1.4
+for i in range(5):
+    at = E["banks"] + i * 0.1; pn = -0.8 + i * 0.4
+    put(rumble(0.9), at - 0.05, 0.35, pn, 0.3); put(thud(0.5, 95, 38), at + 0.42, 0.3, pn, 0.3); put(slap(0.12) * 0.5, at + 0.42, 0.12, pn, 0.4)
 for j in range(40):  # счётчик: тики разгоняются и тормозят
-    q = j / 39; tt = E["b200"] + 1.4 * (1 - (1 - q) ** 0.5)
-    put(tick(), tt, 0.18)
-put(coin(2600), E["b200"] + 1.42, 0.25); put(coin(3400), E["b200"] + 1.5, 0.18)
-put(flutter(3.0), E["b200"] + 0.1, 0.10)
-for i in range(3): put(flick(), E["year"] + i * 0.16, 0.35, 0.7)
-put(whoosh(0.5), E["attract"], 0.25)
-for i in range(18): put(pop(700 + (i % 5) * 120), E["clients"] + 0.3 + i * 0.07, 0.06, -0.8 + (i % 5) * 0.4)
-put(shing(1.2, 1800), E["own"], 0.12)
+    q = j / 39; tt = E["b200"] + 1.5 * (1 - (1 - q) ** 0.5); put(tick(), tt, 0.14, 0, 0.1)
+put(coin(2600), E["b200"] + 1.52, 0.2, 0, 0.4)
+for i in range(46):  # монеты: звон о монеты/пол, случайная стереопанорама, редеют к концу
+    tt = E["b200"] + 0.5 + rng.random() * 3.3; f0 = 3000 + rng.random() * 2600
+    put(metal_ting(f0, 0.5) * 0.5, tt, 0.05 + 0.05 * rng.random(), rng.uniform(-0.9, 0.9), 0.45)
+put(flutter(2.6) * 0.6, E["b200"] + 0.4, 0.06, 0, 0.3)
+put(whoosh(0.5), E["attract"] - 0.1, 0.2)
+def shimmer(d=2.4):
+    t = T(d); x = sum(np.sin(2 * np.pi * f * t + i) * (0.5 + 0.5 * np.sin(2 * np.pi * (3 + i) * t)) for i, f in enumerate([1760, 2217, 2637, 3520])) / 4
+    return x * np.minimum(1, t / 0.5) * np.minimum(1, (d - t) / 0.6)
+put(shimmer(2.6), E["clients"] - 0.3, 0.06, 0, 0.6)
+for i in range(5): put(glass(1300 + i * 220, 1.2), E["clients"] + 0.5 + i * 0.18, 0.05, -0.8 + i * 0.4, 0.5)
+put(shing(1.4, 1800), E["own"], 0.1, 0, 0.5); put(thud(0.6, 70, 35), E["own"], 0.25)
 # 4. ТЫ
 put(riser(0.9), E["you"] - 0.85, 0.22); put(boom(1.8), E["you"], 0.6); put(whoosh(0.35, up=False), E["you"] - 0.05, 0.25)
 for i in range(6):

@@ -3,22 +3,23 @@ import React from "react";
 import { AbsoluteFill, Sequence, useVideoConfig } from "remotion";
 import { V14kRef, cam } from "../v3/V14kRef";
 import { BehindWindow } from "../v2/Layers";
-import { BanksScene, PayFront, WhyBehind, YouBehind, YouLinks } from "./Motion";
+import { PayFront, WhyBehind, YouBehind, YouLinks } from "./Motion";
 import { wt } from "../v3/cues";
 import { CardsLayer } from "../v5/CardsLayer";
+import { Banks3D } from "../v5/Banks3D";
 import { stampShake } from "../v5/Cards3D";
 import { getInputProps, useCurrentFrame } from "remotion";
 const NO_CARDS = !!(getInputProps() as any).noCards;
 
-export const S0 = 69.4, S1 = 90.0;
+export const S0 = 65.74, S1 = 85.06;
 export const DEMO_FPS = 24000 / 1001;
 export const DEMO_TOTAL = Math.round((S1 - S0) * DEMO_FPS);
 export const DEMO_EV = {
-  debit: wt("дебетовая", 70.17) - 0.1, invest: wt("инвестиционный", 71.29) - 0.1, ip: wt("ИП", 72.93) - 0.12, cardsOut: wt("заключается", 74.8) - 0.05, hit: wt("НПД.", 73.47) - 0.02,
-  why: wt("почему", 77.74) - 0.05, pay: wt("много", 78.54) - 0.05, whyWin: [77.30, 79.33],
-  scene: [79.33, 87.13], banks: wt("банки", 80.63) - 0.12, b200: wt("200", 81.97) - 0.06, year: wt("каждый", 83.15) - 0.05,
-  attract: wt("привлечение", 84.33) - 0.05, clients: wt("клиентов", 85.45) - 0.5, own: wt("свои", 86.27) - 0.05,
-  youWin: [87.00, 90.0], you: wt("ты", 87.6) - 0.05, attract2: wt("привлекать", 88.42) - 0.05,
+  debit: wt("дебетовая", 66.42) - 0.1, invest: wt("инвестиционный", 67.54) - 0.1, ip: wt("ИП", 69.09) - 0.12, cardsOut: wt("заключается", 70.57) - 0.05, hit: wt("НПД.", 69.63) - 0.02,
+  why: wt("почему", 73.51) - 0.05, pay: wt("много", 74.31) - 0.05, whyWin: [73.07, 75.12],
+  scene: [75.12, 82.38], banks: wt("банки", 76.23) - 0.12, b200: wt("200", 77.57) - 0.06, year: wt("каждый", 78.75) - 0.05,
+  attract: wt("привлечение", 79.76) - 0.05, clients: wt("клиентов", 80.88) - 0.5, own: wt("свои", 81.56) - 0.05,
+  youWin: [82.29, 85.06], you: wt("ты", 82.82) - 0.05, attract2: wt("привлекать", 83.64) - 0.05,
 };
 
 export const CARD_SAMPLES = 6;
@@ -32,7 +33,7 @@ export const MotionDemo: React.FC = () => {
     <AbsoluteFill style={{ background: "#000", overflow: "hidden" }}>
       <AbsoluteFill style={{ transform: `translate(${sh.x}px,${sh.y}px) scale(${sh.s})` }}>
       <Sequence from={-F(S0)}>
-        <V14kRef footage="media/v14k_cut4k_demo.mp4" footageFrom={1469 * 1001 / 24000} />
+        <V14kRef footage="media/v14k_cut4k_demo.mp4" footageFrom={1576 * 1001 / 24000} />
         {!NO_CARDS && <Sequence {...W(E.debit - 0.05, E.cardsOut + 0.4)}>
           <CardsLayer t0={E.debit - 0.05} ev={{ debit: E.debit, invest: E.invest, ip: E.ip, hit: E.hit, out: E.cardsOut }} samples={CARD_SAMPLES} />
         </Sequence>}
@@ -40,10 +41,7 @@ export const MotionDemo: React.FC = () => {
           front={<Sequence from={-F(E.whyWin[0])} layout="none"><PayFront tPay={E.pay} dur={E.whyWin[1]} /></Sequence>}>
           <Sequence from={-F(E.whyWin[0])} layout="none"><WhyBehind tWhy={E.why} tPay={E.pay} dur={E.whyWin[1]} /></Sequence>
         </BehindWindow>
-        <Sequence {...W(E.scene[0], E.scene[1])}>
-          <BanksScene dur={E.scene[1] - E.scene[0]} tBanks={E.banks - E.scene[0]} t200={E.b200 - E.scene[0]} tYear={E.year - E.scene[0]}
-            tAttract={E.attract - E.scene[0]} tClients={E.clients - E.scene[0]} tOwn={E.own - E.scene[0]} />
-        </Sequence>
+        {!NO_CARDS && <Sequence {...W(E.scene[0], E.scene[1])}><Banks3D ev={BANKS_EV} samples={CARD_SAMPLES} /></Sequence>}
         <BehindWindow cfg={cam} person="media/demo_person_ty4k.mov" from={F(E.youWin[0])} dur={F(E.youWin[1]) - F(E.youWin[0])}
           front={<Sequence from={F(E.you) - F(E.youWin[0])} layout="none"><YouLinks dur={E.youWin[1] - E.you} tAttract={E.attract2 - E.you} cx={0.5} cy={0.6} /></Sequence>}>
           <Sequence from={F(E.you) - F(E.youWin[0])} layout="none"><YouBehind dur={E.youWin[1] - E.you} /></Sequence>
@@ -68,3 +66,11 @@ export const CardsOnly: React.FC = () => {
     </AbsoluteFill>
   );
 };
+
+// Сцена банков в 3D — тоже отдельным слоем (непрозрачная, полный кадр)
+const _F = (x: number) => Math.round(x * DEMO_FPS);
+export const BANKS_EV = { t0: _F(DEMO_EV.scene[0]) / DEMO_FPS, dur: (_F(DEMO_EV.scene[1]) - _F(DEMO_EV.scene[0])) / DEMO_FPS, banks: DEMO_EV.banks, b200: DEMO_EV.b200,
+  year: DEMO_EV.year, attract: DEMO_EV.attract, clients: DEMO_EV.clients, own: DEMO_EV.own };
+export const BANKS_OFFSET = _F(DEMO_EV.scene[0]) - _F(S0);
+export const BANKS_LEN = _F(DEMO_EV.scene[1]) - _F(DEMO_EV.scene[0]);
+export const BanksOnly: React.FC = () => <Banks3D ev={BANKS_EV} samples={CARD_SAMPLES} />;
