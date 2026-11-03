@@ -17,3 +17,5 @@ projects/*/grade/
 projects/*/*.png
 remotion/public/media/v14k_*
 projects/*/*.log
+projects/*/qa*/
+projects/*/st*/
