@@ -30,10 +30,10 @@ export type GSeg = {
 const SIZE: Record<Lvl, number> = { small: 64, cap: 106, big: 160 };
 const WEIGHT: Record<Lvl, number> = { small: 500, cap: 500, big: 500 };
 
-const textStyle = (lvl: Lvl): React.CSSProperties => ({
+const textStyle = (lvl: Lvl, k = 1): React.CSSProperties => ({
   fontFamily: theme.fonts.ui,
   fontWeight: WEIGHT[lvl],
-  fontSize: SIZE[lvl],
+  fontSize: SIZE[lvl] * k,
   lineHeight: 1,
   letterSpacing: lvl === "small" ? "0" : "-0.01em",
   textTransform: lvl === "small" ? "none" : "uppercase",
@@ -43,7 +43,7 @@ const textStyle = (lvl: Lvl): React.CSSProperties => ({
 });
 
 /** Одно слово: проявляется из размытия с увеличением, за ним гаснет увеличенная копия-эхо. */
-const Word: React.FC<{ w: GWord; outline?: boolean; at: number }> = ({ w, outline, at }) => {
+const Word: React.FC<{ w: GWord; outline?: boolean; at: number; k?: number; crisp?: boolean }> = ({ w, outline, at, k = 1, crisp }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const lvl = w.lvl ?? "cap";
@@ -51,7 +51,18 @@ const Word: React.FC<{ w: GWord; outline?: boolean; at: number }> = ({ w, outlin
   if (local < 0) return <span style={{ ...textStyle(lvl), opacity: 0 }}>{w.t}</span>; // держит место в строке
   const p = interpolate(local, [0, 0.3 * fps], [0, 1], { ...C, easing: theme.ease.out });
   const q = interpolate(local, [0, 0.6 * fps], [0, 1], { ...C, easing: theme.ease.out });
-  const base = textStyle(lvl);
+  const base = textStyle(lvl, k);
+  if (crisp) {
+    // чёткий режим (v2): без размытия и без «дыхания» — текст не плывёт
+    const c = interpolate(local, [0, 0.2 * fps], [0, 1], { ...C, easing: theme.ease.out });
+    return (
+      <span style={{ position: "relative", display: "inline-block" }}>
+        <span aria-hidden style={{ ...base, position: "absolute", left: 0, top: 0, opacity: 0.16 * c, transform: "scale(1.1)", filter: "blur(2px)" }}>{w.t}</span>
+        {outline && <span aria-hidden style={{ ...base, position: "absolute", left: 0, top: 0, color: "transparent", textShadow: "none", WebkitTextStroke: `${1.5 * k + 0.5}px ${glow.stroke}`, opacity: 0.38 * c, transform: "scale(1.07)" }}>{w.t}</span>}
+        <span style={{ ...base, display: "inline-block", opacity: c, transform: `translateY(${(1 - c) * 14 * k}px) scale(${1.04 - 0.04 * c})` }}>{w.t}</span>
+      </span>
+    );
+  }
   const breathe = 1 + Math.sin((frame + w.s * 37) / 18) * 0.006;
   return (
     <span style={{ position: "relative", display: "inline-block" }}>
@@ -73,7 +84,7 @@ const Word: React.FC<{ w: GWord; outline?: boolean; at: number }> = ({ w, outlin
 };
 
 /** Сегмент: 1–4 строки слов (лесенка), позиция в кадре, общий выход с растворением и эхо. */
-export const GlowSeg: React.FC<{ seg: GSeg }> = ({ seg }) => {
+export const GlowSeg: React.FC<{ seg: GSeg; k?: number; crisp?: boolean }> = ({ seg, k = 1, crisp }) => {
   const frame = useCurrentFrame();
   const { fps, width, height } = useVideoConfig();
   const sf = Math.round(seg.s * fps);
@@ -92,26 +103,26 @@ export const GlowSeg: React.FC<{ seg: GSeg }> = ({ seg }) => {
   const body = (
     <div style={{ display: "flex", flexDirection: "column", alignItems: align === "left" ? "flex-start" : "center", gap: seg.gap ?? 4 }}>
       {seg.lines.map((line, i) => (
-        <div key={i} style={{ display: "flex", gap: 40, alignItems: "baseline", transform: `translateX(${(seg.dx?.[i] ?? 0) * width}px)` }}>
-          {line.map((w, j) => <Word key={j} w={w} outline={seg.outline} at={startOf(i, w)} />)}
+        <div key={i} style={{ display: "flex", gap: 40 * k, alignItems: "baseline", transform: `translateX(${(seg.dx?.[i] ?? 0) * width}px)` }}>
+          {line.map((w, j) => <Word key={j} w={w} outline={seg.outline} at={startOf(i, w)} k={k} crisp={crisp} />)}
         </div>
       ))}
     </div>
   );
   return (
     <div style={{ position: "absolute", left, top, transform: `translate(${align === "left" ? "0" : "-50%"}, -50%)` }}>
-      {/* растворение: копия разлетается шире и гаснет — даёт тот самый шлейф между словами */}
-      {x > 0 && (
+      {/* растворение: копия разлетается шире и гаснет — даёт тот самый шлейф между словами (в чётком режиме выключено) */}
+      {x > 0 && !crisp && (
         <div aria-hidden style={{ position: "absolute", inset: 0, opacity: 0.3 * (1 - x), transform: `scale(${1.1 + 0.35 * x})`, filter: `blur(${4 + 10 * x}px)` }}>
           {body}
         </div>
       )}
-      <div style={{ opacity: Math.pow(1 - x, 2), transform: `scale(${1 + 0.12 * x})`, filter: `blur(${9 * x}px)` }}>{body}</div>
+      <div style={crisp ? { opacity: 1 - x, transform: `translateY(${-8 * x * k}px)` } : { opacity: Math.pow(1 - x, 2), transform: `scale(${1 + 0.12 * x})`, filter: `blur(${9 * x}px)` }}>{body}</div>
     </div>
   );
 };
 
-export const GlowCaptions: React.FC<{ segs: GSeg[]; shade?: number | ((t: number) => number) }> = ({ segs, shade = 0.5 }) => {
+export const GlowCaptions: React.FC<{ segs: GSeg[]; shade?: number | ((t: number) => number); k?: number; crisp?: boolean }> = ({ segs, shade = 0.5, k = 1, crisp }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const sh = typeof shade === "function" ? shade(frame / fps) : shade;
@@ -120,7 +131,7 @@ export const GlowCaptions: React.FC<{ segs: GSeg[]; shade?: number | ((t: number
     {sh > 0 && (
       <AbsoluteFill style={{ background: `linear-gradient(180deg, transparent 52%, rgba(0,0,0,${sh * 0.55}) 72%, rgba(0,0,0,${sh}) 100%)` }} />
     )}
-    {segs.map((s, i) => <GlowSeg key={i} seg={s} />)}
+    {segs.map((s, i) => <GlowSeg key={i} seg={s} k={k} crisp={crisp} />)}
   </AbsoluteFill>
   );
 };

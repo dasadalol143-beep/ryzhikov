@@ -8,3 +8,11 @@ remotion/public/media/*
 !remotion/public/media/.gitkeep
 remotion/out/
 __pycache__/
+projects/*/cut/
+projects/*/*.mp4
+projects/*/*.wav
+projects/*/*.mov
+projects/*/stills/
+projects/*/grade/
+projects/*/*.png
+remotion/public/media/v14k_*
