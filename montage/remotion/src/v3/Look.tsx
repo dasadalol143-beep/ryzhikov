@@ -33,10 +33,10 @@ export const Headline: React.FC<{ text: string; sub?: string; subAt?: number; du
 }) => {
   const f = useCurrentFrame(); const { fps } = useVideoConfig();
   const D = dur * fps;
-  const a = interpolate(f, [0, 0.32 * fps], [0, 1], { ...C, easing: out });
-  const b = interpolate(f, [D - 0.22 * fps, D], [0, 1], { ...C, easing: Easing.in(Easing.quad) });
-  const pulse = interpolate(f, [0, 0.7 * fps], [0, 1], { ...C, easing: out });
-  const sp = interpolate(f - subAt * fps, [0, 0.3 * fps], [0, 1], { ...C, easing: out });
+  const a = interpolate(f, [0, 0.12 * fps], [0, 1], { ...C, easing: out });
+  const b = interpolate(f, [D - 0.08 * fps, D], [0, 1], C);
+  const pulse = interpolate(f, [0, 0.5 * fps], [0, 1], { ...C, easing: out });
+  const sp = interpolate(f - subAt * fps, [0, 0.14 * fps], [0, 1], { ...C, easing: out });
   const font: React.CSSProperties = thin
     ? { fontFamily: "Inter", fontWeight: 200, letterSpacing: "0.01em" }
     : { fontFamily: SERIF, fontWeight: 500, letterSpacing: "0.02em", textTransform: "uppercase" };
@@ -50,7 +50,7 @@ export const Headline: React.FC<{ text: string; sub?: string; subAt?: number; du
             transform: `scale(${1 + 0.32 * pulse})`, opacity: a * (0.55 - 0.25 * pulse) }}>{text}</div>
           <div aria-hidden style={{ ...base, position: "absolute", inset: 0, color: "transparent", WebkitTextStroke: "1px rgba(233,210,154,0.35)",
             transform: "scale(1.16)", opacity: a * 0.5 }}>{text}</div>
-          <div style={{ ...base, ...goldText, opacity: a, transform: `translateY(${(1 - a) * 10}px) scale(${1.04 - 0.04 * a})` }}>{text}</div>
+          <div style={{ ...base, ...goldText, opacity: a, transform: `scale(${1.03 - 0.03 * a})` }}>{text}</div>
         </div>
         {sub && (
           <div style={{ fontFamily: SERIF, fontWeight: 500, fontSize: size * 0.4, letterSpacing: "0.06em", textTransform: "uppercase", marginTop: size * 0.22,
@@ -69,10 +69,10 @@ export const Subtitles: React.FC<{ lines: Line[]; y?: number; size?: number }> =
   const t = f / fps;
   const L = lines.find((l) => t >= l.s && t < l.e + 0.12);
   if (!L) return null;
-  const a = interpolate(t - L.s, [0, 0.18], [0, 1], { ...C, easing: out });
-  const o = interpolate(t - L.e, [0, 0.12], [1, 0], C);
+  const a = interpolate(t - L.s, [0, 0.08], [0, 1], { ...C, easing: out });
+  const o = interpolate(t - L.e, [0, 0.06], [1, 0], C);
   return (
-    <div style={{ position: "absolute", left: 0, right: 0, top: `${y * 100}%`, transform: `translateY(calc(-50% + ${(1 - a) * 8}px))`, opacity: a * o,
+    <div style={{ position: "absolute", left: 0, right: 0, top: `${y * 100}%`, transform: `translateY(calc(-50% + ${(1 - a) * 4}px))`, opacity: a * o,
       display: "flex", justifyContent: "center", gap: size * 0.28, fontFamily: SERIF, fontWeight: 400, fontSize: size, lineHeight: 1.2 }}>
       {L.words.map((w, i) => {
         const nx = L.words[i + 1]?.s ?? w.e + 0.2;
@@ -97,7 +97,7 @@ export const buildLines = (ws: TW[], hide: (t: number) => boolean): Line[] => {
     cur.push(w);
   });
   flush();
-  for (let i = 0; i < lines.length - 1; i++) lines[i].e = Math.min(lines[i].e + 0.25, lines[i + 1].s - 0.02);
+  for (let i = 0; i < lines.length - 1; i++) lines[i].e = Math.min(lines[i].e + 0.15, lines[i + 1].s - 0.01);
   return lines;
 };
 
@@ -105,8 +105,8 @@ export const buildLines = (ws: TW[], hide: (t: number) => boolean): Line[] => {
 export const StepList: React.FC<{ items: { text: string; at: number }[]; placeholders?: number; dur: number }> = ({ items, placeholders = 3, dur }) => {
   const f = useCurrentFrame(); const { fps } = useVideoConfig();
   const t = f / fps;
-  const a = interpolate(f, [0, 0.35 * fps], [0, 1], { ...C, easing: out });
-  const b = interpolate(f, [dur * fps - 0.3 * fps, dur * fps], [0, 1], C);
+  const a = interpolate(f, [0, 0.18 * fps], [0, 1], { ...C, easing: out });
+  const b = interpolate(f, [dur * fps - 0.12 * fps, dur * fps], [0, 1], C);
   const rows = Math.max(items.length, placeholders);
   const style: React.CSSProperties = { fontFamily: "Inter", fontStyle: "italic", fontWeight: 300, fontSize: 34, letterSpacing: "0.01em", textTransform: "uppercase", ...goldText };
   return (
@@ -114,7 +114,7 @@ export const StepList: React.FC<{ items: { text: string; at: number }[]; placeho
       {Array.from({ length: rows }).map((_, i) => {
         const it = items[i];
         const shown = it && t >= it.at;
-        const p = it ? interpolate(t - it.at, [0, 0.35], [0, 1], { ...C, easing: out }) : 0;
+        const p = it ? interpolate(t - it.at, [0, 0.18], [0, 1], { ...C, easing: out }) : 0;
         return (
           <div key={i} style={{ position: "relative", height: 42 }}>
             {/* мозаика-заглушка: блоки разной яркости */}
@@ -132,17 +132,17 @@ export const StepList: React.FC<{ items: { text: string; at: number }[]; placeho
 };
 
 /** Белая вспышка (смена блока). */
-export const WhiteFlash: React.FC<{ d?: number }> = ({ d = 0.45 }) => {
+export const WhiteFlash: React.FC<{ d?: number }> = ({ d = 0.25 }) => {
   const f = useCurrentFrame(); const { fps } = useVideoConfig();
-  const o = interpolate(f, [0, 0.06 * fps, d * fps], [0, 0.9, 0], { ...C, easing: out });
+  const o = interpolate(f, [0, 0.03 * fps, d * fps], [0, 0.85, 0], { ...C, easing: out });
   return <AbsoluteFill style={{ background: "#FFFDF7", opacity: o }} />;
 };
 
 /** Стеклянная карточка дохода (слева). */
 export const IncomeCard: React.FC<{ dur: number }> = ({ dur }) => {
   const f = useCurrentFrame(); const { fps } = useVideoConfig();
-  const a = interpolate(f, [0, 0.4 * fps], [0, 1], { ...C, easing: out });
-  const b = interpolate(f, [dur * fps - 0.3 * fps, dur * fps], [0, 1], C);
+  const a = interpolate(f, [0, 0.16 * fps], [0, 1], { ...C, easing: out });
+  const b = interpolate(f, [dur * fps - 0.1 * fps, dur * fps], [0, 1], C);
   const arc = interpolate(f, [0.1 * fps, 1.2 * fps], [0, 1], { ...C, easing: out });
   const rows: [string, string, string][] = [
     ["#8B5CF6", "Всего", "1 251 410,00 ₽"], ["#3BB5F0", "В работе", "654 860,00 ₽"], ["#F5B82E", "На холде", "95 450,00 ₽"],
@@ -158,7 +158,7 @@ export const IncomeCard: React.FC<{ dur: number }> = ({ dur }) => {
       </svg>
       <div style={{ position: "absolute", left: 66, right: 66, top: 155, display: "flex", flexDirection: "column", gap: 13 }}>
         {rows.map(([c, k, v], i) => {
-          const p = interpolate(f - (0.15 + i * 0.07) * fps, [0, 0.3 * fps], [0, 1], { ...C, easing: out });
+          const p = interpolate(f - (0.06 + i * 0.04) * fps, [0, 0.15 * fps], [0, 1], { ...C, easing: out });
           return (
             <div key={k} style={{ display: "flex", alignItems: "center", fontFamily: "Inter", fontSize: 22, color: "#222", opacity: p }}>
               <div style={{ width: 18, height: 18, borderRadius: 9, background: c, marginRight: 34 }} />
@@ -174,15 +174,15 @@ export const IncomeCard: React.FC<{ dur: number }> = ({ dur }) => {
 /** Тёмный экран дохода с кольцевой диаграммой (вместо кадра). */
 export const IncomeScreen: React.FC<{ dur: number }> = ({ dur }) => {
   const f = useCurrentFrame(); const { fps } = useVideoConfig();
-  const a = interpolate(f, [0, 0.45 * fps], [0, 1], { ...C, easing: out });
-  const b = interpolate(f, [dur * fps - 0.25 * fps, dur * fps], [0, 1], C);
+  const a = interpolate(f, [0, 0.14 * fps], [0, 1], { ...C, easing: out });
+  const b = interpolate(f, [dur * fps - 0.06 * fps, dur * fps], [0, 1], C);
   const q = interpolate(f, [0.1 * fps, 1.6 * fps], [0, 1], { ...C, easing: out });
   const val = Math.round(1082398 * q).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   const segs: [string, number][] = [["#F04268", 0.62], ["#F5C33B", 0.2], ["#4AA8F0", 0.1], ["#9AA0A6", 0.08]];
   let acc = 0; const R = 92, Cc = 2 * Math.PI * R;
   return (
     <AbsoluteFill style={{ background: "#1E1E20", opacity: 1 - b }}>
-      <div style={{ position: "absolute", left: "50%", top: "50%", transform: `translate(-50%,-50%) scale(${0.96 + 0.04 * a})`, opacity: a, filter: `blur(${(1 - a) * 6}px)` }}>
+      <div style={{ position: "absolute", left: "50%", top: "50%", transform: `translate(-50%,-50%) scale(${0.97 + 0.03 * a})`, opacity: a }}>
         <div style={{ fontFamily: "Inter", fontWeight: 700, fontSize: 46, color: "#F2F2F2", fontVariantNumeric: "tabular-nums" }}>{val} ₽</div>
         <div style={{ fontFamily: "Inter", fontWeight: 500, fontSize: 22, color: "#8E8E93", marginTop: 4 }}>Доходы</div>
         <svg width="320" height="260" style={{ display: "block", margin: "18px 0 0 100px" }} viewBox="0 0 320 260">

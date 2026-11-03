@@ -3,6 +3,7 @@ import React from "react";
 import { AbsoluteFill, Easing, interpolate, Sequence, useCurrentFrame, useVideoConfig } from "remotion";
 import face from "../data/v14k.face.json";
 import { CamCfg } from "../v2/camera";
+import { Grain } from "../components/Layers";
 import { FootageLayer } from "../v2/Layers";
 import { cleanWords } from "./text";
 import { buildLines, EdgeLook, Headline, IncomeCard, IncomeScreen, StepList, Subtitles, WhiteFlash } from "./Look";
@@ -21,18 +22,18 @@ const cam: CamCfg = {
 const hidden = (t: number) => heads.some((h) => t >= h.s - 0.03 && t < h.e) || (t >= ev.screen[0] && t < ev.screen[1]);
 // затемнение верха только под верхний текст (замер эталона: 0,6 от середины под списком, ~1,0 без текста)
 const topShade = (t: number) => {
-  const on = (a: number, b: number) => interpolate(t, [a - 0.3, a, b, b + 0.3], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const on = (a: number, b: number) => interpolate(t, [a - 0.12, a, b, b + 0.12], [0, 1, 1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
   let k = on(ev.steps[0], ev.steps[1]);
   for (const h of heads) if (h.y < 0.5) k = Math.max(k, on(h.s, h.e));
   return 0.06 + 0.5 * k;
 };
 const LINES = buildLines(cleanWords(T.words), hidden);
 
-const Fade: React.FC<{ inDur?: number; outAt: number }> = ({ inDur = 0.45, outAt }) => {
+const Fade: React.FC<{ inDur?: number; outAt: number }> = ({ inDur = 0.001, outAt }) => {
   const f = useCurrentFrame(); const { fps } = useVideoConfig();
   const a = interpolate(f, [0, inDur * fps], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp", easing: Easing.out(Easing.quad) });
   const b = interpolate(f, [outAt * fps, (outAt + END) * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
-  return <AbsoluteFill style={{ background: "#000", opacity: Math.max(a * 0.85, b) }} />;
+  return <AbsoluteFill style={{ background: "#000", opacity: b }} />;
 };
 
 export const V14kRef: React.FC = () => {
@@ -66,6 +67,7 @@ export const V14kRef: React.FC = () => {
       <Sequence {...W(ev.screen[0], ev.screen[1])}><IncomeScreen dur={ev.screen[1] - ev.screen[0]} /></Sequence>
       <Sequence {...W(ev.flash, ev.flash + 0.5)}><WhiteFlash /></Sequence>
       <Fade outAt={T.duration} />
+      <Grain />
     </AbsoluteFill>
   );
 };
