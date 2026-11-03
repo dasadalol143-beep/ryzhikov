@@ -10,7 +10,7 @@ import { buildLines, EdgeLook, Headline, IncomeCard, IncomeScreen, StepList, Sub
 import { END, ev, FPS, heads, T, TOTAL, wt } from "./cues";
 export { FPS, TOTAL };
 
-const cam: CamCfg = {
+export const cam: CamCfg = {
   clips: T.clips,
   levels: [1.0, 1.06, 1.0, 1.08, 1.03, 1.0, 1.07, 1.0, 1.05, 1.0, 1.08, 1.02, 1.0, 1.06, 1.0, 1.07, 1.02, 1.0, 1.06, 1.0],
   drift: 0,
