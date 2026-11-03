@@ -7,7 +7,8 @@ import { BanksScene, PayFront, WhyBehind, YouBehind, YouLinks } from "./Motion";
 import { wt } from "../v3/cues";
 import { CardsLayer } from "../v5/CardsLayer";
 import { stampShake } from "../v5/Cards3D";
-import { useCurrentFrame } from "remotion";
+import { getInputProps, useCurrentFrame } from "remotion";
+const NO_CARDS = !!(getInputProps() as any).noCards;
 
 export const S0 = 69.4, S1 = 90.0;
 export const DEMO_FPS = 24000 / 1001;
@@ -32,9 +33,9 @@ export const MotionDemo: React.FC = () => {
       <AbsoluteFill style={{ transform: `translate(${sh.x}px,${sh.y}px) scale(${sh.s})` }}>
       <Sequence from={-F(S0)}>
         <V14kRef footage="media/v14k_cut4k_demo.mp4" footageFrom={1469 * 1001 / 24000} />
-        <Sequence {...W(E.debit - 0.05, E.cardsOut + 0.4)}>
+        {!NO_CARDS && <Sequence {...W(E.debit - 0.05, E.cardsOut + 0.4)}>
           <CardsLayer t0={E.debit - 0.05} ev={{ debit: E.debit, invest: E.invest, ip: E.ip, hit: E.hit, out: E.cardsOut }} samples={CARD_SAMPLES} />
-        </Sequence>
+        </Sequence>}
         <BehindWindow cfg={cam} person="media/demo_person_q4k.mov" from={F(E.whyWin[0])} dur={F(E.whyWin[1]) - F(E.whyWin[0])}
           front={<Sequence from={-F(E.whyWin[0])} layout="none"><PayFront tPay={E.pay} dur={E.whyWin[1]} /></Sequence>}>
           <Sequence from={-F(E.whyWin[0])} layout="none"><WhyBehind tWhy={E.why} tPay={E.pay} dur={E.whyWin[1]} /></Sequence>
@@ -49,6 +50,21 @@ export const MotionDemo: React.FC = () => {
         </BehindWindow>
       </Sequence>
       </AbsoluteFill>
+    </AbsoluteFill>
+  );
+};
+
+// Только 3D-карточки (прозрачный слой) — рендерится отдельно в 4K и накладывается поверх базы ffmpeg-ом.
+export const CARDS_A = DEMO_EV.debit - 0.05, CARDS_B = DEMO_EV.cardsOut + 0.4;
+export const CARDS_OFFSET = Math.round(CARDS_A * DEMO_FPS) - Math.round(S0 * DEMO_FPS);
+export const CARDS_LEN = Math.round(CARDS_B * DEMO_FPS) - Math.round(CARDS_A * DEMO_FPS);
+export const CardsOnly: React.FC = () => {
+  const { fps } = useVideoConfig(); const fr = useCurrentFrame();
+  const t = Math.round(CARDS_A * fps) / fps + fr / fps; const sh = stampShake(t, DEMO_EV.hit);
+  const E = DEMO_EV;
+  return (
+    <AbsoluteFill style={{ transform: `translate(${sh.x}px,${sh.y}px) scale(${sh.s})` }}>
+      <CardsLayer t0={Math.round(CARDS_A * fps) / fps} ev={{ debit: E.debit, invest: E.invest, ip: E.ip, hit: E.hit, out: E.cardsOut }} samples={CARD_SAMPLES} />
     </AbsoluteFill>
   );
 };

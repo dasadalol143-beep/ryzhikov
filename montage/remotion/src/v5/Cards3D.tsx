@@ -107,7 +107,7 @@ function ipTextures() {
 function stampImprint() {
   const S = 512; const [c, g] = cv(S, S);
   g.translate(S / 2, S / 2); g.rotate(-0.18);
-  g.strokeStyle = "#C2261E"; g.fillStyle = "#C2261E";
+  g.strokeStyle = "#ffffff"; g.fillStyle = "#ffffff";
   g.lineWidth = 16; g.beginPath(); g.arc(0, 0, 220, 0, Math.PI * 2); g.stroke();
   g.lineWidth = 5; g.beginPath(); g.arc(0, 0, 186, 0, Math.PI * 2); g.stroke();
   g.textAlign = "center"; g.font = "900 150px Inter"; g.fillText("ИП", 0, 30);
@@ -218,7 +218,7 @@ const Scene: React.FC<{ t: number; ev: CardsEv; T: Tex }> = ({ t, ev, T }) => {
   const iRest: Pose = { p: [3.75, 1.25, -0.3], r: [0.1, -0.45, 0.07] };
   const iv = cardPose(t, ev.invest, ev.out, iRest, { p: [7.5, 4.5, -6], r: [0.9, -2.2, -0.6] }, 1, Math.PI * 2);
   // ИП: справа снизу, лежит под наклоном (печать бьёт по нормали)
-  const pRest: Pose = { p: [3.85, -1.25, 0.2], r: [-1.08, -0.28, 0.05] };
+  const pRest: Pose = { p: [3.6, -1.25, 0.2], r: [-1.08, -0.28, 0.05] };
   const ip = cardPose(t, ev.ip, ev.out, pRest, { p: [6.5, -5, 4], r: [-2.4, -1.2, 0.4] }, 1, Math.PI * 2);
   // после удара карточка поднимается к камере и показывает оттиск
   const rise = easeOut((t - ev.hit - 0.3) / 0.45);
@@ -283,7 +283,7 @@ const Scene: React.FC<{ t: number; ev: CardsEv; T: Tex }> = ({ t, ev, T }) => {
           </mesh>
           <mesh position={[0.62, -0.08, D / 2 + 0.014]} visible={imprint > 0}>
             <planeGeometry args={[1.2, 1.2]} />
-            <meshStandardMaterial map={T.imprint} transparent roughness={0.6} depthWrite={false} polygonOffset polygonOffsetFactor={-2} />
+            <meshBasicMaterial map={T.imprint} color="#b8231b" transparent toneMapped={false} depthWrite={false} polygonOffset polygonOffsetFactor={-2} />
           </mesh>
           {/* ударная волна по плоскости карточки */}
           {ring > 0 && ring < 1 && (
