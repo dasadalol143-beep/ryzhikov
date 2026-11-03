@@ -10,7 +10,7 @@ export type Face = number[][]; // [t, cx, cy, w] в долях кадра тай
 const C = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const io = Easing.bezier(0.65, 0, 0.35, 1);
 
-export type CamCfg = { clips: Clip[]; levels: number[]; keys: ZKey[]; pans: Pan[]; face: Face; drift?: number };
+export type CamCfg = { clips: Clip[]; levels: number[]; keys: ZKey[]; pans: Pan[]; face: Face; drift?: number; bySeg?: boolean };
 
 const faceAt = (face: Face, t: number): [number, number] => {
   // окно ±0,4 с, медиана по x/y — якорь не дрожит на жестах
@@ -39,7 +39,7 @@ export const camAt = (cfg: CamCfg, frame: number, fps: number, W: number, H: num
   const t = frame / fps;
   const ci = Math.max(0, cfg.clips.findIndex((c) => t >= c.t_in && t < c.t_out));
   const clip = cfg.clips[ci] ?? cfg.clips[cfg.clips.length - 1];
-  const level = cfg.levels[ci % cfg.levels.length];
+  const level = cfg.bySeg ? cfg.levels[clip.seg % cfg.levels.length] : cfg.levels[ci % cfg.levels.length]; // bySeg: крупность меняется только на смене мысли
   const drift = 1 + (cfg.drift ?? 0.025) * Math.min(1, (t - clip.t_in) / Math.max(1, clip.t_out - clip.t_in)); // медленный наезд внутри клипа
   let z = level * drift * keyFactor(cfg.keys, frame, fps);
   // панели: плавный сдвиг кадра и минимальный зум, чтобы не открыть край
