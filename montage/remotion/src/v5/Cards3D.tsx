@@ -230,9 +230,16 @@ const Scene: React.FC<{ t: number; ev: CardsEv; T: Tex }> = ({ t, ev, T }) => {
 
   // печать: зависает над карточкой, падает (easeIn), отскок, уходит
   const hit = ev.hit;
-  const fall = t < hit ? lerp(1.7, 0.06, easeIn((t - (hit - 0.32)) / 0.32)) : t < hit + 0.22 ? 0.06 : lerp(0.06, 4, easeIn((t - hit - 0.22) / 0.35));
-  const stampVis = t > hit - 0.32 && t < hit + 0.6;
-  const stampIn = clamp((t - (hit - 0.32)) / 0.08);
+  // печать заходит из-за ПРАВОГО края кадра, ниже инвест-карты (ничего не пересекает), с доворотом,
+  // последние сантиметры — строго по нормали в бумагу; после удара уходит тем же путём
+  const k = t < hit ? 1 - easeIn((t - (hit - 0.34)) / 0.34) : t < hit + 0.16 ? 0 : easeIn((t - hit - 0.16) / 0.3);
+  const stampVis = t > hit - 0.34 && t < hit + 0.46;
+  const stampIn = 0.85;
+  const inv = new THREE.Quaternion().setFromEuler(new THREE.Euler(ip.r[0], ip.r[1], ip.r[2])).invert();
+  const off = new THREE.Vector3(5.2, 0.15, 1.2).multiplyScalar(Math.pow(k, 1.6)).applyQuaternion(inv);
+  off.z += 0.9 * Math.min(1, k * 3); // подъём над бумагой: опускается только в самом конце
+  const tilt = 0.7 * Math.pow(k, 1.2);
+  const fall = 0.06;
   const squash = t >= hit && t < hit + 0.12 ? 1 - 0.18 * Math.sin(((t - hit) / 0.12) * Math.PI) : 1;
   const imprint = t >= hit ? 1 : 0;
   const ring = clamp((t - hit) / 0.45);
@@ -248,7 +255,7 @@ const Scene: React.FC<{ t: number; ev: CardsEv; T: Tex }> = ({ t, ev, T }) => {
       <directionalLight position={[-4, 5, 6]} intensity={2.2} color="#ffe4bf" />
       <directionalLight position={[6, -2, -3]} intensity={1.4} color="#9fc4ff" />
       <pointLight position={sweep(ev.debit, -3.55)} intensity={14 * sweepI(ev.debit)} distance={7} color="#fff1d8" />
-      <pointLight position={sweep(ev.ip, 3.6)} intensity={8 * sweepI(ev.ip)} distance={6} color="#fff1d8" />
+      {/* по бумаге свет не пускаем: давал блик на глянце инвест-карты */}
 
       {d.vis && (
         <group position={d.p} rotation={d.r}>
@@ -293,7 +300,7 @@ const Scene: React.FC<{ t: number; ev: CardsEv; T: Tex }> = ({ t, ev, T }) => {
             </mesh>
           )}
           {stampVis && (
-            <group position={[0.62, -0.08, D / 2 + fall]} scale={stampIn}>
+            <group position={[0.62 + off.x, -0.08 + off.y, D / 2 + fall + off.z]} rotation={[0, tilt, -tilt * 0.4]} scale={stampIn}>
               <group rotation={[Math.PI / 2, 0, 0]}>
                 <mesh position={[0, 0.05, 0]}><cylinderGeometry args={[0.55, 0.55, 0.1, 64]} /><meshPhysicalMaterial color="#8e1a15" roughness={0.75} /></mesh>
                 <mesh position={[0, 0.2, 0]}><cylinderGeometry args={[0.58, 0.58, 0.2, 64]} /><meshPhysicalMaterial color="#141414" metalness={0.3} roughness={0.25} clearcoat={1} /></mesh>
