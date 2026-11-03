@@ -1,5 +1,5 @@
 // События ролика «14 000 ₽» (сек таймлайна). Без React: модуль читают и композиция, и сведение звука (tools/mix_v14k.py).
-import timeline from "../data/v14k.timeline.json";
+import timeline from "../data/v14k_v2.timeline.json";
 import { makeWT, TW } from "./words";
 export const FPS = 24000 / 1001;
 export const T = timeline as { duration: number; clips: { t_in: number; t_out: number; seg: number }[]; words: TW[] };
