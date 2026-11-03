@@ -16,3 +16,4 @@ projects/*/stills/
 projects/*/grade/
 projects/*/*.png
 remotion/public/media/v14k_*
+projects/*/*.log
