@@ -31,11 +31,11 @@ export const MotionDemo: React.FC = () => {
     <AbsoluteFill style={{ background: "#000", overflow: "hidden" }}>
       <AbsoluteFill style={{ transform: `translate(${sh.x}px,${sh.y}px) scale(${sh.s})` }}>
       <Sequence from={-F(S0)}>
-        <V14kRef />
+        <V14kRef footage="media/v14k_cut4k_demo.mp4" footageFrom={1469 * 1001 / 24000} />
         <Sequence {...W(E.debit - 0.05, E.cardsOut + 0.4)}>
           <CardsLayer t0={E.debit - 0.05} ev={{ debit: E.debit, invest: E.invest, ip: E.ip, hit: E.hit, out: E.cardsOut }} samples={CARD_SAMPLES} />
         </Sequence>
-        <BehindWindow cfg={cam} person="media/demo_person_q.mov" from={F(E.whyWin[0])} dur={F(E.whyWin[1]) - F(E.whyWin[0])}
+        <BehindWindow cfg={cam} person="media/demo_person_q4k.mov" from={F(E.whyWin[0])} dur={F(E.whyWin[1]) - F(E.whyWin[0])}
           front={<Sequence from={-F(E.whyWin[0])} layout="none"><PayFront tPay={E.pay} dur={E.whyWin[1]} /></Sequence>}>
           <Sequence from={-F(E.whyWin[0])} layout="none"><WhyBehind tWhy={E.why} tPay={E.pay} dur={E.whyWin[1]} /></Sequence>
         </BehindWindow>
@@ -43,7 +43,7 @@ export const MotionDemo: React.FC = () => {
           <BanksScene dur={E.scene[1] - E.scene[0]} tBanks={E.banks - E.scene[0]} t200={E.b200 - E.scene[0]} tYear={E.year - E.scene[0]}
             tAttract={E.attract - E.scene[0]} tClients={E.clients - E.scene[0]} tOwn={E.own - E.scene[0]} />
         </Sequence>
-        <BehindWindow cfg={cam} person="media/demo_person_ty.mov" from={F(E.youWin[0])} dur={F(E.youWin[1]) - F(E.youWin[0])}
+        <BehindWindow cfg={cam} person="media/demo_person_ty4k.mov" from={F(E.youWin[0])} dur={F(E.youWin[1]) - F(E.youWin[0])}
           front={<Sequence from={F(E.you) - F(E.youWin[0])} layout="none"><YouLinks dur={E.youWin[1] - E.you} tAttract={E.attract2 - E.you} cx={0.5} cy={0.6} /></Sequence>}>
           <Sequence from={F(E.you) - F(E.youWin[0])} layout="none"><YouBehind dur={E.youWin[1] - E.you} /></Sequence>
         </BehindWindow>

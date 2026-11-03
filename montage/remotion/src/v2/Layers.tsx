@@ -6,8 +6,8 @@ import { camAt, camStyle, CamCfg } from "./camera";
 const C = { extrapolateLeft: "clamp", extrapolateRight: "clamp" } as const;
 const out = Easing.bezier(0.16, 1, 0.3, 1);
 
-export const FootageLayer: React.FC<{ cfg: CamCfg; src: string }> = ({ cfg, src }) => {
-  const frame = useCurrentFrame();
+export const FootageLayer: React.FC<{ cfg: CamCfg; src: string; offset?: number }> = ({ cfg, src, offset = 0 }) => {
+  const frame = useCurrentFrame() + offset;
   const { fps, width, height } = useVideoConfig();
   const c = camAt(cfg, frame, fps, width, height);
   return (

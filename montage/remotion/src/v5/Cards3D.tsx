@@ -230,9 +230,9 @@ const Scene: React.FC<{ t: number; ev: CardsEv; T: Tex }> = ({ t, ev, T }) => {
 
   // печать: зависает над карточкой, падает (easeIn), отскок, уходит
   const hit = ev.hit;
-  const fall = t < hit ? lerp(2.4, 0.06, easeIn((t - (hit - 0.32)) / 0.32)) : t < hit + 0.22 ? 0.06 : lerp(0.06, 4, easeIn((t - hit - 0.22) / 0.35));
-  const stampVis = t > hit - 0.4 && t < hit + 0.6;
-  const stampIn = clamp((t - (hit - 0.4)) / 0.1);
+  const fall = t < hit ? lerp(1.7, 0.06, easeIn((t - (hit - 0.32)) / 0.32)) : t < hit + 0.22 ? 0.06 : lerp(0.06, 4, easeIn((t - hit - 0.22) / 0.35));
+  const stampVis = t > hit - 0.32 && t < hit + 0.6;
+  const stampIn = clamp((t - (hit - 0.32)) / 0.08);
   const squash = t >= hit && t < hit + 0.12 ? 1 - 0.18 * Math.sin(((t - hit) / 0.12) * Math.PI) : 1;
   const imprint = t >= hit ? 1 : 0;
   const ring = clamp((t - hit) / 0.45);
@@ -278,7 +278,7 @@ const Scene: React.FC<{ t: number; ev: CardsEv; T: Tex }> = ({ t, ev, T }) => {
       {ip.vis && (
         <group position={ip.p} rotation={ip.r}>
           <mesh geometry={geo} scale={[1, 1, squash]}>
-            <meshPhysicalMaterial attach="material-0" map={T.ip} color="#cfc7b6" roughness={0.85} metalness={0} />
+            <meshPhysicalMaterial attach="material-0" map={T.ip} color="#c4bcab" roughness={0.88} metalness={0} envMapIntensity={0.35} />
             <meshStandardMaterial attach="material-1" color="#d9cdb2" roughness={0.9} />
           </mesh>
           <mesh position={[0.62, -0.08, D / 2 + 0.014]} visible={imprint > 0}>

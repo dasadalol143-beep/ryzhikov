@@ -37,15 +37,22 @@ const Fade: React.FC<{ inDur?: number; outAt: number }> = ({ inDur = 0.001, outA
   return <AbsoluteFill style={{ background: "#000", opacity: b }} />;
 };
 
-export const V14kRef: React.FC = () => {
+export const V14kRef: React.FC<{ footage?: string; footageFrom?: number }> = ({ footage, footageFrom }) => {
   const { fps } = useVideoConfig();
   const F = (s: number) => Math.round(s * fps);
   const W = (a: number, b: number) => ({ from: F(a), durationInFrames: Math.max(1, F(b) - F(a)) });
   return (
     <AbsoluteFill style={{ background: "#000" }}>
-      <Sequence durationInFrames={F(T.duration + END)}>
-        <FootageLayer cfg={cam} src="media/v14k_cut.mp4" />
-      </Sequence>
+      {footage ? (
+        // отдельный файл (например 4K-кусок), начинающийся с footageFrom секунд таймлайна; камера считается по глобальному кадру
+        <Sequence from={F(footageFrom ?? 0)} durationInFrames={F(T.duration + END) - F(footageFrom ?? 0)} layout="none">
+          <FootageLayer cfg={cam} src={footage} offset={F(footageFrom ?? 0)} />
+        </Sequence>
+      ) : (
+        <Sequence durationInFrames={F(T.duration + END)}>
+          <FootageLayer cfg={cam} src="media/v14k_cut.mp4" />
+        </Sequence>
+      )}
       <EdgeLook top={topShade} />
 
       <Sequence {...W(ev.card[0], ev.card[1])}><IncomeCard dur={ev.card[1] - ev.card[0]} /></Sequence>
