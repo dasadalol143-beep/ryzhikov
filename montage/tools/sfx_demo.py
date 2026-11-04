@@ -112,6 +112,41 @@ put(riser(0.9), E["you"] - 0.85, 0.22); put(boom(1.8), E["you"], 0.6); put(whoos
 for i in range(6):
     tt = E["attract2"] + i * 0.12 + 0.3; put(pop(1100), tt, 0.12, [-0.8, 0.8, -0.9, 0.9, -0.4, 0.4][i]); put(coin(3000 + i * 150), tt + 0.12, 0.1, [-0.8, 0.8, -0.9, 0.9, -0.4, 0.4][i])
 
+# ---- настоящие записанные сэмплы поверх синтеза (assets/sfx_lib: HyperFrames + Openverse CC) ----
+LIB = pathlib.Path(__file__).resolve().parent.parent / "assets/sfx_lib"
+_cache = {}
+def smp(name, pitch=1.0):
+    key = (name, pitch)
+    if key not in _cache:
+        raw = subprocess.run(["ffmpeg", "-v", "error", "-i", str(LIB / name), "-f", "f32le", "-ac", "1", "-ar", str(SR), "-"], capture_output=True, check=True).stdout
+        x = np.frombuffer(raw, np.float32).astype(np.float64); x = x / (np.abs(x).max() + 1e-9)
+        if pitch != 1.0: x = np.interp(np.arange(0, len(x) - 1, pitch), np.arange(len(x)), x)
+        _cache[key] = x
+    return _cache[key]
+def tail(x, d): return x[-int(d * SR):]  # конец длинного звука (riser пикует в конце)
+WH, WS, WC = "hf/whoosh.mp3", "hf/whoosh-short.mp3", "hf/whoosh-cinematic.mp3"
+IB1, IB2, RIS, SPK, CHI, PNG, POP, COIN = "hf/impact-bass-1.mp3", "hf/impact-bass-2.mp3", "hf/riser.mp3", "hf/sparkle.mp3", "hf/chime.mp3", "hf/ping.mp3", "hf/pop.mp3", "coin_drop_1.mp3"
+# карточки
+put(smp(WS), E["debit"] - 0.2, 0.35, -0.5, 0.15); put(smp(IB2)[int(0.35 * SR):], E["debit"] + 0.2, 0.18, -0.4, 0.2); put(smp(SPK), E["debit"] + 0.28, 0.07, -0.5, 0.4)
+put(smp(WS, 0.92), E["invest"] - 0.22, 0.32, 0.6, 0.15); put(smp(SPK, 1.12), E["invest"] + 0.3, 0.08, 0.6, 0.4); put(smp(PNG), E["invest"] + 1.45, 0.05, 0.6, 0.4)
+put(smp(WS, 0.85), E["ip"] - 0.2, 0.3, 0.6, 0.15)
+put(tail(smp(RIS), 0.9), E["hit"] - 0.9, 0.16, 0.5, 0.2); put(smp(WH), E["hit"] - 0.3, 0.3, 0.85, 0.1)
+put(smp(IB1), E["hit"], 0.42, 0.3, 0.25)
+put(smp(WH, 1.2), E["cardsOut"] - 0.05, 0.28, -0.7, 0.1); put(smp(WH, 1.1), E["cardsOut"], 0.28, 0.7, 0.1)
+# ПОЧЕМУ
+put(tail(smp(RIS), 1.0), E["why"] - 1.0, 0.16, 0, 0.2); put(smp(IB1), E["why"], 0.4, 0, 0.3); put(smp(WS), E["pay"] - 0.15, 0.18)
+# банки
+sc0 = E["scene"][0]
+put(smp(WH), sc0 - 0.12, 0.35, 0, 0.15); put(smp(IB2), sc0 - 0.3, 0.3, 0, 0.3)
+for i in range(5): put(smp(IB1, 1.25 + i * 0.05)[: int(1.0 * SR)], E["banks"] + i * 0.1 + 0.42, 0.14, -0.8 + i * 0.4, 0.3)
+for i in range(30):
+    tt = E["b200"] + 0.55 + rng.random() * 3.2; put(smp(COIN, 0.85 + rng.random() * 0.45), tt, 0.08 + 0.08 * rng.random(), rng.uniform(-0.9, 0.9), 0.35)
+put(smp(CHI), E["b200"] + 1.5, 0.12, 0, 0.5); put(smp(WS), E["attract"] - 0.1, 0.2)
+put(smp(SPK), E["clients"] - 0.1, 0.1, -0.3, 0.5); put(smp(SPK, 0.9), E["clients"] + 0.6, 0.08, 0.4, 0.5); put(smp(IB2)[int(0.4 * SR):], E["own"], 0.18, 0, 0.3)
+# ТЫ
+put(tail(smp(RIS), 1.0), E["you"] - 1.0, 0.18, 0, 0.2); put(smp(IB1), E["you"], 0.45, 0, 0.3)
+for i in range(6): put(smp(POP, 1.0 + i * 0.06), E["attract2"] + i * 0.12 + 0.3, 0.1, [-0.8, 0.8, -0.9, 0.9, -0.4, 0.4][i], 0.3)
+
 ir = reverb_ir()
 for ch in range(2):
     L = len(rev) + len(ir); n2 = 1 << (L - 1).bit_length()

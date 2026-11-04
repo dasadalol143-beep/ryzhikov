@@ -1,0 +1,11 @@
+{
+ "coin_drop_1.mp3": {
+  "cue": "coin_drop",
+  "query": "coin",
+  "title": "Coins 3 (Gravity Sound)",
+  "creator": "Gravity Sound",
+  "license": "by",
+  "dur": 0.313,
+  "src": "https://commons.wikimedia.org/w/index.php?curid=85709934"
+ }
+}
