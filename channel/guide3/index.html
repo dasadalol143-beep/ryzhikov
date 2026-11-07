@@ -1,0 +1,1054 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Гайд 3 · Отклики и закуп рекламы · Ryzhikov Academy</title>
+<meta name="description" content="Гайд 3 из 3: платный трафик — отклики и закуп рекламы в блогах. Честный скрипт, созвон, работа с базой лидов, прайс ЛидГид.">
+<meta property="og:title" content="Гайд 3 · Отклики и закуп рекламы">
+<meta property="og:description" content="Платный трафик по-белому: отклики, честный скрипт, закуп рекламы в блогах, прайс ЛидГид.">
+<meta name="theme-color" content="#17110f">
+<meta name="robots" content="noindex">
+<style>
+@font-face{font-family:'Oswald';font-weight:500 700;font-display:swap;src:url(assets/oswald-normal-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Oswald';font-weight:500 700;font-display:swap;src:url(assets/oswald-normal-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+@font-face{font-family:'Oswald';font-weight:500 700;font-display:swap;src:url(assets/oswald-normal-latinext.woff2) format('woff2');unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+1E00-1E9F,U+20A0-20AB,U+20AD-20C4,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:500 600;font-display:swap;src:url(assets/cormorant-italic-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+@font-face{font-family:'Cormorant Garamond';font-style:italic;font-weight:500 600;font-display:swap;src:url(assets/cormorant-italic-latin.woff2) format('woff2');unicode-range:U+0000-00FF,U+2000-206F,U+20AC}
+@font-face{font-family:'Caveat';font-weight:600;font-display:swap;src:url(assets/caveat-cyrillic.woff2) format('woff2');unicode-range:U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116}
+
+:root{
+  --kob:#c4202e;--kob2:#9e1823;--kob3:#120e0d;
+  --paper:#f2ede3;--paper2:#e9e2d4;--marble:#fbf9f4;
+  --ink:#141414;--ink2:#5d574d;--line:rgba(20,20,20,.14);
+  --red:#b23a26;--green:#1f7a45;
+  --f:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --fd:"Oswald","Arial Narrow",Impact,sans-serif;
+  --fs:"Cormorant Garamond",Georgia,serif;
+  --fh:"Caveat","Comic Sans MS",cursive;
+  --ease-out:cubic-bezier(.23,1,.32,1);--ease-io:cubic-bezier(.77,0,.175,1);
+  --gl:max(20px,env(safe-area-inset-left,0px));
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+html{background:var(--paper);-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f);font-size:17px;line-height:1.55;letter-spacing:-.01em;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;display:block}
+a{color:inherit}
+h1,h2,h3,h4,p{margin:0}
+b,strong{font-weight:650}
+.wrap{max-width:1080px;margin:0 auto;padding:0 var(--gl)}
+.narrow{max-width:760px}
+button,.btn{font:inherit;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+
+/* шапка-прогресс дня */
+.bar{position:fixed;left:0;right:0;top:0;z-index:50;display:flex;align-items:center;gap:14px;padding:10px var(--gl);padding-top:calc(10px + env(safe-area-inset-top,0px));background:rgba(20,15,14,.95);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#fff;transform:translateY(-110%);transition:transform .45s var(--ease-out)}
+.bar.on{transform:none}
+.bar b{font-family:var(--fd);font-weight:600;text-transform:uppercase;letter-spacing:.02em;font-size:15px;white-space:nowrap}
+.bar .days{display:flex;gap:6px;margin-left:auto}
+.bar .days i{width:28px;height:4px;background:rgba(255,255,255,.3);overflow:hidden;position:relative}
+.bar .days i:first-child::after{content:"";position:absolute;inset:0;background:#fff;transform-origin:0 50%;transform:scaleX(var(--p,0))}
+.bar .days span{font-family:var(--fd);font-size:13px;margin-left:6px;opacity:.85;white-space:nowrap}
+
+/* общие элементы */
+.eyebrow{display:block;font-family:var(--fs);font-style:italic;font-weight:600;font-size:clamp(20px,1.8vw,24px);color:var(--kob);margin-bottom:10px}
+.kob .eyebrow,.dark .eyebrow{color:#fff}
+.h1{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(46px,8vw,104px);line-height:.92;letter-spacing:0}
+.h2{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(34px,5.2vw,64px);line-height:.98;letter-spacing:0}
+.h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(24px,2.6vw,32px);line-height:1.04;letter-spacing:0}
+.lead{font-size:clamp(17px,1.5vw,20px);line-height:1.55;color:var(--ink2);margin-top:16px;max-width:40em}
+.kob .lead,.dark .lead{color:rgba(255,255,255,.86)}
+section{position:relative;padding:clamp(80px,12vh,140px) 0}
+.kob{background:#191210;color:#fff}
+.dark{background:var(--kob3);color:#fff}
+.bg2{background:var(--paper2)}
+.chap{position:absolute;left:0;right:0;top:clamp(26px,4vh,42px)}
+.chap .wrap{display:flex;justify-content:space-between;gap:10px;font-family:var(--fs);font-style:italic;font-weight:600;font-size:17px;color:var(--ink2);border-bottom:1px solid var(--line);padding-bottom:8px}
+.kob .chap .wrap,.dark .chap .wrap{color:rgba(255,255,255,.75);border-color:rgba(255,255,255,.22)}
+.torn{margin-top:-18px;z-index:2}
+.torn::before{content:"";position:absolute;left:0;right:0;top:0;height:20px;background:inherit;-webkit-mask:var(--tear) top left/600px 20px repeat-x;mask:var(--tear) top left/600px 20px repeat-x;transform:translateY(-18px)}
+:root{--tear:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 20' preserveAspectRatio='none'%3E%3Cpath d='M0 9L14 6L27 11L41 5L55 10L68 4L83 9L97 7L110 12L126 6L139 9L153 3L168 10L181 7L196 11L209 5L224 9L238 6L251 12L266 5L280 8L293 4L308 10L322 7L336 12L350 5L363 9L378 6L392 11L405 4L420 9L433 6L448 12L462 5L476 9L489 7L504 11L517 4L532 9L546 6L559 11L574 5L588 9L600 9V20H0Z'/%3E%3C/svg%3E")}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:54px;padding:0 26px;font-family:var(--fd);font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:17px;text-decoration:none;background:var(--kob);color:#fff;border:0;cursor:pointer;transition:transform .16s var(--ease-out),background-color .2s ease}
+.btn:active{transform:scale(.97)}
+.btn.w{background:#fff;color:var(--kob)}
+.btn.ghost{background:transparent;color:inherit;box-shadow:inset 0 0 0 1.5px currentColor}
+@media (hover:hover) and (pointer:fine){.btn:hover{background:var(--kob2)}.btn.w:hover{background:var(--paper)}.btn.ghost:hover{background:rgba(255,255,255,.1)}}
+.card{background:var(--marble);border:1px solid var(--line);padding:clamp(20px,2.4vw,30px)}
+.kob .card{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2)}
+.note{position:relative;padding:16px 18px;border-left:3px solid var(--kob);background:rgba(196,32,46,.06);font-size:15.5px;line-height:1.5}
+.note b{color:var(--kob)}
+.note.red{border-color:var(--red);background:rgba(178,58,38,.07)}.note.red b{color:var(--red)}
+.note.green{border-color:var(--green);background:rgba(31,122,69,.08)}.note.green b{color:var(--green)}
+.kob .note{background:rgba(255,255,255,.1);border-color:#fff}.kob .note b{color:#fff}
+.hand{font-family:var(--fh);font-weight:600;font-size:clamp(24px,2.2vw,30px);line-height:1.15;color:var(--kob)}
+.tag{display:inline-block;padding:4px 10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:13px;letter-spacing:.04em;background:var(--kob);color:#fff}
+.tag.o{background:transparent;color:var(--kob);box-shadow:inset 0 0 0 1.5px var(--kob)}
+.num{font-family:var(--fd);font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:0}
+
+/* появления */
+.js [data-r]{opacity:0;transform:translate3d(0,24px,0);transition:opacity .7s var(--ease-out),transform .9s var(--ease-out);transition-delay:calc(var(--i,0) * 70ms)}
+.js [data-r].in{opacity:1;transform:none}
+.rl .w{display:inline-block;overflow:hidden;vertical-align:bottom;padding-bottom:.1em;margin-bottom:-.1em}
+.rl .w>span{display:inline-block;transform:translate3d(0,108%,0);transition:transform .85s var(--ease-out);transition-delay:calc(var(--d,0) * 45ms)}
+.rl.in .w>span{transform:none}
+.js .rl[data-r]{opacity:1;transform:none}
+
+/* 1. первый экран */
+.hero{min-height:100svh;padding:0;overflow:hidden;background:radial-gradient(ellipse 80% 70% at 60% 38%,#3a2422 0%,#1c1210 52%,#0c0807 100%);color:#fff;display:flex;align-items:flex-end}
+.hero .grid{position:absolute;inset:0;background:linear-gradient(90deg,rgba(255,255,255,.1) 1px,transparent 1px) 0 0/calc(100% / 6) 100%;pointer-events:none}
+.hero .cl{position:absolute;width:44vw;max-width:620px;left:-8vw;top:12vh;opacity:0;transition:opacity 1.4s var(--ease-out) .2s;pointer-events:none}
+.hero .cl.c2{left:auto;right:-10vw;top:46vh;width:34vw;transform:scaleX(-1)}
+.ready .hero .cl{opacity:1}
+.hero .big{position:absolute;left:0;right:0;top:calc(40px + 6vh);text-align:center;font-family:var(--fd);font-weight:600;font-size:min(46vh,34vw);line-height:.8;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.55);pointer-events:none;opacity:0;transform:translate3d(0,6%,0);transition:opacity 1s var(--ease-out),transform 1.4s var(--ease-out)}
+.ready .hero .big{opacity:1;transform:none}
+.hero .stat{position:absolute;right:max(var(--gl),4vw);bottom:0;height:min(84vh,900px);width:auto;max-width:none;opacity:0;transform:translate3d(0,8%,0);transition:opacity 1s var(--ease-out) .15s,transform 1.5s var(--ease-out) .15s;will-change:transform}
+.ready .hero .stat{opacity:1;transform:none}
+.hero .wrap{position:relative;z-index:3;width:100%;padding-bottom:clamp(28px,7vh,80px)}
+.hcap{max-width:560px;padding:24px 26px 26px;background:var(--paper);color:var(--ink);rotate:-1.2deg;box-shadow:0 30px 60px -28px rgba(0,0,0,.6);opacity:0;translate:0 20px;transition:opacity .8s var(--ease-out) .5s,translate 1s var(--ease-out) .5s}
+.ready .hcap{opacity:1;translate:0 0}
+.hcap::before{content:"";position:absolute;left:50%;top:-12px;width:110px;height:24px;margin-left:-55px;background:rgba(242,237,227,.75);transform:rotate(2.5deg)}
+.hcap .days{display:flex;gap:6px;margin-bottom:14px}
+.hcap .days span{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:13px;letter-spacing:.04em;padding:4px 9px;box-shadow:inset 0 0 0 1.5px var(--line);color:var(--ink2)}
+.hcap .days span.on{background:var(--kob);color:#fff;box-shadow:none}
+.hcap h1{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(34px,4vw,54px);line-height:.98}
+.hcap h1 em{font-style:normal;color:var(--kob)}
+.hcap p{margin-top:12px;color:var(--ink2);font-size:16px}
+.hcap .go{margin-top:18px}
+@media (max-width:900px){
+  .hero{align-items:flex-end}
+  .hero .stat{left:0;right:0;margin:0 auto;height:min(56svh,480px);bottom:calc(250px + 4svh)}
+  .hero .big{top:76px;font-size:44vw}
+  .hero .cl{width:80vw;top:22svh}.hero .cl.c2{width:60vw;top:40svh}
+  .hcap{padding:18px 18px 20px;rotate:-.6deg}
+  .hcap h1{font-size:clamp(30px,8.6vw,40px)}
+  .hcap p{font-size:15px}
+}
+
+/* 2. пролог */
+.path{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:14px;margin-top:clamp(36px,5vh,56px)}
+.st{position:relative}
+.st .ph{aspect-ratio:1;background:var(--paper2);overflow:hidden;border:8px solid #fff;box-shadow:0 18px 34px -20px rgba(0,0,0,.45);rotate:var(--rt,0deg)}
+.st .ph img{width:100%;height:100%;object-fit:cover;scale:1.08;transition:scale 1.4s var(--ease-out)}
+.st.in .ph img{scale:1}
+.st .ph.txt{display:grid;place-items:center;background:var(--marble)}
+.st .ph.txt b{font-family:var(--fd);font-size:clamp(26px,3vw,40px);color:var(--red)}
+.st .v{margin-top:14px;font-family:var(--fd);font-weight:600;font-size:clamp(20px,2vw,28px);line-height:1}
+.st .v.neg{color:var(--red)}.st .v.top{color:var(--kob)}
+.st .d{margin-top:4px;font-size:14px;color:var(--ink2);line-height:1.4}
+@media (max-width:900px){.path{grid-template-columns:repeat(2,minmax(0,1fr))}.st:last-child{grid-column:1/-1}.st:last-child .ph{aspect-ratio:16/10}}
+.now{margin-top:clamp(40px,6vh,64px);display:grid;grid-template-columns:auto 1fr;gap:clamp(20px,4vw,48px);align-items:center}
+.now .n{font-family:var(--fd);font-weight:600;font-size:clamp(64px,10vw,140px);line-height:.85;color:var(--kob)}
+.now .n small{display:block;font-size:.26em;color:var(--ink);margin-top:8px}
+@media (max-width:700px){.now{grid-template-columns:1fr}}
+
+/* 3. карта ниши */
+.prods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:40px}
+.pr{position:relative;padding:22px 20px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22);min-height:210px;display:flex;flex-direction:column}
+.pr .k{font-family:var(--fd);font-size:14px;letter-spacing:.06em;opacity:.8}
+.pr h3{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:26px;line-height:1}
+.pr p{margin-top:8px;font-size:14.5px;line-height:1.45;color:rgba(255,255,255,.85)}
+.pr .m{margin-top:auto;padding-top:16px;font-family:var(--fd);font-size:24px}
+.pr.today{background:#fff;color:var(--ink);border-color:#fff}
+.pr.today p{color:var(--ink2)}.pr.today .m{color:var(--kob)}
+.pr.today .k{color:var(--kob);opacity:1}
+.pr.lock{overflow:hidden}
+.pr.lock>*:not(.lk){filter:blur(5px);opacity:.55}
+.pr .lk{position:absolute;inset:0;display:grid;place-items:center;text-align:center;font-family:var(--fd);text-transform:uppercase;font-size:16px;letter-spacing:.04em}
+.pr .lk svg{display:block;margin:0 auto 8px;width:26px;height:26px;fill:none;stroke:#fff;stroke-width:2}
+@media (max-width:900px){.prods{grid-template-columns:repeat(2,minmax(0,1fr))}.pr{min-height:190px}.pr h3{font-size:22px}}
+.order{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:28px;font-family:var(--fd);text-transform:uppercase;font-size:18px}
+.order span{padding:8px 14px;box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.5)}
+.order span.on{background:#fff;color:var(--kob);box-shadow:none}
+.order i{font-style:normal;opacity:.6}
+
+/* шаги */
+.step{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:clamp(28px,5vw,72px);align-items:start}
+.step .sn{font-family:var(--fd);font-weight:600;font-size:clamp(90px,14vw,190px);line-height:.8;color:transparent;-webkit-text-stroke:2px var(--kob)}
+.kob .step .sn{-webkit-text-stroke-color:rgba(255,255,255,.6)}
+@media (max-width:900px){.step{grid-template-columns:1fr}.step .sn{font-size:96px}}
+.ol{list-style:none;margin:22px 0 0;padding:0;counter-reset:o}
+.ol li{counter-increment:o;position:relative;padding:14px 0 14px 52px;border-top:1px solid var(--line)}
+.ol li::before{content:counter(o);position:absolute;left:0;top:14px;width:34px;height:34px;display:grid;place-items:center;background:var(--kob);color:#fff;font-family:var(--fd);font-weight:600}
+.ol li b{display:block;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:19px;letter-spacing:.01em;margin-bottom:2px}
+.ol li p{font-size:15.5px;color:var(--ink2)}
+
+/* партнёрки */
+.pw{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:36px}
+.pt{position:relative;display:flex;flex-direction:column;gap:10px;padding:22px 22px 20px;background:var(--marble);border:1px solid var(--line);border-top:4px solid var(--c,var(--kob))}
+.pt .t{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.pt h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:24px;line-height:1}
+.pt .n2{font-family:var(--fd);font-size:13px;color:var(--ink2);letter-spacing:.04em}
+.pt p{font-size:15px;color:var(--ink2)}
+.pt .ch{display:flex;flex-wrap:wrap;gap:6px}
+.pt .ch span{font-size:12.5px;font-weight:600;padding:3px 8px;background:var(--paper2)}
+.pt .btn{margin-top:auto;min-height:46px;font-size:15px;align-self:flex-start;background:var(--c,var(--kob))}
+.pt .btn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2.2}
+@media (max-width:760px){.pw{grid-template-columns:1fr}}
+.vs{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:26px;border:1px solid var(--line)}
+.vs div{padding:18px 20px}
+.vs div+div{border-left:1px solid var(--line)}
+.vs b{display:block;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:18px;color:var(--kob);margin-bottom:4px}
+.vs p{font-size:15px;color:var(--ink2)}
+@media (max-width:560px){.vs{grid-template-columns:1fr}.vs div+div{border-left:0;border-top:1px solid var(--line)}}
+
+/* три способа ИП */
+.ways{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:40px}
+.way{position:relative;padding:24px 22px;background:#fff;color:var(--ink);display:flex;flex-direction:column;gap:10px}
+.way .tag{align-self:flex-start}
+.way h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:28px;line-height:1}
+.way .pay{font-family:var(--fd);font-weight:600;font-size:40px;line-height:1;color:var(--kob)}
+.way .pay small{font-size:.4em;color:var(--ink2);margin-left:4px}
+.way p{font-size:15px;color:var(--ink2)}
+.way ul{margin:0;padding:0 0 0 18px;font-size:14.5px;color:var(--ink2)}
+.way ul li{margin:3px 0}
+.way.best{outline:3px solid #fff;outline-offset:6px}
+@media (max-width:900px){.ways{grid-template-columns:1fr}}
+.cant{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 24px;margin-top:22px;padding:0;list-style:none}
+.cant li{position:relative;padding-left:26px;font-size:15px;color:rgba(255,255,255,.9)}
+.cant li::before{content:"✕";position:absolute;left:0;top:0;font-weight:700}
+@media (max-width:640px){.cant{grid-template-columns:1fr}}
+
+/* что такое РКО */
+.why{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:36px}
+.why .card h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:20px;margin-bottom:6px}
+.why .card p{font-size:15px;color:var(--ink2)}
+@media (max-width:820px){.why{grid-template-columns:1fr}}
+.cmp{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:18px;margin-top:36px}
+.cmp .card{text-align:center}
+.cmp .card .num{font-size:clamp(40px,5vw,64px);line-height:1;display:block}
+.cmp .card span{font-size:14.5px;color:var(--ink2)}
+.cmp .card.hi{background:var(--kob);color:#fff;border-color:var(--kob)}.cmp .card.hi span{color:rgba(255,255,255,.85)}
+.cmp .x{font-family:var(--fd);font-size:28px;color:var(--kob)}
+@media (max-width:640px){.cmp{grid-template-columns:1fr}.cmp .x{text-align:center}}
+
+/* золотой круг */
+.circle{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:clamp(24px,4vw,56px);margin-top:36px;align-items:start}
+.temple{margin:clamp(28px,4vh,48px) auto 0;width:100%;max-width:820px}
+.tbl{width:100%;border-collapse:collapse;background:var(--marble);font-size:15px}
+.tbl th{position:sticky;top:calc(52px + env(safe-area-inset-top,0px));background:var(--ink);color:#fff;text-align:left;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:13px;letter-spacing:.06em;padding:12px 14px;z-index:1}
+.tbl td{padding:13px 14px;border-top:1px solid var(--line);vertical-align:top}
+.tbl td:first-child{font-weight:650;white-space:nowrap}
+.tbl td.p{font-family:var(--fd);font-weight:600;font-size:18px;color:var(--kob);white-space:nowrap}
+.tbl td.c{color:var(--ink2);font-size:14px}
+.tbl tr.row{transition:background-color .4s ease}
+.tbl tr.row.lit{background:rgba(196,32,46,.06)}
+.sum{position:sticky;top:calc(80px + env(safe-area-inset-top,0px));padding:24px;background:var(--kob);color:#fff}
+.sum .lb{font-family:var(--fs);font-style:italic;font-weight:600;font-size:20px}
+.sum .val{display:block;margin:6px 0 4px;font-family:var(--fd);font-weight:600;font-size:clamp(48px,5vw,64px);line-height:1;font-variant-numeric:tabular-nums}
+.sum p{font-size:14px;color:rgba(255,255,255,.85)}
+.sum .bar2{height:4px;background:rgba(255,255,255,.25);margin:16px 0 0;overflow:hidden}
+.sum .bar2 i{display:block;height:100%;background:#fff;transform-origin:0 50%;transform:scaleX(var(--k,0));transition:transform .5s var(--ease-out)}
+@media (max-width:900px){
+  .circle{grid-template-columns:1fr}
+  .sum{order:-1;top:calc(56px + env(safe-area-inset-top,0px));z-index:3;padding:14px 18px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:0 12px}
+  .sum .val{font-size:34px;margin:0;grid-row:1/span 2;grid-column:2}
+  .sum p{display:none}.sum .bar2{grid-column:1/-1;margin-top:10px}
+  .tbl th{top:calc(140px + env(safe-area-inset-top,0px))}
+  .tbl{font-size:14px}.tbl td{padding:11px 10px}.tbl th{padding:10px}
+  .tbl td.c{font-size:13px}
+  .tbl td:first-child,.tbl td.p{white-space:normal}
+  .bar b{font-size:13px}.bar .days i{width:18px}.bar .days span{display:none}
+}
+
+/* правила ЦД */
+.rules{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:36px}
+.rule{display:flex;gap:16px;padding:22px;background:var(--marble);border:1px solid var(--line)}
+.rule .rn{flex:none;min-width:40px;font-family:var(--fs);font-style:italic;font-weight:600;font-size:34px;line-height:1;color:var(--kob)}
+.rule h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:19px;line-height:1.1;margin-bottom:6px}
+.rule p{font-size:15px;color:var(--ink2)}
+@media (max-width:760px){.rules{grid-template-columns:1fr}}
+.tl{margin-top:22px;border:2px solid var(--ink);background:var(--marble);padding:20px 22px}
+.tl h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:18px;margin-bottom:10px}
+.tl .r{display:grid;grid-template-columns:90px 1fr;gap:12px;padding:10px 0;border-top:1px solid var(--line);font-size:15px}
+.tl .r b{color:var(--kob);font-family:var(--fd);font-weight:600}
+
+/* FAQ проблем */
+.faq{margin-top:32px;border-top:1px solid var(--line)}
+.faq details{border-bottom:1px solid var(--line)}
+.faq summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;gap:16px;padding:20px 0;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(18px,1.8vw,22px);line-height:1.15}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary i{flex:none;width:22px;height:22px;position:relative;transition:transform .3s var(--ease-out)}
+.faq summary i::before,.faq summary i::after{content:"";position:absolute;left:0;right:0;top:50%;height:2px;margin-top:-1px;background:var(--kob)}
+.faq summary i::after{transform:rotate(90deg)}
+.faq details[open] summary i{transform:rotate(45deg)}
+.faq .a{padding:0 0 22px;color:var(--ink2);font-size:16px;max-width:46em}
+.faq .a p+p{margin-top:10px}
+
+/* дебетовые карты */
+.dk{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(28px,5vw,64px);align-items:center}
+.dk .coin{width:min(100%,420px);margin:0 auto;will-change:transform}
+@media (max-width:900px){.dk{grid-template-columns:1fr}.dk .coin{width:min(70%,300px);order:-1}}
+.kpi{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:28px}
+.kpi div{padding:18px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.22)}
+.kpi b{display:block;font-family:var(--fd);font-weight:600;font-size:clamp(28px,3vw,40px);line-height:1}
+.kpi span{font-size:14px;color:rgba(255,255,255,.85)}
+@media (max-width:520px){.kpi{grid-template-columns:1fr 1fr}.kpi div:last-child{grid-column:1/-1}}
+.offers{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;margin-top:28px}
+.offers div{padding:16px 14px;background:#fff;color:var(--ink)}
+.offers b{display:block;font-family:var(--fd);font-weight:600;font-size:26px;color:var(--kob);line-height:1}
+.offers span{display:block;margin-top:6px;font-size:14px;font-weight:600}
+@media (max-width:900px){.offers{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.script{margin-top:26px;padding:20px 22px;background:#fff;color:var(--ink);border-left:4px solid var(--ink)}
+.script small{display:block;font-family:var(--fd);text-transform:uppercase;letter-spacing:.06em;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.script p{font-size:16px;line-height:1.55}
+
+/* итог дня */
+.math{max-width:760px;margin:32px auto 0;background:var(--marble);border:2px solid var(--ink)}
+.math .r{display:flex;justify-content:space-between;gap:16px;padding:16px 22px;border-top:1px solid var(--line);font-size:16px}
+.math .r:first-child{border-top:0}
+.math .r b{font-family:var(--fd);font-weight:600;font-size:22px;color:var(--kob);white-space:nowrap}
+.math .r.lock{color:var(--ink2)}
+.math .r.lock b{color:var(--ink2);filter:blur(4px)}
+.math .r.t{background:var(--kob);color:#fff;font-family:var(--fd);text-transform:uppercase;font-size:20px}
+.math .r.t b{color:#fff;font-size:30px}
+.todo{list-style:none;margin:32px auto 0;padding:0;max-width:760px}
+.todo li{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-top:1px solid var(--line);font-size:16px}
+.todo li label{display:flex;gap:14px;cursor:pointer;width:100%}
+.todo input{flex:none;appearance:none;-webkit-appearance:none;width:26px;height:26px;margin:0;border:2px solid var(--kob);background:#fff;cursor:pointer;display:grid;place-items:center;transition:background-color .2s ease}
+.todo input:checked{background:var(--kob)}
+.todo input:checked::after{content:"";width:12px;height:7px;border:2.5px solid #fff;border-top:0;border-right:0;transform:translateY(-2px) rotate(-45deg)}
+.todo input:checked+span{color:var(--ink2);text-decoration:line-through;text-decoration-color:var(--kob)}
+
+/* завтра */
+.next{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:40px}
+.nx{position:relative;overflow:hidden;padding:clamp(24px,3vw,34px);background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25)}
+.nx .d{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:14px;letter-spacing:.08em;opacity:.8}
+.nx h3{margin-top:8px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(28px,3.2vw,42px);line-height:1}
+.nx ul{margin:16px 0 0;padding:0;list-style:none}
+.nx li{position:relative;padding:8px 0 8px 26px;border-top:1px solid rgba(255,255,255,.16);font-size:15.5px;color:rgba(255,255,255,.9)}
+.nx li::before{content:"";position:absolute;left:0;top:15px;width:12px;height:12px;border:2px solid #fff;border-radius:50%}
+.nx li.bl{filter:blur(4px);user-select:none}
+.nx .m{margin-top:18px;font-family:var(--fd);font-size:22px}
+.nx .lockic{position:absolute;right:20px;top:20px;width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2;opacity:.8}
+@media (max-width:820px){.next{grid-template-columns:1fr}}
+.final-cta{margin-top:40px;display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.final-cta p{flex-basis:100%;font-size:14px;color:rgba(255,255,255,.75)}
+.epi{max-width:820px;margin:0 auto clamp(48px,7vh,80px);text-align:center}
+.epi blockquote{margin:0;font-family:var(--fs);font-style:italic;font-weight:500;font-size:clamp(30px,4vw,54px);line-height:1.1}
+.epi figcaption{margin-top:14px;font-family:var(--fd);text-transform:uppercase;letter-spacing:.08em;font-size:13px;opacity:.75}
+footer{padding:36px 0 calc(36px + env(safe-area-inset-bottom,0px));background:var(--kob3);color:rgba(255,255,255,.62);font-size:13px;text-align:center}
+footer b{color:#fff;font-family:var(--fd);text-transform:uppercase;letter-spacing:.06em}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .js [data-r],.rl .w>span,.hero *,.hcap{transition:none!important;transform:none!important;opacity:1!important;translate:none!important}
+}
+
+/* v2 правки видимости */
+.kob .card h4,.kob .card h3{color:#fff}
+.kob .card p{color:rgba(255,255,255,.88)}
+.kob .card b{color:#fff}
+.kob .cmp .card span{color:rgba(255,255,255,.85)}
+.kob .cmp .card.hi{background:#fff;color:var(--kob);border-color:#fff}.kob .cmp .card.hi span{color:var(--ink2)}
+.kob .cmp .x{color:#fff}
+.offers{grid-template-columns:repeat(3,minmax(0,1fr))}
+.offers b.q{font-size:18px;color:var(--ink2);padding-top:6px}
+@media (max-width:640px){.offers{grid-template-columns:1fr 1fr}}
+.alfa{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(24px,4vw,56px);margin-top:36px;padding:clamp(22px,3vw,36px);background:var(--marble);border:2px solid var(--ink)}
+.alfa-pay .num{display:block;font-size:clamp(56px,7vw,96px);line-height:.95;color:var(--kob)}
+.alfa-pay small{display:block;margin-top:10px;font-size:15px;color:var(--ink2)}
+.alfa .ol{margin-top:0}.alfa .ol li:first-child{border-top:0;padding-top:0}.alfa .ol li:first-child::before{top:0}
+@media (max-width:820px){.alfa{grid-template-columns:1fr}}
+.ways.two{grid-template-columns:1fr 1fr}
+.ways .way{border:1px solid var(--line)}
+@media (max-width:820px){.ways.two{grid-template-columns:1fr}}
+.cant.dark-li li{color:var(--ink)}
+.cant.dark-li li::before{color:var(--red)}
+.pw.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:900px){.pw.three{grid-template-columns:1fr}}
+.first3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:36px}
+.first3 .card{display:flex;flex-direction:column;gap:10px}
+.first3 .tag{align-self:flex-start}
+.first3 h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:28px;line-height:1}
+.first3 b.num{font-size:34px;color:var(--kob);line-height:1}
+.first3 p{font-size:15px;color:var(--ink2)}
+@media (max-width:900px){.first3{grid-template-columns:1fr}}
+.tbl tr.off td{color:var(--ink2);background:rgba(20,20,20,.04)}
+.tbl tr.off td.p{color:var(--red);font-size:15px;text-transform:uppercase}
+.order{font-size:16px}
+
+/* ===== день 2 ===== */
+.bar .days i.done{background:#fff}
+.bar .days i#barP::after{content:"";position:absolute;inset:0;background:#fff;transform-origin:0 50%;transform:scaleX(var(--p,0))}
+.bar .days i:first-child::after{display:none}
+.hcap .days span.done{color:var(--kob);box-shadow:inset 0 0 0 1.5px var(--kob)}
+.stairs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:40px;align-items:end}
+.sti{padding:20px;background:var(--marble);border:1px solid var(--line);display:flex;flex-direction:column;gap:6px}
+.sti:nth-child(1){min-height:180px}.sti:nth-child(2){min-height:210px}.sti:nth-child(3){min-height:240px}.sti:nth-child(4){min-height:270px}
+.sti .k{font-family:var(--fd);font-size:13px;letter-spacing:.06em;color:var(--ink2)}
+.sti h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:26px;line-height:1}
+.sti p{font-size:14.5px;color:var(--ink2)}
+.sti b{margin-top:auto;font-size:19px;color:var(--kob)}
+.sti.done{opacity:.6}
+.sti.on{background:var(--kob);color:#fff;border-color:var(--kob)}.sti.on .k,.sti.on p{color:rgba(255,255,255,.85)}.sti.on b{color:#fff}
+@media (max-width:820px){.stairs{grid-template-columns:1fr 1fr}.sti{min-height:0!important}}
+.vs2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:32px}
+.vs2 .card{display:flex;flex-direction:column;gap:8px}
+.vs2 .tag{align-self:flex-start}
+.vs2 h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:28px;line-height:1}
+.tag.w{background:#fff;color:var(--kob)}.tag.o.w{background:transparent;color:#fff;box-shadow:inset 0 0 0 1.5px #fff}
+.tag.red{background:var(--red);color:#fff}
+@media (max-width:640px){.vs2{grid-template-columns:1fr}}
+.big-note{margin-top:26px;padding:clamp(20px,3vw,32px);background:#fff;color:var(--ink);font-size:clamp(17px,1.6vw,21px);line-height:1.5;border-left:6px solid var(--ink)}
+.big-note em{font-style:normal;background:linear-gradient(transparent 60%,rgba(196,32,46,.22) 60%);font-weight:650}
+.big-note b{display:block;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(18px,1.8vw,22px);margin-bottom:6px}
+.alarm{padding:clamp(24px,4vw,48px);background:var(--marble);border:3px solid var(--red);position:relative}
+.alarm::before{content:"!";position:absolute;right:clamp(16px,3vw,36px);top:clamp(10px,2vw,20px);font-family:var(--fd);font-weight:600;font-size:clamp(90px,12vw,160px);line-height:1;color:rgba(178,58,38,.15)}
+.alarm .eyebrow{color:var(--red)}
+.alarm .ol li::before{background:var(--red)}
+.otable{margin-top:32px;background:var(--marble);border:2px solid var(--ink)}
+.otable>div{display:grid;grid-template-columns:1.1fr .7fr 1.6fr;gap:12px;padding:14px 18px;border-top:1px solid var(--line);align-items:center;font-size:15px}
+.otable .oh{border-top:0;background:var(--ink);color:#fff;font-family:var(--fd);text-transform:uppercase;font-size:13px;letter-spacing:.06em}
+.otable .or>span:first-child{font-weight:650}
+.otable .or b{font-family:var(--fd);font-weight:600;font-size:20px;color:var(--kob);white-space:nowrap}
+.otable .or>span:last-child{color:var(--ink2);font-size:14px}
+.otable .or.hi{background:rgba(196,32,46,.07)}
+@media (max-width:600px){.otable>div{grid-template-columns:1fr auto;padding:12px 14px}.otable>div>span:last-child{grid-column:1/-1}.otable .oh span:last-child{display:none}}
+.psy3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:36px}
+.psy3>div{padding:22px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.22)}
+.psy3 .num{font-size:44px;line-height:1;color:rgba(255,255,255,.5)}
+.psy3 h4{margin-top:8px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:20px}
+.psy3 p{margin-top:6px;font-size:15px;color:rgba(255,255,255,.85)}
+@media (max-width:820px){.psy3{grid-template-columns:1fr}}
+.dark .script{background:rgba(255,255,255,.95)}
+.ex{display:flex;flex-wrap:wrap;align-items:center;gap:14px;margin-top:32px}
+.ex>div{flex:1 1 180px;padding:18px 20px;background:#fff;color:var(--ink)}
+.ex span{display:block;font-size:14px;color:var(--ink2)}
+.ex b{display:block;font-size:clamp(26px,3vw,38px);line-height:1.05;color:var(--kob)}
+.ex .red b{color:var(--red);font-size:clamp(18px,1.8vw,22px);text-transform:uppercase}
+.ex i{font-style:normal;font-family:var(--fd);font-size:30px}
+.two-eyes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:32px}
+.two-eyes h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:22px;margin-bottom:10px}
+.two-eyes p{font-size:15px;color:var(--ink2)}
+.dots{margin:0;padding:0;list-style:none}
+.dots li{position:relative;padding:7px 0 7px 22px;border-top:1px solid var(--line);font-size:15.5px}
+.dots li::before{content:"";position:absolute;left:0;top:15px;width:8px;height:8px;background:var(--kob)}
+@media (max-width:700px){.two-eyes{grid-template-columns:1fr}}
+.locked{display:grid;grid-template-columns:auto 1fr;gap:clamp(16px,3vw,32px);margin-top:36px;padding:clamp(22px,3.5vw,40px);background:var(--ink);color:#fff;position:relative;overflow:hidden}
+.locked::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent 0 22px,rgba(255,255,255,.035) 22px 44px);pointer-events:none}
+.lk-ic{width:64px;height:64px;display:grid;place-items:center;border:2px solid rgba(255,255,255,.5)}
+.lk-ic svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:2}
+.locked h3{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(22px,2.4vw,30px);line-height:1.05}
+.locked p{margin-top:10px;font-size:15.5px;color:rgba(255,255,255,.85);max-width:40em}
+.priv{list-style:none;counter-reset:p;margin:18px 0 6px;padding:0;position:relative;z-index:1}
+.priv li{counter-increment:p;position:relative;padding:12px 0 12px 46px;border-top:1px solid rgba(255,255,255,.14)}
+.priv li::before{content:"0" counter(p);position:absolute;left:0;top:12px;font-family:var(--fd);font-weight:600;font-size:20px;color:var(--red)}
+.priv b{display:block;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:18px;letter-spacing:.01em}
+.priv span{display:block;margin-top:3px;font-size:14.5px;color:rgba(255,255,255,.72)}
+.locked .blurline{filter:blur(4.5px);user-select:none;color:#fff}
+.locked .btn{margin-top:18px;background:#fff;color:var(--ink);position:relative;z-index:1}
+@media (max-width:600px){.locked{grid-template-columns:1fr}}
+.flow{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:36px}
+.fs{position:relative;padding:22px;background:var(--marble);border:1px solid var(--line)}
+.fs .num{display:block;font-size:34px;line-height:1;color:var(--kob)}
+.fs h4{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:19px;line-height:1.1}
+.fs p{margin-top:6px;font-size:15px;color:var(--ink2)}
+.fs p.sm{font-size:13.5px}
+.terms{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.terms span{font-size:13px;font-weight:650;padding:4px 9px;background:rgba(196,32,46,.09);color:var(--kob)}
+.fs code{display:block;margin-top:10px;padding:10px 12px;background:var(--ink);color:#fff;font-size:13px;line-height:1.45;white-space:normal}
+@media (max-width:900px){.flow{grid-template-columns:1fr}}
+.must{display:grid;grid-template-columns:1fr 1fr;gap:0;margin-top:32px;border:3px solid var(--ink);background:var(--marble)}
+.must>div{padding:clamp(20px,3vw,32px)}
+.must>div+div{border-left:3px solid var(--ink)}
+.must .num{display:inline-grid;place-items:center;width:44px;height:44px;background:var(--red);color:#fff;font-size:22px}
+.must h4{margin-top:12px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:24px}
+.must p{margin-top:6px;font-size:16px;color:var(--ink2)}
+@media (max-width:700px){.must{grid-template-columns:1fr}.must>div+div{border-left:0;border-top:3px solid var(--ink)}}
+.lim{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:36px}
+.lim>div{padding:24px;background:#fff;color:var(--ink);text-align:center}
+.lim b{display:block;font-size:clamp(72px,9vw,120px);line-height:.9;color:var(--kob)}
+.lim span{display:block;margin-top:8px;font-size:15px;color:var(--ink2)}
+@media (max-width:700px){.lim{grid-template-columns:1fr}}
+.mgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:32px}
+.mgrid>div{padding:16px 16px 18px;background:var(--marble);border:1px solid var(--line);border-top:3px solid var(--kob)}
+.mgrid b{display:block;font-family:var(--fd);font-weight:600;font-size:clamp(22px,2.2vw,30px);line-height:1;color:var(--kob)}
+.mgrid span{display:block;margin-top:6px;font-size:14px;font-weight:650}
+@media (max-width:820px){.mgrid{grid-template-columns:1fr 1fr}}
+.multi{margin-top:36px;padding:clamp(22px,3.5vw,40px);background:var(--marble);border:2px solid var(--ink)}
+.multi .tag{display:inline-block}
+.multi h3{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:clamp(24px,2.6vw,34px);line-height:1}
+.multi>p{margin-top:12px;font-size:16px;color:var(--ink2);max-width:46em}
+.mx{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:18px 0 6px}
+.mx>div{padding:14px;background:rgba(196,32,46,.07)}
+.mx b{display:block;font-size:30px;line-height:1;color:var(--kob)}
+.mx span{display:block;margin-top:6px;font-size:14.5px}
+@media (max-width:700px){.mx{grid-template-columns:1fr}}
+.quote-card{padding:clamp(24px,4vw,44px);background:var(--ink);color:#fff;font-family:var(--fs);font-style:italic;font-size:clamp(22px,2.4vw,30px);line-height:1.3}
+.quote-card b{font-style:normal;font-family:var(--fd);text-transform:uppercase;font-size:.85em}
+.next.one{grid-template-columns:1fr;max-width:720px}
+
+.dict{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:32px 0 0}
+.dict>div{padding:18px 20px;background:var(--marble);border:1px solid var(--line);border-top:3px solid var(--kob)}
+.dict dt{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:19px;color:var(--kob)}
+.dict dd{margin:6px 0 0;font-size:15px;line-height:1.5;color:var(--ink)}
+@media (max-width:900px){.dict{grid-template-columns:1fr 1fr}}@media (max-width:560px){.dict{grid-template-columns:1fr}}
+
+/* ===== день 3 / threads ===== */
+.big4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:36px}
+.big4>div{padding:22px;background:var(--kob);color:#fff}
+.big4 b{display:block;font-size:clamp(34px,4vw,56px);line-height:1}
+.big4 span{display:block;margin-top:6px;font-size:15px;color:rgba(255,255,255,.85)}
+@media (max-width:820px){.big4{grid-template-columns:1fr 1fr}}
+.why4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:36px}
+.why4>div{padding:22px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.24)}
+.why4 .num{font-size:34px;color:rgba(255,255,255,.55);line-height:1}
+.why4 h4{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:21px}
+.why4 p{margin-top:6px;font-size:15px;color:rgba(255,255,255,.88)}
+@media (max-width:900px){.why4{grid-template-columns:1fr 1fr}}@media (max-width:560px){.why4{grid-template-columns:1fr}}
+.vs2.light .card{background:var(--marble)}
+.vs2.light .card p{color:var(--ink2)}
+.days5{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:36px}
+.dz{padding:22px;background:var(--marble);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.dz .tag{align-self:flex-start}
+.dz h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:22px;line-height:1.05}
+.dz ul{margin:0;padding:0 0 0 18px;font-size:15px;color:var(--ink2)}
+.dz li{margin:4px 0}
+.dz.on{background:var(--kob);color:#fff;border-color:var(--kob)}.dz.on ul{color:rgba(255,255,255,.9)}
+@media (max-width:900px){.days5{grid-template-columns:1fr 1fr}}@media (max-width:560px){.days5{grid-template-columns:1fr}}
+.ptypes{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:36px}
+.ptypes .card{display:flex;flex-direction:column;gap:10px}
+.ptypes .tag{align-self:flex-start}
+.ptypes h4{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:28px;line-height:1}
+.ptypes p{font-size:15.5px;color:var(--ink2)}
+.ex-post{margin-top:auto;padding:16px 18px;background:#fff;border-left:4px solid var(--kob)}
+.ex-post span{display:block;font-family:var(--fd);text-transform:uppercase;font-size:12px;letter-spacing:.06em;color:var(--ink2)}
+.ex-post p{margin-top:6px!important;font-size:17px!important;color:var(--ink)!important;font-weight:600}
+.ex-post small{display:block;margin-top:6px;font-size:13px;color:var(--kob);font-weight:650}
+.ex-post.red{border-color:var(--red)}.ex-post.red small{color:var(--red)}
+@media (max-width:760px){.ptypes{grid-template-columns:1fr}}
+.lvl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-top:36px;align-items:start}
+.lvl article{padding:24px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.22)}
+.lvl article:nth-child(3){background:#fff;color:var(--ink);border-color:#fff}
+.lh{display:flex;gap:14px;align-items:center}
+.lh .num{flex:none;width:52px;height:52px;display:grid;place-items:center;background:#fff;color:var(--kob);font-size:28px}
+.lvl article:nth-child(3) .lh .num{background:var(--kob);color:#fff}
+.lh .d{display:block;font-family:var(--fd);text-transform:uppercase;font-size:12.5px;letter-spacing:.06em;opacity:.75}
+.lh h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:28px;line-height:1}
+.lvl article>p{margin-top:14px;font-size:15px;color:rgba(255,255,255,.88)}
+.lvl article:nth-child(3)>p{color:var(--ink2)}
+.pm{display:grid;gap:8px;margin-top:14px}
+.pm>div{padding:12px 14px;background:rgba(255,255,255,.08)}
+.lvl article:nth-child(3) .pm>div{background:rgba(196,32,46,.07)}
+.pm b{display:block;font-family:var(--fd);text-transform:uppercase;font-size:14px;letter-spacing:.04em}
+.pm span{display:block;margin-top:3px;font-size:14.5px;line-height:1.45}
+.lvl .rec{font-family:var(--fh);font-size:22px!important;line-height:1.2;color:#fff!important}
+.lvl article:nth-child(3) .rec{color:var(--kob)!important}
+.dots.light li{border-color:rgba(255,255,255,.16);color:rgba(255,255,255,.9)}
+.dots.light li::before{background:#fff}
+.ol.light li p{color:var(--ink2)}
+@media (max-width:900px){.lvl{grid-template-columns:1fr}}
+.chain{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:36px}
+.chain>div{flex:1 1 170px;padding:20px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.24)}
+.chain b{display:block;font-size:clamp(32px,3.6vw,48px);line-height:1}
+.chain span{display:block;margin-top:6px;font-size:14.5px;color:rgba(255,255,255,.85)}
+.chain .hi{background:#fff;color:var(--kob)}.chain .hi span{color:var(--ink2)}
+.chain i{font-style:normal;font-family:var(--fd);font-size:28px}
+@media (max-width:700px){.chain i{display:none}}
+.hero .stat.nike{height:min(92vh,980px)}
+@media (max-width:900px){.hero .stat.nike{height:min(60svh,520px)}}
+.lesson-head{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+
+/* день 3: профиль, трафик, продажа */
+.pack{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:36px}
+.pack>div{padding:20px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.24)}
+.pack .num{font-size:34px;line-height:1;color:rgba(255,255,255,.55)}
+.pack h4{margin-top:8px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:20px}
+.pack p{margin-top:6px;font-size:14.5px;color:rgba(255,255,255,.9)}
+.pack small{display:block;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.2);font-size:13px;color:rgba(255,255,255,.75)}
+@media (max-width:1000px){.pack{grid-template-columns:1fr 1fr}}@media (max-width:560px){.pack{grid-template-columns:1fr}}
+.why4.lightv>div{background:var(--marble);border-color:var(--line)}
+.why4.lightv .num{color:var(--kob)}.why4.lightv p{color:var(--ink2)}
+.chain.dk2>div{background:var(--marble);border:1px solid var(--line);color:var(--ink)}
+.chain.dk2 b{color:var(--kob)}.chain.dk2 span{color:var(--ink2)}
+.chain.dk2 .hi{background:var(--kob);color:#fff}.chain.dk2 .hi b{color:#fff}.chain.dk2 .hi span{color:rgba(255,255,255,.85)}
+.src2{display:grid;grid-template-columns:1fr 1fr;gap:clamp(20px,3vw,40px);margin-top:36px}
+.srcl{list-style:none;counter-reset:s;margin:14px 0 0;padding:0}
+.srcl li{counter-increment:s;position:relative;padding:12px 0 12px 44px;border-top:1px solid var(--line)}
+.srcl li::before{content:counter(s);position:absolute;left:0;top:12px;width:30px;height:30px;display:grid;place-items:center;background:var(--kob);color:#fff;font-family:var(--fd);font-weight:600}
+.srcl b{display:block;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:17px}
+.srcl span{display:block;margin-top:3px;font-size:14.5px;color:var(--ink2)}
+@media (max-width:820px){.src2{grid-template-columns:1fr}}
+.rules5 article:nth-child(3){background:#fff;color:var(--ink)}
+.rules5 h3{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:24px;margin-bottom:12px}
+.flows{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px}
+.flows>div{padding:22px;background:var(--marble);border:2px solid var(--ink)}
+.flows b{display:block;font-size:clamp(40px,5vw,64px);line-height:1;color:var(--kob)}
+.flows h4{margin-top:8px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:20px}
+.flows p{margin-top:6px;font-size:15px;color:var(--ink2)}
+@media (max-width:640px){.flows{grid-template-columns:1fr}}
+.ladder{margin-top:18px;border:2px solid var(--ink);background:var(--marble)}
+.ladder>div{display:grid;grid-template-columns:110px 1fr;border-top:1px solid var(--line)}
+.ladder>div:first-child{border-top:0}
+.ladder span{display:grid;place-items:center;background:var(--ink);color:#fff;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:15px}
+.ladder .pr2 span{background:var(--kob)}
+.ladder p{padding:14px 18px;font-size:15.5px}
+.ladder b{color:var(--kob)}
+@media (max-width:560px){.ladder>div{grid-template-columns:84px 1fr}}
+.route{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:28px}
+.route span{padding:8px 12px;background:#fff;color:var(--kob);font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:14px}
+.route i{font-style:normal;color:#fff}
+.kob .vs2 .card h4{color:#fff}
+.psy3.lt>div{background:var(--marble);border-color:var(--line)}
+.psy3.lt .num{color:var(--kob)}.psy3.lt h4{color:var(--ink)}.psy3.lt p{color:var(--ink2)}
+.checks{list-style:none;margin:16px 0 0;padding:0}
+.checks li{position:relative;padding:11px 0 11px 34px;border-top:1px solid var(--line);font-size:16px}
+.checks li::before{content:"✓";position:absolute;left:0;top:9px;width:24px;height:24px;display:grid;place-items:center;background:var(--green);color:#fff;font-weight:700;font-size:13px}
+.chatx{margin-top:16px;padding:18px 20px;background:var(--marble);border-left:4px solid var(--kob)}
+.chatx small{display:block;font-family:var(--fd);text-transform:uppercase;letter-spacing:.06em;font-size:12.5px;color:var(--ink2);margin-bottom:8px}
+.chatx p{font-size:15.5px;margin-top:6px}
+.chatx b{color:var(--kob)}
+.steps9{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:36px}
+.steps9>div{padding:20px;background:var(--marble);border:1px solid var(--line)}
+.steps9 .num{display:inline-grid;place-items:center;width:38px;height:38px;background:var(--kob);color:#fff;font-size:20px}
+.steps9 h4{margin-top:10px;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:19px}
+.steps9 p{margin-top:6px;font-size:14.5px;color:var(--ink2)}
+@media (max-width:900px){.steps9{grid-template-columns:1fr}}
+.bonus-head{text-align:center}
+.bonus-head .tag{display:inline-block;margin-bottom:12px}
+.take{list-style:none;counter-reset:k;margin:28px auto 0;padding:0;max-width:820px}
+.take li{counter-increment:k;position:relative;padding:14px 0 14px 50px;border-top:1px solid rgba(255,255,255,.16);font-size:16px;color:rgba(255,255,255,.9)}
+.take li::before{content:counter(k);position:absolute;left:0;top:12px;width:34px;height:34px;display:grid;place-items:center;background:#fff;color:var(--kob);font-family:var(--fd);font-weight:600}
+.take b{color:#fff;font-family:var(--fd);text-transform:uppercase;font-weight:600}
+
+.dict{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:32px 0 0}
+.dict>div{padding:18px 20px;background:var(--marble);border:1px solid var(--line);border-top:3px solid var(--kob)}
+.dict dt{font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:19px;color:var(--kob)}
+.dict dd{margin:6px 0 0;font-size:15px;line-height:1.5;color:var(--ink)}
+@media (max-width:900px){.dict{grid-template-columns:1fr 1fr}}@media (max-width:560px){.dict{grid-template-columns:1fr}}
+
+.road{list-style:none;counter-reset:r;margin:20px 0 6px;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.road li{counter-increment:r;position:relative;padding:16px 16px 16px 56px;background:var(--marble);border:1px solid var(--line)}
+.road li::before{content:counter(r);position:absolute;left:14px;top:14px;width:30px;height:30px;display:grid;place-items:center;background:var(--kob);color:#fff;font-family:var(--fd);font-weight:600}
+.road b{display:block;font-family:var(--fd);font-weight:600;text-transform:uppercase;font-size:18px}
+.road span{display:block;margin-top:3px;font-size:14.5px;color:var(--ink2)}
+@media (max-width:820px){.road{grid-template-columns:1fr}}
+#p1b .route span{background:#fff}
+</style>
+</head>
+<body>
+<script>document.documentElement.classList.add('js')</script>
+
+<div class="bar" id="bar" aria-hidden="true"><b>Гайд 3 · Отклики и закуп рекламы</b><div class="days"><i class="done"></i><i class="done"></i><i id="barP"></i><span>3 из 3</span></div></div>
+
+<section class="hero" id="top">
+  <div class="grid"></div>
+  <img class="cl" src="assets/cloud.webp" alt="">
+  <img class="cl c2" src="assets/cloud.webp" alt="">
+  <div class="big" aria-hidden="true">03</div>
+  <img class="stat nike" id="heroStat" src="assets/nike.webp" alt="Ника Самофракийская — богиня победы" fetchpriority="high">
+  <div class="wrap">
+    <div class="hcap">
+      <div class="days"><span class="done">Гайд 1 ✓</span><span class="done">Гайд 2 ✓</span><span class="on">Гайд 3</span></div>
+      <h1>Отклики и закуп рекламы. <em>Платный трафик, который можно масштабировать.</em></h1>
+      <p>Третий способ брать людей. В первых двух гайдах — продукты и бесплатный трафик. Здесь — платный поток: как работать с откликами по скрипту, закупать рекламу в блогах и доводить людей до оформления. Всё по-белому: активный клиент, реальные данные, честная подача.</p>
+      <a class="btn go" href="#map">Начать гайд 3</a>
+    </div>
+  </div>
+</section>
+
+<section id="map">
+  <div class="chap"><div class="wrap"><span>Карта гайда</span><span>Иди по порядку</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Третий способ брать людей</span>
+    <h2 class="h2" data-r>Платный трафик: ты платишь за поток и работаешь по системе.</h2>
+    <p class="lead" data-r>Окружение и блог — это бесплатно, но медленно. Платный трафик даёт объём: ты закупаешь рекламу или отклики, получаешь поток людей и доводишь их до оформления по скрипту. Это не магия и не кнопка. Это дисциплина, объём и честная работа с людьми.</p>
+    <p class="lead" data-r>Идём ровно в том порядке, в каком ты будешь это делать:</p>
+    <ol class="road" data-r>
+      <li><b>Отклики и лиды</b><span>Что это и почему не Авито</span></li>
+      <li><b>Математика</b><span>Объём, конверсия и дисциплина</span></li>
+      <li><b>Переписка</b><span>Честный скрипт, по-человечески</span></li>
+      <li><b>Созвон и догрев</b><span>Закрываешь на оформление, не теряешь людей</span></li>
+      <li><b>Закуп рекламы</b><span>Каналы, критерии, договор с админом</span></li>
+      <li><b>Масштаб и прайс</b><span>Делегирование и актуальные ставки</span></li>
+    </ol>
+  </div>
+</section>
+
+<section class="bg2 torn" id="dict">
+  <div class="chap"><div class="wrap"><span>Словарь</span><span>Прочитай один раз</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Если ты с полного нуля</span>
+    <h2 class="h2" data-r>Восемь слов, без которых дальше будет непонятно.</h2>
+    <dl class="dict">
+      <div data-r><dt>Отклик</dt><dd>Человек, который откликнулся на твоё объявление или рекламу. Уже проявил интерес — ему можно писать и доводить до оформления.</dd></div>
+      <div data-r><dt>Лид</dt><dd>Человек, который написал тебе и готов общаться. Отклик становится лидом, когда вы начали диалог.</dd></div>
+      <div data-r><dt>Конверсия</dt><dd>Какая доля людей дошла до оформления. Например, из 100 написавших оформили 3 — это конверсия 3%.</dd></div>
+      <div data-r><dt>Воронка</dt><dd>Путь человека: реклама → сообщение → переписка → созвон → открытый продукт.</dd></div>
+      <div data-r><dt>Созвон</dt><dd>Короткий звонок, на котором человек слышит тебя и перестаёт сомневаться. Поднимает конверсию в разы.</dd></div>
+      <div data-r><dt>Догрев</dt><dd>Аккуратные напоминания тем, кто прочитал, но пока не ответил. Не спам, а возврат в диалог.</dd></div>
+      <div data-r><dt>Закуп</dt><dd>Покупка рекламного поста у канала или блогера за деньги.</dd></div>
+      <div data-r><dt>Админ канала</dt><dd>Владелец Telegram-канала, у которого ты покупаешь рекламу. Обычно берёт 300–500 ₽ за пост.</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section id="what">
+  <div class="chap"><div class="wrap"><span>Отклики</span><span>Что это и почему</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Простыми словами</span>
+    <h2 class="h2" data-r>Отклики — это уже собранные люди, которым ты пишешь по скрипту.</h2>
+    <p class="lead" data-r>Это люди, которые откликнулись на предложение подзаработать и готовы слушать. Тебе не нужно их искать по одному — ты работаешь с потоком и доводишь до оформления по готовому скрипту. Начинать в этой связке лучше именно с обработки откликов: на них быстрее всего набиваешь руку в переписке.</p>
+    <h3 class="h3" data-r style="margin-top:52px">Почему не Авито</h3>
+    <p class="lead" data-r>Самая очевидная мысль — выложить объявление на Авито и ждать входящие. Но нормального объёма там уже нет.</p>
+    <div class="why" style="margin-top:28px">
+      <div class="card" data-r style="--i:0"><h4>Площадка перегрета</h4><p>Таких объявлений там тысячи. Аудитория выжжена, доверие к ним низкое.</p></div>
+      <div class="card" data-r style="--i:1"><h4>Быстрые баны</h4><p>Объявления улетают в бан, стабильно держать поток не получается.</p></div>
+      <div class="card" data-r style="--i:2"><h4>Нет масштаба</h4><p>Построить системную, растущую работу через Авито сейчас невыгодно. Нужен управляемый поток.</p></div>
+    </div>
+  </div>
+</section>
+
+<section class="bg2 torn" id="math">
+  <div class="chap"><div class="wrap"><span>Математика</span><span>Как считать</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>В чём суть работы</span>
+    <h2 class="h2" data-r>Математика простая: объём × конверсия × дисциплина.</h2>
+    <p class="lead" data-r>Ты обрабатываешь поток людей по скрипту. Часть отвечает, часть оформляет, часть молчит — это нормально. Всё решает не один удачный диалог, а объём и системность на дистанции.</p>
+    <div class="why" style="margin-top:28px">
+      <div class="card" data-r style="--i:0"><h4>Объём</h4><p>Работаешь не с десятью сообщениями, а с потоком. По одному-двум дням судить нельзя — смотри на неделю и месяц.</p></div>
+      <div class="card" data-r style="--i:1"><h4>Конверсия ~3%</h4><p>Из потока оформляется в среднем около 3%. На слух мало, но на объёме это уже лиды, которых доводишь до выплаты. Цель — постепенно выйти на 5%.</p></div>
+      <div class="card" data-r style="--i:2"><h4>Дисциплина</h4><p>Эта модель работает не на эмоциях, а на регулярности. Стабильно обрабатываешь каждый день — статистика выравнивается.</p></div>
+    </div>
+    <div class="big-note" data-r style="margin-top:28px"><b>Что это даёт на дистанции.</b> При системной работе эта связка выводит на <em>серьёзные цифры в месяц</em>. Но только если ты делаешь это регулярно. Главный вопрос не «работает ли модель», а «готов ли ты сам работать с объёмом каждый день».</div>
+    <div class="note" data-r style="margin-top:14px"><b>Важно и по-честному.</b> Работай со своего живого аккаунта и уважай лимиты площадки. Не строй всё на массовом спаме и одноразовых аккаунтах — это улетает в бан и жжёт доверие. Банку нужен <b>активный клиент</b>, а не просто галочка: накрутка и обман дают срезы заявок, а не деньги. Качество диалога важнее количества отправленных сообщений.</div>
+  </div>
+</section>
+
+<section id="pitfalls">
+  <div class="chap"><div class="wrap"><span>Подводные камни</span><span>Чтобы не бросить</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Знай заранее</span>
+    <h2 class="h2" data-r>Три подводных камня — чтобы не бросить на второй день.</h2>
+    <div class="why" style="margin-top:28px">
+      <div class="card" data-r style="--i:0"><h4>Конверсия в начале низкая</h4><p>Сначала может быть 1–2% из 100 контактов. Это нормально: ты ещё учишься вести диалог и закрывать на оформление.</p></div>
+      <div class="card" data-r style="--i:1"><h4>Конверсия нестабильна</h4><p>Один день — много оформлений, другой — почти ноль. Нельзя оценивать себя по одному-двум дням. Смотри только на дистанцию.</p></div>
+      <div class="card" data-r style="--i:2"><h4>Решает не только база</h4><p>Если плохо обрабатываешь лидов и не умеешь закрывать — конверсия падает до нуля. Важна не только база откликов, но и то, как ты общаешься.</p></div>
+    </div>
+    <div class="note green" data-r style="margin-top:18px"><b>Если застрял.</b> Обработал тестово 200–300 откликов и видишь, что результата нет или он слабый — приходи на разбор. Посмотрим, где именно просадка: в сообщениях, в подаче, в логике общения или в закрытии на оформление.</div>
+  </div>
+</section>
+
+<section id="script">
+  <div class="chap"><div class="wrap"><span>Переписка</span><span>Честный скрипт</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Как именно идёт обработка</span>
+    <h2 class="h2" data-r>Скрипт переписки: честно, спокойно, по-человечески.</h2>
+    <p class="lead" data-r>Работа строится через сообщения по скрипту. Пиши от своего реального имени, коротко и по делу. Никаких ложных легенд и «вакансий» — ты честно предлагаешь помощь с банковскими продуктами. От того, как ты ведёшь диалог, напрямую зависит конверсия.</p>
+    <div class="script" data-r style="margin-top:28px">
+      <small>Первое сообщение</small>
+      <p>«Здравствуйте, [Имя]. Я помогаю людям подобрать подходящие банковские продукты и разобраться, с чего лучше начать подзаработать на их оформлении. Подскажите, интересно узнать подробнее?»</p>
+    </div>
+    <div class="script" data-r style="margin-top:12px">
+      <small>Если человек ответил «да»</small>
+      <p>«Спасибо за ответ. Я могу помочь подобрать вариант под вашу ситуацию: дебетовую карту, оформление ИП или другой банковский продукт. Для начала задам пару коротких вопросов, чтобы понять, что подойдёт лучше: сколько вам лет, из какого вы города, оформляли ли раньше банковские продукты?»</p>
+    </div>
+    <div class="script" data-r style="margin-top:12px">
+      <small>Подводка к ссылке</small>
+      <p>«По вашей ситуации есть несколько вариантов. Могу предложить [банк / продукт] — один из самых простых для старта, оформление онлайн. Если подходит — отправлю ссылку и коротко подскажу, как всё заполнить без ошибок».</p>
+    </div>
+    <div class="script" data-r style="margin-top:12px">
+      <small>После отправки ссылки</small>
+      <p>«Как оформите заявку — напишите мне и, по возможности, пришлите скрин, чтобы я проверил, всё ли прошло нормально».</p>
+    </div>
+    <h3 class="h3" data-r style="margin-top:52px">Если лид молчит</h3>
+    <p class="lead" data-r>Примерно 80% людей могут даже не прочитать сообщение — это обычная ситуация в массовой обработке, а не признак того, что ты плохо пишешь. Тех, кто прочитал, но не ответил, можно аккуратно вернуть в диалог. Спокойно и без давления:</p>
+    <ul class="checks" data-r>
+      <li>«Вы на связи? Получилось посмотреть?»</li>
+      <li>«Актуально ещё или уже неинтересно?»</li>
+      <li>«Если есть вопросы по оформлению — помогу, пишите».</li>
+    </ul>
+    <div class="note" data-r style="margin-top:14px"><b>Догрев — это не дожим любой ценой.</b> Если человек явно не хочет — отпусти. Резкие и манипулятивные сообщения («вы специально меня игнорируете?») бьют по тебе же: портят репутацию аккаунта и настроение. Короткий вежливый вопрос работает лучше.</div>
+  </div>
+</section>
+
+<section class="bg2 torn" id="ipscript">
+  <div class="chap"><div class="wrap"><span>Переписка</span><span>Скрипт на ИП</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Когда ведёшь человека на бизнес-карту</span>
+    <h2 class="h2" data-r>Скрипт на ИП: честное предложение, без легенд.</h2>
+    <div class="script" data-r style="margin-top:28px">
+      <small>Первое сообщение</small>
+      <p>«Добрый день, [Имя]. Есть вариант начать с оформления ИП через партнёрский продукт банка — это нужно, чтобы получить бесплатную бизнес-карту и вознаграждение за её оформление. Если интересно, могу коротко объяснить, как это работает».</p>
+    </div>
+    <div class="script" data-r style="margin-top:12px">
+      <small>Если человек согласен</small>
+      <p>«Отлично. Смысл в том, что мы подбираем подходящий банк и формат регистрации, после чего вы проходите оформление онлайн. Я по шагам подскажу, что именно выбирать, чтобы не допустить ошибок».</p>
+    </div>
+    <div class="script" data-r style="margin-top:12px">
+      <small>Важно при оформлении</small>
+      <p>Внимательно заполнять все поля. Выбирать нужный вид деятельности по инструкции — реальный, а не выдуманный. Отключать ненужные платные услуги и подписки. Сохранить логин и данные для входа. Если появятся вопросы — сразу писать тебе.</p>
+    </div>
+    <div class="script" data-r style="margin-top:12px">
+      <small>После подачи заявки</small>
+      <p>«Теперь остаётся дождаться обратной связи от банка. Как только вам позвонят или назначат встречу — напишите мне, и я подскажу, что делать дальше».</p>
+    </div>
+  </div>
+</section>
+
+<section class="kob torn" id="rules">
+  <div class="chap"><div class="wrap"><span>Главное</span><span>Белая линия</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Правила по работе со скриптом</span>
+    <h2 class="h2" data-r>Четыре правила, которые держат тебя на белой стороне.</h2>
+    <ol class="ol light" data-r style="margin-top:28px">
+      <li><b>Не перегружай длинными сообщениями</b><p>Пиши коротко и по делу. Простыня текста отпугивает человека сильнее, чем молчание.</p></li>
+      <li><b>Не придумывай ложную легенду</b><p>Не выдавай себя за того, кем не являешься. Честная подача даёт активного клиента, обман — срез заявки.</p></li>
+      <li><b>Не выдавай банковский продукт за трудоустройство</b><p>Это не «вакансия» и не «работа». Это оформление банковского продукта за вознаграждение — так и говори.</p></li>
+      <li><b>Пиши по-человечески и пиши правду</b><p>Спокойно, уважительно, реальные данные в анкетах. Человек должен понимать, что он оформляет и зачем.</p></li>
+    </ol>
+    <div class="note" data-r style="margin-top:22px"><b>Это не только про этику.</b> Белая подача — это выгодно тебе. Банку нужен живой активный клиент. Честный трафик доходит до выплаты, обман — улетает в срез и бан. Длинная дистанция всегда на стороне тех, кто работает чисто.</div>
+  </div>
+</section>
+
+<section id="online">
+  <div class="chap"><div class="wrap"><span>Работа в онлайне</span><span>Нюансы</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Как держать контакт</span>
+    <h2 class="h2" data-r>Нюансы работы в онлайне: доверие решает конверсию.</h2>
+    <div class="psy3 lt">
+      <div data-r style="--i:0"><span class="num">1</span><h4>Отношение к лидам</h4><p>Спокойно и уважительно. Даже если человек отвечает резко — не срывайся, переводи в нормальный тон. Чем адекватнее ты, тем выше шанс, что дойдёт до оформления.</p></div>
+      <div data-r style="--i:1"><span class="num">2</span><h4>Уточняющие вопросы</h4><p>«Раньше оформляли банковские продукты? Сможете сегодня уделить немного времени?» Вопросы делают диалог серьёзнее и удерживают внимание.</p></div>
+      <div data-r style="--i:2"><span class="num">3</span><h4>Голосовые и созвон</h4><p>Голос показывает, что человек общается с живым человеком, а не с ботом. Особенно хорошо работает, когда лид уже начал отвечать, но пока сомневается.</p></div>
+    </div>
+    <div class="note" data-r style="margin-top:22px"><b>Работай от своего реального имени.</b> Живой человек с голосовыми и созвоном вызывает больше доверия, чем шаблонный аккаунт. Не выдавай себя за другого человека — доверие, построенное на обмане, рушится на первом же звонке.</div>
+    <h3 class="h3" data-r style="margin-top:52px">Веди свою базу лидов</h3>
+    <p class="lead" data-r>Чтобы не терять людей из-за перебоев и забытых диалогов, веди простую таблицу. В ней фиксируй:</p>
+    <ul class="checks" data-r>
+      <li>Кто этот лид и где вы общались</li>
+      <li>Его username или контакт</li>
+      <li>Что уже оформил и на каком этапе находится</li>
+      <li>Нужен ли повторный контакт и когда</li>
+    </ul>
+    <div class="note green" data-r style="margin-top:14px"><b>Зачем это нужно.</b> Таблица сильно упрощает работу и не даёт лидам потеряться. Ты всегда видишь, кому написать повторно и кого догреть, а не держишь всё в голове.</div>
+  </div>
+</section>
+
+<section class="dark torn" id="ads">
+  <div class="chap"><div class="wrap"><span>Закуп рекламы</span><span>Каналы и админы</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Второй источник платного трафика</span>
+    <h2 class="h2" data-r>Закуп рекламы в блогах: где брать каналы и как договориться.</h2>
+    <p class="lead" data-r>Кроме откликов есть закуп рекламы в небольших Telegram-каналах. При минимальном бюджете это один из самых доступных входов: личные блоги с лояльной аудиторией и честным рекламным постом дают тёплых людей.</p>
+    <div class="lvl rules5">
+      <article data-r style="--i:0"><h3>Как это работает</h3><ol class="ol light"><li><b>Поиск каналов</b><p>Через боты поиска каналов и сервисы статистики (TGStat и похожие) по ключевым запросам. Рутину можно делегировать ассистенту.</p></li><li><b>Договор с админом</b><p>Обычно 300–500 ₽ за пост. Оплата 50% до публикации и 50% после — так риск минимальный.</p></li><li><b>Оффер на долгую работу</b><p>После первого оформления предлагаешь человеку приводить знакомых за фиксированную выплату — реферальная система, воронка растёт сама.</p></li></ol></article>
+      <article data-r style="--i:1"><h3>Критерии канала при малом бюджете</h3><ul class="dots light"><li><b>200–300 подписчиков</b> — не гонись за крупными</li><li><b>От 200 просмотров</b> в сутки — аудитория живая</li><li><b>Активная аудитория</b>, гео РФ</li><li><b>Личный блог</b> — такой аудитории админ дорог, рекламу видят реже, доверие выше</li></ul></article>
+      <article data-r style="--i:2"><h3>Что размещаешь</h3><p>Честный рекламный пост от своего имени: ты партнёр банков, помогаешь оформить бесплатные карты и счета и заработать на их оформлении. Прозрачно и без легенд.</p><p class="rec">Перед ссылкой — короткое видео для доверия: кто ты, что данные оформляются напрямую через банк, продукт бесплатный. Созвон обязателен — в переписке человек всегда сомневается.</p></article>
+    </div>
+    <div class="note red" data-r style="margin-top:22px"><b>Не строй объявление на обмане.</b> Не выдавай платный пост за личную рекомендацию админа и не обещай золотых гор. Завышенные ожидания дают всплеск заявок, а потом — волну разочарованных и срезов. Честный пост конвертит хуже на старте, но держит доверие вдолгую.</div>
+  </div>
+</section>
+
+<section id="scale">
+  <div class="chap"><div class="wrap"><span>Масштаб</span><span>Делегирование</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Сначала сам, потом руками других</span>
+    <h2 class="h2" data-r>Масштаб: сначала набей руку, потом делегируй.</h2>
+    <p class="lead" data-r>Сначала ты сам учишься искать каналы, обрабатывать лидов и проводить созвоны. Только когда у тебя самого связка стабильно работает — можно нанимать ассистента на поиск каналов и на рутину, и постепенно делегировать. Это даёт прогнозируемые деньги и выход за пределы личного потолка.</p>
+    <div class="big-note" data-r style="margin-top:24px"><b>Порядок роста.</b> Обкатал на себе → отладил на первых лидах руками → поставил человека, который повторяет ровно то же, но уже не твоими руками. Тогда система начинает расти без тебя. Пока связка не отлажена — делегировать нечего.</div>
+  </div>
+</section>
+
+<section class="bg2 torn" id="price">
+  <div class="chap"><div class="wrap"><span>Прайс ЛидГид</span><span>Что докручиваешь</span></div></div>
+  <div class="wrap">
+    <span class="eyebrow" data-r>Актуальные ставки</span>
+    <h2 class="h2" data-r>Прайс: что докручиваешь с одного человека после РКО.</h2>
+    <p class="lead" data-r>Каждый, кого ты довёл, проходит тот же маршрут. Порядок продуктов не меняем — он выстроен от доверия к сложному:</p>
+    <div class="route" data-r><span>Бизнес-карта</span><i>→</i><span>Дебетовки</span><i>→</i><span>Кредитки</span><i>→</i><span>МФО</span></div>
+
+    <h3 class="h3" data-r style="margin-top:48px">Дебетовые карты</h3>
+    <p class="lead" data-r style="font-size:16px">База после бизнес-карты. Одобряют почти всем с 18 лет.</p>
+    <div class="otable" data-r>
+      <div class="oh"><span>Банк</span><span></span><span>Выплата</span></div>
+      <div class="or"><span>ВТБ дебет</span><b>→</b><span>2 300 ₽</span></div>
+      <div class="or"><span>ВТБ стикер</span><b>→</b><span>2 300 ₽</span></div>
+      <div class="or"><span>ОТП дебет</span><b>→</b><span>1 900 ₽</span></div>
+      <div class="or"><span>Т-Банк дебет</span><b>→</b><span>1 400 ₽</span></div>
+      <div class="or"><span>Ozon Банк</span><b>→</b><span>900 ₽</span></div>
+    </div>
+
+    <h3 class="h3" data-r style="margin-top:44px">Кредитные карты</h3>
+    <p class="lead" data-r style="font-size:16px">Следующая ступень. Целевое действие обычно — сама выдача карты.</p>
+    <div class="otable" data-r>
+      <div class="oh"><span>Банк</span><span></span><span>Выплата</span></div>
+      <div class="or hi"><span>Яндекс Супер Сплит</span><b>→</b><span>5 000 ₽ · только выдача</span></div>
+      <div class="or"><span>ОТП</span><b>→</b><span>5 200 ₽</span></div>
+      <div class="or"><span>Т-Банк</span><b>→</b><span>4 300 ₽</span></div>
+      <div class="or"><span>Уралсиб</span><b>→</b><span>3 800 ₽ · одна транзакция от 500 ₽</span></div>
+      <div class="or"><span>ВТБ</span><b>→</b><span>3 300 ₽ · покупка от 2 000 ₽</span></div>
+      <div class="or"><span>Ак Барс</span><b>→</b><span>до 2 200 ₽</span></div>
+    </div>
+
+    <h3 class="h3" data-r style="margin-top:44px">МФО</h3>
+    <p class="lead" data-r style="font-size:16px">Самый насыщенный продукт. Заходит последним — только после РКО, дебетовок и кредиток.</p>
+    <div class="offers" data-r>
+      <div><b>6 000 ₽</b><span>Деньги на дом</span></div>
+      <div><b>5 777 ₽</b><span>Умные наличные</span></div>
+      <div><b>5 500 ₽</b><span>ЛайкЗайм</span></div>
+      <div><b>5 300 ₽</b><span>МаксКредит</span></div>
+      <div><b>4 100 ₽</b><span>Альфаденьги</span></div>
+      <div><b>4 100 ₽</b><span>Манимен</span></div>
+      <div><b>3 600 ₽</b><span>Быстроденьги</span></div>
+      <div><b>3 000 ₽</b><span>Веб банкир</span></div>
+      <div><b>2 600 ₽</b><span>Деньги сразу</span></div>
+      <div><b>2 600 ₽</b><span>Срочноденьги</span></div>
+      <div><b>1 000–5 400 ₽</b><span>Займер · лесенка</span></div>
+    </div>
+    <div class="note red" data-r style="margin-top:22px"><b>Порядок обязателен.</b> МФО никогда не предлагаем первым — сначала РКО, потом дебетовки, потом кредитки. Нарушишь очередь — спугнёшь человека словом «займ» ещё до объяснения механики.</div>
+    <div class="note green" data-r style="margin-top:12px"><b>Мультиаккаунтинг на ЛидГид.</b> Можно попросить менеджера сделать дополнительные аккаунты к основному и распределять заявки между ними — к тебе меньше вопросов. Это штатная возможность самой партнёрки, по всем вопросам пиши своему менеджеру.</div>
+    <div class="note" data-r style="margin-top:12px"><b>Ставки примерные.</b> Условия банков и партнёрок меняются — всегда сверяйся с актуальным кабинетом на момент запуска.</div>
+  </div>
+</section>
+
+<section class="bg2 torn" id="priv">
+  <div class="chap"><div class="wrap"><span>Закрытая часть</span><span>Только на звонке</span></div></div>
+  <div class="wrap">
+    <div class="locked big" data-r>
+      <div class="lk-ic"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+      <div>
+        <span class="tag red">Приватно · только на личном звонке</span>
+        <h3>Мои рабочие заготовки — целиком</h3>
+        <p>Выше — вся система. А вот мои конкретные рабочие материалы я публично не выкладываю. Что в них входит:</p>
+        <ol class="priv">
+          <li><b>Мой скрипт переписки целиком</b><span>Что и в каком порядке я пишу, как отвечаю на сомнения и довожу до оформления без воды.</span></li>
+          <li><b>Где и как закупать каналы</b><span>Под твой бюджет: как отбирать каналы, о чём договариваться с админом, как не слить деньги на пустых постах.</span></li>
+          <li><b>Разбор твоей связки</b><span>Смотрим именно твой трафик и твои диалоги — где просадка и что докрутить, чтобы конверсия росла.</span></li>
+        </ol>
+        <p>Это я разбираю только на личном звонке. Если интересно — напиши мне в личку, обсудим.</p>
+        <a class="btn" data-dm href="#" target="_blank" rel="noopener">Написать в личку</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="kob torn" id="take">
+  <div class="chap"><div class="wrap"><span>Итог гайда</span><span>Что ты забираешь</span></div></div>
+  <div class="wrap">
+    <div style="text-align:center"><span class="eyebrow" data-r>Не список лайфхаков, а система</span><h2 class="h2" data-r>Семь вещей, которые ты забираешь из гайда.</h2></div>
+    <ol class="take" data-r>
+      <li><b>Отклики и платный трафик</b> — управляемый поток людей вместо выжженного Авито</li>
+      <li><b>Математика</b> — объём × конверсия ~3% × дисциплина, смотри на дистанции</li>
+      <li><b>Честный скрипт переписки</b> — от своего имени, без легенд, по-человечески</li>
+      <li><b>Скрипт на ИП и правила</b> — не ложь, не «вакансия», реальные данные в анкете</li>
+      <li><b>Работа в онлайне</b> — спокойный тон, голосовые, своя база лидов</li>
+      <li><b>Закуп рекламы в блогах</b> — каналы, критерии, 50/50 с админом, честный пост</li>
+      <li><b>Масштаб и прайс</b> — сначала сам, потом делегируешь; порядок продуктов и ставки</li>
+    </ol>
+  </div>
+</section>
+
+<section id="todo-sec">
+  <div class="chap"><div class="wrap"><span>Что делать дальше</span><span>Начни сегодня</span></div></div>
+  <div class="wrap">
+    <div style="text-align:center"><span class="eyebrow" data-r>Задание</span><h2 class="h2" data-r>Пять шагов на эту неделю.</h2></div>
+    <ul class="todo" data-r id="todo">
+      <li><label><input type="checkbox" data-k="g3t1"><span>Собрать первый поток откликов и завести таблицу лидов</span></label></li>
+      <li><label><input type="checkbox" data-k="g3t2"><span>Переписать скрипт под себя — честно, коротко, от своего имени</span></label></li>
+      <li><label><input type="checkbox" data-k="g3t3"><span>Обработать тестово 100 откликов и не судить по первым 10–20</span></label></li>
+      <li><label><input type="checkbox" data-k="g3t4"><span>Записать короткое видео для доверия и провести первые созвоны</span></label></li>
+      <li><label><input type="checkbox" data-k="g3t5"><span>Найти 3–5 каналов по критериям и купить первый честный пост</span></label></li>
+    </ul>
+    <div class="quote-card" data-r style="margin:40px auto 0;max-width:820px"><p>Эта модель работает не на эмоциях, а на дисциплине. Разница между тем, кто бросит после слабой недели, и тем, кто выйдет на серьёзные деньги, — не в удаче. Она в объёме, системности и в том, кто садится и делает каждый день, а не ждёт идеального настроения. Главный вопрос не «работает ли это», а «готов ли ты сам».</p></div>
+  </div>
+</section>
+
+<section class="dark torn" id="next">
+  <div class="chap"><div class="wrap"><span>Финал</span><span>Три гайда закрыты</span></div></div>
+  <div class="wrap">
+    <figure class="epi">
+      <blockquote data-r>Всё, что разум человека может представить и во что может поверить, он может и осуществить.</blockquote>
+      <figcaption data-r>Наполеон Хилл, «Думай и богатей»</figcaption>
+    </figure>
+    <span class="eyebrow" data-r>Ты прошёл все три гайда</span>
+    <h2 class="h2" data-r>Теперь у тебя есть вся карта. Вопрос только в скорости.</h2>
+    <p class="lead" data-r>Ты знаешь продукты, бесплатный трафик и платный. Можно идти одному — методом проб и ошибок, теряя выплаты на мелочах. А можно со мной: с маршрутом, кураторами, свежими ставками и разбором именно твоей ситуации.</p>
+    <div class="next">
+      <div class="nx" data-r style="--i:0">
+        <span class="d">Бесплатно · 30 минут</span>
+        <h3>Личный разбор</h3>
+        <ul>
+          <li>Посмотрим, где ты сейчас и что мешает начать</li>
+          <li>Соберём маршрут на месяц под твой город и время</li>
+          <li>Разберём твою связку: трафик, скрипт, закуп</li>
+          <li>Решение — только твоё, без давления</li>
+        </ul>
+      </div>
+      <div class="nx" data-r style="--i:1">
+        <span class="d">Ryzhikov Academy</span>
+        <h3>Обучение со мной</h3>
+        <ul>
+          <li>Пошаговый маршрут: от первых денег на себе до команды</li>
+          <li>Кураторы — ученики, которые сами зарабатывают в нише</li>
+          <li>Свои менеджеры и повышенные ставки на партнёрках</li>
+          <li>Обновляется каждую неделю: новые банки, связки, ставки</li>
+        </ul>
+      </div>
+    </div>
+    <div class="final-cta" data-r>
+      <a class="btn w" id="ctaDiag" href="#" target="_blank" rel="noopener">Записаться на бесплатный разбор</a>
+      <a class="btn ghost" data-dm href="#" target="_blank" rel="noopener">Написать мне в личку</a>
+      <p>Работаем по-белому. Ответ в Telegram.</p>
+    </div>
+  </div>
+</section>
+
+<footer><b>Работаем · Ryzhikov Academy</b><br>Материал носит информационный характер. Результаты зависят от твоих действий; ставки, правила площадок и условия банков меняются. Работа ведётся официально, в рамках закона.</footer>
+
+<script>
+(() => {
+  /* ===== ССЫЛКИ: поменять на свои ===== */
+  const LINKS = {
+    dm: 'https://t.me/ryzhikovpa',               // личка Петра
+    diagnostic: 'https://t.me/m/TklPmdWqNWYy'     // запись на бесплатный разбор
+  };
+  document.querySelectorAll('[data-dm]').forEach(a => a.href = LINKS.dm);
+  const cd = document.getElementById('ctaDiag'); if (cd) cd.href = LINKS.diagnostic;
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const root = document.documentElement, $ = id => document.getElementById(id);
+  const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
+
+  const stat = $('heroStat');
+  const go = () => requestAnimationFrame(() => root.classList.add('ready'));
+  if (reduce) go(); else Promise.race([stat.decode ? stat.decode().catch(() => {}) : Promise.resolve(), new Promise(r => setTimeout(r, 1200))]).then(go);
+
+  document.querySelectorAll('.h2').forEach(el => {
+    let i = 0; el.classList.add('rl');
+    [...el.childNodes].forEach(n => {
+      if (n.nodeType !== 3) return;
+      const f = document.createDocumentFragment();
+      n.textContent.split(/([ \t\n\r]+)/).forEach(t => {
+        if (!t) return;
+        if (/^[ \t\n\r]+$/.test(t)) { f.appendChild(document.createTextNode(' ')); return; }
+        const w = document.createElement('span'), s = document.createElement('span');
+        w.className = 'w'; s.style.setProperty('--d', i++); s.textContent = t; w.appendChild(s); f.appendChild(w);
+      });
+      el.replaceChild(f, n);
+    });
+  });
+
+  const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } }), { rootMargin: '0px 0px -12% 0px' });
+  document.querySelectorAll('[data-r]').forEach(n => io.observe(n));
+
+  const bar = $('bar'), barP = $('barP');
+  let ticking = false, H = innerHeight;
+  addEventListener('resize', () => { H = innerHeight; }, { passive: true });
+  const frame = () => {
+    ticking = false;
+    const y = scrollY, max = root.scrollHeight - H;
+    bar.classList.toggle('on', y > H * .7);
+    barP.style.setProperty('--p', clamp(y / max).toFixed(3));
+    if (!reduce && y < H * 1.2) stat.style.translate = `0 ${(y * .18).toFixed(1)}px`;
+  };
+  addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(frame); } }, { passive: true });
+  frame();
+
+  document.querySelectorAll('.todo input').forEach(cb => {
+    try { cb.checked = localStorage.getItem('day3-' + cb.dataset.k) === '1'; } catch (e) {}
+    cb.addEventListener('change', () => { try { localStorage.setItem('day3-' + cb.dataset.k, cb.checked ? '1' : '0'); } catch (e) {} });
+  });
+})();
+</script>
+</body>
+</html>
