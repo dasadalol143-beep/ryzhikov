@@ -9,7 +9,7 @@
 <textArea x="1060" y="900" width="380" font-family="noto_sans" font-size="20" fill="#067429" text-align="center"><b>Сейчас</b> система</textArea>
 <rect x="60" y="1020" width="660" height="150" rx="12" fill="#ffc6c6" data-content="Было: минус 90 000 ₽, потолок, тупик" data-text-align="left" data-text-align-vertical="top" font-size="24" />
 <text x="740" y="1115" font-family="noto_sans" font-size="40" font-weight="bold" fill="#9b4a08">&#8594;</text>
-<rect x="800" y="1020" width="640" height="150" rx="12" fill="#adf0c7" data-content="Стало: 150 000 ₽+ в месяц, личный бренд, команда" data-text-align="left" data-text-align-vertical="top" font-size="24" />
+<rect x="800" y="1020" width="640" height="150" rx="12" fill="#adf0c7" data-content="Стало: &lt;b&gt;1 450 000 ₽/мес&lt;/b&gt;, личный бренд, команда" data-text-align="left" data-text-align-vertical="top" font-size="24" />
 <textArea x="60" y="1230" width="1380" font-family="noto_sans" font-size="22" fill="#595959" text-align="left">Эту же дорогу пройдёшь ты — только быстрее. Дальше по порядку: что это, как устроено, как заработать, где брать людей.</textArea>
 </g>
 <g transform="translate(1820,0)" data-frame="ЧТО ТАКОЕ РКО">
