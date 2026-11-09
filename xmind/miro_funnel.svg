@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+<!-- Miro Composer source: chapter "КАК РАБОТАЕТ ВОРОНКА — ОТ ТРАФИКА ДО ДЕНЕГ"
+     Placed as a standalone frame at translate(0,2700) below the 9-chapter row.
+     5 traffic sources -> blog -> заявка -> созвон -> product chain -> money,
+     with money breakdown (РКО/дебет/кредит/МФО) and referral loop back. -->
+<g transform="translate(0,2700)" data-frame="КАК РАБОТАЕТ ВОРОНКА — ОТ ТРАФИКА ДО ДЕНЕГ">
+  <rect data-type="frame" x="0" y="0" width="4700" height="1200" fill="#fbf7ef" data-title="КАК РАБОТАЕТ ВОРОНКА — ОТ ТРАФИКА ДО ДЕНЕГ" />
+  <!-- sources: Окружение, УБТ, Threads, Отклики, Закуп -> blog -->
+  <!-- funnel: blog -> zayav -> sozvon -> sz -> ip -> rko -> money -->
+  <!-- money -> b1..b4 breakdown; money -> ref -> blog (loop) -->
+</g>
+</svg>
