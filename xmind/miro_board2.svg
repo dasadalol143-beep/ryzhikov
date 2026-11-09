@@ -1,0 +1,154 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+<g transform="translate(0,0)" data-frame="КТО Я. ТОЧКА А">
+<rect data-type="frame" x="0" y="0" width="1500" height="2300" fill="#ffffff" data-title="КТО Я. ТОЧКА А" />
+<rect x="60" y="56" width="92" height="92" rx="12" fill="#fe9f4d" data-content="&lt;b&gt;01&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="46" />
+<text x="176" y="128" font-family="noto_sans" font-size="48" font-weight="bold" fill="#1a1a1a">КТО Я. ТОЧКА А</text>
+<textArea x="60" y="180" width="1380" font-family="noto_sans" font-size="26" fill="#1a1a1a" text-align="left">Без связей и денег. Вейпшоп 50–70к и долг 90 000 ₽. Нашёл РКО — рынок, где платят банки.</textArea>
+<textArea x="60" y="900" width="380" font-family="noto_sans" font-size="20" fill="#bd0a0a" text-align="center"><b>50–70к</b> вейпшоп</textArea>
+<textArea x="560" y="900" width="380" font-family="noto_sans" font-size="20" fill="#bd0a0a" text-align="center"><b>−90 000 ₽</b> долг</textArea>
+<textArea x="1060" y="900" width="380" font-family="noto_sans" font-size="20" fill="#067429" text-align="center"><b>Сейчас</b> система</textArea>
+<rect x="60" y="1020" width="660" height="150" rx="12" fill="#ffc6c6" data-content="Было: минус 90 000 ₽, потолок, тупик" data-text-align="left" data-text-align-vertical="top" font-size="24" />
+<text x="740" y="1115" font-family="noto_sans" font-size="40" font-weight="bold" fill="#9b4a08">&#8594;</text>
+<rect x="800" y="1020" width="640" height="150" rx="12" fill="#adf0c7" data-content="Стало: 150 000 ₽+ в месяц, личный бренд, команда" data-text-align="left" data-text-align-vertical="top" font-size="24" />
+<textArea x="60" y="1230" width="1380" font-family="noto_sans" font-size="22" fill="#595959" text-align="left">Эту же дорогу пройдёшь ты — только быстрее. Дальше по порядку: что это, как устроено, как заработать, где брать людей.</textArea>
+</g>
+<g transform="translate(1820,0)" data-frame="ЧТО ТАКОЕ РКО">
+<rect data-type="frame" x="0" y="0" width="1500" height="2300" fill="#ffffff" data-title="ЧТО ТАКОЕ РКО" />
+<rect x="60" y="56" width="92" height="92" rx="12" fill="#659df2" data-content="&lt;b&gt;02&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="46" />
+<text x="176" y="128" font-family="noto_sans" font-size="48" font-weight="bold" fill="#1a1a1a">ЧТО ТАКОЕ РКО</text>
+<textArea x="60" y="180" width="1380" font-family="noto_sans" font-size="24" fill="#1a1a1a" text-align="left">Четыре продукта, за каждый банк платит. Разница — за минуту:</textArea>
+<rect x="60" y="260" width="680" height="230" rx="12" fill="#c6dcff" data-content="&lt;b&gt;Дебетовая карта&lt;/b&gt;&lt;br&gt;Карта к твоим деньгам. С 18 лет, одобряют всем. Самый простой вход." data-text-align="left" data-text-align-vertical="top" font-size="22" />
+<rect x="760" y="260" width="680" height="230" rx="12" fill="#adf0c7" data-content="&lt;b&gt;РКО — бизнес-карта&lt;/b&gt;&lt;br&gt;Та же карта, но на ИП. Ядро ниши: платят больше всего." data-text-align="left" data-text-align-vertical="top" font-size="22" />
+<rect x="60" y="520" width="680" height="230" rx="12" fill="#c6dcff" data-content="&lt;b&gt;Кредитка&lt;/b&gt;&lt;br&gt;Деньги банка в долг. Платят за выдачу. Возврат без процентов." data-text-align="left" data-text-align-vertical="top" font-size="22" />
+<rect x="760" y="520" width="680" height="230" rx="12" fill="#c6dcff" data-content="&lt;b&gt;МФО&lt;/b&gt;&lt;br&gt;Микрозаймы. Заходят последними в цепочке." data-text-align="left" data-text-align-vertical="top" font-size="22" />
+<rect x="60" y="790" width="1380" height="120" rx="12" fill="#659df2" data-content="ПОРЯДОК: РКО → дебетовки → кредитки → МФО. Не меняем никогда." data-text-align="center" data-text-align-vertical="middle" font-size="24" />
+<textArea x="60" y="960" width="1380" font-family="noto_sans" font-size="22" fill="#595959" text-align="left">Самозанятость и ИП на НПД оформляются за 5 минут в «Мой налог». Бесплатно, налог только с дохода.</textArea>
+</g>
+<g transform="translate(3640,0)" data-frame="ПАРТНЁРКА. СВЯЗУЮЩЕЕ ЗВЕНО">
+<rect data-type="frame" x="0" y="0" width="1500" height="2300" fill="#ffffff" data-title="ПАРТНЁРКА. СВЯЗУЮЩЕЕ ЗВЕНО" />
+<rect x="60" y="56" width="92" height="92" rx="12" fill="#8f7fee" data-content="&lt;b&gt;03&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="46" />
+<text x="176" y="128" font-family="noto_sans" font-size="48" font-weight="bold" fill="#1a1a1a">ПАРТНЁРКА. СВЯЗУЮЩЕЕ ЗВЕНО</text>
+<textArea x="60" y="180" width="1380" font-family="noto_sans" font-size="24" fill="#1a1a1a" text-align="left">Ты работаешь не с банком напрямую, а через партнёрку-посредника:</textArea>
+<rect x="60" y="300" width="300" height="150" rx="12" fill="#dedaff" data-content="БАНК" data-text-align="center" data-text-align-vertical="middle" font-size="28" />
+<text x="380" y="395" font-family="noto_sans" font-size="40" font-weight="bold" fill="#6631d7">&#8594;</text>
+<rect x="450" y="300" width="320" height="150" rx="12" fill="#8f7fee" data-content="ПАРТНЁРКА" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<text x="790" y="395" font-family="noto_sans" font-size="40" font-weight="bold" fill="#6631d7">&#8594;</text>
+<rect x="860" y="300" width="280" height="150" rx="12" fill="#dedaff" data-content="ТЫ" data-text-align="center" data-text-align-vertical="middle" font-size="28" />
+<text x="1160" y="395" font-family="noto_sans" font-size="40" font-weight="bold" fill="#6631d7">&#8594;</text>
+<rect x="1200" y="300" width="240" height="150" rx="12" fill="#dedaff" data-content="КЛИЕНТ" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<rect x="60" y="520" width="1380" height="110" rx="12" fill="#f4f2fd" data-content="Банк платит за клиента. Ты партнёр, а не продавец." data-text-align="center" data-text-align-vertical="middle" font-size="24" />
+<textArea x="60" y="680" width="660" font-family="noto_sans" font-size="24" fill="#1a1a1a" text-align="left"><b>Физлица:</b> ЛидГид, ФЦН</textArea>
+<textArea x="760" y="680" width="660" font-family="noto_sans" font-size="24" fill="#1a1a1a" text-align="left"><b>РКО:</b> Бизнес Система, РКО Групп, РКО Партнёр</textArea>
+<rect x="60" y="780" width="1380" height="150" rx="12" fill="#dedaff" data-content="СТАРТ: 1) самозанятость → 2) регистрация на партнёрках → 3) первый продукт на себе" data-text-align="left" data-text-align-vertical="middle" font-size="24" />
+</g>
+<g transform="translate(5460,0)" data-frame="ОФФЕРЫ И СТАВКИ">
+<rect data-type="frame" x="0" y="0" width="1500" height="2300" fill="#ffffff" data-title="ОФФЕРЫ И СТАВКИ" />
+<rect x="60" y="56" width="92" height="92" rx="12" fill="#2dc75c" data-content="&lt;b&gt;04&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="46" />
+<text x="176" y="128" font-family="noto_sans" font-size="48" font-weight="bold" fill="#1a1a1a">ОФФЕРЫ И СТАВКИ</text>
+<textArea x="60" y="180" width="1380" font-family="noto_sans" font-size="24" fill="#1a1a1a" text-align="left">Актуальные ставки. Примерные — сверяйся с кабинетом.</textArea>
+<rect x="60" y="280" width="330" height="70" rx="10" fill="#2dc75c" data-content="&lt;b&gt;РКО / бизнес&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="22" />
+<rect x="60" y="356" width="330" height="520" rx="10" fill="#eaf9ef" />
+<textArea x="82" y="378" width="286" font-family="noto_sans" font-size="20" fill="#1a1a1a" text-align="left">Ингобанк — до 20 000<br/>Альфа, Озон, ВТБ,<br/>Уралсиб, ПСБ — 100%<br/>Тинькофф — 3–5 заявок<br/>Сбер — «Все в плюсе»</textArea>
+<rect x="410" y="280" width="330" height="70" rx="10" fill="#659df2" data-content="&lt;b&gt;Дебетовки&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="22" />
+<rect x="410" y="356" width="330" height="520" rx="10" fill="#f0f5fd" />
+<textArea x="432" y="378" width="286" font-family="noto_sans" font-size="20" fill="#1a1a1a" text-align="left">ВТБ дебет — 2 300<br/>ВТБ стикер — 2 300<br/>ОТП — 1 900<br/>Т-Банк — 1 400<br/>Ozon — 900</textArea>
+<rect x="760" y="280" width="330" height="70" rx="10" fill="#fe9f4d" data-content="&lt;b&gt;Кредитки&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="22" />
+<rect x="760" y="356" width="330" height="520" rx="10" fill="#fff5ed" />
+<textArea x="782" y="378" width="286" font-family="noto_sans" font-size="20" fill="#1a1a1a" text-align="left">Яндекс Сплит — 5 000<br/>ОТП — 5 200<br/>Т-Банк — 4 300<br/>Уралсиб — 3 800<br/>ВТБ — 3 300</textArea>
+<rect x="1110" y="280" width="330" height="70" rx="10" fill="#ff6464" data-content="&lt;b&gt;МФО&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="22" />
+<rect x="1110" y="356" width="330" height="520" rx="10" fill="#fff0f0" />
+<textArea x="1132" y="378" width="286" font-family="noto_sans" font-size="20" fill="#1a1a1a" text-align="left">Деньги на дом — 6 000<br/>Умные наличные — 5 777<br/>ЛайкЗайм — 5 500<br/>МаксКредит — 5 300<br/>Альфаденьги — 4 100</textArea>
+<rect x="60" y="910" width="1380" height="120" rx="12" fill="#adf0c7" data-content="Ставки меняются — всегда сверяйся с актуальным кабинетом партнёрки перед запуском." data-text-align="center" data-text-align-vertical="middle" font-size="23" />
+</g>
+<g transform="translate(7280,0)" data-frame="ДЕНЬГИ С ОДНОГО ЧЕЛОВЕКА">
+<rect data-type="frame" x="0" y="0" width="1500" height="2300" fill="#ffffff" data-title="ДЕНЬГИ С ОДНОГО ЧЕЛОВЕКА" />
+<rect x="60" y="56" width="92" height="92" rx="12" fill="#ffdc4a" data-content="&lt;b&gt;05&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="46" />
+<text x="176" y="128" font-family="noto_sans" font-size="48" font-weight="bold" fill="#1a1a1a">ДЕНЬГИ С ОДНОГО ЧЕЛОВЕКА</text>
+<textArea x="60" y="180" width="1380" font-family="noto_sans" font-size="24" fill="#1a1a1a" text-align="left">Один человек — не один продукт, а цепочка:</textArea>
+<rect x="60" y="280" width="980" height="110" rx="12" fill="#fff6b6" data-content="1. Бизнес-карта (РКО)" data-text-align="left" data-text-align-vertical="middle" font-size="24" />
+<rect x="1060" y="280" width="380" height="110" rx="12" fill="#ffdc4a" data-content="до 20 000 ₽" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<rect x="60" y="410" width="980" height="110" rx="12" fill="#fff6b6" data-content="2. Дебетовки ×3–4" data-text-align="left" data-text-align-vertical="middle" font-size="24" />
+<rect x="1060" y="410" width="380" height="110" rx="12" fill="#ffdc4a" data-content="~5 000 ₽" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<rect x="60" y="540" width="980" height="110" rx="12" fill="#fff6b6" data-content="3. Кредитки ×2–3" data-text-align="left" data-text-align-vertical="middle" font-size="24" />
+<rect x="1060" y="540" width="380" height="110" rx="12" fill="#ffdc4a" data-content="~10 000 ₽" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<rect x="60" y="670" width="980" height="110" rx="12" fill="#fff6b6" data-content="4. МФО" data-text-align="left" data-text-align-vertical="middle" font-size="24" />
+<rect x="1060" y="670" width="380" height="110" rx="12" fill="#ffdc4a" data-content="~30 000 ₽" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<rect x="60" y="820" width="1380" height="150" rx="12" fill="#2dc75c" data-content="ИТОГО С ОДНОГО АКТИВНОГО: 80 000 – 130 000 ₽" data-text-align="center" data-text-align-vertical="middle" font-size="30" />
+<textArea x="60" y="1000" width="1380" font-family="noto_sans" font-size="23" fill="#1a1a1a" text-align="left">Старт без вложений: открутить себя + 4–10 друзей = ~300 000–400 000 ₽.</textArea>
+</g>
+<g transform="translate(9100,0)" data-frame="ТРАФИК. 12 СВЯЗОК + THREADS">
+<rect data-type="frame" x="0" y="0" width="1500" height="2300" fill="#ffffff" data-title="ТРАФИК. 12 СВЯЗОК + THREADS" />
+<rect x="60" y="56" width="92" height="92" rx="12" fill="#ff6464" data-content="&lt;b&gt;06&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="46" />
+<text x="176" y="128" font-family="noto_sans" font-size="48" font-weight="bold" fill="#1a1a1a">ТРАФИК. 12 СВЯЗОК + THREADS</text>
+<rect x="60" y="180" width="1380" height="120" rx="12" fill="#ff6464" data-content="ТОП-3 для новичка: 1) открут на себе  2) ближний круг + рефералка  3) чаты по подработкам" data-text-align="center" data-text-align-vertical="middle" font-size="23" />
+<textArea x="60" y="330" width="1380" font-family="noto_sans" font-size="22" fill="#595959" text-align="left">Ещё 9: закуп рекламы, свой блог, Shorts/Reels, блогеры за %, посевы, P2P, фриланс, отказники.</textArea>
+<textArea x="60" y="440" width="1380" font-family="noto_sans" font-size="24" fill="#1a1a1a" text-align="left"><b>Threads</b> — моя основная площадка. Реальные результаты:</textArea>
+<textArea x="60" y="1110" width="260" font-family="noto_sans" font-size="18" fill="#595959" text-align="center">30 884 просм.</textArea>
+<textArea x="342" y="1110" width="260" font-family="noto_sans" font-size="18" fill="#595959" text-align="center">84 290 за месяц</textArea>
+<textArea x="624" y="1110" width="260" font-family="noto_sans" font-size="18" fill="#595959" text-align="center">залёт 30,9K</textArea>
+<textArea x="906" y="1110" width="260" font-family="noto_sans" font-size="18" fill="#595959" text-align="center">Пхукет</textArea>
+<textArea x="1188" y="1110" width="260" font-family="noto_sans" font-size="18" fill="#595959" text-align="center">счёт</textArea>
+<rect x="60" y="1200" width="1380" height="130" rx="12" fill="#ffc6c6" data-content="Отклики: объём × ~3% × дисциплина = 150–230к в месяц. Закуп рекламы: 50/50 с админом." data-text-align="left" data-text-align-vertical="middle" font-size="23" />
+</g>
+<g transform="translate(10920,0)" data-frame="ПРОДАЖИ И ОБЩЕНИЕ">
+<rect data-type="frame" x="0" y="0" width="1500" height="2300" fill="#ffffff" data-title="ПРОДАЖИ И ОБЩЕНИЕ" />
+<rect x="60" y="56" width="92" height="92" rx="12" fill="#659df2" data-content="&lt;b&gt;07&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="46" />
+<text x="176" y="128" font-family="noto_sans" font-size="48" font-weight="bold" fill="#1a1a1a">ПРОДАЖИ И ОБЩЕНИЕ</text>
+<textArea x="60" y="180" width="1380" font-family="noto_sans" font-size="24" fill="#1a1a1a" text-align="left">Ты не забираешь деньги лида — даёшь ему легально подзаработать.</textArea>
+<rect x="60" y="280" width="1380" height="95" rx="12" fill="#c6dcff" data-content="1. «Привет, как дела? Работаешь где-то?»" data-text-align="left" data-text-align-vertical="middle" font-size="22" />
+<rect x="60" y="390" width="1380" height="95" rx="12" fill="#c6dcff" data-content="2. Ждёшь ответ, не спамишь" data-text-align="left" data-text-align-vertical="middle" font-size="22" />
+<rect x="60" y="500" width="1380" height="95" rx="12" fill="#c6dcff" data-content="3. «Нужны доп. руки в новом направлении»" data-text-align="left" data-text-align-vertical="middle" font-size="22" />
+<rect x="60" y="610" width="1380" height="95" rx="12" fill="#c6dcff" data-content="4. «Бесплатные банковские продукты, официально, налоги плачу. Не дроп.»" data-text-align="left" data-text-align-vertical="middle" font-size="22" />
+<textArea x="60" y="730" width="660" font-family="noto_sans" font-size="22" fill="#1a1a1a" text-align="left"><b>Простые слова вместо терминов:</b></textArea>
+<rect x="60" y="780" width="300" height="70" rx="12" fill="#f0f5fd" data-content="РКО" data-text-align="center" data-text-align-vertical="middle" font-size="20" />
+<text x="372" y="828" font-family="noto_sans" font-size="40" font-weight="bold" fill="#305bab">&#8594;</text>
+<rect x="430" y="780" width="610" height="70" rx="12" fill="#c6dcff" data-content="бесплатная бизнес-карта" data-text-align="left" data-text-align-vertical="middle" font-size="20" />
+<rect x="60" y="862" width="300" height="70" rx="12" fill="#f0f5fd" data-content="ИП на НПД" data-text-align="center" data-text-align-vertical="middle" font-size="20" />
+<text x="372" y="910" font-family="noto_sans" font-size="40" font-weight="bold" fill="#305bab">&#8594;</text>
+<rect x="430" y="862" width="610" height="70" rx="12" fill="#c6dcff" data-content="расширенная самозанятость" data-text-align="left" data-text-align-vertical="middle" font-size="20" />
+<rect x="60" y="944" width="300" height="70" rx="12" fill="#f0f5fd" data-content="Выплаты" data-text-align="center" data-text-align-vertical="middle" font-size="20" />
+<text x="372" y="992" font-family="noto_sans" font-size="40" font-weight="bold" fill="#305bab">&#8594;</text>
+<rect x="430" y="944" width="610" height="70" rx="12" fill="#c6dcff" data-content="вознаграждение / бонус" data-text-align="left" data-text-align-vertical="middle" font-size="20" />
+<rect x="1080" y="730" width="360" height="316" rx="12" fill="#fff0f0" data-content="5 возражений:&lt;br&gt;легально, не дроп,&lt;br&gt;кредитная история,&lt;br&gt;деньги, подумать" data-text-align="left" data-text-align-vertical="top" font-size="20" />
+</g>
+<g transform="translate(12740,0)" data-frame="СЦЕНАРИЙ ВИДЕО + ТИМОЧКО">
+<rect data-type="frame" x="0" y="0" width="1500" height="2300" fill="#ffffff" data-title="СЦЕНАРИЙ ВИДЕО + ТИМОЧКО" />
+<rect x="60" y="56" width="92" height="92" rx="12" fill="#8f7fee" data-content="&lt;b&gt;08&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="46" />
+<text x="176" y="128" font-family="noto_sans" font-size="48" font-weight="bold" fill="#1a1a1a">СЦЕНАРИЙ ВИДЕО + ТИМОЧКО</text>
+<textArea x="60" y="180" width="1380" font-family="noto_sans" font-size="24" fill="#1a1a1a" text-align="left">Каркас ролика: точка А &#8594; 5 модулей &#8594; точка Б.</textArea>
+<rect x="60" y="270" width="320" height="140" rx="12" fill="#8f7fee" data-content="ТОЧКА А&lt;br&gt;боль + пруф" data-text-align="center" data-text-align-vertical="middle" font-size="22" />
+<text x="392" y="350" font-family="noto_sans" font-size="40" font-weight="bold" fill="#6631d7">&#8594;</text>
+<rect x="460" y="270" width="560" height="140" rx="12" fill="#dedaff" data-content="5 модулей: ниша, механика, продажи, люди, масштаб" data-text-align="center" data-text-align-vertical="middle" font-size="21" />
+<text x="1032" y="350" font-family="noto_sans" font-size="40" font-weight="bold" fill="#6631d7">&#8594;</text>
+<rect x="1100" y="270" width="340" height="140" rx="12" fill="#8f7fee" data-content="ТОЧКА Б&lt;br&gt;что делать сегодня" data-text-align="center" data-text-align-vertical="middle" font-size="21" />
+<rect x="60" y="450" width="1380" height="100" rx="12" fill="#f4f2fd" data-content="3 CTA: ранний · средний · финал. Приёмы: open loops, urgency, факт 250 млрд." data-text-align="left" data-text-align-vertical="middle" font-size="22" />
+<textArea x="60" y="600" width="1380" font-family="noto_sans" font-size="24" fill="#1a1a1a" text-align="left"><b>Как писать захватывающие сценарии (по Тимочко):</b></textArea>
+<rect x="60" y="660" width="260" height="100" rx="12" fill="#dedaff" data-content="ХУК" data-text-align="center" data-text-align-vertical="middle" font-size="20" />
+<text x="322" y="728" font-family="noto_sans" font-size="40" font-weight="bold" fill="#6631d7">&#8594;</text>
+<rect x="340" y="660" width="260" height="100" rx="12" fill="#dedaff" data-content="АКТУАЛИЗАЦИЯ" data-text-align="center" data-text-align-vertical="middle" font-size="20" />
+<text x="602" y="728" font-family="noto_sans" font-size="40" font-weight="bold" fill="#6631d7">&#8594;</text>
+<rect x="620" y="660" width="260" height="100" rx="12" fill="#dedaff" data-content="ОСНОВНАЯ ЧАСТЬ" data-text-align="center" data-text-align-vertical="middle" font-size="20" />
+<text x="882" y="728" font-family="noto_sans" font-size="40" font-weight="bold" fill="#6631d7">&#8594;</text>
+<rect x="900" y="660" width="260" height="100" rx="12" fill="#dedaff" data-content="ВЫВОД" data-text-align="center" data-text-align-vertical="middle" font-size="20" />
+<text x="1162" y="728" font-family="noto_sans" font-size="40" font-weight="bold" fill="#6631d7">&#8594;</text>
+<rect x="1180" y="660" width="260" height="100" rx="12" fill="#dedaff" data-content="CTA" data-text-align="center" data-text-align-vertical="middle" font-size="20" />
+<textArea x="60" y="800" width="1380" font-family="noto_sans" font-size="21" fill="#595959" text-align="left">3 подхода к логике: мысли вытекают · частное→общее · общее→частное. Типы: экспертный (5 шаблонов), личный (прошлое/настоящее/будущее).</textArea>
+</g>
+<g transform="translate(14560,0)" data-frame="КАЛЕНДАРЬ ЗИМЫ">
+<rect data-type="frame" x="0" y="0" width="1500" height="2300" fill="#ffffff" data-title="КАЛЕНДАРЬ ЗИМЫ" />
+<rect x="60" y="56" width="92" height="92" rx="12" fill="#fe9f4d" data-content="&lt;b&gt;09&lt;/b&gt;" data-text-align="center" data-text-align-vertical="middle" font-size="46" />
+<text x="176" y="128" font-family="noto_sans" font-size="48" font-weight="bold" fill="#1a1a1a">КАЛЕНДАРЬ ЗИМЫ</text>
+<textArea x="60" y="180" width="1380" font-family="noto_sans" font-size="24" fill="#1a1a1a" text-align="left">Как складывается 500 000 ₽ за три месяца:</textArea>
+<rect x="60" y="280" width="300" height="140" rx="12" fill="#fe9f4d" data-content="ДЕКАБРЬ" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<rect x="380" y="280" width="700" height="140" rx="12" fill="#fff5ed" data-content="Партнёрка, офферы, открут на себе. Деньги перед НГ." data-text-align="left" data-text-align-vertical="middle" font-size="21" />
+<rect x="1100" y="280" width="340" height="140" rx="12" fill="#f8d3af" data-content="~130к" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<rect x="60" y="440" width="300" height="140" rx="12" fill="#fe9f4d" data-content="ЯНВАРЬ" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<rect x="380" y="440" width="700" height="140" rx="12" fill="#fff5ed" data-content="Чужие люди пошли, тест закупки. Все ставят цели." data-text-align="left" data-text-align-vertical="middle" font-size="21" />
+<rect x="1100" y="440" width="340" height="140" rx="12" fill="#f8d3af" data-content="~150–200к" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<rect x="60" y="600" width="300" height="140" rx="12" fill="#fe9f4d" data-content="ФЕВРАЛЬ" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<rect x="380" y="600" width="700" height="140" rx="12" fill="#fff5ed" data-content="Связка найдена, льёшь в объём." data-text-align="left" data-text-align-vertical="middle" font-size="21" />
+<rect x="1100" y="600" width="340" height="140" rx="12" fill="#f8d3af" data-content="~200–300к" data-text-align="center" data-text-align-vertical="middle" font-size="26" />
+<rect x="60" y="770" width="1380" height="130" rx="12" fill="#2dc75c" data-content="ИТОГО ≈ 560 000 ₽ за зиму" data-text-align="center" data-text-align-vertical="middle" font-size="30" />
+<rect x="60" y="920" width="1380" height="150" rx="12" fill="#f8d3af" data-content="Сегодня: самозанятость + 2 партнёрки (20 минут). Эта неделя — вся цепочка на себе." data-text-align="left" data-text-align-vertical="middle" font-size="23" />
+</g>
+</svg>
