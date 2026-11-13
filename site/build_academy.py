@@ -39,6 +39,11 @@ PRINT_CSS = '''<style id="pdfstatic">
   .ac-mod ol{margin:14px 0 0;padding-left:20px;color:var(--ink2);font-size:15.5px;line-height:1.6}
   .ac-mod .res{margin-top:14px;padding:10px 14px;background:rgba(29,61,242,.07);border-radius:10px;font-size:15px}
   .ac-mod .res b{color:var(--kob)}
+  .ac-mod.bonus{border-left-color:#c2912f;background:linear-gradient(180deg,#fbf4e6,#fbf9f4)}
+  .ac-mod.bonus .mh .mn{color:#c2912f}
+  .ac-mod.bonus .mh .tg{background:#c2912f}
+  .ac-mod.bonus .res{background:rgba(194,145,47,.12)}
+  .ac-mod.bonus .res b{color:#9c6f18}
   .ac-cur{display:grid;grid-template-columns:96px 1fr;gap:18px;align-items:center;background:var(--marble);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
   .ac-cur img{width:96px;height:96px;object-fit:cover;border-radius:14px}
   .ac-cur h4{margin:0 0 2px;font-size:20px}
@@ -98,8 +103,8 @@ BODY = r'''<body>
     <div class="ac-stats">
       <div><b>180</b><span>учеников</span></div>
       <div><b>250–350к</b><span>средний доход ученика</span></div>
-      <div><b>15 млн ₽</b><span>заработал сам</span></div>
-      <div><b>25 млн ₽</b><span>заработали ученики</span></div>
+      <div><b>20 млн ₽</b><span>заработал сам</span></div>
+      <div><b>30 млн ₽</b><span>заработали ученики</span></div>
       <div><b>13</b><span>банков в связке</span></div>
     </div>
   </div>
@@ -133,7 +138,7 @@ BODY = r'''<body>
       <div class="ac-card"><div class="n">02</div><h4>Четыре сильных куратора</h4><p>Дамир, Дима, Рома и Астемир лично ведут тебя до первых денег.</p></div>
       <div class="ac-card"><div class="n">03</div><h4>Живой чат учеников</h4><p>Общий чат на SkillSpace. Разбираем связки, делимся кейсами, помогаем друг другу.</p></div>
       <div class="ac-card"><div class="n">04</div><h4>Уникальная связка от Петра</h4><p>Внутри модуля «Личный бренд». Личная механика Петра, которой нет ни в одном другом обучении по РКО.</p></div>
-      <div class="ac-card"><div class="n">05</div><h4>Новые связки и источники трафика</h4><p>Кредитование, УБТ, закупы рекламы, свой сайт через Claude и 6+ часов по личному бренду от Никиты Комлева.</p></div>
+      <div class="ac-card"><div class="n">05</div><h4>Новые связки и источники трафика</h4><p>Кредитование, закупы рекламы, свой сайт через Claude, 6+ часов по личному бренду от Никиты Комлева и отдельный <b>бонусный модуль по УБТ</b> (Threads, Reels, TikTok, Shorts).</p></div>
     </div>
     <div class="head" style="margin-top:40px"><span class="eyebrow">Формат обучения</span><h3 class="h3">Группа и личный куратор.</h3><p class="lead">Ты учишься в своём темпе, но не один: куратор ведёт тебя от первого банка до полного открута клиента.</p></div>
     <div class="ac-grid">
@@ -157,6 +162,7 @@ BODY = r'''<body>
     <div class="ac-mod"><div class="mh"><span class="mn">04</span><h3>Маскировка и трафик</h3><span class="tg">Кредитование · УБТ</span></div><ol><li>Маскировка и трафик: как не сгореть под 115-ФЗ и работать так, чтобы у банка не было вопросов.</li><li>Свой сайт через Claude — собираешь сайт под заявки без программиста.</li><li>Связка «Закупы рекламы»: как покупать трафик и окупать бюджет с плюсом.</li><li>Работа по откликам: лиды через вакансии и объявления.</li><li>Связки: кредитование, УБТ, закупы рекламы и другие.</li><li>Трафик → продажа: как связать поток людей с закрытием и выйти на объём.</li></ol><div class="res"><b>Результат:</b> несколько источников клиентов, а не один. Доход становится стабильным.</div></div>
     <div class="ac-mod"><div class="mh"><span class="mn">05</span><h3>Масштабирование</h3><span class="tg">500к+ · модуль Андрея Фадеева</span></div><ol><li>Как из первых 100–200к вырасти в системный доход от 500к: найм первых людей, делегирование, распределение прибыли.</li></ol><div class="res"><b>Результат:</b> понимаешь, как из соло-исполнителя стать человеком с командой.</div></div>
     <div class="ac-mod"><div class="mh"><span class="mn">06</span><h3>Личный бренд</h3><span class="tg">Эксклюзив · связка Петра</span></div><ol><li>Уникальная связка Петра — механика, которую он собрал под себя и не выкладывает: ни на YouTube, ни в чужих обучениях по РКО.</li><li>Развитие и поведение в соцсетях: упаковка и контент, после которого люди сами приходят за счётом.</li><li>Никита Комлев: видео на 6+ часов по личному бренду.</li></ol><div class="res"><b>Результат:</b> связка, которой нет у конкурентов, и личный бренд, который её кормит. «Спокойно выходишь на 1–2+ ляма».</div></div>
+    <div class="ac-mod bonus"><div class="mh"><span class="mn">★</span><h3>Бонусный модуль · УБТ</h3><span class="tg">Бонус · сильно расширен</span></div><ol><li>Условно-бесплатный трафик с нуля: <b>Threads, Reels, TikTok, Shorts</b> — как снимать и что выкладывать, чтобы заходило.</li><li>Как переливать <b>мотивированный трафик с УБТ в свой блог</b> — а не сливать охваты в пустоту.</li><li>Как вести блог, после которого люди сами приходят за счётом.</li><li>Как переводить в личные сообщения и <b>обрабатывать мотивированный трафик</b> до заявки.</li><li>Как в принципе вести Threads: от первого поста до входящих заявок.</li></ol><div class="res"><b>Результат:</b> бесплатный поток тёплых лидов, которые пишут сами. Без бюджета на рекламу.</div></div>
   </div>
 </section>
 
