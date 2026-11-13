@@ -9,7 +9,13 @@ PRINT_CSS = '''<style id="pdfstatic">
   header,.nav,.menu,.progress,.hint,.burger{display:none!important}
   .cut,.drop,.godhand,.horizon,.note-h,.final-bg{display:none!important}
   .js [data-r],[data-r]{opacity:1!important;transform:none!important;transition:none!important}
-  .ac-wrap{max-width:1160px;margin-inline:auto;padding-inline:clamp(20px,5vw,64px)}
+  section.blk{position:relative;overflow:hidden}
+  .ac-wrap{max-width:1160px;margin-inline:auto;padding-inline:clamp(20px,5vw,64px);position:relative;z-index:2}
+  /* греческие вставки */
+  .gk{position:absolute;z-index:1;pointer-events:none;user-select:none;opacity:.95;filter:drop-shadow(0 22px 42px rgba(0,0,0,.28))}
+  .gk.cl{opacity:.42;mix-blend-mode:multiply;filter:none}
+  .gk.dk{opacity:.5;filter:drop-shadow(0 20px 50px rgba(0,0,0,.6))}
+  @media(max-width:760px){.gk{opacity:.5}.gk.hideS{display:none}}
   .ac-stats{display:flex;flex-wrap:wrap;gap:28px 48px;margin-top:30px}
   .ac-stats div b{font-family:var(--fd);font-weight:700;font-size:clamp(30px,4vw,48px);line-height:1;color:var(--kob);display:block}
   .ac-stats div span{font-size:14px;color:var(--ink2);text-transform:uppercase;letter-spacing:.04em}
@@ -83,12 +89,14 @@ BODY = r'''<body>
 
 <!-- HERO -->
 <section class="blk" id="top">
+  <img class="gk cl" src="assets/v3/cloud.webp" alt="" style="width:clamp(240px,34vw,460px);left:-6%;top:40px">
+  <img class="gk hideS" src="assets/v4/nike.webp" alt="" style="width:clamp(170px,24vw,340px);right:-10px;top:30px;rotate:4deg">
   <div class="ac-wrap">
     <span class="eyebrow">Ryzhikov Academy · программа по РКО</span>
     <h1 class="h1">Освой РКО и выйди на <em style="font-style:normal;color:var(--kob)">300&nbsp;000&nbsp;₽</em> за 60 дней.</h1>
     <p class="lead" style="max-width:34em">Программа для парней 18–25 из небольших городов. Даже если ты сейчас в найме за 30к и ни разу не работал в онлайне.</p>
     <div class="ac-stats">
-      <div><b>150</b><span>учеников</span></div>
+      <div><b>180</b><span>учеников</span></div>
       <div><b>250–350к</b><span>средний доход ученика</span></div>
       <div><b>15 млн ₽</b><span>заработал сам</span></div>
       <div><b>25 млн ₽</b><span>заработали ученики</span></div>
@@ -100,6 +108,7 @@ BODY = r'''<body>
 <!-- I ПУТЬ -->
 <section class="blk bg2 torn" id="hall-1" data-chap="Глава I · Путь">
   <div class="ac-wrap">
+    <img class="gk hideS" src="assets/v3/runner.webp" alt="" style="width:clamp(150px,19vw,280px);right:-30px;top:30px;rotate:-5deg">
     <div class="head center"><span class="eyebrow">Маршрут ученика</span><h2 class="h2">От полного нуля до 300к/мес.</h2><p class="lead">Не абстрактный «путь роста», а конкретные этапы с понятным результатом на каждом. Восемь шагов, которые проходит каждый ученик.</p></div>
     <div class="ac-grid">
       <div class="ac-card ac-step"><span class="sn">01</span><div class="n">0 ₽ · старт</div><h4>Полный ноль</h4><p>В найме за 22к. Долги. Нет маршрута.</p></div>
@@ -117,6 +126,7 @@ BODY = r'''<body>
 <!-- II ПЕРЕМЕНЫ -->
 <section class="blk" id="hall-2" data-chap="Глава II · Что нового">
   <div class="ac-wrap">
+    <img class="gk hideS" src="assets/v3/column.webp" alt="" style="width:clamp(110px,14vw,210px);right:-10px;top:24px">
     <div class="head center"><span class="eyebrow">Часть 01 · обзор</span><h2 class="h2">Что нового в этом потоке.</h2><p class="lead">Мы пересобрали академию под текущий рынок. Пять главных изменений.</p></div>
     <div class="ac-grid">
       <div class="ac-card"><div class="n">01</div><h4>Модуль РКО переписан под 13 банков</h4><p>Полный маршрут от Т-Банка до Сбер КЭП. Актуальные выплаты и связки.</p></div>
@@ -138,6 +148,7 @@ BODY = r'''<body>
 <!-- III ПРОГРАММА -->
 <section class="blk bg2 torn" id="hall-3" data-chap="Глава III · Программа">
   <div class="ac-wrap">
+    <img class="gk hideS" src="assets/v3/bust.webp" alt="" style="width:clamp(150px,20vw,290px);right:-34px;top:20px;rotate:3deg">
     <div class="head center"><span class="eyebrow">Часть 02 · программа</span><h2 class="h2">7 модулей, которые ведут от нуля до 300к.</h2><p class="lead">Проходишь, применяешь, получаешь результат, идёшь дальше.</p></div>
     <div class="ac-mod"><div class="mh"><span class="mn">00</span><h3>Вводный модуль</h3><span class="tg">Старт</span></div><ol><li>Организация работы: как устроены академия, чат, кураторы и платформа.</li><li>Словарь терминов: РКО, КЭП, 115-ФЗ, CPA, лид, оффер.</li><li>Диагностика знаний в сфере РКО — тест, который показывает твою точку старта.</li></ol><div class="res"><b>Результат:</b> знаешь язык ниши и понимаешь, как устроена академия.</div></div>
     <div class="ac-mod"><div class="mh"><span class="mn">01</span><h3>Мир продуктов</h3><span class="tg">+15 000 ₽</span></div><ol><li>Мир банковских продуктов и безопасность: за что банки платят и как работать юридически чисто.</li><li>Регистрация на партнёрках: RKO Group, FCN, Бизнес Система.</li><li>Регистрация ИП и самозанятости: «Мой налог» → ИП на НПД через Альфу, до 15 000 ₽ за первый шаг.</li><li>Тест по банковским продуктам.</li></ol><div class="res"><b>Результат:</b> кабинеты во всех партнёрках, ИП оформлено, первая выплата на карте.</div></div>
@@ -152,8 +163,9 @@ BODY = r'''<body>
 <!-- IV КОМАНДА -->
 <section class="blk" id="hall-4" data-chap="Глава IV · Команда">
   <div class="ac-wrap">
-    <div class="head center"><span class="eyebrow">Комьюнити</span><h2 class="h2">Закрытый чат РКО-бойцов.</h2><p class="lead">Не абстрактный «чат учеников», а среда, где 150 человек делают деньги руками прямо сейчас. Ты внутри с первого дня.</p></div>
-    <div class="ac-stats" style="justify-content:center"><div><b>150</b><span>учеников</span></div><div><b>24/7</b><span>активность</span></div><div><b>4</b><span>куратора в чате</span></div></div>
+    <img class="gk hideS" src="assets/v5/hermes.webp" alt="" style="width:clamp(150px,20vw,290px);right:-30px;top:18px;rotate:-3deg">
+    <div class="head center"><span class="eyebrow">Комьюнити</span><h2 class="h2">Закрытый чат РКО-бойцов.</h2><p class="lead">Не абстрактный «чат учеников», а среда, где 180 человек делают деньги руками прямо сейчас. Ты внутри с первого дня.</p></div>
+    <div class="ac-stats" style="justify-content:center"><div><b>180</b><span>учеников</span></div><div><b>24/7</b><span>активность</span></div><div><b>4</b><span>куратора в чате</span></div></div>
     <div class="ac-grid" style="margin-top:26px">
       <div class="ac-card"><h4>Обновления по банкам в реальном времени</h4><p>Какой банк отвалился, где выросли выплаты, какие связки завезли — всё в чате раньше, чем в открытых источниках.</p></div>
       <div class="ac-card"><h4>Кейсы учеников каждый день</h4><p>Ребята выкладывают выплаты и разбирают, что зашло. Учишься на живом опыте всей группы.</p></div>
@@ -172,6 +184,7 @@ BODY = r'''<body>
 <!-- V ИНСТРУМЕНТЫ -->
 <section class="blk bg2 torn" id="hall-5" data-chap="Глава V · Инструменты">
   <div class="ac-wrap">
+    <img class="gk hideS" src="assets/v3/column.webp" alt="" style="width:clamp(110px,14vw,200px);left:-8px;top:28px">
     <div class="head center"><span class="eyebrow">Часть 03 · фишки академии</span><h2 class="h2">Что даёт академия, чего нет нигде.</h2></div>
     <div class="ac-grid">
       <div class="ac-card"><div class="n">Оружие 01</div><h4>Готовые скрипты общения с лидами</h4><ul><li><b>Первое сообщение</b> — как зацепить лида, чтобы он ответил.</li><li><b>Возражения</b> — «подумаю», «боюсь», «у меня уже есть счёт».</li><li><b>Дожим до открытия</b> — от согласия до реального открытия счёта.</li></ul></div>
@@ -185,6 +198,7 @@ BODY = r'''<body>
 <!-- VI РЕЗУЛЬТАТЫ -->
 <section class="blk" id="hall-6" data-chap="Глава VI · Результаты">
   <div class="ac-wrap">
+    <img class="gk hideS" src="assets/v4/coin.webp" alt="" style="width:clamp(80px,10vw,150px);right:20px;top:34px;rotate:8deg">
     <div class="head center"><span class="eyebrow">Часть 04 · кейсы</span><h2 class="h2">Какие результаты делают ученики.</h2><p class="lead">Каждого можно проверить в моём Telegram. Средний доход учеников — 250–350 тысяч в месяц.</p></div>
 
     <div class="ac-feat">
@@ -240,6 +254,7 @@ BODY = r'''<body>
 <!-- VII КАЛЬКУЛЯТОР -->
 <section class="blk bg2 torn" id="hall-7" data-chap="Глава VII · Калькулятор">
   <div class="ac-wrap">
+    <img class="gk hideS" src="assets/v4/coin.webp" alt="" style="width:clamp(90px,11vw,160px);right:-10px;top:30px;rotate:-10deg">
     <div class="head center"><span class="eyebrow">Калькулятор мечты</span><h2 class="h2">Сколько лидов стоит твоя мечта.</h2><p class="lead">Один полностью открученный лид — это 130 000 ₽. Не абстрактный «доход в месяц», а конкретные деньги с одного человека.</p></div>
     <div class="ac-card" style="max-width:720px;margin-inline:auto">
       <table class="ac-tbl">
@@ -258,6 +273,7 @@ BODY = r'''<body>
 <!-- VIII ЦЕННОСТЬ И ВХОД -->
 <section class="blk" id="hall-8" data-chap="Глава VIII · Ценность и вход">
   <div class="ac-wrap">
+    <img class="gk hideS" src="assets/v4/temple.webp" alt="" style="width:clamp(170px,23vw,330px);right:-30px;top:24px">
     <div class="head center"><span class="eyebrow">Часть 05 · ценность и вход</span><h2 class="h2">Сколько реально стоит академия.</h2><p class="lead">Посчитаем всё, что ты получаешь внутри. Не по ощущениям, а по рыночной цене каждого куска.</p></div>
     <div class="ac-card" style="max-width:720px;margin-inline:auto">
       <table class="ac-tbl">
@@ -266,7 +282,7 @@ BODY = r'''<body>
         <tr><td>Готовые скрипты продаж и работы с лидами</td><td>40 000 ₽</td></tr>
         <tr><td>Мини-обучение по продажам</td><td>50 000 ₽</td></tr>
         <tr><td>Модуль по личному бренду и продажам через контент</td><td>60 000 ₽</td></tr>
-        <tr><td>Закрытый чат со 150 учениками и кураторами</td><td>20 000 ₽</td></tr>
+        <tr><td>Закрытый чат со 180 учениками и кураторами</td><td>20 000 ₽</td></tr>
         <tr class="tot"><td>Общая ценность</td><td>400 000 ₽+</td></tr>
       </table>
     </div>
@@ -287,12 +303,13 @@ BODY = r'''<body>
 <!-- IX РЕШЕНИЕ -->
 <section class="blk final dark" id="hall-9" data-chap="Глава IX · Решение">
   <div class="ac-wrap">
+    <img class="gk dk hideS" src="assets/v3/hand.webp" alt="" style="width:clamp(160px,22vw,320px);right:-20px;bottom:40px;rotate:-6deg">
     <div class="head center"><span class="eyebrow">Финальное решение</span><h2 class="h1">Ты либо внутри сегодня, либо снаружи завтра.</h2></div>
     <ul class="ac-incl">
       <li>7 модулей: РКО, МФО, трафик, масштабирование, личный бренд</li>
       <li>Уникальная связка Петра</li>
       <li>Личный куратор до первых денег</li>
-      <li>Закрытый чат со 150 учениками</li>
+      <li>Закрытый чат со 180 учениками</li>
       <li>Скрипты и мини-обучение по продажам</li>
       <li>Бессрочный доступ к обучению и чату</li>
     </ul>
