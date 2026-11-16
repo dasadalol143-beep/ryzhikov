@@ -3,6 +3,7 @@ import { createHandler, loadAll, recipientsOf } from "../lib/core.mjs";
 import { runDaily } from "../lib/report.mjs";
 import { runReminders } from "../lib/reminders.mjs";
 import { telegram } from "../lib/telegram.mjs";
+import { createAcademyHandler, d1Store } from "../lib/academy.mjs";
 
 function kvStore(kv) {
   return {
@@ -24,7 +25,18 @@ function kvStore(kv) {
 
 export default {
   async fetch(req, env) {
-    if (new URL(req.url).pathname.startsWith("/api/")) {
+    const { pathname } = new URL(req.url);
+    // CRM для учеников: отдельный бот и отдельная база D1, наша KV только читается (каталог офферов).
+    if (pathname.startsWith("/academy/api/")) {
+      return createAcademyHandler({ store: d1Store(env.ACADEMY_DB), mainStore: kvStore(env.CRM), env })(req);
+    }
+    if (pathname === "/academy") return Response.redirect(new URL("/academy/", req.url).toString(), 301);
+    if (pathname.startsWith("/academy/")) {
+      const url = new URL(req.url);
+      url.pathname = pathname.slice("/academy".length);
+      return env.ASSETS.fetch(new Request(url, req));
+    }
+    if (pathname.startsWith("/api/")) {
       return createHandler({ store: kvStore(env.CRM), env })(req);
     }
     return env.ASSETS.fetch(req);

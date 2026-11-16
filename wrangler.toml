@@ -13,6 +13,11 @@ binding = "ASSETS"
 [[kv_namespaces]]
 binding = "CRM"
 
+# CRM для учеников академии — отдельная база. Без id wrangler сам создаёт её при первом деплое.
+[[d1_databases]]
+binding = "ACADEMY_DB"
+database_name = "ryzhikov-academy"
+
 # Утренняя сводка: 05:57 UTC = 08:57 по Москве. Каждую минуту — напоминания из бота.
 [triggers]
 crons = ["57 5 * * *", "* * * * *"]
@@ -21,5 +26,8 @@ crons = ["57 5 * * *", "* * * * *"]
 APP_URL = "https://ryzhikov.dasadalol143.workers.dev/"
 ADMIN_IDS = "1971711686,1036213497"
 MANAGER_IDS = ""
+# Наставник в CRM учеников (видит всех учеников и выдаёт коды доступа).
+ACADEMY_MENTOR_IDS = "1971711686"
 
+# ACADEMY_BOT_TOKEN — секрет: токен отдельного бота для учеников.
 # BOT_TOKEN — секрет: `npx wrangler secret put BOT_TOKEN` или в дашборде Cloudflare.

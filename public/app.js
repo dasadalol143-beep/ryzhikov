@@ -119,12 +119,17 @@ function initData() {
 }
 
 // Запрос к серверу с таймаутом: без него при плохой связи кнопка «висит» вечно.
+// CRM учеников живёт на /academy/ — своя база и свой бот, тот же интерфейс.
+const ACADEMY = location.pathname.startsWith("/academy");
+const API_BASE = ACADEMY ? "/academy/api" : "/api";
+if (ACADEMY) document.title = "CRM академии";
+
 async function api(method, path, body) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 20000);
   let res;
   try {
-    res = await fetch(`/api${path}`, {
+    res = await fetch(`${API_BASE}${path}`, {
       method,
       headers: { "content-type": "application/json", authorization: `tma ${initData()}` },
       body: body ? JSON.stringify(body) : undefined,
@@ -747,7 +752,7 @@ const addLocal = (days) => {
   return localKey(d);
 };
 
-const COMMENT_PRESETS = () => [`ЛК ${state.settings.partnerName}`, "ЛК Пети", "Провели ", "Маскировка", "Отчёт в конце месяца", "Дорег"];
+const COMMENT_PRESETS = () => [...(ACADEMY ? [] : [`ЛК ${state.settings.partnerName}`, "ЛК Пети"]), "Провели ", "Маскировка", "Отчёт в конце месяца", "Дорег"];
 const COST_STEPS = [20, 50, 100, 500, 1000];
 
 function offerSheet(lead, offerId, opts) {
@@ -793,7 +798,7 @@ function offerSheet(lead, offerId, opts) {
 
     <div class="sheet-label">Комментарий</div>
     <div class="card">
-      <input id="oComment" value="${esc(lo.comment || "")}" placeholder="Провели 2300, ЛК Дамира…">
+      <input id="oComment" value="${esc(lo.comment || "")}" placeholder="Провели 2300, ЛК партнёра…">
       <div class="chips tight">${COMMENT_PRESETS().map((c) => `<button class="chip" data-preset="${esc(c)}">${esc(c.trim())}</button>`).join("")}</div>
     </div>
 
@@ -1354,7 +1359,9 @@ function renderMore() {
   if (state.more === "templates") return renderTemplates();
   if (state.more === "payouts") return state.network ? renderNetwork() : renderPayouts();
   if (state.more === "bot") return renderBot();
+  if (state.more === "students") return renderStudents();
   const items = [
+    ...(state.me?.mentor ? [["students", "🎓", "Ученики", "Цифры всех учеников, коды доступа"]] : []),
     ["help", "📘", "Как пользоваться", "Шаги офферов, деньги, бот — простыми словами"],
     ["offers", "🏦", "Офферы и ставки", isAdmin() ? "Каталог банков и МФО" : "Каталог банков и МФО (просмотр)"],
     ...(isAdmin()
@@ -1365,9 +1372,9 @@ function renderMore() {
             const debt = networkReport(state.leads, state.offers, state.payouts).reduce((t, n) => t + n.debt, 0);
             return debt ? `Не доплатили: ${rub(debt)}` : "Сверка засчитанного с пришедшими деньгами";
           })()],
-          ["bot", "🤖", "Лиды через бота", "Пересылай боту сообщение или контакт — лид создастся сам"],
+          ...(ACADEMY ? [] : [["bot", "🤖", "Лиды через бота", "Пересылай боту сообщение или контакт — лид создастся сам"]]),
           ["templates", "💬", "Шаблоны сообщений", `${(state.settings.templates || []).length} шт. — копируются в один тап из карточки лида`],
-          ["team", "👥", "Команда", "Кто имеет доступ"],
+          ...(ACADEMY ? [] : [["team", "👥", "Команда", "Кто имеет доступ"]]),
         ]
       : []),
   ];
@@ -1376,8 +1383,98 @@ function renderMore() {
     <div class="list">${items
       .map(([k, icon, title, sub]) => `<button class="row" data-more="${k}"><div class="icon">${icon}</div><div class="grow"><div class="title">${title}</div><div class="sub">${esc(sub)}</div></div><div class="right sub">›</div></button>`)
       .join("")}</div>
-    <div class="sub center">Утренняя сводка приходит в бота каждый день в 9:00 по Москве.<br>По понедельникам админам — ещё и бэкап.</div>`;
+    ${ACADEMY ? `<div class="sub center">Твои лиды видишь только ты.</div>` : `<div class="sub center">Утренняя сводка приходит в бота каждый день в 9:00 по Москве.<br>По понедельникам админам — ещё и бэкап.</div>`}`;
   $app.querySelectorAll("[data-more]").forEach((b) => (b.onclick = () => (b.dataset.more === "help" ? helpSheet() : go({ more: b.dataset.more }))));
+}
+
+// ---------- КАБИНЕТ НАСТАВНИКА (CRM учеников) ----------
+async function renderStudents() {
+  $app.innerHTML = `<h1>Ученики</h1><div class="loader">Загрузка…</div>`;
+  let d;
+  try {
+    d = await api("GET", "/mentor");
+  } catch (e) {
+    $app.innerHTML = `<h1>Ученики</h1><div class="card empty">Ошибка: ${esc(e.message)}</div>`;
+    return;
+  }
+  if (state.more !== "students") return;
+  const link = (code) => (d.bot ? `https://t.me/${d.bot}?start=${code}` : code);
+  const ago = (iso) => (iso ? (daysSince(iso) === 0 ? "сегодня" : `${daysSince(iso)} дн. назад`) : "ещё не начал");
+  const active = d.students.filter((x) => x.active);
+  const sum = (k) => active.reduce((t, x) => t + x[k], 0);
+  $app.innerHTML = `
+    <h1>Ученики · ${active.length}</h1>
+    <div class="kpis">
+      <div class="kpi"><div class="label">Засчитано за месяц</div><div class="value money-green">${rub(sum("paidMonth"))}</div><div class="hint">все ученики вместе</div></div>
+      <div class="kpi"><div class="label">За всё время</div><div class="value">${rub(sum("income"))}</div><div class="hint">${sum("leads")} ${plural(sum("leads"), "лид", "лида", "лидов")} у учеников</div></div>
+    </div>
+
+    <div class="list-head"><h2 style="margin:0">Рейтинг за месяц</h2></div>
+    ${d.students.length ? `<div class="list">${d.students
+      .map((x, i) => `<div class="row ${x.active ? "" : "muted"}">
+        <div class="avatar" style="width:40px;height:40px;font-size:15px;background:linear-gradient(135deg,#7c5cff,#3aa0ff)">${i + 1}</div>
+        <div class="grow"><div class="title">${esc(x.note || x.name)}${x.username ? ` <span class="sub">@${esc(x.username)}</span>` : ""}</div>
+          <div class="sub">${x.leads} ${plural(x.leads, "лид", "лида", "лидов")} · активных ${x.activeLeads} · в работе ${rub(x.inWork)} · <span class="${x.lastActivity && daysSince(x.lastActivity) >= 5 ? "danger" : ""}">${ago(x.lastActivity)}</span>${x.active === false ? " · доступ закрыт" : ""}</div></div>
+        <div class="right"><b class="money-green">${rub(x.paidMonth)}</b><div class="sub">всего ${short(x.income)}</div><button class="link" data-toggle="${x.id}" data-on="${x.active ? "0" : "1"}">${x.active ? "закрыть доступ" : "открыть доступ"}</button></div>
+      </div>`)
+      .join("")}</div>` : `<div class="card empty small">Учеников пока нет — создай код и отправь ученику</div>`}
+
+    <h2>Коды доступа</h2>
+    <div class="card">
+      <div class="sub" style="margin-bottom:8px">Один код — один ученик. Отправь ученику ссылку: он нажмёт — и сразу попадёт в свою CRM.</div>
+      <div class="inline-add"><input id="codeNote" placeholder="Имя ученика (для тебя)"><button class="btn small" id="newCode">＋ Создать код</button></div>
+    </div>
+    ${d.codes.length ? `<div class="list" style="margin-top:8px">${d.codes
+      .map((c) => `<div class="row"><div class="grow"><div class="title"><code>${c.code}</code>${c.note ? ` · ${esc(c.note)}` : ""}</div><div class="sub">ещё не активирован · ${fmtDate(c.createdAt.slice(0, 10))}</div></div>
+        <div class="right"><button class="btn small" data-copy="${esc(link(c.code))}">Скопировать ссылку</button><button class="link danger" data-delcode="${c.code}">удалить</button></div></div>`)
+      .join("")}</div>` : ""}
+    <div class="sub note">Ты видишь только цифры учеников, сами лиды — нет. Лиды каждого ученика видит только он сам.</div>`;
+
+  document.getElementById("newCode").onclick = async (e) => {
+    e.target.disabled = true;
+    try {
+      const c = await api("POST", "/mentor/codes", { note: document.getElementById("codeNote").value });
+      (await copyText(link(c.code))) ? toast("Код создан, ссылка скопирована") : toast(`Код: ${c.code}`);
+      renderStudents();
+    } catch (err) {
+      e.target.disabled = false;
+      toast(`Ошибка: ${err.message}`);
+    }
+  };
+  $app.querySelectorAll("[data-copy]").forEach((b) => (b.onclick = async () => toast((await copyText(b.dataset.copy)) ? "Ссылка скопирована" : b.dataset.copy)));
+  $app.querySelectorAll("[data-delcode]").forEach((b) => (b.onclick = async () => {
+    if (!(await confirmDialog(`Удалить код ${b.dataset.delcode}? По нему больше нельзя будет войти.`))) return;
+    await api("DELETE", `/mentor/codes/${b.dataset.delcode}`).catch((e) => toast(e.message));
+    renderStudents();
+  }));
+  $app.querySelectorAll("[data-toggle]").forEach((b) => (b.onclick = async () => {
+    const on = b.dataset.on === "1";
+    if (!on && !(await confirmDialog("Закрыть ученику доступ к CRM? Его лиды сохранятся — откроешь доступ, и всё вернётся."))) return;
+    await api("PATCH", `/mentor/students/${b.dataset.toggle}`, { active: on }).catch((e) => toast(e.message));
+    renderStudents();
+  }));
+}
+
+function joinScreen() {
+  $app.innerHTML = `<div class="card join">
+    <h1>🎓 CRM академии</h1>
+    <div class="sub" style="margin:6px 0 14px">Здесь ты ведёшь своих лидов: офферы, статусы, деньги и статистику. Доступ — по коду от наставника.</div>
+    <label class="field"><span>Код доступа</span><input id="joinCode" placeholder="Например: K7M2QX" autocomplete="off" autocapitalize="characters"></label>
+    <button class="btn block" id="joinBtn">Войти</button>
+  </div>`;
+  document.getElementById("joinBtn").onclick = async (e) => {
+    const code = document.getElementById("joinCode").value.trim();
+    if (!code) return toast("Введи код");
+    e.target.disabled = true;
+    try {
+      await api("POST", "/join", { code });
+      await reload();
+      $tabs.hidden = false;
+    } catch (err) {
+      e.target.disabled = false;
+      toast({ bad_code: "Код не подошёл — проверь буквы", code_used: "Этот код уже использован", disabled: "Доступ закрыт — напиши наставнику" }[err.data?.error] || `Ошибка: ${err.message}`);
+    }
+  };
 }
 
 function renderData() {
@@ -1650,7 +1747,7 @@ function renderTemplates() {
   const list = [...(state.settings.templates || [])];
   $app.innerHTML = `
     <h1>Шаблоны сообщений</h1>
-    <div class="sub" style="margin:0 4px 10px">Тексты, которые Дамир чаще всего пишет лидам. В карточке лида «💬 Шаблоны» → тап → скопировано и открыт чат.</div>
+    <div class="sub" style="margin:0 4px 10px">Тексты, которые чаще всего пишешь лидам. В карточке лида «💬 Шаблоны» → тап → скопировано и открыт чат.</div>
     <div id="tplList">${list.map((t, i) => `<div class="card tpl-edit"><textarea data-i="${i}">${esc(t)}</textarea><button class="chip danger-chip" data-del="${i}">Удалить</button></div>`).join("")}</div>
     <button class="btn ghost block" id="tplAdd">＋ Добавить шаблон</button>
     <button class="btn block" id="tplSave">Сохранить</button>`;
@@ -1881,8 +1978,11 @@ reload()
     else if (["today", "leads", "stats", "more"].includes(deepTab)) go({ tab: deepTab });
   })
   .catch((e) => {
+    if (e.status === 403 && e.data.error === "not_member") return joinScreen();
     $app.innerHTML =
-      e.status === 403
+      e.status === 403 && e.data.error === "disabled"
+        ? `<div class="card empty">Доступ к CRM закрыт.<br>Напиши наставнику.</div>`
+        : e.status === 403
         ? `<div class="card empty">Запрос на доступ отправлен.<br>Попроси админа выдать доступ: «Ещё» → «Команда».<br><span style="font-size:12px">Твой Telegram ID: ${esc(e.data.userId)}</span></div>`
         : e.status === 401
           ? `<div class="card empty">${esc(AUTH_ERRORS[e.data.reason] || "Открой приложение через бота в Telegram.")}<br><span style="font-size:12px">код: ${esc(e.data.reason || "—")}</span></div>`

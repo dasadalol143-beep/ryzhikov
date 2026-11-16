@@ -310,3 +310,7 @@ div.row:active { background: var(--bg2); }
 .tags-row { align-items: center; margin: 0 0 8px; }
 .tags-row .sub { margin-right: 2px; }
 .chip.tag.active { background: #7c5cff; border-color: #7c5cff; color: #fff; }
+
+/* CRM учеников */
+.row.muted { opacity: .5; }
+.card.join { margin-top: 24px; }
