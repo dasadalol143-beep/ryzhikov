@@ -1,5 +1,6 @@
 // Что делать сегодня и как идут деньги — общая логика для экрана «Сегодня», статистики и утренней сводки.
 import { ACTIVE_STAGES } from "./economics.js";
+import { DIR_LABELS } from "./labels.js";
 
 const DAY = 86400000;
 export const TZ_OFFSET_HOURS = 3; // рабочий день считаем по Москве
@@ -103,4 +104,54 @@ export function networkReport(leads, offers, payouts = []) {
   return [...nets.values()]
     .map((n) => ({ ...n, debt: n.paid - n.received, unpaid: n.unpaid.sort((a, b) => (a.day || "").localeCompare(b.day || "")) }))
     .sort((a, b) => b.debt - a.debt || b.paid - a.paid);
+}
+
+// Направления (РКО / МФО / дебетовые / кредитные / общее): засчитано, попытки, затраты на ЦД, общие расходы.
+// range = { from, to } по дням МСК; офферы без даты попадают только в «всё время».
+export function directionStats(leads, offers, expenses = [], range = null) {
+  const catalog = new Map(offers.map((o) => [o.id, o]));
+  const inRange = (day) => !range || (day && day >= range.from && day <= range.to);
+  const dirs = Object.fromEntries(Object.keys(DIR_LABELS).map((d) => [d, { key: d, label: DIR_LABELS[d], tried: 0, paid: 0, income: 0, costs: 0, general: 0, costItems: [] }]));
+  for (const l of leads)
+    for (const [id, lo] of Object.entries(l.offers || {})) {
+      if (!inRange(lo.changedAt ? dayKey(lo.changedAt) : null)) continue;
+      const d = dirs[catalog.get(id)?.category] || dirs.all;
+      if (lo.cost) {
+        d.costs += lo.cost;
+        d.costItems.push({ lead: l, offerId: id, name: catalog.get(id)?.name || id, cost: lo.cost, status: lo.status });
+      }
+      if (lo.status === "none" || lo.status === "exists") continue;
+      d.tried++;
+      if (lo.status === "paid") {
+        d.paid++;
+        d.income += lo.amount || 0;
+      }
+    }
+  for (const e of expenses) if (inRange(e.date)) (dirs[e.dir] || dirs.all).general += e.amount || 0;
+  return Object.values(dirs).map((d) => ({ ...d, net: d.income - d.costs - d.general }));
+}
+
+// Источники лидов: сколько привели, сколько из них принесли деньги, сколько потрачено, окупаемость.
+export function sourceStats(leads, offers, expenses = [], leadMoneyFn) {
+  const map = new Map();
+  const get = (name) => {
+    const k = (name || "").trim() || "Не указано";
+    const key = k.toLowerCase();
+    if (!map.has(key)) map.set(key, { label: k, leads: 0, paidLeads: 0, active: 0, income: 0, costs: 0, general: 0, inWork: 0 });
+    return map.get(key);
+  };
+  for (const l of leads) {
+    const s = get(l.source);
+    const m = leadMoneyFn(l);
+    s.leads++;
+    if (m.income > 0) s.paidLeads++;
+    if (ACTIVE_STAGES.has(l.stage)) s.active++;
+    s.income += m.income;
+    s.costs += m.costs + m.payout;
+    s.inWork += m.inWork;
+  }
+  for (const e of expenses) if (e.source) get(e.source).general += e.amount || 0;
+  return [...map.values()]
+    .map((s) => ({ ...s, spent: s.costs + s.general, net: s.income - s.costs - s.general, conv: s.leads ? Math.round((s.paidLeads / s.leads) * 100) : 0, roi: s.costs + s.general ? Math.round(((s.income - s.costs - s.general) / (s.costs + s.general)) * 100) : null }))
+    .sort((a, b) => b.income - a.income || b.leads - a.leads);
 }

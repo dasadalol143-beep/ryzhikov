@@ -47,3 +47,40 @@ test("active lead: potential = in work + untouched active offers; payout reduces
   assert.equal(m.potential, 5000);
   near(m.net, 10000 - 600 - 1410 - 1000);
 });
+
+test("direction and source stats: costs by РКО/МФО/карты, ROI by channel", async () => {
+  const { directionStats, sourceStats } = await import("../public/insights.js");
+  const { leadMoney } = await import("../public/economics.js");
+  const offers = [
+    { id: "vtb", category: "rko", name: "ВТБ", amount: 7000, active: true },
+    { id: "zaymer", category: "mfo", name: "Займер", amount: 3000, active: true },
+    { id: "alfa_dk", category: "debit", name: "Альфа ДК", amount: 2000, active: true },
+  ];
+  const settings = { taxRate: 6, partnerShare: 0 };
+  const leads = [
+    { id: "a", stage: "offers", source: "YouTube", offers: { vtb: { status: "paid", amount: 7000, cost: 200, changedAt: "2026-11-10T10:00:00Z" }, zaymer: { status: "rejected", amount: 3000, cost: 50, changedAt: "2026-11-11T10:00:00Z" } } },
+    { id: "b", stage: "in_work", source: "youtube ", offers: { alfa_dk: { status: "opened", amount: 2000, cost: 0 } } },
+    { id: "c", stage: "new", source: "", offers: {} },
+  ];
+  const expenses = [{ amount: 1000, dir: "rko", source: "YouTube", date: "2026-11-05" }, { amount: 500, dir: "all", date: "2026-10-01" }];
+  const d = Object.fromEntries(directionStats(leads, offers, expenses).map((x) => [x.key, x]));
+  assert.equal(d.rko.income, 7000);
+  assert.equal(d.rko.costs, 200);
+  assert.equal(d.rko.general, 1000);
+  assert.equal(d.rko.net, 5800);
+  assert.equal(d.mfo.costs, 50, "затраты по отказу тоже считаются — деньги потрачены");
+  assert.equal(d.mfo.tried, 1);
+  assert.equal(d.debit.tried, 1);
+  assert.equal(d.all.general, 500);
+  const nov = Object.fromEntries(directionStats(leads, offers, expenses, { from: "2026-11-01", to: "2026-11-30" }).map((x) => [x.key, x]));
+  assert.equal(nov.all.general, 0, "октябрьский расход не в ноябре");
+  assert.equal(nov.debit.tried, 0, "оффер без даты — только во «всём времени»");
+  const s = sourceStats(leads, offers, expenses, (l) => leadMoney(l, offers, settings));
+  assert.equal(s[0].label, "YouTube");
+  assert.equal(s[0].leads, 2, "«youtube » и «YouTube» — один канал");
+  assert.equal(s[0].paidLeads, 1);
+  assert.equal(s[0].spent, 1250);
+  assert.equal(s[0].net, 5750);
+  assert.equal(s[0].roi, 460);
+  assert.equal(s.find((x) => x.label === "Не указано").leads, 1);
+});

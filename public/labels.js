@@ -54,3 +54,7 @@ export const statusLabel = (key, category, short = false) =>
 export const statusOrder = (category) => CAT_STATUS[category]?.order || DEFAULT_ORDER;
 export const nextStatusFor = (status, category) => (CAT_STATUS[category]?.next || DEFAULT_NEXT)[status] || null;
 export const statusPatch = (key) => (key === "oncard" ? { status: "paid", onCard: true } : key === "paid" ? { status: "paid", onCard: false } : { status: key });
+
+// Общие расходы (не привязанные к офферу): что за трата и на какое направление.
+export const EXPENSE_KIND_LABELS = { traffic: "Трафик и реклама", cd: "Пополнения под ЦД", services: "Сервисы и связь", team: "Команда и рефералы", other: "Другое" };
+export const DIR_LABELS = { rko: "РКО", mfo: "МФО", debit: "Дебетовые карты", credit: "Кредитные карты", all: "Общее" };

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
-import { createAcademyHandler, webhookSecretFor, d1Store, runAcademyExports } from "../lib/academy.mjs";
+import { createAcademyHandler, webhookSecretFor, d1Store, runAcademyExports, resetOffersCache } from "../lib/academy.mjs";
 
 const TOKEN = "999:ACADEMY_TOKEN";
 const env = { ACADEMY_BOT_TOKEN: TOKEN, ACADEMY_MENTOR_IDS: "1", BOT_TOKEN: "123:MAIN" };
@@ -213,6 +213,7 @@ test("student catalog = own edits + new offers from ours", async () => {
   const mentor = as({ id: 1, first_name: "Пётр" });
   await mentor("PATCH", "/offers/vtb", { amount: 5000 });
   mainStore.data.set("offers", [...MAIN_OFFERS, { id: "ozon", category: "rko", name: "Озон", partner: "", amount: 8000, cost: 0, active: true, note: "" }]);
+  resetOffersCache(); // в проде каталог подтянется сам в течение минуты
   const offers = (await mentor("GET", "/state")).body.offers;
   assert.equal(offers.find((o) => o.id === "vtb").amount, 5000, "своя правка остаётся");
   assert.equal(offers.find((o) => o.id === "ozon").amount, 8000, "новый оффер академии появился");
@@ -259,4 +260,54 @@ test("academy bot: /excel sends the file, strangers get a polite refusal, Telegr
   await bot({ id: 50, first_name: "Чужой" }, "/excel");
   assert.match(sent.at(-1).file, /\.xlsx$/);
   assert.ok(sent.at(-1).chat === "50");
+});
+
+test("scale: 300 students via one group link, mentor list and exports stay under limits", async () => {
+  const { as, store, mainStore, d1 } = setup();
+  const mentor = as({ id: 1, first_name: "Пётр" });
+  const g = (await mentor("POST", "/mentor/codes", { group: true, max: 300 })).body;
+  const t0 = Date.now();
+  for (let i = 0; i < 300; i += 30) await Promise.all(Array.from({ length: 30 }, (_, k) => as({ id: 1000 + i + k, first_name: `S${i + k}` })("POST", "/join", { code: g.code })));
+  assert.equal((await as({ id: 5000, first_name: "Extra" })("POST", "/join", { code: g.code })).body.error, "code_full", "301-й не входит");
+  for (let i = 0; i < 300; i += 3) await as({ id: 1000 + i, first_name: `S${i}` })("POST", "/leads", { telegram: `@x${i}`, source: "YouTube" });
+  const m = await mentor("GET", "/mentor");
+  assert.equal(m.body.students.length, 300);
+  assert.ok(m.queries < 15, `mentor: ${m.queries}`);
+  assert.equal(m.body.students.filter((s) => s.leads === 1).length, 100);
+  // утреннее окно: 3 часа × 3 ученика в минуту = 540 > 100 нуждающихся
+  let sentTotal = 0;
+  let maxQ = 0;
+  for (let min = 0; min < 60 && sentTotal < 100; min++) {
+    d1.queries = 0;
+    sentTotal += (await runAcademyExports({ store, mainStore, env, now: Date.parse("2026-11-17T05:00:00Z") + min * 60000, fetchImpl: fakeFetch })).length;
+    maxQ = Math.max(maxQ, d1.queries);
+  }
+  assert.equal(sentTotal, 100, "всем, у кого есть лиды, выгрузка ушла за первый же час");
+  assert.ok(maxQ < 50, `cron: ${maxQ} запросов за минуту`);
+  console.log(`300 учеников: вход+лиды ${Date.now() - t0} мс, кабинет наставника ${m.queries} запросов, cron до ${maxQ} запросов/мин`);
+});
+
+test("expenses: add, edit, delete, no double-tap duplicates, survive backup import", async () => {
+  const { as } = setup();
+  const me = as({ id: 1, first_name: "Пётр" });
+  const e = await me("POST", "/expenses", { amount: "1 500", kind: "traffic", dir: "mfo", source: "Reels", note: "закуп", date: "2026-11-10" });
+  assert.equal(e.status, 201);
+  assert.equal(e.body.amount, 1500);
+  assert.equal((await me("POST", "/expenses", { amount: 1500, kind: "traffic", dir: "mfo", note: "закуп", date: "2026-11-10" })).body.id, e.body.id, "двойной тап");
+  assert.equal((await me("POST", "/expenses", { amount: 0 })).status, 400);
+  const bad = await me("POST", "/expenses", { amount: 10, kind: "hack", dir: "xxx", date: "nope" });
+  assert.equal(bad.body.kind, "other");
+  assert.equal(bad.body.dir, "all");
+  const upd = await me("PATCH", `/expenses/${e.body.id}`, { amount: 2000 });
+  assert.equal(upd.body.amount, 2000);
+  assert.equal(upd.body.source, "Reels", "остальные поля сохранились");
+  await me("DELETE", `/expenses/${bad.body.id}`);
+  const st = (await me("GET", "/state")).body;
+  assert.deepEqual(st.expenses.map((x) => x.amount), [2000]);
+  // восстановление из бэкапа на «чистом» аккаунте
+  const other = as({ id: 1, first_name: "Пётр" });
+  await me("DELETE", `/expenses/${e.body.id}`);
+  const imp = await other("POST", "/import", { leads: [], expenses: [upd.body, { amount: 300, kind: "services" }] });
+  assert.equal(imp.status, 200);
+  assert.equal((await me("GET", "/state")).body.expenses.length, 2);
 });
