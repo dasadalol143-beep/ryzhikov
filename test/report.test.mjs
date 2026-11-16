@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildDigest, buildCsvs, runDaily, sendBackup } from "../lib/report.mjs";
+import { buildDigest, buildCsvs, runDaily, sendBackup, buildExcel } from "../lib/report.mjs";
 import { worklist, todayKey } from "../public/insights.js";
 import { DEFAULT_OFFERS, DEFAULT_SETTINGS } from "../lib/offers.mjs";
 
@@ -70,17 +70,30 @@ test("daily run: admins get everything + Monday backup, managers only their lead
     recipients: [{ id: 1, role: "admin" }, { id: 2, role: "manager" }, { id: 999, role: "admin" }],
   });
   const to = (id) => tg.sent.filter((s) => s.chatId === id);
-  assert.deepEqual(to(1).map((s) => s.type), ["msg", "doc", "doc", "doc"]);
-  assert.match(to(1)[1].filename, /^crm-backup-2026-10-12\.json$/);
+  assert.deepEqual(to(1).map((s) => s.type), ["msg", "doc", "doc"]);
+  assert.match(to(1)[1].filename, /^leads-2026-10-12\.xlsx$/);
   assert.deepEqual(to(2).map((s) => s.type), ["msg"]);
   assert.doesNotMatch(to(2)[0].text, /@sleepy/);
   assert.deepEqual(results.map((r) => r.ok), [true, true, false]);
 });
 
-test("backup is three files", async () => {
+test("backup is Excel + json; auto-export is Excel only", async () => {
   const tg = fakeTelegram();
   await sendBackup(tg, 1, leads, DEFAULT_OFFERS, DEFAULT_SETTINGS, new Date(NOW));
-  assert.deepEqual(tg.sent.map((s) => s.filename), ["crm-backup-2026-10-12.json", "leads-2026-10-12.csv", "offers-2026-10-12.csv"]);
+  assert.deepEqual(tg.sent.map((s) => s.filename), ["leads-2026-10-12.xlsx", "crm-backup-2026-10-12.json"]);
+  const tg2 = fakeTelegram();
+  await sendBackup(tg2, 1, leads, DEFAULT_OFFERS, DEFAULT_SETTINGS, new Date(NOW), { json: false });
+  assert.deepEqual(tg2.sent.map((s) => s.filename), ["leads-2026-10-12.xlsx"]);
+});
+
+test("Excel file is a valid zip with both sheets", () => {
+  const bytes = buildExcel(leads, DEFAULT_OFFERS, DEFAULT_SETTINGS);
+  assert.equal(String.fromCharCode(bytes[0], bytes[1]), "PK");
+  const text = new TextDecoder().decode(bytes);
+  assert.match(text, /<sheet name="Лиды"/);
+  assert.match(text, /<sheet name="Офферы"/);
+  assert.match(text, /@V1dar851/);
+  assert.match(text, /<v>11000<\/v>/);
 });
 
 test("offer due dates show up in the worklist and the digest", () => {

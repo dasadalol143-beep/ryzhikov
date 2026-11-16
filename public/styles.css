@@ -373,3 +373,4 @@ html.dark .toast { background: rgba(40, 41, 50, .95); }
 .guide-nav { display: flex; gap: 8px; padding: 10px 16px calc(12px + env(safe-area-inset-bottom)); max-width: 640px; width: 100%; margin: 0 auto; }
 .guide-nav .btn { flex: 1; }
 .btn.ghost2 { background: var(--bg); color: var(--text); }
+.link.hint-link { color: var(--hint); }

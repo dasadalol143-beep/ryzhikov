@@ -231,9 +231,10 @@ test("backup goes to the admin's Telegram chat", async () => {
   await admin("POST", "/leads", { telegram: "@x" });
   const res = await admin("POST", "/backup");
   assert.deepEqual(res.body, { ok: true, leads: 1 });
-  assert.deepEqual(calls.map((c) => c.method), ["sendDocument", "sendDocument", "sendDocument"]);
+  assert.deepEqual(calls.map((c) => c.method), ["sendDocument", "sendDocument"]);
   assert.equal(calls[0].chat, "1");
-  assert.match(calls[0].file, /^crm-backup-\d{4}-\d{2}-\d{2}\.json$/);
+  assert.match(calls[0].file, /^leads-\d{4}-\d{2}-\d{2}\.xlsx$/);
+  assert.match(calls[1].file, /^crm-backup-\d{4}-\d{2}-\d{2}\.json$/);
   assert.equal((await client(handle, { id: 2, first_name: "M" })("POST", "/backup")).status, 403);
 });
 

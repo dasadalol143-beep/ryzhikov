@@ -3,7 +3,7 @@ import { createHandler, loadAll, recipientsOf } from "../lib/core.mjs";
 import { runDaily } from "../lib/report.mjs";
 import { runReminders } from "../lib/reminders.mjs";
 import { telegram } from "../lib/telegram.mjs";
-import { createAcademyHandler, d1Store } from "../lib/academy.mjs";
+import { createAcademyHandler, d1Store, runAcademyExports } from "../lib/academy.mjs";
 
 function kvStore(kv) {
   return {
@@ -46,7 +46,12 @@ export default {
   async scheduled(event, env, ctx) {
     // Каждую минуту — напоминания из бота.
     if (event.cron !== "57 5 * * *") {
-      await runReminders({ store: kvStore(env.CRM), tg: telegram(env.BOT_TOKEN), appUrl: env.APP_URL, now: event.scheduledTime });
+      await runReminders({ store: kvStore(env.CRM), tg: telegram(env.BOT_TOKEN), appUrl: env.APP_URL, now: event.scheduledTime }).catch((e) => console.log("reminders", e.message));
+      // Ученикам — автовыгрузка Excel (утром, по 3 человека в минуту). Ошибка тут не ломает напоминания.
+      if (env.ACADEMY_DB) {
+        const r = await runAcademyExports({ store: d1Store(env.ACADEMY_DB), mainStore: kvStore(env.CRM), env, now: event.scheduledTime }).catch((e) => [{ error: e.message }]);
+        if (r.length) console.log("academy exports", JSON.stringify(r));
+      }
       return;
     }
     const { offers, settings, leads, access } = await loadAll(kvStore(env.CRM));

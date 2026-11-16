@@ -81,7 +81,7 @@ function dialog({ text, input = null, ok = "OK", cancel = null }) {
     wrap.className = "dialog-wrap";
     wrap.innerHTML = `<div class="dialog">
       <div class="dialog-text">${esc(text)}</div>
-      ${input ? `<input class="dialog-input" type="${input.type || "text"}" inputmode="${input.type === "number" ? "decimal" : "text"}" placeholder="${esc(input.placeholder || "")}">` : ""}
+      ${input ? `<input class="dialog-input" type="${input.type || "text"}" inputmode="${input.type === "number" ? "decimal" : "text"}" placeholder="${esc(input.placeholder || "")}" value="${esc(input.value || "")}">` : ""}
       <div class="dialog-btns">${cancel ? `<button class="btn ghost" data-r="0">${esc(cancel)}</button>` : ""}<button class="btn" data-r="1">${esc(ok)}</button></div>
     </div>`;
     document.body.append(wrap);
@@ -350,7 +350,7 @@ function renderToday() {
     <div class="hero">
       <div class="hero-top">
         <div>
-          <div class="hero-hi">${hi}, ${esc((state.me.name || "").split(" ")[0])} 👋</div>
+          <div class="hero-hi">${hi}, ${esc(((state.member?.name || state.me.name || "").replace(/^@/, "")).split(" ")[0])} 👋</div>
           <div class="hero-date">${esc(dateText)} · ${tasks ? `${tasks} ${plural(tasks, "задача", "задачи", "задач")}` : "срочного нет"}</div>
         </div>
         <div style="display:flex;gap:8px"><button class="btn round light" data-help="start" aria-label="Как пользоваться">?</button><button class="btn round light" id="addLead" aria-label="Новый лид">＋</button></div>
@@ -614,12 +614,19 @@ function addLeadSheet() {
         if (!body.telegram.trim() && !body.fio.trim()) return toast("Нужен ник или ФИО");
         const dup = body.telegram && state.leads.find((l) => l.telegram.toLowerCase() === `@${body.telegram.replace(/^@/, "")}`.toLowerCase());
         if (dup && !(await confirmDialog(`${dup.telegram} уже есть в базе. Всё равно создать?`))) return;
+        const btn = el.querySelector("#nSave");
+        if (btn.disabled) return;
+        btn.disabled = true;
+        btn.textContent = "Создаю…";
         try {
           const lead = await api("POST", "/leads", body);
+          state.leads = state.leads.filter((l) => l.id !== lead.id);
           state.leads.unshift(lead);
           haptic("medium");
           go({ leadId: lead.id });
         } catch (e) {
+          btn.disabled = false;
+          btn.textContent = "Создать и открыть";
           toast(`Ошибка: ${e.message}`);
         }
       };
@@ -1040,11 +1047,12 @@ async function saveLead(id, patch, okText) {
 }
 
 async function deleteLead(id) {
-  if (!(await confirmDialog("Удалить лида насовсем?"))) return;
+  if (!(await confirmDialog("Удалить лида? Он уйдёт в корзину — вернуть можно в «Ещё» → «Корзина»."))) return;
   try {
     await api("DELETE", `/leads/${id}`);
     state.leads = state.leads.filter((l) => l.id !== id);
     go({ leadId: null });
+    toast("Лид в корзине · «Ещё» → «Корзина»");
   } catch (e) {
     toast(`Ошибка: ${e.message}`);
   }
@@ -1363,9 +1371,12 @@ function renderMore() {
   if (state.more === "bot") return renderBot();
   if (state.more === "students") return renderStudents();
   if (state.more === "theme") return renderTheme();
+  if (state.more === "profile") return renderProfile();
+  if (state.more === "trash") return renderTrash();
   const items = [
     ...(state.me?.mentor ? [["students", "🎓", "Ученики", "Цифры всех учеников, коды доступа"]] : []),
     ACADEMY ? ["help", "📘", "Инструкция", "Как работать в CRM — пошагово, с нуля"] : ["help", "📘", "Как пользоваться", "Шаги офферов, деньги, бот — простыми словами"],
+    ...(ACADEMY && state.member ? [["profile", "👤", "Профиль", state.member.name]] : []),
     ...(ACADEMY ? [["theme", "🎨", "Оформление", THEMES[currentTheme()]?.name || ""]] : []),
     ["offers", "🏦", "Офферы и ставки", isAdmin() ? "Каталог банков и МФО" : "Каталог банков и МФО (просмотр)"],
     ...(isAdmin()
@@ -1377,6 +1388,7 @@ function renderMore() {
             return debt ? `Не доплатили: ${rub(debt)}` : "Сверка засчитанного с пришедшими деньгами";
           })()],
           ...(ACADEMY ? [] : [["bot", "🤖", "Лиды через бота", "Пересылай боту сообщение или контакт — лид создастся сам"]]),
+          ["trash", "🗑", "Корзина", "Удалённые лиды — можно вернуть"],
           ["templates", "💬", "Шаблоны сообщений", `${(state.settings.templates || []).length} шт. — копируются в один тап из карточки лида`],
           ...(ACADEMY ? [] : [["team", "👥", "Команда", "Кто имеет доступ"]]),
         ]
@@ -1458,7 +1470,7 @@ const GUIDE = () => {
           <li><b>☀️ Сегодня</b> — твой план на день. Что горит, кому написать, кого дожать. Открываешь каждое утро.</li>
           <li><b>👥 Лиды</b> — все твои люди: поиск, фильтры, теги. Нажал на человека — открылась его карточка.</li>
           <li><b>📊 Статистика</b> — сколько засчитали, по месяцам, какие офферы дают деньги, где теряешь людей.</li>
-          <li><b>⋯ Ещё</b> — офферы и ставки, расчёт налога и плана, шаблоны сообщений, выплаты от сетей, бэкап, оформление.</li>
+          <li><b>⋯ Ещё</b> — профиль, офферы и ставки, расчёт налога и плана, шаблоны сообщений, выплаты от сетей, Excel-выгрузка, корзина, оформление.</li>
         </ul>
         <div class="tip">💡 Почти всё нажимается: плитки с цифрами, столбики графиков, строки статистики. Нажми — увидишь, из каких лидов сложилась цифра.</div>`,
     },
@@ -1580,7 +1592,9 @@ const GUIDE = () => {
           <li><b>Твоих лидов видишь только ты.</b> Ни другие ученики, ни наставник не видят ники, имена и офферы твоих людей.</li>
           <li>Наставник видит только <b>твои общие цифры</b>: сколько у тебя лидов и сколько засчитано за месяц. Это нужно, чтобы видеть твой прогресс и помогать, когда ты встал.</li>
           <li>Телефоны и ФИО — <b>по желанию</b>. Для работы хватает ника.</li>
-          <li><b>«Ещё» → «Бэкап и выгрузка»</b> — бот пришлёт тебе файлы со всеми лидами: таблицы для Excel и полный бэкап.</li>
+          <li><b>Excel со всеми лидами</b> — бот сам присылает его раз в 3 дня утром (если что-то менялось). Частота — в «Ещё» → «Бэкап и выгрузка», а прямо сейчас — команда <b>/excel</b> в боте.</li>
+          <li><b>Удалил лида по ошибке?</b> Он не пропал: «Ещё» → «🗑 Корзина» → «Вернуть». Со всеми офферами и историей.</li>
+          <li><b>Ошибся статусом?</b> Просто нажми правильный — всё пересчитается. Ставку, затраты, сеть, этап, теги — всё можно поменять в любой момент.</li>
           <li>Вход — через Telegram, без паролей. Твой личный код больше ни у кого не сработает.</li>
         </ul>`,
     },
@@ -1649,6 +1663,10 @@ async function renderStudents() {
   const ago = (iso) => (iso ? (daysSince(iso) === 0 ? "сегодня" : `${daysSince(iso)} дн. назад`) : "ещё не начал");
   const active = d.students.filter((x) => x.active);
   const sum = (k) => active.reduce((t, x) => t + x[k], 0);
+  const q = (state.studentQuery || "").toLowerCase();
+  const shown = d.students.filter((x) => !q || `${x.name} ${x.note} ${x.username}`.toLowerCase().includes(q));
+  const groups = d.codes.filter((c) => c.group);
+  const singles = d.codes.filter((c) => !c.group);
   $app.innerHTML = `
     <h1>Ученики · ${active.length}</h1>
     <div class="kpis">
@@ -1656,41 +1674,64 @@ async function renderStudents() {
       <div class="kpi"><div class="label">За всё время</div><div class="value">${rub(sum("income"))}</div><div class="hint">${sum("leads")} ${plural(sum("leads"), "лид", "лида", "лидов")} у учеников</div></div>
     </div>
 
-    <div class="list-head"><h2 style="margin:0">Рейтинг за месяц</h2></div>
-    ${d.students.length ? `<div class="list">${d.students
-      .map((x, i) => `<div class="row ${x.active ? "" : "muted"}">
-        <div class="avatar" style="width:40px;height:40px;font-size:15px;background:linear-gradient(135deg,#7c5cff,#3aa0ff)">${i + 1}</div>
-        <div class="grow"><div class="title">${esc(x.note || x.name)}${x.username ? ` <span class="sub">@${esc(x.username)}</span>` : ""}</div>
-          <div class="sub">${x.leads} ${plural(x.leads, "лид", "лида", "лидов")} · активных ${x.activeLeads} · в работе ${rub(x.inWork)} · <span class="${x.lastActivity && daysSince(x.lastActivity) >= 5 ? "danger" : ""}">${ago(x.lastActivity)}</span>${x.active === false ? " · доступ закрыт" : ""}</div></div>
-        <div class="right"><b class="money-green">${rub(x.paidMonth)}</b><div class="sub">всего ${short(x.income)}</div><button class="link" data-toggle="${x.id}" data-on="${x.active ? "0" : "1"}">${x.active ? "закрыть доступ" : "открыть доступ"}</button></div>
-      </div>`)
-      .join("")}</div>` : `<div class="card empty small">Учеников пока нет — создай код и отправь ученику</div>`}
-
-    <h2>Коды доступа</h2>
+    <h2>Пригласить учеников</h2>
     <div class="card">
-      <div class="sub" style="margin-bottom:8px">Один код — один ученик. Отправь ученику ссылку: он нажмёт — и сразу попадёт в свою CRM.</div>
-      <div class="inline-add"><input id="codeNote" placeholder="Имя ученика (для тебя)"><button class="btn small" id="newCode">＋ Создать код</button></div>
+      <div class="title">👥 Ссылка для группы</div>
+      <div class="sub" style="margin:4px 0 8px">Одна ссылка на весь поток: кидаешь в чат учеников — каждый жмёт, бот его пускает, и он сам появляется в списке ниже со своим именем из Telegram. Чужие по ней не зайдут, если ты её отзовёшь.</div>
+      <div class="inline-add"><input id="gMax" type="number" inputmode="numeric" min="1" max="500" value="50" style="max-width:90px"><input id="gNote" placeholder="Название, напр. «Поток ноябрь»"></div>
+      <button class="btn block" id="newGroup" style="margin-top:8px">＋ Создать ссылку для группы</button>
     </div>
-    ${d.codes.length ? `<div class="list" style="margin-top:8px">${d.codes
-      .map((c) => `<div class="row"><div class="grow"><div class="title"><code>${c.code}</code>${c.note ? ` · ${esc(c.note)}` : ""}</div><div class="sub">ещё не активирован · ${fmtDate(c.createdAt.slice(0, 10))}</div></div>
-        <div class="right"><button class="btn small" data-copy="${esc(link(c.code))}">Скопировать ссылку</button><button class="link danger" data-delcode="${c.code}">удалить</button></div></div>`)
+    ${groups.length ? `<div class="list" style="margin-top:8px">${groups
+      .map((c) => `<div class="row"><div class="grow"><div class="title">${esc(c.note || "Ссылка для группы")}</div><div class="sub">вошло ${c.uses || 0} из ${c.max} · <code>${c.code}</code></div></div>
+        <div class="right"><button class="btn small" data-copy="${esc(link(c.code))}">Скопировать</button><button class="link danger" data-delcode="${c.code}" data-group="1">отозвать</button></div></div>`)
       .join("")}</div>` : ""}
+    <div class="card" style="margin-top:10px">
+      <div class="title">🔑 Личный код</div>
+      <div class="sub" style="margin:4px 0 8px">Для одного человека: сработает только один раз.</div>
+      <div class="inline-add"><input id="codeNote" placeholder="Имя ученика (для тебя)"><button class="btn small" id="newCode">＋ Создать</button></div>
+    </div>
+    ${singles.length ? `<div class="list" style="margin-top:8px">${singles
+      .map((c) => `<div class="row"><div class="grow"><div class="title"><code>${c.code}</code>${c.note ? ` · ${esc(c.note)}` : ""}</div><div class="sub">ещё не активирован · ${fmtDate(c.createdAt.slice(0, 10))}</div></div>
+        <div class="right"><button class="btn small" data-copy="${esc(link(c.code))}">Скопировать</button><button class="link danger" data-delcode="${c.code}">удалить</button></div></div>`)
+      .join("")}</div>` : ""}
+
+    <div class="list-head"><h2 style="margin:0">Рейтинг за месяц</h2></div>
+    ${d.students.length > 8 ? `<input id="sq" type="search" placeholder="🔍 Найти ученика" value="${esc(state.studentQuery || "")}" style="margin-bottom:8px">` : ""}
+    ${shown.length ? `<div class="list">${shown
+      .map((x, i) => `<div class="row ${x.active ? "" : "muted"}">
+        <div class="avatar" style="width:40px;height:40px;font-size:15px;background:linear-gradient(135deg,var(--accent2,#3b2fb8),var(--btn))">${x.active ? i + 1 : "–"}</div>
+        <div class="grow"><div class="title">${esc(x.note || x.name)}${x.username ? ` <span class="sub">@${esc(x.username)}</span>` : ""}</div>
+          <div class="sub">${x.note && x.note !== x.name ? `${esc(x.name)} · ` : ""}${x.leads} ${plural(x.leads, "лид", "лида", "лидов")} · активных ${x.activeLeads} · в работе ${rub(x.inWork)}</div>
+          <div class="sub"><span class="${!x.lastActivity || daysSince(x.lastActivity) >= 5 ? "danger" : ""}">действие: ${ago(x.lastActivity)}</span>${x.active ? "" : " · доступ закрыт"}</div></div>
+        <div class="right"><b class="money-green">${rub(x.paidMonth)}</b><div class="sub">всего ${short(x.income)}</div>
+          <button class="link hint-link" data-rename="${x.id}" data-cur="${esc(x.note || "")}">подпись</button>
+          <button class="link ${x.active ? "danger" : ""}" data-toggle="${x.id}" data-on="${x.active ? "0" : "1"}">${x.active ? "закрыть" : "открыть"}</button></div>
+      </div>`)
+      .join("")}</div>` : `<div class="card empty small">${d.students.length ? "Никого не нашёл" : "Учеников пока нет — создай ссылку и кинь её в чат"}</div>`}
     <div class="sub note">Ты видишь только цифры учеников, сами лиды — нет. Лиды каждого ученика видит только он сам.</div>`;
 
-  document.getElementById("newCode").onclick = async (e) => {
-    e.target.disabled = true;
+  const create = async (btn, body) => {
+    btn.disabled = true;
     try {
-      const c = await api("POST", "/mentor/codes", { note: document.getElementById("codeNote").value });
-      (await copyText(link(c.code))) ? toast("Код создан, ссылка скопирована") : toast(`Код: ${c.code}`);
+      const c = await api("POST", "/mentor/codes", body);
+      (await copyText(link(c.code))) ? toast("Ссылка создана и скопирована — вставь её в чат") : alertDialog(`Ссылка: ${link(c.code)}`);
       renderStudents();
     } catch (err) {
-      e.target.disabled = false;
+      btn.disabled = false;
       toast(`Ошибка: ${err.message}`);
     }
   };
-  $app.querySelectorAll("[data-copy]").forEach((b) => (b.onclick = async () => toast((await copyText(b.dataset.copy)) ? "Ссылка скопирована" : b.dataset.copy)));
+  document.getElementById("newGroup").onclick = (e) => create(e.target, { group: true, max: +document.getElementById("gMax").value || 50, note: document.getElementById("gNote").value });
+  document.getElementById("newCode").onclick = (e) => create(e.target, { note: document.getElementById("codeNote").value });
+  document.getElementById("sq")?.addEventListener("input", (e) => {
+    state.studentQuery = e.target.value;
+    clearTimeout(state.sqTimer);
+    state.sqTimer = setTimeout(() => renderStudents().then(() => document.getElementById("sq")?.focus()), 400);
+  });
+  $app.querySelectorAll("[data-copy]").forEach((b) => (b.onclick = async () => ((await copyText(b.dataset.copy)) ? toast("Ссылка скопирована") : alertDialog(b.dataset.copy))));
   $app.querySelectorAll("[data-delcode]").forEach((b) => (b.onclick = async () => {
-    if (!(await confirmDialog(`Удалить код ${b.dataset.delcode}? По нему больше нельзя будет войти.`))) return;
+    const group = !!b.dataset.group;
+    if (!(await confirmDialog(group ? "Отозвать ссылку? Новые люди по ней не зайдут, а кто уже вошёл — останутся." : `Удалить код ${b.dataset.delcode}? По нему больше нельзя будет войти.`))) return;
     await api("DELETE", `/mentor/codes/${b.dataset.delcode}`).catch((e) => toast(e.message));
     renderStudents();
   }));
@@ -1700,39 +1741,122 @@ async function renderStudents() {
     await api("PATCH", `/mentor/students/${b.dataset.toggle}`, { active: on }).catch((e) => toast(e.message));
     renderStudents();
   }));
+  $app.querySelectorAll("[data-rename]").forEach((b) => (b.onclick = async () => {
+    const v = await dialog({ text: "Подпись ученика — видна только тебе. Например: «Гоша, поток ноябрь». Пусто — показывать имя из Telegram.", input: { value: b.dataset.cur, placeholder: "Подпись" }, ok: "Сохранить", cancel: "Отмена" });
+    if (v === null || v === undefined) return;
+    await api("PATCH", `/mentor/students/${b.dataset.rename}`, { note: v }).catch((e) => toast(e.message));
+    renderStudents();
+  }));
 }
 
 function joinScreen() {
+  const tgUser = (() => {
+    try {
+      return tg?.initDataUnsafe?.user || JSON.parse(new URLSearchParams(initData()).get("user") || "null");
+    } catch {
+      return null;
+    }
+  })();
+  const tgName = [tgUser?.first_name, tgUser?.last_name].filter(Boolean).join(" ");
   $app.innerHTML = `${brandBar()}<div class="card join">
     <h1>🎓 CRM для учеников</h1>
-    <div class="sub" style="margin:6px 0 14px">Твоя система для работы с лидами: офферы, статусы, деньги, статистика. Бонус для учеников Ryzhikov Academy — вход только по личному коду от наставника.</div>
+    <div class="sub" style="margin:6px 0 14px">Твоя система для работы с лидами: офферы, статусы, деньги, статистика. Бонус для учеников Ryzhikov Academy — вход по ссылке-приглашению или коду от наставника.</div>
     <label class="field"><span>Код доступа</span><input id="joinCode" placeholder="Например: K7M2QX" autocomplete="off" autocapitalize="characters"></label>
+    <label class="field"><span>Как тебя зовут</span><input id="joinName" value="${esc(tgName)}" placeholder="Имя и фамилия" maxlength="60"></label>
     <button class="btn block" id="joinBtn">Войти</button>
+    <div class="sub" style="margin-top:10px">Пришла ссылка от наставника? Просто нажми на неё — код вводить не нужно.</div>
   </div>`;
   document.getElementById("joinBtn").onclick = async (e) => {
     const code = document.getElementById("joinCode").value.trim();
     if (!code) return toast("Введи код");
     e.target.disabled = true;
     try {
-      await api("POST", "/join", { code });
+      const name = document.getElementById("joinName").value.trim();
+      await api("POST", "/join", { code, name: name === tgName ? "" : name });
       await reload();
       $tabs.hidden = false;
       guideOverlay(0);
     } catch (err) {
       e.target.disabled = false;
-      toast({ bad_code: "Код не подошёл — проверь буквы", code_used: "Этот код уже использован", disabled: "Доступ закрыт — напиши наставнику" }[err.data?.error] || `Ошибка: ${err.message}`);
+      toast({ bad_code: "Код не подошёл — проверь буквы", code_used: "Этот код уже использован", code_full: "По этой ссылке уже зашло максимум людей — попроси новую", code_expired: "Срок ссылки закончился — попроси новую", disabled: "Доступ закрыт — напиши наставнику" }[err.data?.error] || `Ошибка: ${err.message}`);
     }
   };
+}
+
+function renderProfile() {
+  const m = state.member;
+  $app.innerHTML = `
+    <h1>Профиль</h1>
+    <div class="card">
+      <label class="field"><span>Как тебя зовут</span><input id="pName" value="${esc(m.customName ? m.name : "")}" placeholder="${esc(m.name)}" maxlength="60"></label>
+      <div class="sub" style="margin:-2px 4px 10px">Это имя видит наставник. Пусто — возьмём имя из Telegram.</div>
+      <button class="btn block" id="pSave">Сохранить</button>
+    </div>
+    <div class="list" style="margin-top:10px">
+      ${m.username ? `<div class="row"><div class="grow">Telegram</div><div class="right sub">@${esc(m.username)}</div></div>` : ""}
+      <div class="row"><div class="grow">В CRM с</div><div class="right sub">${m.joinedAt ? new Date(m.joinedAt).toLocaleDateString("ru-RU") : "—"}</div></div>
+      <div class="row"><div class="grow">Лидов</div><div class="right sub">${state.leads.length}</div></div>
+    </div>
+    ${brandFoot()}`;
+  document.getElementById("pSave").onclick = async (e) => {
+    e.target.disabled = true;
+    try {
+      state.member = await api("PATCH", "/me", { name: document.getElementById("pName").value });
+      toast("Сохранено");
+      renderProfile();
+    } catch (err) {
+      e.target.disabled = false;
+      toast(`Ошибка: ${err.message}`);
+    }
+  };
+}
+
+async function renderTrash() {
+  $app.innerHTML = `<h1>Корзина</h1><div class="loader">Загрузка…</div>`;
+  let items;
+  try {
+    items = await api("GET", "/trash");
+  } catch (e) {
+    $app.innerHTML = `<h1>Корзина</h1><div class="card empty">Ошибка: ${esc(e.message)}</div>`;
+    return;
+  }
+  if (state.more !== "trash") return;
+  $app.innerHTML = `
+    <h1>Корзина</h1>
+    <div class="sub" style="margin:0 4px 10px">Удалённые лиды не пропадают — их можно вернуть со всеми офферами и историей.</div>
+    ${items.length ? `<div class="list">${items
+      .map((l) => `<div class="row"><div class="grow"><div class="title">${esc(leadTitle(l))}</div><div class="sub">${[l.telegram && l.fio ? esc(l.fio) : "", `удалён ${fmtDate(l.deletedAt.slice(0, 10))}`].filter(Boolean).join(" · ")}</div></div>
+        <div class="right"><button class="btn small" data-restore="${l.id}">Вернуть</button></div></div>`)
+      .join("")}</div>` : `<div class="card empty small">Корзина пуста</div>`}`;
+  $app.querySelectorAll("[data-restore]").forEach((b) => (b.onclick = async () => {
+    b.disabled = true;
+    try {
+      const lead = await api("POST", `/trash/${b.dataset.restore}/restore`);
+      state.leads = [lead, ...state.leads.filter((l) => l.id !== lead.id)];
+      toast(`${leadTitle(lead)} — возвращён`);
+      renderTrash();
+    } catch (e) {
+      b.disabled = false;
+      toast(`Ошибка: ${e.message}`);
+    }
+  }));
 }
 
 function renderData() {
   $app.innerHTML = `
     <h1>Бэкап и выгрузка</h1>
     <div class="card">
-      <div class="title">📤 Прислать в Telegram</div>
-      <div class="sub" style="margin:4px 0 10px">Бот пришлёт тебе в чат 3 файла: полный бэкап (его можно загрузить обратно), таблицу лидов с деньгами и таблицу всех офферов — открываются в Excel и Google Таблицах.</div>
-      <button class="btn block" id="backup">Прислать файлы</button>
+      <div class="title">📊 Excel со всеми лидами</div>
+      <div class="sub" style="margin:4px 0 10px">Бот пришлёт тебе в чат файл Excel: лист «Лиды» (люди и деньги по каждому) и лист «Офферы» (все офферы со статусами). Открывается в Excel, Google Таблицах и на iPhone. Плюс полный бэкап — его можно загрузить обратно через импорт ниже.</div>
+      <button class="btn block" id="backup">Прислать в Telegram</button>
     </div>
+    ${ACADEMY && state.member ? `<h2>Автовыгрузка</h2>
+    <div class="card">
+      <div class="sub" style="margin-bottom:8px">Бот сам пришлёт Excel утром (8–11 по МСК), если с прошлой выгрузки что-то менялось. Так у тебя всегда есть свежая копия всех лидов.</div>
+      <div class="chips tight">${[[0, "Выключить"], [1, "Каждый день"], [3, "Раз в 3 дня"], [7, "Раз в неделю"]].map(([v, l]) => `<button class="chip ${state.member.exportEvery === v ? "active" : ""}" data-every="${v}">${l}</button>`).join("")}</div>
+      ${state.member.lastExportDay ? `<div class="sub" style="margin-top:6px">Последняя автовыгрузка: ${fmtDate(state.member.lastExportDay)}</div>` : ""}
+      <div class="sub" style="margin-top:6px">В любой момент: команда <b>/excel</b> в боте.</div>
+    </div>` : ""}
     <h2>Дубли</h2>
     <div class="card"><div class="sub" style="margin-bottom:8px">${dupCount() ? `Сейчас дублей: <b>${dupCount()}</b>.` : "Дублей нет."} Объединение склеит карточки с одинаковым ником.</div>
       <button class="btn ghost block" id="dedupe" ${dupCount() ? "" : "disabled"}>Объединить дубли</button></div>
@@ -1751,14 +1875,23 @@ function renderData() {
     try {
       const r = await api("POST", "/backup");
       haptic("medium");
-      alertDialog(`Готово: файлы с ${r.leads} лидами в чате с ботом.`);
+      alertDialog(`Готово: Excel с ${r.leads} ${plural(r.leads, "лидом", "лидами", "лидами")} — в чате с ботом.`);
     } catch (err) {
-      alertDialog(`Не отправилось: ${err.message}. Проверь, что ты нажимал /start в боте.`);
+      alertDialog(`Не отправилось: ${err.message}. Открой чат с ботом, нажми «Старт» (/start) и попробуй ещё раз.`);
     }
     e.target.disabled = false;
-    e.target.textContent = "Прислать файлы";
+    e.target.textContent = "Прислать в Telegram";
   };
   document.getElementById("dedupe").onclick = (e) => mergeDuplicates(e.target);
+  $app.querySelectorAll("[data-every]").forEach((b) => (b.onclick = async () => {
+    try {
+      state.member = await api("PATCH", "/me", { exportEvery: +b.dataset.every });
+      toast(+b.dataset.every ? "Автовыгрузка включена" : "Автовыгрузка выключена");
+      renderData();
+    } catch (err) {
+      toast(`Ошибка: ${err.message}`);
+    }
+  }));
   let importing = false;
   const runImport = async (text) => {
     if (importing) return toast("Импорт уже идёт, подожди");
@@ -2192,6 +2325,10 @@ $tabs.addEventListener("click", (e) => {
 });
 
 safe(() => tg?.BackButton.onClick(() => {
+  const dlg = document.querySelector(".dialog-wrap");
+  if (dlg) return (dlg.querySelector('[data-r="0"]') || dlg.querySelector('[data-r="1"]'))?.click();
+  const guide = document.querySelector(".guide");
+  if (guide) return (guide.querySelector("[data-gprev]") || guide.querySelector("[data-gclose]"))?.click();
   if (document.querySelector(".sheet-wrap")) return closeSheet();
   if (state.leadId) return go({ leadId: null });
   if (state.network) return go({ network: null });
@@ -2210,7 +2347,7 @@ document.addEventListener("visibilitychange", () => {
 async function reload() {
   const data = await api("GET", "/state");
   lastLoad = Date.now();
-  Object.assign(state, { me: data.me, offers: data.offers, settings: data.settings, leads: data.leads, payouts: data.payouts || [], ledger: data.ledger || null });
+  Object.assign(state, { me: data.me, offers: data.offers, settings: data.settings, leads: data.leads, payouts: data.payouts || [], ledger: data.ledger || null, member: data.member || null });
   render();
 }
 
