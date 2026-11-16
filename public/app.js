@@ -122,7 +122,7 @@ function initData() {
 // CRM учеников живёт на /academy/ — своя база и свой бот, тот же интерфейс.
 const ACADEMY = location.pathname.startsWith("/academy");
 const API_BASE = ACADEMY ? "/academy/api" : "/api";
-if (ACADEMY) document.title = "CRM академии";
+if (ACADEMY) document.title = "Ryzhikov Academy CRM";
 
 async function api(method, path, body) {
   const ctrl = new AbortController();
@@ -346,6 +346,7 @@ function renderToday() {
   const perDay = goal > monthIncome ? (goal - monthIncome) / daysLeft : 0;
 
   $app.innerHTML = `
+    ${brandBar()}
     <div class="hero">
       <div class="hero-top">
         <div>
@@ -1345,6 +1346,7 @@ const HELP_TEXT = {
 };
 
 function helpSheet(key = "start") {
+  if (ACADEMY) return guideOverlay(0);
   openSheet(`<h2 class="sheet-title">Как пользоваться</h2>
     <div class="chips tight" style="margin-bottom:8px">${[["start", "Основное"], ["stats", "Статистика"], ["bot", "Бот"]].map(([k, l]) => `<button class="chip ${k === key ? "active" : ""}" data-helptab="${k}">${l}</button>`).join("")}</div>
     <div class="card help">${HELP_TEXT[key]}</div>`, (el) => el.querySelectorAll("[data-helptab]").forEach((b) => (b.onclick = () => helpSheet(b.dataset.helptab))), { instant: !!document.querySelector(".sheet-wrap") });
@@ -1360,9 +1362,11 @@ function renderMore() {
   if (state.more === "payouts") return state.network ? renderNetwork() : renderPayouts();
   if (state.more === "bot") return renderBot();
   if (state.more === "students") return renderStudents();
+  if (state.more === "theme") return renderTheme();
   const items = [
     ...(state.me?.mentor ? [["students", "🎓", "Ученики", "Цифры всех учеников, коды доступа"]] : []),
-    ["help", "📘", "Как пользоваться", "Шаги офферов, деньги, бот — простыми словами"],
+    ACADEMY ? ["help", "📘", "Инструкция", "Как работать в CRM — пошагово, с нуля"] : ["help", "📘", "Как пользоваться", "Шаги офферов, деньги, бот — простыми словами"],
+    ...(ACADEMY ? [["theme", "🎨", "Оформление", THEMES[currentTheme()]?.name || ""]] : []),
     ["offers", "🏦", "Офферы и ставки", isAdmin() ? "Каталог банков и МФО" : "Каталог банков и МФО (просмотр)"],
     ...(isAdmin()
       ? [
@@ -1383,8 +1387,251 @@ function renderMore() {
     <div class="list">${items
       .map(([k, icon, title, sub]) => `<button class="row" data-more="${k}"><div class="icon">${icon}</div><div class="grow"><div class="title">${title}</div><div class="sub">${esc(sub)}</div></div><div class="right sub">›</div></button>`)
       .join("")}</div>
-    ${ACADEMY ? `<div class="sub center">Твои лиды видишь только ты.</div>` : `<div class="sub center">Утренняя сводка приходит в бота каждый день в 9:00 по Москве.<br>По понедельникам админам — ещё и бэкап.</div>`}`;
+    ${ACADEMY ? brandFoot() : `<div class="sub center">Утренняя сводка приходит в бота каждый день в 9:00 по Москве.<br>По понедельникам админам — ещё и бэкап.</div>`}`;
   $app.querySelectorAll("[data-more]").forEach((b) => (b.onclick = () => (b.dataset.more === "help" ? helpSheet() : go({ more: b.dataset.more }))));
+}
+
+// ---------- RYZHIKOV ACADEMY: темы, бренд, инструкция ----------
+const store = {
+  get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem(k, v); } catch {} },
+};
+const THEMES = {
+  red: { name: "Чёрно-красная", bg: "#0a0a0d", sw: "linear-gradient(135deg,#7a0a10,#e3262e)" },
+  blue: { name: "Чёрно-синяя", bg: "#0a0a0d", sw: "linear-gradient(135deg,#0c2273,#2f6bff)" },
+  gold: { name: "Чёрно-золотая", bg: "#0a0a0d", sw: "linear-gradient(135deg,#5c4304,#d9a520)" },
+  light: { name: "Светлая (как Telegram)", bg: null, sw: "linear-gradient(135deg,#e9eef7,#2481cc)" },
+};
+function applyTheme(t) {
+  if (!THEMES[t]) t = "red";
+  const root = document.documentElement;
+  root.classList.toggle("dark", t !== "light");
+  if (t === "light") delete root.dataset.theme;
+  else root.dataset.theme = t;
+  safe(() => {
+    const c = THEMES[t].bg || tg?.themeParams?.secondary_bg_color || "#f2f2f7";
+    tg?.setHeaderColor?.(c);
+    tg?.setBackgroundColor?.(c);
+    tg?.setBottomBarColor?.(c);
+  });
+}
+const currentTheme = () => store.get("theme") || "red";
+if (ACADEMY) applyTheme(currentTheme());
+
+const brandBar = () =>
+  ACADEMY ? `<div class="brand"><div class="brand-mark">RYZHIKOV <b>ACADEMY</b></div><div class="brand-tag">🔒 Приватный доступ</div></div>` : "";
+const brandFoot = () =>
+  `<div class="brand-foot"><b>RYZHIKOV ACADEMY</b><br>CRM — бонус для учеников академии.<br>Вход только по личному коду, доступ приватный.</div>`;
+
+function renderTheme() {
+  $app.innerHTML = `
+    <h1>Оформление</h1>
+    <div class="sub" style="margin:0 4px 12px">Выбери цвет CRM. Сохраняется на этом устройстве.</div>
+    <div class="themes">${Object.entries(THEMES)
+      .map(([k, t]) => `<button class="theme-tile ${currentTheme() === k ? "active" : ""}" data-theme-pick="${k}"><div class="sw" style="background:${t.sw}"></div><div class="nm">${currentTheme() === k ? "● " : ""}${t.name}</div></button>`)
+      .join("")}</div>
+    ${brandFoot()}`;
+  $app.querySelectorAll("[data-theme-pick]").forEach((b) => (b.onclick = () => {
+    store.set("theme", b.dataset.themePick);
+    applyTheme(b.dataset.themePick);
+    haptic("light");
+    renderTheme();
+  }));
+}
+
+// Большая инструкция: показывается при первом входе, потом — из «Ещё → Инструкция» и кнопки «?».
+const GUIDE = () => {
+  const s = state.settings || {};
+  return [
+    {
+      icon: "🎓",
+      title: "Добро пожаловать в CRM Ryzhikov Academy",
+      html: `<p>Это твоя рабочая система по РКО, МФО и картам. Не табличка, не заметки в телефоне, а <b>пульт управления деньгами</b>: каждый лид, каждый оффер, каждый рубль — на виду.</p>
+        <p>Те, кто делает 200–500к в месяц, отличаются от остальных не «секретной связкой». Они просто <b>не теряют людей</b>: знают, кому сегодня написать, у кого висит ЦД, с кого сеть ещё не заплатила. Эта CRM делает ровно это.</p>
+        <div class="tip">🔒 <b>Доступ приватный.</b> CRM — бонус для учеников Ryzhikov Academy, вход только по личному коду. Твоих лидов не видит никто: ни другие ученики, ни мы.</div>
+        <p>Дальше — 2 минуты, как тут всё устроено. Пролистай до конца, потом сможешь открыть эту инструкцию в любой момент: <b>«Ещё» → «Инструкция»</b> или кнопка <b>?</b> на главном экране.</p>`,
+    },
+    {
+      icon: "🧭",
+      title: "4 вкладки — вся система",
+      html: `<ul>
+          <li><b>☀️ Сегодня</b> — твой план на день. Что горит, кому написать, кого дожать. Открываешь каждое утро.</li>
+          <li><b>👥 Лиды</b> — все твои люди: поиск, фильтры, теги. Нажал на человека — открылась его карточка.</li>
+          <li><b>📊 Статистика</b> — сколько засчитали, по месяцам, какие офферы дают деньги, где теряешь людей.</li>
+          <li><b>⋯ Ещё</b> — офферы и ставки, расчёт налога и плана, шаблоны сообщений, выплаты от сетей, бэкап, оформление.</li>
+        </ul>
+        <div class="tip">💡 Почти всё нажимается: плитки с цифрами, столбики графиков, строки статистики. Нажми — увидишь, из каких лидов сложилась цифра.</div>`,
+    },
+    {
+      icon: "➕",
+      title: "Шаг 1. Заведи лида",
+      html: `<p>Кнопка <b>＋</b> на «Сегодня» или в «Лидах».</p>
+        <ul>
+          <li><b>Telegram-ник</b> — главное поле. По нему потом в один тап пишешь человеку.</li>
+          <li><b>ФИО и телефон</b> — по желанию. Не хочешь хранить чужие телефоны — не храни, работать можно и по нику.</li>
+          <li><b>Откуда пришёл</b> — YouTube, Reels, сарафан, партнёр. Потом в статистике увидишь, какой источник даёт деньги, а какой — пустых людей.</li>
+          <li><b>На что крутить</b> — теги <b>ИП, МФО, РКО, ДК, КК</b>. Сразу помечаешь, что этому человеку предлагать. Теги видны в списке, по ним есть фильтр.</li>
+        </ul>
+        <div class="tip">⚡ Правило: <b>человек написал — сразу в CRM.</b> Не «потом занесу». Потом ты его забудешь, а это минус 15–60к.</div>`,
+    },
+    {
+      icon: "🏦",
+      title: "Шаг 2. Добавь офферы",
+      html: `<p>В карточке лида — <b>«＋ Оффер»</b>. Нажал на банк или МФО — заявка заведена.</p>
+        <ul>
+          <li>Ставки в каталоге — <b>актуальные ставки академии</b>, они обновляются сами.</li>
+          <li>У тебя другая ставка или сеть? Открой оффер у лида, поменяй — и нажми <b>«📌 Сделать шаблоном»</b>, чтобы новым лидам подставлялось уже твоё.</li>
+          <li>Поправить шаблон заранее: «＋ Оффер» → <b>«✏️ Править шаблоны»</b> → тап по офферу.</li>
+          <li>Нужного банка нет — <b>«＋ Новый оффер»</b>, он попадёт в твой каталог.</li>
+        </ul>
+        <p>В окне оффера заполняй: <b>ставку</b>, <b>затраты</b> (комиссия, тариф, маскировка — кнопки +20, +50, +100…), <b>партнёрскую сеть</b>, <b>комментарий</b> и <b>срок</b>, когда к офферу вернуться.</p>
+        <div class="tip">💰 Один человек — это не один банк. Смысл в том, чтобы провести его по цепочке: ИП → РКО → карты → МФО. С одного лида можно сделать не 15к, а 60–130к.</div>`,
+    },
+    {
+      icon: "🔄",
+      title: "Шаг 3. Двигай статусы",
+      html: `<p>Нажал на оффер → выбрал, что произошло. Всё остальное CRM посчитает сама.</p>
+        <p class="step-k">РКО</p>
+        <ul>
+          <li><b>Заявка заведена</b> → <b>Счёт открыт · нужна ЦД</b> → <b>ЦД выполнено · ждём засчёта</b> → <b>Засчитано</b></li>
+        </ul>
+        <p class="step-k">Дебетовые и кредитные карты</p>
+        <ul>
+          <li><b>Заявка заведена</b> → <b>Карта оформлена</b> → <b>ЦД выполнено</b> → <b>Засчитано</b></li>
+        </ul>
+        <p class="step-k">МФО</p>
+        <ul>
+          <li><b>Маскировка</b> — процесс идёт, деньги ещё не на карте.</li>
+          <li><b>Деньги на карте (Не засчитано)</b> — займ выдан, ждём засчёта от сети.</li>
+          <li><b>Деньги на карте (Засчитано)</b> — сеть засчитала, но деньги ещё у лида. Такие лиды висят на «Сегодня» отдельным блоком, пока не закроешь.</li>
+          <li><b>Засчитано</b> — всё, деньги твои.</li>
+        </ul>
+        <p><b>Отказ</b> и <b>Уже есть / дубль</b> — денег не будет, оффер уходит вниз карточки, чтобы не мешал.</p>
+        <div class="tip">✅ Отмечай статус <b>в момент, когда это случилось.</b> Тогда цифры честные, а «Сегодня» показывает реальные задачи.</div>`,
+    },
+    {
+      icon: "👤",
+      title: "Карточка лида",
+      html: `<ul>
+          <li><b>✉️ Написать</b> — сразу открывает чат с человеком в Telegram.</li>
+          <li><b>💬 Шаблоны</b> — готовые сообщения: тап — текст скопирован, чат открыт. Свои шаблоны настраиваешь в «Ещё».</li>
+          <li><b>💵 Выплата</b> — если отдаёшь лиду часть денег, отмечай здесь: вычтется из твоей чистой прибыли.</li>
+          <li><b>Этап</b>: Новый → В работе → Докрутка → Цикл закрыт / Слился. Частично двигается сам: взял первый оффер — «В работе», первый засчёт — «Докрутка».</li>
+          <li><b>Следующий шаг + напоминание</b> — пишешь, что сделать («скинуть ссылку на ВТБ»), выбираешь день. В этот день лид всплывёт на «Сегодня».</li>
+          <li><b>История</b> внизу — кто, что и когда менял. Никаких «а я вроде отмечал».</li>
+        </ul>`,
+    },
+    {
+      icon: "☀️",
+      title: "«Сегодня» — открывай каждое утро",
+      html: `<p>Сверху — сколько засчитано в этом месяце и прогресс к плану. План ставится в «Ещё» → «Расчёт и план», и CRM считает, сколько нужно делать в день, чтобы успеть.</p>
+        <p>Ниже — блоки задач, самые важные сверху:</p>
+        <ul>
+          <li><b>⏰ Сроки по офферам</b> — конец маскировки, отчёт банка, встреча.</li>
+          <li><b>🔔 Напоминания</b> — твои «следующие шаги» на сегодня и просроченные.</li>
+          <li><b>Нужна ЦД</b> — счёт или карта есть, целевого действия нет. Здесь лежат деньги, которые проще всего забрать.</li>
+          <li><b>Ждут засчёта</b> — ЦД сделали, сеть молчит. Долго висит — пиши в сеть.</li>
+          <li><b>💳 МФО: деньги ещё на карте</b> — засчитано, но деньги у лида.</li>
+          <li><b>🐢 Без движения 5+ дней</b> — лиды, которые остывают. Пни их сегодня, завтра будет поздно.</li>
+        </ul>
+        <div class="tip">⚡ Кнопки прямо в списке — <b>«ЦД ✓»</b>, <b>«Засчитано ✓»</b> — переводят оффер на следующий шаг в один тап, без открытия карточки.</div>`,
+    },
+    {
+      icon: "👥",
+      title: "«Лиды» — найти любого за секунду",
+      html: `<ul>
+          <li><b>Поиск</b> — по нику, имени, телефону, источнику.</li>
+          <li><b>Фильтры</b> — «Нужна ЦД», «Ждут засчёта», «Новые», «В работе»… Можно выбрать <b>несколько сразу</b>: нажал «В работе» и «Докрутка» — видишь и тех, и других. «Все» — сбросить.</li>
+          <li><b>Теги</b> — показать только МФО-лидов, только КК и т.д.</li>
+          <li><b>🏦 Фильтр по офферу</b> — например, «Озон — ещё не делали»: список активных лидов, кому можно предложить Озон прямо сейчас. Это готовый план докрутки.</li>
+          <li><b>Сортировка</b> — больше денег в работе, давно не трогали, больше заработали.</li>
+        </ul>
+        <p>Лиды в <b>«Цикл закрыт»</b> и <b>«Слился»</b> уходят вниз в свёрнутые блоки, чтобы не мешали работать с живыми.</p>`,
+    },
+    {
+      icon: "💰",
+      title: "Как считаются твои деньги",
+      html: `<p><b>Чистая прибыль</b> = засчитано − налог ${s.taxRate ?? 6}% − доля партнёра ${s.partnerShare ?? 0}% − затраты − выплаты лидам.</p>
+        <ul>
+          <li><b>Налог</b> — по умолчанию 6% (самозанятый, доход от юрлиц). Другая ставка — поменяй в «Ещё» → «Расчёт и план».</li>
+          <li><b>Партнёр</b> — работаешь в паре и делишь доход? Укажи его имя и процент, CRM сама посчитает его долю.</li>
+          <li><b>Затраты</b> — комиссии, тарифы, маскировка. Вносишь в окне оффера.</li>
+          <li><b>В работе</b> — сколько денег можно получить с открытых заявок и счетов. Это твой потенциал: его надо дожимать.</li>
+          <li><b>Ждём засчёта</b> — ЦД сделано, деньги на подходе.</li>
+        </ul>
+        <div class="tip">📈 Цифра «В работе» важнее, чем кажется. Если она большая, а засчитано мало — ты заводишь людей, но не доводишь до ЦД. Лечится блоком «Нужна ЦД» каждое утро.</div>`,
+    },
+    {
+      icon: "📊",
+      title: "Статистика и сверка денег",
+      html: `<ul>
+          <li><b>Период</b> сверху: 7 дней, 30 дней, месяц, всё время.</li>
+          <li><b>История по месяцам</b> — график засчитанного. Нажми на месяц — увидишь, из чего он сложился.</li>
+          <li><b>Воронка офферов</b> — сколько дошло до каждого шага. Где процент проседает — там теряешь деньги.</li>
+          <li><b>Топ офферов, сети, источники</b> — что реально приносит, а что только отнимает время.</li>
+          <li><b>Отчётный лист и «Факт · что уже выплачено»</b> — впиши, сколько реально пришло от сетей и сколько ушло на налог, партнёра, лидам. Увидишь, сколько <b>реально на руках</b> и сколько ещё должны тебе.</li>
+        </ul>
+        <p><b>«Ещё» → «Выплаты от сетей»</b> — сверка: засчитано vs реально пришло. Пришёл платёж — отмечаешь, какие офферы он закрыл, и сразу видно, кто тебе не доплатил.</p>`,
+    },
+    {
+      icon: "🔒",
+      title: "Приватность и безопасность",
+      html: `<ul>
+          <li><b>Твоих лидов видишь только ты.</b> Ни другие ученики, ни наставник не видят ники, имена и офферы твоих людей.</li>
+          <li>Наставник видит только <b>твои общие цифры</b>: сколько у тебя лидов и сколько засчитано за месяц. Это нужно, чтобы видеть твой прогресс и помогать, когда ты встал.</li>
+          <li>Телефоны и ФИО — <b>по желанию</b>. Для работы хватает ника.</li>
+          <li><b>«Ещё» → «Бэкап и выгрузка»</b> — бот пришлёт тебе файлы со всеми лидами: таблицы для Excel и полный бэкап.</li>
+          <li>Вход — через Telegram, без паролей. Твой личный код больше ни у кого не сработает.</li>
+        </ul>`,
+    },
+    {
+      icon: "🔥",
+      title: "Правила, по которым CRM приносит деньги",
+      html: `<ul>
+          <li><b>1. Каждый лид — сразу в CRM.</b> Без исключений.</li>
+          <li><b>2. Статус — в момент события.</b> Открыл счёт — отметил. Сделал ЦД — отметил.</li>
+          <li><b>3. Утро начинается с «Сегодня».</b> 10 минут — и ты знаешь, где сегодня деньги.</li>
+          <li><b>4. У каждого живого лида есть следующий шаг.</b> Нет шага — лид умирает.</li>
+          <li><b>5. Раз в неделю — фильтр по офферу.</b> Кому ещё не предлагал Озон, ВТБ, карты. Это бесплатные деньги из твоей же базы.</li>
+          <li><b>6. Раз в месяц — сверка с сетями.</b> Не дай им «забыть» тебе заплатить.</li>
+        </ul>
+        <div class="tip">Деньги не в том, сколько людей ты привёл. Деньги в том, скольких ты <b>довёл</b>. Погнали. 🚀</div>
+        ${brandFoot()}`,
+    },
+  ];
+};
+
+function guideOverlay(i = 0) {
+  document.querySelector(".guide")?.remove();
+  const steps = GUIDE();
+  i = Math.max(0, Math.min(i, steps.length - 1));
+  const s = steps[i];
+  const last = i === steps.length - 1;
+  const el = document.createElement("div");
+  el.className = "guide";
+  el.innerHTML = `
+    <div class="guide-top">
+      <div class="brand" style="margin:0"><div class="brand-mark">RYZHIKOV <b>ACADEMY</b></div><button class="link" data-gclose>${last ? "" : "Пропустить"}</button></div>
+      <div class="guide-bar">${steps.map((_, k) => `<i class="${k <= i ? "on" : ""}"></i>`).join("")}</div>
+    </div>
+    <div class="guide-body">
+      <div class="guide-icon">${s.icon}</div>
+      <div class="sub">${i + 1} из ${steps.length}</div>
+      <h1>${s.title}</h1>
+      ${s.html}
+    </div>
+    <div class="guide-nav">
+      ${i ? `<button class="btn ghost2" data-gprev>← Назад</button>` : ""}
+      <button class="btn" data-gnext>${last ? "Начать работу 🚀" : "Дальше →"}</button>
+    </div>`;
+  document.body.append(el);
+  const done = () => {
+    store.set(`guide_done_${state.me?.id}`, "1");
+    el.remove();
+  };
+  el.querySelector("[data-gclose]").onclick = done;
+  el.querySelector("[data-gprev]")?.addEventListener("click", () => guideOverlay(i - 1));
+  el.querySelector("[data-gnext]").onclick = () => (last ? done() : (haptic("light"), guideOverlay(i + 1)));
 }
 
 // ---------- КАБИНЕТ НАСТАВНИКА (CRM учеников) ----------
@@ -1456,9 +1703,9 @@ async function renderStudents() {
 }
 
 function joinScreen() {
-  $app.innerHTML = `<div class="card join">
-    <h1>🎓 CRM академии</h1>
-    <div class="sub" style="margin:6px 0 14px">Здесь ты ведёшь своих лидов: офферы, статусы, деньги и статистику. Доступ — по коду от наставника.</div>
+  $app.innerHTML = `${brandBar()}<div class="card join">
+    <h1>🎓 CRM для учеников</h1>
+    <div class="sub" style="margin:6px 0 14px">Твоя система для работы с лидами: офферы, статусы, деньги, статистика. Бонус для учеников Ryzhikov Academy — вход только по личному коду от наставника.</div>
     <label class="field"><span>Код доступа</span><input id="joinCode" placeholder="Например: K7M2QX" autocomplete="off" autocapitalize="characters"></label>
     <button class="btn block" id="joinBtn">Войти</button>
   </div>`;
@@ -1470,6 +1717,7 @@ function joinScreen() {
       await api("POST", "/join", { code });
       await reload();
       $tabs.hidden = false;
+      guideOverlay(0);
     } catch (err) {
       e.target.disabled = false;
       toast({ bad_code: "Код не подошёл — проверь буквы", code_used: "Этот код уже использован", disabled: "Доступ закрыт — напиши наставнику" }[err.data?.error] || `Ошибка: ${err.message}`);
@@ -1974,6 +2222,7 @@ const deepTab = params.get("tab");
 reload()
   .then(() => {
     $tabs.hidden = false;
+    if (ACADEMY && !store.get(`guide_done_${state.me.id}`)) guideOverlay(0);
     if (deepLead && state.leads.some((l) => l.id === deepLead)) go({ leadId: deepLead });
     else if (["today", "leads", "stats", "more"].includes(deepTab)) go({ tab: deepTab });
   })

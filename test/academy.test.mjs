@@ -102,6 +102,6 @@ test("academy bot: /start CODE from the invite link gives access", async () => {
   const ok = new Request("https://crm.test/academy/api/tg", { method: "POST", headers: { "x-telegram-bot-api-secret-token": await webhookSecretFor(TOKEN) }, body: JSON.stringify({ message: { from: { id: 20, first_name: "Гоша" }, chat: { id: 20, type: "private" }, text: `/start ${code}` } }) });
   assert.equal((await handle(ok)).status, 200);
   assert.equal((await store.getJSON("members/20")).active, true);
-  assert.match(sent[0].text, /это твоя CRM/);
+  assert.match(sent[0].text, /RYZHIKOV ACADEMY/);
   assert.ok(sent[0].reply_markup.includes("/academy/"));
 });
