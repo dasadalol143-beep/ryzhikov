@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ru" class="dark" data-theme="red">
+<!-- CRM учеников: та же программа, файлы берутся из корня — Cloudflare раздаёт их бесплатно, не считая в лимит запросов. -->
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <title>Ryzhikov Academy CRM</title>
+  <script src="/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <main id="app">
+    <div class="loader">Загрузка…</div>
+  </main>
+  <nav id="tabs" hidden>
+    <button data-tab="today" class="active"><span class="ti">☀️</span>Сегодня</button>
+    <button data-tab="leads"><span class="ti">👥</span>Лиды</button>
+    <button data-tab="stats"><span class="ti">📊</span>Статистика</button>
+    <button data-tab="more"><span class="ti">⋯</span>Ещё</button>
+  </nav>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

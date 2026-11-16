@@ -2556,7 +2556,8 @@ safe(() => tg?.BackButton.onClick(() => {
 let lastLoad = 0;
 // Вернулся в CRM через минуту+ — подтягиваем свежие данные (партнёр мог что-то поменять).
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState !== "visible" || !state.me || Date.now() - lastLoad < 60000) return;
+  // У ученика CRM открыта на одном телефоне — обновляем реже, чтобы не тратить лимит запросов.
+  if (document.visibilityState !== "visible" || !state.me || Date.now() - lastLoad < (ACADEMY ? 180000 : 60000)) return;
   if (document.querySelector(".sheet-wrap, .dialog-wrap") || document.activeElement?.matches("input, textarea")) return;
   const y = window.scrollY;
   reload().then(() => window.scrollTo(0, y)).catch(() => {});

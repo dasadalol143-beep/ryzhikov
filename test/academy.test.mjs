@@ -240,7 +240,9 @@ test("auto-export: Excel in the morning, only when due and only if something cha
   // у 40-го появились изменения после выгрузки — через 3 дня придёт свежий файл
   const st40 = await store.getJSON("stats/40");
   await store.setJSON("stats/40", { ...st40, lastActivity: new Date(day + 86400000).toISOString() });
-  assert.deepEqual((await runAcademyExports({ store, mainStore, env, now: day + 3 * 86400000, fetchImpl: fakeFetch })).map((r) => r.id), [40]);
+  // список перечитывается не чаще раза в 30 минут — через полчаса файл уйдёт
+  assert.deepEqual(await runAcademyExports({ store, mainStore, env, now: day + 3 * 86400000 + 60000, fetchImpl: fakeFetch }), []);
+  assert.deepEqual((await runAcademyExports({ store, mainStore, env, now: day + 3 * 86400000 + 31 * 60000, fetchImpl: fakeFetch })).map((r) => r.id), [40]);
 });
 
 test("academy bot: /excel sends the file, strangers get a polite refusal, Telegram secret required", async () => {
